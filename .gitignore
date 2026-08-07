@@ -1,0 +1,29 @@
+# Sistema operacional
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# Nunca versionar credenciais do Firebase nem chaves de serviço.
+# A configuração pública do Firebase (apiKey do cliente) pode ir no
+# repositório; a chave de conta de serviço, jamais.
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+.env
+.env.*
+.firebaserc
+firebase-debug.log
+
+# Documentos de cliente não entram no repositório em hipótese alguma
+documentos/
+uploads/
+*.pdf
+*.docx
+*.xlsx

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- ============================================================
+     Política de Segurança de Conteúdo
+     Tudo vem da própria origem. Nenhum script externo, nenhuma
+     CDN, nenhuma fonte remota. Scripts inline são proibidos —
+     é a defesa central contra XSS.
+     ============================================================ -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:;
+  font-src 'self';
+  connect-src 'self';
+  media-src 'self' blob:;
+  worker-src 'self';
+  manifest-src 'self';
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+  frame-src 'none';
+  upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+
+<title>Portal do Cliente · Totali</title>
+<meta name="description" content="Portal de onboarding da Totali Soluções Contábeis: envio de documentos, acompanhamento da migração e trilhas de aprendizado.">
+<meta name="robots" content="noindex, nofollow">
+
+<meta name="theme-color" content="#14293f">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Totali">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="icon" href="assets/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#view">Ir para o conteúdo</a>
+
+<!-- ============================================================
+     Sprite de ícones — traço 1.6, sem emoji.
+     ============================================================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="_base" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+
+  <symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/>
+  </symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2l1.8 2.2h9A1.5 1.5 0 0 1 21 9.7v8.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>
+  </symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 5.5v13l11-6.5z"/>
+  </symbol>
+  <symbol id="ic-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 20V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V20"/>
+    <path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V20"/><path d="M2.5 20h19"/>
+    <path d="M7 8h4M7 12h4M7 16h4M17 14h1M17 17h1"/>
+  </symbol>
+  <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.4"/>
+    <path d="M12 17h.01"/>
+  </symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 3H7.5A1.5 1.5 0 0 0 6 4.5v15A1.5 1.5 0 0 0 7.5 21h9a1.5 1.5 0 0 0 1.5-1.5V7z"/>
+    <path d="M14 3v4.5H18"/><path d="M9 13h6M9 16.5h4"/>
+  </symbol>
+  <symbol id="ic-sheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="1.6"/><path d="M4 9.5h16M4 14.5h16M9.5 4v16"/>
+  </symbol>
+  <symbol id="ic-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4.5" width="17" height="15" rx="1.8"/><circle cx="9" cy="9.8" r="1.6"/>
+    <path d="m4 17 4.5-4.5 3.5 3 3-2.5L20 17"/>
+  </symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9.5" cy="8.5" r="3.2"/><path d="M3.5 19.5c0-3 2.7-5 6-5s6 2 6 5"/>
+    <path d="M16 5.6a3.2 3.2 0 0 1 0 6"/><path d="M17.5 14.9c1.9.6 3.2 2.2 3.2 4.6"/>
+  </symbol>
+  <symbol id="ic-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="11" r="2.3"/>
+    <path d="M5.5 16.6c.5-1.6 1.9-2.4 3.5-2.4s3 .8 3.5 2.4"/><path d="M15 9.5h3.5M15 13h2.5"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m5 12.5 4.5 4.5L19 7.5"/>
+  </symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.6"/>
+  </symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/>
+  </symbol>
+  <symbol id="ic-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m6 9.5 6 6 6-6"/>
+  </symbol>
+  <symbol id="ic-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m9.5 6 6 6-6 6"/>
+  </symbol>
+  <symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15M13.5 6l6 6-6 6"/>
+  </symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 15.5V4.5"/><path d="m7.5 9 4.5-4.5L16.5 9"/>
+    <path d="M4.5 15v3.2A1.8 1.8 0 0 0 6.3 20h11.4a1.8 1.8 0 0 0 1.8-1.8V15"/>
+  </symbol>
+  <symbol id="ic-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4.5v11"/><path d="m7.5 11 4.5 4.5L16.5 11"/>
+    <path d="M4.5 15v3.2A1.8 1.8 0 0 0 6.3 20h11.4a1.8 1.8 0 0 0 1.8-1.8V15"/>
+  </symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 6.5h15"/><path d="M9.5 6.5V4.8A1.3 1.3 0 0 1 10.8 3.5h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7"/>
+    <path d="M6.5 6.5 7.4 19a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.5"/>
+    <path d="M10.5 10v6.5M13.5 10v6.5"/>
+  </symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.8h.01"/>
+  </symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.6 4.2 2.9 17.4A1.6 1.6 0 0 0 4.3 20h15.4a1.6 1.6 0 0 0 1.4-2.6L13.4 4.2a1.6 1.6 0 0 0-2.8 0z"/>
+    <path d="M12 9.5v4"/><path d="M12 16.8h.01"/>
+  </symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3 5 5.8v5.4c0 4.3 2.9 7.6 7 9.3 4.1-1.7 7-5 7-9.3V5.8z"/>
+    <path d="m9.2 12.2 2 2 3.6-3.8"/>
+  </symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4.8" y="10.5" width="14.4" height="9.5" rx="1.8"/>
+    <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/><path d="M12 14.3v2.4"/>
+  </symbol>
+  <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="5.2" width="18" height="13.6" rx="1.8"/><path d="m3.6 6.6 8.4 6 8.4-6"/>
+  </symbol>
+  <symbol id="ic-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7.2 3.5H9l1.5 3.8-1.9 1.4a11.5 11.5 0 0 0 5.7 5.7l1.4-1.9 3.8 1.5v1.8a2.2 2.2 0 0 1-2.4 2.2C10.4 17.4 6.1 13.1 5 5.9a2.2 2.2 0 0 1 2.2-2.4z"/>
+  </symbol>
+  <symbol id="ic-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13.5 4.5H19.5V10.5"/><path d="M19.5 4.5 11 13"/>
+    <path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>
+  </symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5.5v13M5.5 12h13"/>
+  </symbol>
+</svg>
+
+<!-- ============================================================
+     Cabeçalho
+     ============================================================ -->
+<header class="app-header dark-surface">
+  <div class="brand">
+    <img class="brand__logo" src="assets/totali-logo-branca.png" alt="Totali Soluções Contábeis" width="730" height="277">
+    <span class="brand__divider" aria-hidden="true"></span>
+    <div class="brand__text">
+      <div class="brand__title">Portal do Cliente</div>
+      <div class="brand__sub">Onboarding</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button type="button" class="hbtn hbtn--gold" id="btnInstalar" hidden>
+      <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>
+      <span class="hbtn__label">Instalar</span>
+    </button>
+    <button type="button" class="hbtn" data-nav="ajuda" aria-label="Ajuda">
+      <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>
+      <span class="hbtn__label">Ajuda</span>
+    </button>
+  </div>
+</header>
+
+<!-- ============================================================
+     Corpo
+     ============================================================ -->
+<div class="shell">
+
+  <nav class="sidenav" aria-label="Navegação principal">
+    <div class="sidenav__label">Menu</div>
+
+    <button type="button" class="sidenav__item" data-nav="inicio">
+      <svg class="ic" aria-hidden="true"><use href="#ic-home"></use></svg>Início
+    </button>
+    <button type="button" class="sidenav__item" data-nav="documentos">
+      <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Documentos
+      <span class="sidenav__badge" data-badge-pendentes hidden></span>
+    </button>
+    <button type="button" class="sidenav__item" data-nav="academy">
+      <svg class="ic" aria-hidden="true"><use href="#ic-play"></use></svg>Academy
+    </button>
+    <button type="button" class="sidenav__item" data-nav="empresa">
+      <svg class="ic" aria-hidden="true"><use href="#ic-building"></use></svg>Empresa
+    </button>
+    <button type="button" class="sidenav__item" data-nav="ajuda">
+      <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>Ajuda
+    </button>
+
+    <div class="sidenav__card">
+      <div class="t">Alguma dúvida?</div>
+      <div class="d">Nossa equipe acompanha sua migração do começo ao fim.</div>
+      <a class="btn btn--gold btn--sm" style="margin-top:12px;width:100%"
+         href="https://wa.me/5579998412107" target="_blank" rel="noopener noreferrer">
+        <svg class="ic" aria-hidden="true"><use href="#ic-phone"></use></svg>Falar no WhatsApp
+      </a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div id="view" class="view" tabindex="-1">
+      <div class="card card--pad">
+        <p class="text-sm text-muted">Carregando o portal…</p>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="card card--pad" style="margin-top:16px">
+        <p style="font-size:14px;line-height:1.6">
+          Este portal precisa de JavaScript ativado para funcionar. Ative o JavaScript nas
+          configurações do seu navegador ou fale com a Totali pelo WhatsApp (79) 99841-2107.
+        </p>
+      </div>
+    </noscript>
+  </main>
+</div>
+
+<!-- ============================================================
+     Barra inferior (celular)
+     ============================================================ -->
+<nav class="tabbar" aria-label="Navegação principal">
+  <button type="button" class="tabbar__item" data-nav="inicio">
+    <svg class="ic" aria-hidden="true"><use href="#ic-home"></use></svg>Início
+  </button>
+  <button type="button" class="tabbar__item" data-nav="documentos">
+    <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Documentos
+    <span class="tabbar__badge" data-badge-pendentes hidden></span>
+  </button>
+  <button type="button" class="tabbar__item" data-nav="academy">
+    <svg class="ic" aria-hidden="true"><use href="#ic-play"></use></svg>Academy
+  </button>
+  <button type="button" class="tabbar__item" data-nav="empresa">
+    <svg class="ic" aria-hidden="true"><use href="#ic-building"></use></svg>Empresa
+  </button>
+  <button type="button" class="tabbar__item" data-nav="ajuda">
+    <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>Ajuda
+  </button>
+</nav>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
