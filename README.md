@@ -29,7 +29,12 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Painel interno da equipe | pendente (`equipe.html`) |
 | Login por empresa | pendente (Firebase Authentication) |
 | Banco de dados e armazenamento na nuvem | pendente (Firebase) |
-| Integração com o checklist contábil interno | pendente |
+| Etapas clicáveis com liberação progressiva | pronto |
+| Checklist financeiro trazido para dentro | tela pronta; PDF do termo pendente |
+| Academy em destaque após o envio | pronto |
+| Dossiê de entrada em PDF | pendente |
+| Cobrança automática de pendências | pendente (Cloud Functions) |
+| Backup em pasta do computador da equipe | pendente |
 
 Enquanto o Firebase não entra, **tudo fica no aparelho do cliente**: o cadastro
 no `localStorage` e os arquivos no `IndexedDB`. Nada trafega pela internet.
@@ -181,6 +186,46 @@ aparelho, nada é sobrescrito.
 `equipe.html` hoje **não tem login** e só monta o link — não acessa documento
 nem dado de cliente. Quando o Firebase entrar, ela vira o painel interno
 autenticado e o link passa a levar somente um código de convite.
+
+### Integração dos outros sistemas
+
+Este portal é a **porta de entrada única** do cliente. Os demais sistemas da
+Totali passam a viver aqui dentro, e não como links soltos.
+
+**Checklist financeiro** (`github.com/totalicontabilidade/checklist-financeiro`)
+— o conteúdo já foi trazido: bancos, maquininhas, forma de envio dos relatórios
+e observações agora são a **etapa 4** do onboarding (`#/financeiro`), com as
+mesmas listas do sistema original.
+
+Duas diferenças propositais em relação ao original:
+
+1. **Não existe campo de login e senha de maquininha.** No sistema antigo esses
+   dados eram digitados no formulário e guardados numa subcoleção restrita a
+   admin. Aqui o cliente escolhe a forma e o acesso é combinado com a equipe
+   fora de formulário — mesma regra dos outros itens de acesso do portal. Vale
+   pedir à maquininha um **perfil de consulta**: dá acesso aos relatórios sem
+   permitir movimentar dinheiro.
+2. **O termo em PDF ainda não é gerado.** O original usa jsPDF via CDN, o que a
+   CSP daqui bloqueia de propósito. Ao portar, a biblioteca precisa ser
+   vendorizada em `lib/`, como já se faz no projeto Tina.
+
+**Para integrar um sistema novo**, o caminho é sempre o mesmo: o conteúdo entra
+em `js/data.js`, o estado ganha um ramo em `estadoInicial()` com validação
+correspondente em `sanear()`, a tela vira uma `view*()` em `js/app.js` com rota
+em `ROTAS`, e a etapa entra em `DATA.ETAPAS`. A trilha, o progresso e a
+navegação se ajustam sozinhos.
+
+### Etapas e liberação progressiva
+
+`Store.trilha()` devolve as seis etapas com a situação de cada uma
+(`concluida`, `atual`, `aberta`, `bloqueada`). Uma etapa só abre quando a
+anterior está concluída, e cada etapa liberada é um botão que leva direto à sua
+tela. As bloqueadas mostram o motivo, para o cliente nunca ficar sem saber o que
+falta.
+
+Quando documentos e financeiro terminam, a **Academy sobe para o topo da tela
+inicial** e deixa de ser rodapé: é o que faz o cliente voltar ao portal depois
+da migração.
 
 ### Notificações
 

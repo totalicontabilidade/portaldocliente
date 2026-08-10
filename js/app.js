@@ -15,6 +15,7 @@
   var ROTAS = [
     { id: "inicio",      titulo: "Início",     icone: "ic-home",     nav: true },
     { id: "documentos",  titulo: "Documentos", icone: "ic-folder",   nav: true },
+    { id: "financeiro",  titulo: "Bancos e maquininhas", icone: "ic-card", nav: true },
     { id: "mensagens",   titulo: "Mensagens",  icone: "ic-chat",     nav: true },
     { id: "academy",     titulo: "Academy",    icone: "ic-play",     nav: true },
     { id: "empresa",     titulo: "Empresa",    icone: "ic-building", nav: true },
@@ -71,6 +72,50 @@
       '</div>';
   }
 
+  /* Trilha do onboarding. Cada etapa liberada é um botão que leva
+     à tela dela; as ainda bloqueadas ficam inertes, com o motivo
+     visível — o cliente nunca fica sem saber o que falta. */
+  function trilhaHTML(opcoes) {
+    var o = opcoes || {};
+    var passos = Store.trilha();
+    var feitas = passos.filter(function (p) { return p.situacao === "concluida"; }).length;
+
+    var itens = passos.map(function (p, i) {
+      var cls = p.situacao === "concluida" ? "rail__step--done"
+              : p.situacao === "atual" ? "rail__step--current"
+              : "rail__step--todo";
+      var marca = p.situacao === "concluida" ? ic("ic-check") : String(i + 1);
+      var interno =
+        '<span class="rail__dot">' + marca + '</span>' +
+        '<span class="rail__title">' + U.esc(p.titulo) +
+          (p.situacao === "atual" && p.acao
+            ? ' <span class="rail__acao">' + U.esc(p.acao) + '</span>' : '') + '</span>' +
+        '<span class="rail__desc">' + U.esc(p.desc) + '</span>';
+
+      if (o.clicavel && p.podeAbrir) {
+        return '<button type="button" class="rail__step rail__step--link ' + cls + '" ' +
+          'data-rota="' + U.escAttr(p.rota) + '">' + interno +
+          '<span class="rail__chev">' + ic("ic-chevron-right") + '</span></button>';
+      }
+      return '<div class="rail__step ' + cls + '">' + interno +
+        (p.situacao === "bloqueada"
+          ? '<span class="rail__trava">Conclua a etapa anterior</span>' : '') + '</div>';
+    }).join("");
+
+    return '<section class="section">' +
+      '<div class="section__head"><div>' +
+        '<h2 class="section__title">' + U.esc(o.titulo || "Como vai funcionar") + '</h2>' +
+        '<p class="section__desc">' +
+          (o.clicavel
+            ? "Toque em uma etapa liberada para ir direto até ela. " + feitas + " de " +
+              passos.length + " concluídas."
+            : "A migração acontece em " + passos.length + " etapas.") +
+        '</p>' +
+      '</div></div>' +
+      '<div class="card card--pad"><div class="rail">' + itens + '</div></div>' +
+    '</section>';
+  }
+
   var ROTULO_SITUACAO = {
     enviado:     { texto: "Enviado",           cls: "badge--enviado" },
     analise:     { texto: "Em análise",        cls: "badge--analise" },
@@ -99,20 +144,7 @@
         'Leva poucos minutos para começar.</p>' +
     '</section>' +
 
-    '<section class="section">' +
-      '<div class="card card--pad">' +
-        '<h2 class="section__title" style="margin-bottom:14px">Como vai funcionar</h2>' +
-        '<div class="rail">' +
-          DATA.ETAPAS.map(function (e, i) {
-            return '<div class="rail__step ' + (i === 0 ? "rail__step--current" : "rail__step--todo") + '">' +
-              '<div class="rail__dot">' + (i + 1) + '</div>' +
-              '<div class="rail__title">' + U.esc(e.titulo) + '</div>' +
-              '<div class="rail__desc">' + U.esc(e.desc) + '</div>' +
-            '</div>';
-          }).join("") +
-        '</div>' +
-      '</div>' +
-    '</section>' +
+    trilhaHTML({ titulo: "Como vai funcionar", clicavel: false }) +
 
     '<section class="section">' +
       '<div class="notice notice--info">' +
@@ -217,6 +249,13 @@
       '</div>' +
     '</section>';
 
+    /* Envio concluído: a Academy sobe para o topo da tela. */
+    var passos = Store.trilha();
+    var enviouTudo = passos.filter(function (p) {
+      return (p.id === "documentos" || p.id === "financeiro") && p.situacao === "concluida";
+    }).length === 2;
+    if (enviouTudo) html += academyDestaqueHTML();
+
     /* Próximos passos */
     var pendentes = proximosPendentes(4);
     if (pendentes.length) {
@@ -285,29 +324,10 @@
       '</div>' +
     '</section>';
 
-    /* Trilha das etapas */
-    html +=
-    '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h2 class="section__title">Onde você está</h2>' +
-        '<p class="section__desc">A migração acontece em cinco etapas.</p>' +
-      '</div></div>' +
-      '<div class="card card--pad">' +
-        '<div class="rail">' +
-          DATA.ETAPAS.map(function (e, i) {
-            var cls = i < idxEtapa ? "rail__step--done" : i === idxEtapa ? "rail__step--current" : "rail__step--todo";
-            var dot = i < idxEtapa ? ic("ic-check") : String(i + 1);
-            return '<div class="rail__step ' + cls + '">' +
-              '<div class="rail__dot">' + dot + '</div>' +
-              '<div class="rail__title">' + U.esc(e.titulo) + '</div>' +
-              '<div class="rail__desc">' + U.esc(e.desc) + '</div>' +
-            '</div>';
-          }).join("") +
-        '</div>' +
-      '</div>' +
-    '</section>';
+    /* Trilha das etapas — cada uma leva à sua tela. */
+    html += trilhaHTML({ titulo: "Onde você está", clicavel: true });
 
-    /* Academy — chamada */
+    /* Academy — discreta durante o envio, protagonista depois dele. */
     html +=
     '<section class="section">' +
       '<div class="section__head"><div>' +
@@ -319,6 +339,26 @@
     '</section>';
 
     return html + rodape();
+  }
+
+  /* Quando o envio termina, a Academy deixa de ser rodapé e vira o
+     motivo de o cliente voltar ao portal. */
+  function academyDestaqueHTML() {
+    return '<section class="section">' +
+      '<div class="hero" style="padding-bottom:22px">' +
+        '<div class="eyebrow">Totali Academy</div>' +
+        '<h2 class="hero__title" style="font-size:22px">Agora é a sua vez de dominar a rotina</h2>' +
+        '<p class="hero__desc">Documentação entregue. Daqui em diante o portal vira o seu ponto de ' +
+          'apoio: trilhas curtas sobre notas fiscais, impostos, folha e o que enviar todo mês.</p>' +
+        '<div class="hero__actions">' +
+          '<button type="button" class="btn btn--gold" data-rota="academy">' +
+            ic("ic-play") + 'Começar pela primeira trilha</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tiles" style="margin-top:14px">' +
+        DATA.ACADEMY.slice(0, 3).map(tileAcademy).join("") +
+      '</div>' +
+    '</section>';
   }
 
   /* ============================================================
@@ -631,6 +671,217 @@
     }
 
     UI.modal({ titulo: item.nome, corpoHTML: corpo, acoes: [{ rotulo: "Entendi", classe: "btn--primary" }] });
+  }
+
+  /* ============================================================
+     Tela: Financeiro (bancos e maquininhas)
+
+     Conteúdo herdado do sistema "checklist financeiro" da Totali,
+     que deixa de ter link próprio. Diferença importante em relação
+     ao original: aqui NÃO existe campo de login e senha de
+     maquininha. O cliente escolhe a forma, e o acesso é combinado
+     com a equipe fora de formulário — mesma regra dos demais
+     itens de acesso do portal.
+     ============================================================ */
+  function caixaSelecao(nome, valor, marcado, rotulo) {
+    return '<label class="opcao' + (marcado ? " opcao--on" : "") + '">' +
+      '<input type="checkbox" data-' + nome + '="' + U.escAttr(valor) + '"' +
+      (marcado ? " checked" : "") + '>' +
+      '<span>' + U.esc(rotulo) + '</span></label>';
+  }
+
+  function botaoSimNao(campo, valorAtual) {
+    return '<div class="segm" role="group">' +
+      ['sim', 'nao'].map(function (v) {
+        return '<button type="button" class="segm__b' + (valorAtual === v ? " segm__b--on" : "") +
+          '" data-simnao="' + campo + '" data-valor="' + v + '">' +
+          (v === "sim" ? "Sim" : "Não") + '</button>';
+      }).join("") +
+    '</div>';
+  }
+
+  function viewFinanceiro() {
+    var f = Store.estado.financeiro;
+    var respondido = Store.financeiroRespondido();
+    var concluido = !!f.concluidoEm;
+
+    var html = '<section class="section">' +
+      '<div class="section__head"><div>' +
+        '<div class="eyebrow">Etapa 4</div>' +
+        '<h1 class="section__title" style="font-size:20px;margin-top:4px">Bancos e maquininhas</h1>' +
+        '<p class="section__desc">Precisamos saber por onde entra e sai o dinheiro da empresa. ' +
+          'São três perguntas rápidas.</p>' +
+      '</div></div>';
+
+    if (concluido) {
+      html += '<div class="notice notice--ok" style="margin-bottom:16px">' +
+        '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
+        '<span><strong>Respondido em ' + U.esc(U.dataCurta(f.concluidoEm)) + '.</strong> ' +
+        'Mudou alguma coisa? Pode alterar aqui embaixo e enviar de novo.</span></div>';
+    }
+
+    /* --- Bancos --- */
+    html += '<div class="card card--pad" style="margin-bottom:14px">' +
+      '<h2 class="section__title" style="font-size:16px">A empresa tem conta em banco?</h2>' +
+      '<p class="section__desc" style="margin-bottom:12px">Considere todas as contas usadas pela ' +
+        'empresa, inclusive as digitais.</p>' +
+      botaoSimNao("temBanco", f.temBanco);
+
+    if (f.temBanco === "sim") {
+      html += '<div class="hr"></div>' +
+        '<div class="field__label">Marque os bancos que a empresa usa</div>' +
+        '<div class="opcoes">' +
+          DATA.BANCOS.map(function (b) {
+            return caixaSelecao("banco", b, f.bancos.indexOf(b) > -1, b);
+          }).join("") +
+        '</div>' +
+        '<div class="field" style="margin-top:14px;margin-bottom:0">' +
+          '<label class="field__label" for="fBancoOutro">Algum banco fora da lista?</label>' +
+          '<input type="text" class="input" id="fBancoOutro" data-fin="bancoOutro" maxlength="200" ' +
+          'autocomplete="off" value="' + U.escAttr(f.bancoOutro) + '" placeholder="Opcional"></div>';
+    }
+    html += '</div>';
+
+    /* --- Maquininhas --- */
+    html += '<div class="card card--pad" style="margin-bottom:14px">' +
+      '<h2 class="section__title" style="font-size:16px">A empresa recebe por maquininha?</h2>' +
+      '<p class="section__desc" style="margin-bottom:12px">Cartão de crédito, débito, Pix por ' +
+        'maquininha ou link de pagamento.</p>' +
+      botaoSimNao("temMaquineta", f.temMaquineta);
+
+    if (f.temMaquineta === "sim") {
+      html += '<div class="hr"></div>' +
+        '<div class="field__label">Marque as maquininhas que a empresa usa</div>' +
+        '<div class="opcoes">' +
+          DATA.MAQUINETAS.map(function (m) {
+            return caixaSelecao("maquineta", m, f.maquinetas.indexOf(m) > -1, m);
+          }).join("") +
+        '</div>' +
+        '<div class="field" style="margin-top:14px">' +
+          '<label class="field__label" for="fMaqOutra">Alguma maquininha fora da lista?</label>' +
+          '<input type="text" class="input" id="fMaqOutra" data-fin="maquinetaOutra" maxlength="200" ' +
+          'autocomplete="off" value="' + U.escAttr(f.maquinetaOutra) + '" placeholder="Opcional"></div>' +
+        '</div>' +
+
+        '<div class="card card--pad" style="margin-bottom:14px">' +
+        '<h2 class="section__title" style="font-size:16px">Como vamos receber os relatórios de venda?</h2>' +
+        '<p class="section__desc" style="margin-bottom:14px">Todo mês precisamos do relatório de ' +
+          'vendas, do de recebimentos e do de antecipações de cada maquininha. Sem eles, o ' +
+          'faturamento do cartão não entra na contabilidade.</p>' +
+        '<div class="escolhas">' +
+          DATA.FORMAS_RELATORIO.map(function (o) {
+            var on = f.formaRelatorio === o.id;
+            return '<button type="button" class="escolha' + (on ? " escolha--on" : "") +
+              '" data-forma-rel="' + U.escAttr(o.id) + '">' +
+              '<span class="escolha__marca">' + (on ? ic("ic-check") : "") + '</span>' +
+              '<span class="escolha__txt">' +
+                '<span class="escolha__t">' + U.esc(o.titulo) +
+                  (o.recomendado ? ' <span class="badge badge--aprovado" style="margin-left:6px">' +
+                    'Mais prático</span>' : '') + '</span>' +
+                '<span class="escolha__d">' + U.esc(o.desc) + '</span>' +
+              '</span></button>';
+          }).join("") +
+        '</div>';
+
+      if (f.formaRelatorio === "envio") {
+        html += '<div class="notice notice--warn" style="margin-top:14px">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>Compromisso de envio.</strong> Ao escolher esta opção, você se ' +
+          'compromete a enviar os três relatórios de cada maquininha todo mês. O que não chegar ' +
+          'não é contabilizado, e o atraso daí decorrente não é responsabilidade da Totali. ' +
+          'Ao concluir, geramos um termo para você guardar.</span></div>';
+      }
+      if (f.formaRelatorio === "acesso") {
+        html += '<div class="notice notice--info" style="margin-top:14px">' +
+          '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
+          '<span><strong>Não digite senha aqui.</strong> Nossa equipe entra em contato para ' +
+          'combinar o acesso pelo caminho mais seguro de cada maquininha — várias têm perfil de ' +
+          'consulta, que é o ideal: dá acesso só aos relatórios, sem mexer no dinheiro.</span></div>';
+      }
+      html += '</div>';
+    }
+
+    /* --- Observações e conclusão --- */
+    html += '<div class="card card--pad">' +
+      '<div class="field">' +
+        '<label class="field__label" for="fObs">Quer nos contar mais alguma coisa?</label>' +
+        '<textarea class="textarea" id="fObs" data-fin="observacoes" maxlength="2000" ' +
+          'placeholder="Opcional. Qualquer detalhe que ajude a entender o financeiro da empresa.">' +
+          U.esc(f.observacoes) + '</textarea>' +
+      '</div>' +
+      '<button type="button" class="btn btn--primary btn--block" id="btnConcluirFin"' +
+        (respondido ? "" : " disabled") + '>' +
+        (concluido ? "Salvar alterações" : "Concluir esta etapa") + ic("ic-arrow-right") + '</button>' +
+      (respondido ? "" :
+        '<p class="text-xs text-muted" style="margin-top:10px;text-align:center">' +
+        'Responda as perguntas acima para concluir.</p>') +
+    '</div></section>';
+
+    return html + rodape();
+  }
+
+  function bindFinanceiro() {
+    $$("[data-simnao]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var campo = b.getAttribute("data-simnao");
+        var valor = b.getAttribute("data-valor");
+        var atual = Store.estado.financeiro[campo];
+        Store.definirFinanceiro(campo, atual === valor ? "" : valor);
+        Store.flush();
+        render();
+      });
+    });
+
+    ["banco", "maquineta"].forEach(function (tipo) {
+      $$("[data-" + tipo + "]").forEach(function (c) {
+        c.addEventListener("change", function () {
+          var nome = c.getAttribute("data-" + tipo);
+          var lista = tipo === "banco" ? "bancos" : "maquinetas";
+          var jaTem = Store.estado.financeiro[lista].indexOf(nome) > -1;
+          /* Só alterna quando o estado e a caixa discordam. */
+          if (c.checked !== jaTem) {
+            if (!Store.alternarFinanceiro(tipo, nome)) { c.checked = jaTem; return; }
+            Store.flush();
+          }
+          c.closest(".opcao").classList.toggle("opcao--on", c.checked);
+          atualizarBotaoFinanceiro();
+        });
+      });
+    });
+
+    $$("[data-forma-rel]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-forma-rel");
+        var atual = Store.estado.financeiro.formaRelatorio;
+        Store.definirFinanceiro("formaRelatorio", atual === v ? "" : v);
+        Store.flush();
+        render();
+      });
+    });
+
+    $$("[data-fin]").forEach(function (campo) {
+      campo.addEventListener("change", function () {
+        Store.definirFinanceiro(campo.getAttribute("data-fin"), campo.value);
+        Store.flush();
+        atualizarBotaoFinanceiro();
+      });
+    });
+
+    var btn = $("#btnConcluirFin");
+    if (btn) btn.addEventListener("click", function () {
+      if (!Store.concluirFinanceiro()) {
+        UI.toast("Responda todas as perguntas antes de concluir.", "erro");
+        return;
+      }
+      Store.flush();
+      UI.toast("Etapa concluída. Obrigado!", "ok");
+      render();
+    });
+  }
+
+  function atualizarBotaoFinanceiro() {
+    var btn = $("#btnConcluirFin");
+    if (btn) btn.disabled = !Store.financeiroRespondido();
   }
 
   /* ============================================================
@@ -1206,6 +1457,7 @@
     switch (rota) {
       case "boas-vindas": html = viewBoasVindas(); break;
       case "documentos":  html = viewDocumentos(); break;
+      case "financeiro":  html = viewFinanceiro(); break;
       case "mensagens":   html = viewMensagens(); break;
       case "academy":     html = viewAcademy(); break;
       case "empresa":     html = viewEmpresa(); break;
@@ -1229,6 +1481,7 @@
     atualizarNav(rota);
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
+    if (rota === "financeiro") bindFinanceiro();
     if (rota === "mensagens") bindMensagens();
     if (rota === "privacidade") bindPrivacidade();
   }

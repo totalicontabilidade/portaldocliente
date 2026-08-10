@@ -130,6 +130,16 @@
         responsavelNome: "", responsavelEmail: "", responsavelTelefone: "", responsavelCargo: ""
       },
       socios: [],
+      /* Etapa financeira — bancos e maquininhas. Veio do sistema
+         "checklist financeiro", que passa a viver aqui dentro.
+         Credencial de maquininha NÃO entra aqui: ela é combinada
+         com a equipe, fora de formulário. */
+      financeiro: {
+        temBanco: "", bancos: [], bancoOutro: "",
+        temMaquineta: "", maquinetas: [], maquinetaOutra: "",
+        formaRelatorio: "", observacoes: "",
+        concluidoEm: 0
+      },
       gruposNA: {},
       itens: {},      /* chave do documento -> registro           */
       mensagens: [],  /* conversa entre cliente e equipe          */
@@ -194,6 +204,27 @@
           cpf: typeof x.cpf === "string" ? x.cpf.slice(0, 20) : ""
         };
       });
+    }
+
+    if (bruto.financeiro && typeof bruto.financeiro === "object") {
+      var f = bruto.financeiro, alvo = s.financeiro;
+      var simNao = function (v) { return (v === "sim" || v === "nao") ? v : ""; };
+      alvo.temBanco = simNao(f.temBanco);
+      alvo.temMaquineta = simNao(f.temMaquineta);
+      /* Só aceitamos itens que existem na lista oficial — nada de
+         texto arbitrário virando "banco". */
+      if (Array.isArray(f.bancos)) {
+        alvo.bancos = f.bancos.filter(function (b) { return global.DATA.BANCOS.indexOf(b) > -1; });
+      }
+      if (Array.isArray(f.maquinetas)) {
+        alvo.maquinetas = f.maquinetas.filter(function (m) { return global.DATA.MAQUINETAS.indexOf(m) > -1; });
+      }
+      alvo.bancoOutro = typeof f.bancoOutro === "string" ? f.bancoOutro.slice(0, 200) : "";
+      alvo.maquinetaOutra = typeof f.maquinetaOutra === "string" ? f.maquinetaOutra.slice(0, 200) : "";
+      alvo.observacoes = typeof f.observacoes === "string" ? f.observacoes.slice(0, 2000) : "";
+      var formas = global.DATA.FORMAS_RELATORIO.map(function (x) { return x.id; });
+      alvo.formaRelatorio = formas.indexOf(f.formaRelatorio) > -1 ? f.formaRelatorio : "";
+      alvo.concluidoEm = typeof f.concluidoEm === "number" ? f.concluidoEm : 0;
     }
 
     if (bruto.gruposNA && typeof bruto.gruposNA === "object") {
@@ -650,14 +681,118 @@
       return estado.eventos.filter(function (e) { return e.chave === chave; });
     },
 
+    /* ---- Etapa financeira ---- */
+    financeiroRespondido: function () {
+      var f = estado.financeiro;
+      if (!f.temBanco || !f.temMaquineta) return false;
+      if (f.temBanco === "sim" && !f.bancos.length && !f.bancoOutro.trim()) return false;
+      if (f.temMaquineta === "sim") {
+        if (!f.maquinetas.length && !f.maquinetaOutra.trim()) return false;
+        if (!f.formaRelatorio) return false;
+      }
+      return true;
+    },
+
+    /* Marcar/desmarcar banco ou maquininha. A validação contra a
+       lista oficial fica AQUI, na escrita — não só na leitura.
+       Assim nada fora da lista entra no estado em momento algum. */
+    alternarFinanceiro: function (tipo, valor) {
+      var lista = tipo === "banco" ? global.DATA.BANCOS
+                : tipo === "maquineta" ? global.DATA.MAQUINETAS : null;
+      if (!lista || lista.indexOf(valor) === -1) return false;
+      var campo = tipo === "banco" ? "bancos" : "maquinetas";
+      Store.commit(function (st) {
+        var arr = st.financeiro[campo];
+        var i = arr.indexOf(valor);
+        if (i > -1) arr.splice(i, 1); else arr.push(valor);
+      }, "financeiro");
+      return true;
+    },
+
+    definirFinanceiro: function (campo, valor) {
+      var texto = { bancoOutro: 200, maquinetaOutra: 200, observacoes: 2000 };
+      var simNao = { temBanco: 1, temMaquineta: 1 };
+      var v;
+
+      if (texto[campo]) v = String(valor || "").slice(0, texto[campo]);
+      else if (simNao[campo]) v = (valor === "sim" || valor === "nao") ? valor : "";
+      else if (campo === "formaRelatorio") {
+        var ids = global.DATA.FORMAS_RELATORIO.map(function (x) { return x.id; });
+        v = ids.indexOf(valor) > -1 ? valor : "";
+      } else return false;
+
+      Store.commit(function (st) {
+        st.financeiro[campo] = v;
+        /* Responder "não" limpa o que havia sido marcado antes. */
+        if (campo === "temBanco" && v !== "sim") { st.financeiro.bancos = []; st.financeiro.bancoOutro = ""; }
+        if (campo === "temMaquineta" && v !== "sim") {
+          st.financeiro.maquinetas = [];
+          st.financeiro.maquinetaOutra = "";
+          st.financeiro.formaRelatorio = "";
+        }
+      }, "financeiro");
+      return true;
+    },
+
+    concluirFinanceiro: function () {
+      if (!Store.financeiroRespondido()) return false;
+      Store.commit(function (st) { st.financeiro.concluidoEm = Date.now(); }, "financeiro");
+      Store.registrarEvento("financeiro:concluido", "", "");
+      return true;
+    },
+
+    /* =======================================================
+       Trilha do onboarding
+
+       Devolve as etapas com a situação de cada uma, para que o
+       cliente possa clicar e ir direto ao ponto. Uma etapa só
+       abre quando a anterior está concluída — assim ninguém se
+       perde nem responde na ordem errada.
+       ======================================================= */
+    trilha: function () {
+      var e = estado.empresa;
+      var r = Store.resumoGeral();
+
+      var concluidas = {
+        "boas-vindas": !!estado.aceiteLGPD,
+        "cadastro": !!(e.razaoSocial && e.cnpj && e.responsavelNome &&
+                       e.responsavelEmail && e.responsavelTelefone),
+        "documentos": r.total > 0 && r.pendentesObrigatorios === 0 && r.pendencias === 0,
+        "financeiro": !!estado.financeiro.concluidoEm,
+        "analise": estado.etapa === "analise-ok" || estado.etapa === "ativo",
+        "ativo": estado.etapa === "ativo"
+      };
+
+      var anteriorOk = true;
+      var achouAtual = false;
+
+      return global.DATA.ETAPAS.map(function (etapa) {
+        var feita = !!concluidas[etapa.id];
+        var situacao;
+        if (feita) situacao = "concluida";
+        else if (anteriorOk && !achouAtual) { situacao = "atual"; achouAtual = true; }
+        else situacao = anteriorOk ? "aberta" : "bloqueada";
+
+        var podeAbrir = !!etapa.rota && (feita || situacao === "atual" || situacao === "aberta");
+        if (!feita) anteriorOk = false;
+
+        return {
+          id: etapa.id,
+          titulo: etapa.titulo,
+          desc: etapa.desc,
+          rota: etapa.rota || "",
+          acao: etapa.acao || "",
+          situacao: situacao,
+          podeAbrir: podeAbrir
+        };
+      });
+    },
+
     /* Etapa atual do onboarding, deduzida do preenchimento. */
     etapaAtual: function () {
-      var e = estado.empresa;
-      if (!estado.aceiteLGPD) return "boas-vindas";
-      if (!e.razaoSocial || !e.cnpj || !e.responsavelNome) return "cadastro";
-      var r = Store.resumoGeral();
-      if (r.total === 0 || r.ok < r.total) return "documentos";
-      return "analise";
+      var t = Store.trilha();
+      for (var i = 0; i < t.length; i++) if (t[i].situacao === "atual") return t[i].id;
+      return t.length ? t[t.length - 1].id : "boas-vindas";
     }
   };
 

@@ -957,7 +957,86 @@ input[type=checkbox]{accent-color:var(--gold)}
 #view:focus{outline:none}
 .gira180{transform:rotate(180deg)}
 
-/* ---------- 23. Mensagens ---------- */
+/* ---------- 23. Trilha clicável ---------- */
+.rail__step--link{
+  display:block;width:100%;text-align:left;position:relative;
+  padding-right:34px;border-radius:12px;
+  transition:background .2s var(--ease);
+}
+.rail__step--link:hover{background:var(--glass)}
+.rail__step--link .rail__title,
+.rail__step--link .rail__desc{display:block}
+.rail__chev{
+  position:absolute;right:8px;top:2px;color:var(--txt-4);
+  transition:transform .2s var(--ease),color .2s var(--ease);
+}
+.rail__chev .ic{width:18px;height:18px}
+.rail__step--link:hover .rail__chev{transform:translateX(3px);color:var(--gold-2)}
+.rail__acao{
+  display:inline-block;margin-left:8px;padding:1px 9px;border-radius:20px;
+  background:rgba(194,162,80,.16);border:1px solid var(--stroke-gold);
+  color:var(--gold-2);font-size:10.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;vertical-align:middle;
+}
+.rail__trava{
+  display:inline-block;margin-top:6px;font-size:11.5px;color:var(--txt-4);
+  padding:2px 9px;border-radius:20px;background:var(--glass);border:1px solid var(--stroke);
+}
+
+/* ---------- 24. Financeiro ---------- */
+.segm{display:inline-flex;gap:6px;padding:5px;border-radius:13px;
+  background:var(--glass);border:1px solid var(--stroke)}
+.segm__b{
+  min-width:88px;height:38px;padding:0 18px;border-radius:9px;
+  font-size:14px;font-weight:620;color:var(--txt-2);
+  transition:background .2s var(--ease),color .2s var(--ease);
+}
+.segm__b:hover{background:var(--glass-2);color:var(--txt)}
+.segm__b--on{
+  background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#0d1926;
+  box-shadow:0 3px 14px rgba(194,162,80,.3);
+}
+.segm__b--on:hover{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#0d1926}
+
+.opcoes{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+.opcao{
+  display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  padding:9px 14px;border-radius:11px;
+  background:var(--glass);border:1px solid var(--stroke);
+  font-size:13.5px;font-weight:560;color:var(--txt-2);
+  transition:background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
+}
+.opcao:hover{background:var(--glass-2);border-color:var(--stroke-2);color:var(--txt)}
+.opcao input{width:17px;height:17px;flex:none;margin:0}
+.opcao--on{
+  background:rgba(194,162,80,.13);border-color:var(--stroke-gold);color:var(--txt);
+}
+
+.escolhas{display:flex;flex-direction:column;gap:11px}
+.escolha{
+  display:flex;align-items:flex-start;gap:13px;width:100%;text-align:left;
+  padding:15px 16px;border-radius:14px;
+  background:var(--glass);border:1px solid var(--stroke);
+  transition:background .2s var(--ease),border-color .2s var(--ease),transform .16s var(--ease);
+}
+.escolha:hover{background:var(--glass-2);border-color:var(--stroke-2)}
+.escolha:active{transform:scale(.995)}
+.escolha--on{background:rgba(194,162,80,.11);border-color:var(--stroke-gold)}
+.escolha__marca{
+  width:23px;height:23px;border-radius:50%;flex:none;margin-top:2px;
+  display:grid;place-items:center;
+  border:1.5px solid var(--stroke-2);color:transparent;
+}
+.escolha__marca .ic{width:13px;height:13px;stroke-width:3}
+.escolha--on .escolha__marca{
+  background:linear-gradient(135deg,var(--gold),var(--gold-2));
+  border-color:transparent;color:#0d1926;
+}
+.escolha__txt{flex:1;min-width:0}
+.escolha__t{display:block;font-size:14.5px;font-weight:640;color:var(--txt)}
+.escolha__d{display:block;font-size:12.5px;color:var(--txt-3);margin-top:5px;line-height:1.55}
+
+/* ---------- 25. Mensagens ---------- */
 .chat{display:flex;flex-direction:column;gap:12px}
 .chat__dia{
   align-self:center;font-size:11px;font-weight:620;letter-spacing:.04em;

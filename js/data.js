@@ -22,22 +22,37 @@
     horario: "Segunda a sexta, das 8h às 18h"
   };
 
-  /* ---------- Etapas do onboarding ---------- */
+  /* ---------- Etapas do onboarding ----------
+     `rota` é para onde a etapa leva quando o cliente toca nela.
+     Sem rota, a etapa é informativa (depende da Totali).
+  ------------------------------------------- */
   var ETAPAS = [
     {
       id: "boas-vindas",
       titulo: "Boas-vindas",
-      desc: "Você conhece como funciona a Totali e quem cuida da sua empresa."
+      desc: "Você conhece como funciona a Totali e quem cuida da sua empresa.",
+      rota: "inicio"
     },
     {
       id: "cadastro",
       titulo: "Dados da empresa",
-      desc: "Confirmamos as informações básicas e quem é o responsável pelo contato."
+      desc: "Confirmamos as informações básicas e quem é o responsável pelo contato.",
+      rota: "empresa",
+      acao: "Completar cadastro"
     },
     {
       id: "documentos",
       titulo: "Envio de documentos",
-      desc: "Você envia a documentação da lista. Pode fazer aos poucos — nada se perde."
+      desc: "Você envia a documentação da lista. Pode fazer aos poucos — nada se perde.",
+      rota: "documentos",
+      acao: "Enviar documentos"
+    },
+    {
+      id: "financeiro",
+      titulo: "Bancos e maquininhas",
+      desc: "Onde a empresa movimenta dinheiro e como vamos receber os relatórios de venda.",
+      rota: "financeiro",
+      acao: "Responder"
     },
     {
       id: "analise",
@@ -47,7 +62,41 @@
     {
       id: "ativo",
       titulo: "Contabilidade ativa",
-      desc: "Migração concluída. A partir daqui você acompanha tudo pelo portal."
+      desc: "Migração concluída. A partir daqui a Academy passa a ser o seu ponto de apoio."
+    }
+  ];
+
+  /* ---------- Financeiro ----------
+     Conteúdo trazido do sistema "checklist financeiro" da Totali
+     (github.com/totalicontabilidade/checklist-financeiro), que
+     deixa de ter link próprio e passa a ser uma etapa daqui.
+  --------------------------------- */
+  var BANCOS = [
+    "Banco do Brasil", "Banco do Nordeste", "Banese", "Bradesco", "C6 Bank",
+    "Caixa Econômica", "Cora", "InfinitePay", "Inter", "Itaú", "Mercado Pago",
+    "Nubank", "PagBank", "Santander", "Sicredi", "Stone"
+  ];
+
+  var MAQUINETAS = [
+    "Cielo", "Getnet", "InfinitePay", "Mercado Pago", "Mulvi Convênio",
+    "Mulvi Pay", "PagBank", "Rede", "Stone"
+  ];
+
+  var FORMAS_RELATORIO = [
+    {
+      id: "envio",
+      titulo: "Eu mesmo envio os relatórios todo mês",
+      desc: "Você baixa e nos manda o relatório de vendas, o de recebimentos e o de antecipações " +
+            "de cada maquininha, todo mês. Ao escolher esta opção, geramos um termo de compromisso " +
+            "para você guardar.",
+      recomendado: false
+    },
+    {
+      id: "acesso",
+      titulo: "Prefiro que a Totali acesse e baixe",
+      desc: "A Totali busca os relatórios direto no portal da maquininha. O acesso é combinado " +
+            "em conversa com a nossa equipe — nunca por formulário.",
+      recomendado: true
     }
   ];
 
@@ -579,6 +628,9 @@
     ETAPAS: ETAPAS,
     GRUPOS: GRUPOS,
     ACADEMY: ACADEMY,
-    FAQ: FAQ
+    FAQ: FAQ,
+    BANCOS: BANCOS,
+    MAQUINETAS: MAQUINETAS,
+    FORMAS_RELATORIO: FORMAS_RELATORIO
   };
 })(window);

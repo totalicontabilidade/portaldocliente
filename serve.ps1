@@ -29,6 +29,9 @@ while ($listener.IsListening) {
       $ct = $mime[$ext]; if (-not $ct) { $ct = "application/octet-stream" }
       $bytes = [System.IO.File]::ReadAllBytes($path)
       $ctx.Response.ContentType = $ct
+      # Sem cache no ambiente de teste: senao o navegador continua
+      # servindo o JS antigo e voce depura um codigo que nao existe mais.
+      $ctx.Response.Headers.Add("Cache-Control", "no-store, no-cache, must-revalidate")
       $ctx.Response.StatusCode = 200
       $ctx.Response.ContentLength64 = $bytes.Length
       $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
