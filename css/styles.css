@@ -6,11 +6,13 @@
 /* ---------- 1. Tokens ---------- */
 :root{
   /* Fundos — azul-noite da Totali em camadas.
-     O piso não é preto: fundo muito escuro com texto muito claro
-     cria brilho (halação) e cansa a vista em leitura longa. */
-  --bg-0:#0d1926;
-  --bg-1:#122031;
-  --bg-2:#16293c;
+     O piso não é preto de propósito: quem cria desconforto em tema
+     escuro é a combinação de fundo quase preto com halo em volta
+     das letras, não o texto claro em si. Por isso o fundo sobe um
+     pouco e o texto continua nítido. */
+  --bg-0:#0f1c2a;
+  --bg-1:#142334;
+  --bg-2:#182c40;
   --navy:#1a3149;
   --navy-2:#20405f;
   --navy-3:#2a4d70;
@@ -19,23 +21,25 @@
   --gold:#c2a250;
   --gold-2:#dcc487;
   --gold-3:#ecdcb2;
-  --gold-glow:rgba(194,162,80,.2);
+  --gold-glow:rgba(194,162,80,.32);
 
   /* Vidro */
   --glass:rgba(255,255,255,.045);
   --glass-2:rgba(255,255,255,.075);
   --glass-3:rgba(255,255,255,.11);
-  --stroke:rgba(255,255,255,.085);
-  --stroke-2:rgba(255,255,255,.16);
-  --stroke-gold:rgba(194,162,80,.32);
+  --stroke:rgba(255,255,255,.105);
+  --stroke-2:rgba(255,255,255,.19);
+  --stroke-gold:rgba(194,162,80,.4);
 
-  /* Texto — sem branco puro. Contraste medido sobre --bg-0:
-     principal 12,9:1 · secundário 7,9:1 · terciário 5,6:1 · rótulo 4,5:1.
-     Confortável para leitura longa e acima do exigido pela WCAG AA. */
-  --txt:#d3dde8;
-  --txt-2:#9dafc2;
-  --txt-3:#7e93a8;
-  --txt-4:#6d8298;
+  /* Texto — claro e nítido, sem chegar ao branco puro.
+     Contraste medido sobre --bg-0: principal 15:1 · secundário 9,3:1 ·
+     terciário 6,6:1 · rótulo 5,1:1. O brilho do sistema vem dos
+     elementos (bordas, anéis, selos), nunca de halo atrás da letra —
+     halo em texto é o que embaça e cansa a vista. */
+  --txt:#eaf1f8;
+  --txt-2:#b6c6d6;
+  --txt-3:#95a9bc;
+  --txt-4:#7f94a8;
 
   /* Semânticos — tons dessaturados, sem neon */
   --ok:#5cc394;         --ok-bg:rgba(92,195,148,.1);    --ok-br:rgba(92,195,148,.26);
@@ -77,7 +81,6 @@ body{
   line-height:1.55;
   color:var(--txt);
   background:var(--bg-0);
-  -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
   overflow-wrap:break-word;
   min-height:100vh;
@@ -283,6 +286,7 @@ html.motion .reveal.is-in{
 .tabbar__item .ic{width:22px;height:22px;stroke-width:1.6;transition:transform .28s var(--ease-out)}
 .tabbar__item:active .ic{transform:scale(.88)}
 .tabbar__item[aria-current="page"]{color:var(--gold-2)}
+.tabbar__item[aria-current="page"] .ic{filter:drop-shadow(0 0 7px var(--gold-glow))}
 
 .tabbar__item[aria-current="page"]::before{
   content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
@@ -384,7 +388,7 @@ html.motion .reveal.is-in{
   font-size:11.5px;font-weight:660;letter-spacing:.01em;
   border:1px solid transparent;white-space:nowrap;
 }
-.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;box-shadow:0 0 6px currentColor}
 .badge--pendente{background:var(--glass);color:var(--txt-3);border-color:var(--stroke)}
 .badge--pendente .dot{box-shadow:none}
 .badge--enviado{background:var(--info-bg);color:var(--info);border-color:var(--info-br)}
@@ -425,6 +429,15 @@ html.motion .reveal.is-in{
 .input[aria-invalid="true"],.textarea[aria-invalid="true"]{border-color:var(--danger)}
 .input[aria-invalid="true"]:focus{box-shadow:0 0 0 3.5px rgba(255,122,114,.15)}
 .input::placeholder,.textarea::placeholder{color:var(--txt-4)}
+/* Campo preenchido pela Totali: legível, mas claramente não editável. */
+.input[readonly],.select:disabled{
+  background:rgba(255,255,255,.02);
+  border-style:dashed;
+  color:var(--txt-2);
+  cursor:default;
+}
+.input[readonly]:hover,.select:disabled:hover{border-color:var(--stroke)}
+.input[readonly]:focus{border-color:var(--stroke-2);box-shadow:none}
 .grid-2{display:grid;gap:0 16px}
 
 input[type=checkbox]{accent-color:var(--gold)}
@@ -464,7 +477,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 .hero__greeting{font-size:12.5px;color:var(--txt-3);font-weight:520}
 .hero__title{
   font-size:24px;font-weight:680;margin-top:6px;letter-spacing:-.028em;
-  background:linear-gradient(120deg,var(--txt) 15%,var(--gold-2) 135%);
+  background:linear-gradient(118deg,#f6fafd 8%,var(--txt) 38%,var(--gold-2) 140%);
   -webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:var(--txt);
 }
@@ -482,7 +495,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 .ring svg{transform:rotate(-90deg);overflow:visible}
 .ring__track{stroke:rgba(255,255,255,.09)}
 .ring__bar{
-  stroke:url(#ringGrad);stroke-linecap:round;
+  stroke:url(#ringGrad);stroke-linecap:round;filter:drop-shadow(0 0 5px var(--gold-glow));
   transition:stroke-dashoffset 1.15s var(--ease-out);
 }
 .ring__value{
@@ -500,6 +513,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 .pbar__fill{
   position:relative;height:100%;border-radius:8px;
   background:linear-gradient(90deg,var(--navy-3),var(--gold) 85%);
+  box-shadow:0 0 12px rgba(194,162,80,.3);
   transition:width .9s var(--ease-out);
 }
 .pbar__fill::after{
@@ -526,10 +540,11 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .rail__step--done .rail__dot{
   background:linear-gradient(135deg,var(--ok),#3f9e79);border-color:transparent;color:#08281c;
+  box-shadow:0 0 13px rgba(92,195,148,.32);
 }
 .rail__step--current .rail__dot{
   background:linear-gradient(135deg,var(--gold),var(--gold-2));border-color:transparent;color:#0d1926;
-  box-shadow:0 0 0 5px rgba(194,162,80,.1);
+  box-shadow:0 0 0 5px rgba(194,162,80,.11), 0 0 16px var(--gold-glow);
 }
 .rail__step--current .rail__dot::after{
   content:"";position:absolute;inset:-5px;border-radius:50%;
@@ -589,6 +604,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 .item__mark .ic{width:13px;height:13px;stroke-width:3}
 .item--done .item__mark{
   background:linear-gradient(135deg,var(--ok),#3f9e79);border-color:transparent;color:#08281c;
+  box-shadow:0 0 11px rgba(92,195,148,.3);
 }
 .item__main{flex:1;min-width:0}
 .item__name{font-size:14.5px;font-weight:620;color:var(--txt);line-height:1.4}
@@ -759,7 +775,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .help-list li::before{
   content:"";position:absolute;left:3px;top:9px;
-  width:6px;height:6px;border-radius:50%;background:var(--gold);
+  width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold-glow);
 }
 
 /* Passo a passo numerado (procuração, código de acesso) */
@@ -883,10 +899,10 @@ input[type=checkbox]{accent-color:var(--gold)}
     color:var(--txt);font-weight:640;
     box-shadow:0 6px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.06);
   }
-  .sidenav__item[aria-current="page"] .ic{color:var(--gold-2)}
+  .sidenav__item[aria-current="page"] .ic{color:var(--gold-2);filter:drop-shadow(0 0 5px var(--gold-glow))}
   .sidenav__item[aria-current="page"]::before{
     content:"";position:absolute;left:0;top:22%;bottom:22%;width:3px;border-radius:0 3px 3px 0;
-    background:linear-gradient(180deg,var(--gold),var(--gold-2));
+    background:linear-gradient(180deg,var(--gold),var(--gold-2));box-shadow:0 0 10px var(--gold-glow);
   }
   .sidenav__badge{
     margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;
@@ -977,7 +993,7 @@ input[type=checkbox]{accent-color:var(--gold)}
 .msg__hora{font-size:10.5px;color:var(--txt-4);margin-top:5px;text-align:right}
 .msg--nova::after{
   content:"";position:absolute;top:12px;left:-9px;
-  width:6px;height:6px;border-radius:50%;background:var(--gold);
+  width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold-glow);
 }
 
 .composer{

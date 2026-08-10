@@ -121,6 +121,10 @@
       atualizadoEm: Date.now(),
       etapa: "boas-vindas",
       aceiteLGPD: null,
+      /* Verdadeiro quando a empresa foi cadastrada pela Totali e
+         chegou pelo link de convite. Nesse caso o cliente confere,
+         mas não edita, os dados da empresa. */
+      cadastroPelaEquipe: false,
       empresa: {
         razaoSocial: "", nomeFantasia: "", cnpj: "", regime: "",
         responsavelNome: "", responsavelEmail: "", responsavelTelefone: "", responsavelCargo: ""
@@ -158,6 +162,7 @@
     s.atualizadoEm = typeof bruto.atualizadoEm === "number" ? bruto.atualizadoEm : Date.now();
     if (typeof bruto.etapa === "string") s.etapa = bruto.etapa;
     if (typeof bruto.aceiteLGPD === "number") s.aceiteLGPD = bruto.aceiteLGPD;
+    s.cadastroPelaEquipe = bruto.cadastroPelaEquipe === true;
 
     /* Estado gravado antes do esquema 2 não tem empresaId: ganha um
        agora e segue funcionando, sem perder nada do que já foi enviado. */
@@ -334,6 +339,43 @@
     item: function (chave) {
       if (!estado.itens[chave]) estado.itens[chave] = registroVazio();
       return estado.itens[chave];
+    },
+
+    /* =======================================================
+       Convite: a Totali cadastra a empresa e manda o link
+       =======================================================
+       Resultado possível:
+         "aplicado"  — dados gravados, o cliente pode seguir
+         "atualizado"— mesma empresa, dados corrigidos pela equipe
+         "outra"     — o link é de OUTRA empresa e já existe dado
+                       neste aparelho; não sobrescrevemos nada
+         "invalido"  — payload sem os campos mínimos
+    ------------------------------------------------------- */
+    aplicarConvite: function (d) {
+      if (!d || typeof d !== "object") return "invalido";
+      var razao = String(d.r || "").slice(0, 150).trim();
+      var cnpj = String(d.c || "").slice(0, 20).trim();
+      if (!razao || !cnpj) return "invalido";
+
+      var atualCnpj = global.U.soDigitos(estado.empresa.cnpj);
+      var novoCnpj = global.U.soDigitos(cnpj);
+      var temDados = !!estado.empresa.razaoSocial ||
+                     Object.keys(estado.itens).length > 0 ||
+                     estado.socios.length > 0;
+
+      if (temDados && atualCnpj && novoCnpj && atualCnpj !== novoCnpj) return "outra";
+
+      var jaTinha = !!estado.empresa.razaoSocial;
+      Store.commit(function (st) {
+        st.empresa.razaoSocial = razao;
+        st.empresa.nomeFantasia = String(d.f || "").slice(0, 120).trim();
+        st.empresa.cnpj = cnpj;
+        if (d.g) st.empresa.regime = String(d.g).slice(0, 60);
+        if (typeof d.id === "string" && d.id) st.empresaId = d.id.slice(0, 60);
+        st.cadastroPelaEquipe = true;
+      }, "convite");
+      Store.registrarEvento("convite:aplicado", "", razao);
+      return jaTinha ? "atualizado" : "aplicado";
     },
 
     /* ---- sócios ---- */

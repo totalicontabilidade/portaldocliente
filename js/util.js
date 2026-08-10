@@ -226,6 +226,26 @@
 
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
+  /* ---------- Base64 seguro para URL ----------
+     Usado no link de convite que a equipe gera. Passa por
+     TextEncoder/TextDecoder para não quebrar com acento.
+  ------------------------------------------------- */
+  function textoParaB64url(texto) {
+    var bytes = new TextEncoder().encode(String(texto));
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function b64urlParaTexto(s) {
+    var b = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (b.length % 4) b += "=";
+    var bin = atob(b);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
   global.U = {
     esc: esc,
     escAttr: escAttr,
@@ -250,6 +270,8 @@
     iconePorExtensao: iconePorExtensao,
     debounce: debounce,
     clamp: clamp,
+    textoParaB64url: textoParaB64url,
+    b64urlParaTexto: b64urlParaTexto,
     MAX_ARQUIVO: MAX_ARQUIVO,
     MAX_TOTAL: MAX_TOTAL,
     ACCEPT_ATTR: ACCEPT_ATTR

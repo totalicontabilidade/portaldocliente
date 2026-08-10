@@ -17,6 +17,7 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Checklist por departamento (5 áreas) | pronto |
 | Envio de arquivos com validação | pronto |
 | Cadastro da empresa e dos sócios | pronto |
+| Cadastro criado pela Totali (link de convite) | pronto (`equipe.html`) |
 | PWA instalável e funcionamento offline | pronto |
 | Modelo de dados multiempresa (`empresaId`) | pronto |
 | Ciclo de revisão (análise / aprovado / pendência) | modelo e tela do cliente prontos |
@@ -38,7 +39,8 @@ no `localStorage` e os arquivos no `IndexedDB`. Nada trafega pela internet.
 ## Estrutura
 
 ```
-index.html                 Casca do app: cabeçalho, menus, sprite de ícones
+index.html                 Portal do cliente
+equipe.html                Uso interno: gera o link de convite do cliente
 manifest.webmanifest       Metadados do aplicativo instalável
 sw.js                      Service worker (offline). Suba a VERSAO a cada release
 css/styles.css             Design system completo (tema escuro)
@@ -49,6 +51,7 @@ js/ui.js                   Modal, toasts, ícones
 js/motion.js               Animações de entrada, contadores e anel de progresso
 js/notificacoes.js         Avisos no aparelho e ganchos para o push do Firebase
 js/app.js                  Rotas, telas e eventos
+js/equipe.js               Lógica do gerador de link (uso interno)
 js/pwa.js                  Instalação, service worker e proteções de contexto
 assets/                    Logo e ícones do aplicativo
 ```
@@ -77,12 +80,16 @@ existe uma rede de segurança que revela tudo em 1,6 s caso as animações não
 disparem (aba em segundo plano, navegador antigo, erro de script). Quem pediu
 menos movimento no sistema operacional recebe a interface estática.
 
-Contraste calibrado para leitura longa, não para o máximo possível: o piso não é
-preto (`#0d1926`) e o texto não é branco (`#d3dde8`). Fundo muito escuro com texto
-muito claro cria halação e cansa a vista. Medido sobre o fundo: 12,9:1 no texto
-principal, 7,9:1 no secundário, 5,6:1 no terciário e 10,4:1 nos dourados — todos
-acima do mínimo da WCAG AA. Halos e brilhos em volta de ícones, selos e barras
-foram reduzidos pelo mesmo motivo.
+Contraste calibrado em duas rodadas. O piso não é preto (`#0f1c2a`) e o texto
+não é branco puro (`#eaf1f8`), mas o texto **é nítido**: 15,1:1 no principal,
+9,3:1 no secundário, 7,1:1 no terciário e 10,1:1 nos dourados.
+
+A regra que saiu daí, e que vale para qualquer ajuste futuro: **o brilho fica
+nos elementos, nunca atrás da letra.** Anéis, selos, bordas, ícone da aba ativa
+e barra de progresso têm halo — é o que dá o ar tecnológico. Texto não tem halo
+nem `-webkit-font-smoothing: antialiased` (que afina a fonte em fundo escuro e
+faz a leitura parecer lavada). Foi o que devolveu a nitidez sem trazer de volta
+o desconforto.
 
 ### Modelo de dados
 
@@ -154,6 +161,26 @@ O item "Declaração de Imposto de Renda dos sócios", que no checklist em papel
 aparecia duas vezes (uma na área contábil e outra na lista dos sócios), ficou
 só na lista dos sócios. Pedir o mesmo documento duas vezes confunde o cliente.
 Se quiser o item de volta na área contábil, é uma entrada em `js/data.js`.
+
+### Cadastro criado pela equipe
+
+Quem cadastra a empresa é a Totali, não o cliente. Em `equipe.html` a equipe
+preenche razão social, fantasia, CNPJ e regime, e recebe um link pronto (com
+mensagem sugerida e atalho para o WhatsApp).
+
+Ao abrir o link, o portal grava os dados, mostra o **nome da empresa no
+cabeçalho** e trava esses campos: o cliente confere, mas só edita o contato
+dele. Se algo estiver errado, ele avisa pelas Mensagens.
+
+O link carrega **apenas dados da empresa** — nunca dado pessoal — porque
+endereço de página fica em histórico, em captura de tela e em quem mais receber
+o encaminhamento. Assim que é lido, o parâmetro é removido da barra de endereço
+(`history.replaceState`). Se o link for de outra empresa e já houver dados no
+aparelho, nada é sobrescrito.
+
+`equipe.html` hoje **não tem login** e só monta o link — não acessa documento
+nem dado de cliente. Quando o Firebase entrar, ela vira o painel interno
+autenticado e o link passa a levar somente um código de convite.
 
 ### Notificações
 

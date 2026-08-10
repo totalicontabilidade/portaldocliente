@@ -847,37 +847,51 @@
   function viewEmpresa() {
     var e = Store.estado.empresa;
     var socios = Store.estado.socios;
+    /* Empresa cadastrada pela Totali: o cliente confere, não digita. */
+    var trava = Store.estado.cadastroPelaEquipe;
+    var ro = trava ? " readonly" : "";
 
     var html = '' +
     '<section class="section">' +
       '<div class="section__head"><div>' +
         '<div class="eyebrow">Etapa 2</div>' +
         '<h1 class="section__title" style="font-size:20px;margin-top:4px">Dados da empresa</h1>' +
-        '<p class="section__desc">Confirme as informações básicas. É com elas que abrimos seu cadastro ' +
-          'nos nossos sistemas.</p>' +
+        '<p class="section__desc">' +
+          (trava
+            ? "Confira se está tudo certo e complete quem será o nosso contato."
+            : "Confirme as informações básicas. É com elas que abrimos seu cadastro nos nossos sistemas.") +
+        '</p>' +
       '</div></div>' +
 
       '<div class="card card--pad">' +
+        (trava
+          ? '<div class="notice notice--ok" style="margin-bottom:18px">' +
+              '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
+              '<span><strong>Cadastro feito pela Totali.</strong> Os dados da empresa já vieram ' +
+              'preenchidos. Se algo estiver errado, avise pelas ' +
+              '<a href="#/mensagens" data-rota="mensagens">Mensagens</a> que corrigimos.</span>' +
+            '</div>'
+          : '') +
         '<div class="field"><label class="field__label" for="fRazao">Razão social' +
           '<span class="field__req">*</span></label>' +
           '<input type="text" class="input" id="fRazao" data-emp="razaoSocial" maxlength="150" ' +
           'autocomplete="organization" value="' + U.escAttr(e.razaoSocial) + '" ' +
-          'placeholder="Nome da empresa no contrato social"></div>' +
+          'placeholder="Nome da empresa no contrato social"' + ro + '></div>' +
 
         '<div class="field"><label class="field__label" for="fFantasia">Nome fantasia</label>' +
           '<input type="text" class="input" id="fFantasia" data-emp="nomeFantasia" maxlength="120" ' +
-          'value="' + U.escAttr(e.nomeFantasia) + '" placeholder="Como sua empresa é conhecida"></div>' +
+          'value="' + U.escAttr(e.nomeFantasia) + '" placeholder="Como sua empresa é conhecida"' + ro + '></div>' +
 
         '<div class="grid-2">' +
           '<div class="field"><label class="field__label" for="fCnpj">CNPJ' +
             '<span class="field__req">*</span></label>' +
             '<input type="text" class="input" id="fCnpj" data-emp="cnpj" data-mascara="cnpj" ' +
             'inputmode="numeric" maxlength="18" value="' + U.escAttr(e.cnpj) + '" ' +
-            'placeholder="00.000.000/0000-00">' +
+            'placeholder="00.000.000/0000-00"' + ro + '>' +
             '<div class="field__error" id="errCnpj" hidden>CNPJ inválido. Confira os números.</div></div>' +
 
           '<div class="field"><label class="field__label" for="fRegime">Regime tributário</label>' +
-            '<select class="select" id="fRegime" data-emp="regime">' +
+            '<select class="select" id="fRegime" data-emp="regime"' + (trava ? " disabled" : "") + '>' +
               '<option value="">Selecione…</option>' +
               REGIMES.map(function (r) {
                 return '<option value="' + U.escAttr(r) + '"' + (e.regime === r ? " selected" : "") + '>' +
@@ -1211,11 +1225,30 @@
     var meta = ROTAS.filter(function (r) { return r.id === rota; })[0];
     document.title = (meta ? meta.titulo + " · " : "") + "Portal do Cliente · " + DATA.ORG.curto;
 
+    atualizarCabecalho();
     atualizarNav(rota);
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
     if (rota === "mensagens") bindMensagens();
     if (rota === "privacidade") bindPrivacidade();
+  }
+
+  /* O cabeçalho mostra a empresa do cliente assim que ela é
+     conhecida. Antes disso, mantém o nome do portal. */
+  function atualizarCabecalho() {
+    var e = Store.estado.empresa;
+    var nome = (e.nomeFantasia || e.razaoSocial || "").trim();
+    var titulo = $("#brandTitulo"), sub = $("#brandSub");
+    if (!titulo || !sub) return;
+    if (nome) {
+      titulo.textContent = nome;
+      titulo.title = e.razaoSocial || nome;
+      sub.textContent = "Portal do Cliente";
+    } else {
+      titulo.textContent = "Portal do Cliente";
+      titulo.removeAttribute("title");
+      sub.textContent = "Onboarding";
+    }
   }
 
   function atualizarNav(rota) {
@@ -1565,6 +1598,12 @@
       }
 
       campo.addEventListener("change", function () {
+        /* Campo preenchido pela Totali não é gravado, mesmo que o
+           evento chegue por outro caminho que não a digitação. */
+        if (campo.readOnly || campo.disabled) {
+          campo.value = Store.estado.empresa[chave] || "";
+          return;
+        }
         var v = String(campo.value || "").slice(0, 200);
 
         if (chave === "cnpj" && v && !U.validaCNPJ(v)) {
@@ -1613,6 +1652,43 @@
   }
 
   /* ============================================================
+     Convite gerado pela equipe
+     ============================================================
+     O link chega como `?c=<dados>` e traz apenas informação da
+     EMPRESA (razão social, fantasia, CNPJ, regime) — nunca dado
+     pessoal, porque endereço de página fica em histórico, em
+     captura de tela e em quem mais receber o link encaminhado.
+
+     [FIREBASE] Quando o servidor entrar, o link passa a levar só
+     um código de convite e os dados vêm do Firestore. Aí some
+     até essa informação da URL.
+  ------------------------------------------------------------ */
+  function aplicarConviteDaURL() {
+    var codigo = null;
+    try { codigo = new URLSearchParams(location.search).get("c"); } catch (e) { codigo = null; }
+    if (!codigo) return;
+
+    /* Tira o convite da barra de endereço antes de qualquer coisa. */
+    try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+
+    var dados = null;
+    try { dados = JSON.parse(U.b64urlParaTexto(codigo)); } catch (e) { dados = null; }
+
+    var resultado = Store.aplicarConvite(dados);
+    if (resultado === "aplicado" || resultado === "atualizado") {
+      Store.flush();
+      return;
+    }
+    setTimeout(function () {
+      if (resultado === "outra") {
+        UI.toast("Este link é de outra empresa. Os dados já existentes neste aparelho foram mantidos.", "erro", 9000);
+      } else {
+        UI.toast("O link de acesso não pôde ser lido. Peça um novo à Totali.", "erro", 9000);
+      }
+    }, 700);
+  }
+
+  /* ============================================================
      Boot
      ============================================================ */
   function iniciar() {
@@ -1658,6 +1734,7 @@
     });
 
     Store.iniciar().then(function () {
+      aplicarConviteDaURL();
       if (!location.hash) location.replace("#/inicio");
       render();
       document.body.classList.add("pronto");
