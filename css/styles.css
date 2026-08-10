@@ -1126,11 +1126,74 @@ input[type=checkbox]{accent-color:var(--gold)}
   position:sticky;z-index:20;
   bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 10px);
   margin-top:16px;padding:10px;
-  display:flex;gap:9px;align-items:flex-end;
   background:linear-gradient(160deg,rgba(26,49,73,.94),rgba(13,25,38,.96));
   border:1px solid var(--stroke-2);border-radius:var(--r-lg);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   box-shadow:var(--sh-2);
+}
+.composer__linha{display:flex;gap:8px;align-items:flex-end}
+.composer__acao{
+  width:42px;height:44px;flex:none;border-radius:11px;
+  display:grid;place-items:center;color:var(--txt-3);
+  transition:background .18s var(--ease),color .18s var(--ease);
+}
+.composer__acao:hover{background:var(--glass-2);color:var(--gold-2)}
+.composer__acao .ic{width:20px;height:20px}
+
+.composer__anexos{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+.pendente{
+  display:inline-flex;align-items:center;gap:7px;max-width:100%;
+  padding:6px 6px 6px 10px;border-radius:10px;
+  background:var(--glass-2);border:1px solid var(--stroke);
+  font-size:12px;color:var(--txt-2);
+}
+.pendente .ic{width:15px;height:15px;flex:none;color:var(--gold-2)}
+.pendente__n{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pendente__t{color:var(--txt-4);font-size:11px;flex:none}
+.pendente__x{
+  width:26px;height:26px;border-radius:7px;flex:none;display:grid;place-items:center;
+  color:var(--txt-3);
+}
+.pendente__x:hover{background:var(--danger-bg);color:var(--danger)}
+.pendente__x .ic{width:13px;height:13px;color:inherit}
+
+/* Anexos dentro da bolha da mensagem */
+.msg__anexos{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.anexo{width:100%;text-align:left}
+.anexo--img{
+  border-radius:12px;overflow:hidden;border:1px solid var(--stroke);
+  background:var(--glass);padding:0;line-height:0;
+}
+.anexo--img img{width:100%;max-height:260px;object-fit:cover;display:block}
+.anexo--audio{width:100%}
+.anexo--audio audio{width:100%;height:38px}
+.anexo--arq{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:11px;
+  background:var(--glass);border:1px solid var(--stroke);
+  transition:border-color .18s var(--ease);
+}
+.anexo--arq:hover{border-color:var(--stroke-gold)}
+
+/* Mapa — carregado só quando o cliente pede */
+.mapa{position:relative;min-height:150px}
+.mapa__previa{
+  display:flex;align-items:center;gap:13px;padding:18px 16px;flex-wrap:wrap;
+  background:
+    radial-gradient(70% 120% at 100% 0%,rgba(194,162,80,.12),transparent 60%),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.018) 0 12px,transparent 12px 24px);
+}
+.mapa__pino{
+  width:44px;height:44px;border-radius:14px;flex:none;display:grid;place-items:center;
+  background:rgba(194,162,80,.16);border:1px solid var(--stroke-gold);color:var(--gold-2);
+}
+.mapa__pino .ic{width:21px;height:21px}
+.mapa__txt{flex:1;min-width:150px}
+.mapa__t{display:block;font-size:14.5px;font-weight:650;color:var(--txt)}
+.mapa__d{display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5}
+.mapa__quadro{
+  width:100%;height:280px;border:0;display:block;
+  filter:saturate(.85) contrast(1.05);
 }
 .composer .textarea{
   min-height:44px;max-height:150px;padding:11px 13px;border-radius:12px;

@@ -308,6 +308,18 @@
           autorNome: typeof m.autorNome === "string" ? m.autorNome.slice(0, 120) : "",
           texto: String(m.texto).slice(0, 4000),
           chave: typeof m.chave === "string" ? m.chave.slice(0, 160) : "",
+          anexos: Array.isArray(m.anexos)
+            ? m.anexos.slice(0, 10).filter(function (a) {
+                return a && typeof a === "object" && typeof a.id === "string";
+              }).map(function (a) {
+                return {
+                  id: String(a.id).slice(0, 60),
+                  nome: typeof a.nome === "string" ? a.nome.slice(0, 160) : "arquivo",
+                  tamanho: typeof a.tamanho === "number" ? a.tamanho : 0,
+                  tipo: typeof a.tipo === "string" ? a.tipo.slice(0, 120) : ""
+                };
+              })
+            : [],
           em: typeof m.em === "number" ? m.em : 0,
           lidaEm: typeof m.lidaEm === "number" ? m.lidaEm : 0
         };
@@ -502,6 +514,18 @@
 
     baixarArquivo: function (arquivoId) { return backend.obterArquivo(arquivoId); },
 
+    /* Guarda um anexo de mensagem e devolve só os metadados —
+       o conteúdo fica no IndexedDB, como os documentos. */
+    guardarAnexo: function (file, nomeSugerido) {
+      var meta = {
+        id: global.U.uid(),
+        nome: global.U.nomeSeguro(nomeSugerido || file.name),
+        tamanho: file.size,
+        tipo: file.type || ""
+      };
+      return backend.guardarArquivo(meta.id, file).then(function () { return meta; });
+    },
+
     bytesUsados: function () {
       var t = 0;
       Object.keys(estado.itens).forEach(function (k) {
@@ -690,13 +714,16 @@
     enviarMensagem: function (texto, opcoes) {
       var o = opcoes || {};
       var t = String(texto || "").trim().slice(0, 4000);
-      if (!t) return null;
+      var anexos = Array.isArray(o.anexos) ? o.anexos.slice(0, 10) : [];
+      /* Mensagem só de anexo é válida — nem sempre há o que escrever. */
+      if (!t && !anexos.length) return null;
       var msg = {
         id: global.U.uid(),
         autor: o.autor === "equipe" ? "equipe" : "cliente",
         autorNome: String(o.autorNome || "").slice(0, 120),
         texto: t,
         chave: String(o.chave || "").slice(0, 160),
+        anexos: anexos,
         em: Date.now(),
         lidaEm: 0
       };

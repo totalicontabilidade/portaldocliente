@@ -159,7 +159,16 @@
     docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
     xls:  ["application/vnd.ms-excel"],
     xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-    zip:  ["application/zip", "application/x-zip-compressed", ""]
+    zip:  ["application/zip", "application/x-zip-compressed", ""],
+    /* Áudio — usado nas mensagens (gravação de voz e anexo). */
+    mp3:  ["audio/mpeg", "audio/mp3"],
+    m4a:  ["audio/mp4", "audio/x-m4a", "audio/m4a", ""],
+    ogg:  ["audio/ogg", "video/ogg", ""],
+    oga:  ["audio/ogg", ""],
+    opus: ["audio/opus", "audio/ogg", ""],
+    wav:  ["audio/wav", "audio/x-wav", "audio/wave", ""],
+    weba: ["audio/webm", ""],
+    amr:  ["audio/amr", ""]
   };
   var EXTENSOES = Object.keys(TIPOS);
   var ACCEPT_ATTR = EXTENSOES.map(function (e) { return "." + e; }).join(",");
@@ -195,7 +204,7 @@
     }
     var ext = extensao(file.name);
     if (!ext || EXTENSOES.indexOf(ext) === -1) {
-      return "Tipo de arquivo não aceito. Use PDF, imagem, planilha ou documento do Office.";
+      return "Tipo de arquivo não aceito. Use PDF, imagem, áudio, planilha ou documento do Office.";
     }
     var permitidos = TIPOS[ext];
     var mime = (file.type || "").toLowerCase();

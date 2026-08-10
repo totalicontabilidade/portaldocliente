@@ -19,7 +19,19 @@
     whatsapp: "5579998412107",
     site: "https://www.totalicontabilidade.com.br",
     instagram: "totalicontabilidade",
-    horario: "Segunda a sexta, das 8h às 18h"
+    horario: "Segunda a sexta, das 7h às 17h",
+
+    /* Localização do escritório. As coordenadas vieram do link
+       do Google Maps e são o que o mapa e a rota usam. */
+    local: {
+      nome: "Totali Soluções Contábeis",
+      endereco: "Rua Juca Monteiro, 891 — Anísio Amâncio de Oliveira",
+      cidade: "Itabaiana · SE",
+      cep: "49503-390",
+      lat: -10.6945945,
+      lng: -37.4257312,
+      link: "https://maps.app.goo.gl/mUHXTmtfmB8GYgzr8"
+    }
   };
 
   /* ---------- Etapas do onboarding ----------

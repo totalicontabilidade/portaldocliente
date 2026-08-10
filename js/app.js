@@ -1145,7 +1145,8 @@
             ? '<button type="button" class="msg__ref" data-rota="documentos" data-grupo="' +
               U.escAttr(String(m.chave).split("/")[0]) + '">' + ic("ic-file") + U.esc(doc) + '</button>'
             : '') +
-          '<div>' + U.esc(m.texto).replace(/\n/g, "<br>") + '</div>' +
+          (m.anexos && m.anexos.length ? anexosHTML(m.anexos) : '') +
+          (m.texto ? '<div>' + U.esc(m.texto).replace(/\n/g, "<br>") + '</div>' : '') +
           '<div class="msg__hora">' + U.esc(U.dataHora(m.em).split(" às ")[1] || "") + '</div>' +
         '</div>';
       });
@@ -1153,10 +1154,17 @@
     }
 
     html += '<div class="composer">' +
-        '<textarea class="textarea" id="msgTexto" rows="1" maxlength="4000" ' +
-          'placeholder="Escreva sua mensagem…" aria-label="Escreva sua mensagem"></textarea>' +
-        '<button type="button" class="composer__send" id="btnEnviarMsg" disabled aria-label="Enviar">' +
-          ic("ic-send") + '</button>' +
+        '<div class="composer__anexos" id="msgAnexos" hidden></div>' +
+        '<div class="composer__linha">' +
+          '<button type="button" class="composer__acao" id="btnAnexar" ' +
+            'aria-label="Anexar arquivo, imagem ou áudio">' + ic("ic-clipe") + '</button>' +
+          '<button type="button" class="composer__acao" id="btnCamera" aria-label="Tirar foto">' +
+            ic("ic-camera") + '</button>' +
+          '<textarea class="textarea" id="msgTexto" rows="1" maxlength="4000" ' +
+            'placeholder="Escreva sua mensagem…" aria-label="Escreva sua mensagem"></textarea>' +
+          '<button type="button" class="composer__send" id="btnEnviarMsg" disabled aria-label="Enviar">' +
+            ic("ic-send") + '</button>' +
+        '</div>' +
       '</div>' +
       '<p class="text-xs text-muted" style="margin-top:10px;text-align:center">' +
         'Precisa de resposta imediata? ' +
@@ -1167,31 +1175,148 @@
     return html;
   }
 
+  /* ---------- Anexos das mensagens ---------- */
+  function ehImagem(tipo) { return /^image\//.test(tipo || ""); }
+  function ehAudio(tipo) { return /^audio\//.test(tipo || ""); }
+
+  function anexosHTML(anexos) {
+    return '<div class="msg__anexos">' + anexos.map(function (a) {
+      if (ehImagem(a.tipo)) {
+        return '<button type="button" class="anexo anexo--img" data-anexo="' + U.escAttr(a.id) +
+          '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="' + U.escAttr(a.tipo) + '">' +
+          '<img alt="' + U.escAttr(a.nome) + '"></button>';
+      }
+      if (ehAudio(a.tipo)) {
+        return '<div class="anexo anexo--audio" data-anexo="' + U.escAttr(a.id) +
+          '" data-tipo="' + U.escAttr(a.tipo) + '">' +
+          '<audio controls preload="none"></audio></div>';
+      }
+      return '<button type="button" class="anexo anexo--arq" data-anexo="' + U.escAttr(a.id) +
+        '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="' + U.escAttr(a.tipo) + '">' +
+        '<span class="file__icon">' + ic(U.iconePorExtensao(U.extensao(a.nome))) + '</span>' +
+        '<span class="file__info"><span class="file__name">' + U.esc(a.nome) + '</span>' +
+        '<span class="file__meta">' + U.esc(U.bytes(a.tamanho)) + '</span></span></button>';
+    }).join("") + '</div>';
+  }
+
+  /* Os blobs vivem no IndexedDB; aqui viram endereços temporários
+     só enquanto a tela existe. */
+  var urlsTemporarias = [];
+  function soltarURLs() {
+    urlsTemporarias.forEach(function (u) { URL.revokeObjectURL(u); });
+    urlsTemporarias = [];
+  }
+
+  function hidratarAnexos() {
+    soltarURLs();
+    $$("[data-anexo]").forEach(function (no) {
+      var id = no.getAttribute("data-anexo");
+      Store.baixarArquivo(id).then(function (blob) {
+        if (!blob) return;
+        var url = URL.createObjectURL(blob);
+        urlsTemporarias.push(url);
+        var img = no.querySelector("img");
+        if (img) { img.src = url; return; }
+        var som = no.querySelector("audio");
+        if (som) { som.src = url; }
+      }, function () { /* anexo ausente: o cartão fica sem prévia */ });
+    });
+  }
+
   function bindMensagens() {
     var campo = $("#msgTexto"), botao = $("#btnEnviarMsg");
     if (!campo || !botao) return;
 
+    hidratarAnexos();
+
+    var pendentes = [];      /* File[] ainda não enviados */
+    var listaAnexos = $("#msgAnexos");
+
+    function podeEnviar() {
+      botao.disabled = !campo.value.trim() && !pendentes.length;
+    }
+
+    function desenharPendentes() {
+      if (!pendentes.length) { listaAnexos.hidden = true; listaAnexos.innerHTML = ""; podeEnviar(); return; }
+      listaAnexos.hidden = false;
+      listaAnexos.innerHTML = pendentes.map(function (f, i) {
+        var rot = ehAudio(f.type) ? "Áudio gravado" : U.nomeSeguro(f.name);
+        return '<span class="pendente">' +
+          ic(ehImagem(f.type) ? "ic-image" : ehAudio(f.type) ? "ic-som" : "ic-file") +
+          '<span class="pendente__n">' + U.esc(rot) + '</span>' +
+          '<span class="pendente__t">' + U.esc(U.bytes(f.size)) + '</span>' +
+          '<button type="button" class="pendente__x" data-tirar="' + i + '" ' +
+            'aria-label="Remover anexo">' + ic("ic-x") + '</button></span>';
+      }).join("");
+      $$("[data-tirar]", listaAnexos).forEach(function (b) {
+        b.addEventListener("click", function () {
+          pendentes.splice(parseInt(b.getAttribute("data-tirar"), 10), 1);
+          desenharPendentes();
+        });
+      });
+      podeEnviar();
+    }
+
+    function juntar(arquivos) {
+      var usado = Store.bytesUsados();
+      Array.prototype.slice.call(arquivos || []).forEach(function (f) {
+        var erro = U.validaArquivo(f, usado);
+        if (erro) { UI.toast(U.nomeSeguro(f.name) + ": " + erro, "erro"); return; }
+        if (pendentes.length >= 10) { UI.toast("Máximo de 10 anexos por mensagem.", "erro"); return; }
+        usado += f.size;
+        pendentes.push(f);
+      });
+      desenharPendentes();
+    }
+
+    /* --- anexar e câmera --- */
+    function escolher(aceita, camera) {
+      var entrada = document.createElement("input");
+      entrada.type = "file";
+      entrada.multiple = !camera;
+      entrada.accept = aceita;
+      if (camera) entrada.capture = "environment";
+      entrada.style.display = "none";
+      entrada.addEventListener("change", function () {
+        juntar(entrada.files);
+        entrada.remove();
+      });
+      document.body.appendChild(entrada);
+      entrada.click();
+    }
+    $("#btnAnexar").addEventListener("click", function () { escolher(U.ACCEPT_ATTR, false); });
+    $("#btnCamera").addEventListener("click", function () { escolher("image/*", true); });
+
     var ajustarAltura = function () {
       campo.style.height = "auto";
       campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
-      botao.disabled = !campo.value.trim();
+      podeEnviar();
     };
     campo.addEventListener("input", ajustarAltura);
 
     var enviar = function () {
       var texto = campo.value.trim();
-      if (!texto) return;
-      Store.enviarMensagem(texto, {
-        autor: "cliente",
-        autorNome: Store.estado.empresa.responsavelNome || ""
+      if (!texto && !pendentes.length) return;
+      botao.disabled = true;
+
+      var guardar = pendentes.map(function (f) { return Store.guardarAnexo(f); });
+      Promise.all(guardar).then(function (metas) {
+        Store.enviarMensagem(texto, {
+          autor: "cliente",
+          autorNome: Store.estado.empresa.responsavelNome || "",
+          anexos: metas
+        });
+        Store.flush();
+        pendentes = [];
+        campo.value = "";
+        render();
+        var novo = $("#msgTexto");
+        if (novo) novo.focus();
+        irParaFimDaConversa();
+      }, function () {
+        botao.disabled = false;
+        UI.toast("Não foi possível anexar. Tente de novo.", "erro");
       });
-      Store.flush();
-      campo.value = "";
-      render();
-      /* Mantém o foco: quem está conversando costuma escrever de novo. */
-      var novo = $("#msgTexto");
-      if (novo) novo.focus();
-      irParaFimDaConversa();
     };
 
     botao.addEventListener("click", enviar);
@@ -1516,6 +1641,37 @@
       '</div>' +
     '</section>' +
 
+    /* Onde estamos. O mapa só é carregado se o cliente pedir —
+       antes disso o Google não recebe o endereço de IP dele. */
+    '<section class="section">' +
+      '<div class="section__head"><div>' +
+        '<h2 class="section__title">Onde estamos</h2>' +
+        '<p class="section__desc">Se preferir resolver pessoalmente, você é bem-vindo.</p>' +
+      '</div></div>' +
+      '<div class="card">' +
+        '<div class="mapa" id="mapaCaixa">' +
+          '<div class="mapa__previa">' +
+            '<span class="mapa__pino">' + ic("ic-pino") + '</span>' +
+            '<span class="mapa__txt">' +
+              '<span class="mapa__t">' + U.esc(org.local.nome) + '</span>' +
+              '<span class="mapa__d">' +
+                (org.local.endereco ? U.esc(org.local.endereco) + '<br>' : '') +
+                U.esc(org.local.cidade) +
+                (org.local.cep ? ' · CEP ' + U.esc(org.local.cep) : '') + '</span>' +
+            '</span>' +
+            '<button type="button" class="btn btn--ghost btn--sm" id="btnMapa">Ver o mapa</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="padding:14px 16px;display:flex;gap:9px;flex-wrap:wrap">' +
+          '<a class="btn btn--primary btn--sm" href="' + U.escAttr(org.local.link) + '" ' +
+            'target="_blank" rel="noopener noreferrer">' + ic("ic-pino") + 'Abrir no Google Maps</a>' +
+          '<a class="btn btn--ghost btn--sm" href="https://www.google.com/maps/dir/?api=1&destination=' +
+            U.escAttr(org.local.lat + "," + org.local.lng) + '" target="_blank" rel="noopener noreferrer">' +
+            ic("ic-arrow-right") + 'Traçar rota</a>' +
+        '</div>' +
+      '</div>' +
+    '</section>' +
+
     '<section class="section">' +
       '<div class="section__head"><div>' +
         '<h2 class="section__title">Perguntas frequentes</h2>' +
@@ -1668,6 +1824,7 @@
     if (rota === "empresa") bindEmpresa();
     if (rota === "financeiro") bindFinanceiro();
     if (rota === "mensagens") bindMensagens();
+    if (rota === "ajuda") bindAjuda();
     if (rota === "privacidade") bindPrivacidade();
   }
 
@@ -1842,6 +1999,13 @@
         var meta = cxb && (Store.estado.itens[cxb.chave] || {}).arquivos || [];
         var achou = meta.filter(function (a) { return a.id === idb; })[0];
         abrirArquivo(idb, achou ? achou.nome : "documento");
+        return;
+      }
+
+      /* Anexo de mensagem: abre a imagem ou baixa o arquivo. */
+      var anexo = ev.target.closest("[data-anexo]");
+      if (anexo && anexo.tagName === "BUTTON") {
+        abrirArquivo(anexo.getAttribute("data-anexo"), anexo.getAttribute("data-nome"));
         return;
       }
 
@@ -2064,6 +2228,25 @@
         Store.flush();
         atualizarNav(estadoUI.rota);
       });
+    });
+  }
+
+  function bindAjuda() {
+    var btn = $("#btnMapa");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var caixa = $("#mapaCaixa");
+      var l = DATA.ORG.local;
+      var quadro = document.createElement("iframe");
+      quadro.className = "mapa__quadro";
+      quadro.title = "Mapa da localização da " + l.nome;
+      quadro.loading = "lazy";
+      quadro.referrerPolicy = "no-referrer";
+      quadro.setAttribute("allowfullscreen", "");
+      quadro.src = "https://maps.google.com/maps?q=" +
+                   encodeURIComponent(l.lat + "," + l.lng) + "&z=16&output=embed";
+      caixa.innerHTML = "";
+      caixa.appendChild(quadro);
     });
   }
 
