@@ -876,10 +876,35 @@
       '</div></div>';
 
     if (concluido) {
-      html += '<div class="notice notice--ok" style="margin-bottom:16px">' +
-        '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
-        '<span><strong>Respondido em ' + U.esc(U.dataCurta(f.concluidoEm)) + '.</strong> ' +
-        'Mudou alguma coisa? Pode alterar aqui embaixo e enviar de novo.</span></div>';
+      html += '<div class="recibo">' +
+        '<div class="recibo__marca">' + ic("ic-check") + '</div>' +
+        '<div class="recibo__t">Recebemos, obrigado!</div>' +
+        '<div class="recibo__d">A equipe da Totali já foi avisada e entra em contato se ' +
+          'faltar alguma coisa.</div>' +
+        (f.protocolo
+          ? '<div class="recibo__prot">' +
+              '<span class="recibo__prot-r">Guarde este número de protocolo</span>' +
+              '<span class="recibo__prot-n">' + U.esc(f.protocolo) + '</span>' +
+            '</div>'
+          : '') +
+        (f.formaRelatorio === "envio"
+          ? '<div class="recibo__termo">' +
+              '<div class="recibo__termo-t">Lembrete do seu compromisso</div>' +
+              '<ol class="compromisso__lista">' +
+                DATA.COMPROMISSO.itens.map(function (item, i) {
+                  return '<li><span class="compromisso__n">' + (i + 1) + '</span>' +
+                         U.esc(item) + '</li>';
+                }).join("") +
+              '</ol>' +
+              '<button type="button" class="btn btn--gold btn--sm" id="btnTermo">' +
+                ic("ic-download") + (f.termo && f.termo.id
+                  ? "Baixar meu termo de compromisso (PDF)"
+                  : "Gerar meu termo de compromisso (PDF)") + '</button>' +
+            '</div>'
+          : '') +
+        '<div class="recibo__nota">Respondido em ' + U.esc(U.dataCurta(f.concluidoEm)) +
+          '. Mudou alguma coisa? Pode alterar aqui embaixo e enviar de novo.</div>' +
+      '</div>';
     }
 
     /* --- Bancos --- */
@@ -946,12 +971,26 @@
         '</div>';
 
       if (f.formaRelatorio === "envio") {
-        html += '<div class="notice notice--warn" style="margin-top:14px">' +
-          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
-          '<span><strong>Compromisso de envio.</strong> Ao escolher esta opção, você se ' +
-          'compromete a enviar os três relatórios de cada maquininha todo mês. O que não chegar ' +
-          'não é contabilizado, e o atraso daí decorrente não é responsabilidade da Totali. ' +
-          'Ao concluir, geramos um termo para você guardar.</span></div>';
+        /* A lista fica aqui, na tela, e não só no PDF: muita
+           gente não abre o termo, e precisa saber o que enviar. */
+        var C = DATA.COMPROMISSO;
+        html += '<div class="compromisso">' +
+          '<div class="compromisso__topo">' +
+            '<span class="compromisso__icone">' + ic("ic-check-circle") + '</span>' +
+            '<span class="compromisso__t">' + U.esc(C.titulo) + '</span>' +
+          '</div>' +
+          '<p class="compromisso__chamada">' + U.esc(C.chamada) + '</p>' +
+          '<ol class="compromisso__lista">' +
+            C.itens.map(function (item, i) {
+              return '<li><span class="compromisso__n">' + (i + 1) + '</span>' +
+                     U.esc(item) + '</li>';
+            }).join("") +
+          '</ol>' +
+          '<p class="compromisso__fecho">' + U.esc(C.fecho) + '</p>' +
+          '<p class="compromisso__nota">' + ic("ic-file") +
+            'Ao concluir esta etapa, geramos um termo em PDF com esse compromisso, ' +
+            'para você guardar.</p>' +
+        '</div>';
       }
       if (f.formaRelatorio === "acesso") {
         html += '<div class="notice notice--info" style="margin-top:14px">' +
@@ -1062,6 +1101,48 @@
       Store.flush();
       UI.toast("Etapa concluída. Obrigado!", "ok");
       render();
+      global.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    var btnTermo = $("#btnTermo");
+    if (btnTermo) btnTermo.addEventListener("click", function () {
+      var fin = Store.estado.financeiro;
+
+      /* Já existe? Só entrega de novo, sem gerar outro. */
+      if (fin.termo && fin.termo.id) {
+        abrirArquivo(fin.termo.id, fin.termo.nome);
+        return;
+      }
+      if (!global.Termo || !global.Termo.disponivel()) {
+        UI.toast("Não foi possível gerar o PDF neste navegador. Fale com a Totali.", "erro");
+        return;
+      }
+
+      btnTermo.disabled = true;
+      var antes = btnTermo.innerHTML;
+      btnTermo.textContent = "Gerando…";
+
+      var maq = fin.maquinetas.slice();
+      if (fin.maquinetaOutra.trim()) maq.push(fin.maquinetaOutra.trim());
+
+      global.Termo.gerar({
+        empresa: Store.estado.empresa.razaoSocial || Store.estado.empresa.nomeFantasia,
+        cnpj: Store.estado.empresa.cnpj,
+        protocolo: fin.protocolo,
+        maquinetas: maq,
+        em: fin.concluidoEm || Date.now()
+      }).then(function (r) {
+        return Store.guardarTermo(r.blob, r.nome, r.em).then(function (id) {
+          Store.flush();
+          abrirArquivo(id, r.nome);
+          UI.toast("Termo gerado. Guarde o arquivo com você.", "ok");
+          render();
+        });
+      }, function () {
+        btnTermo.disabled = false;
+        btnTermo.innerHTML = antes;
+        UI.toast("Não foi possível gerar o termo. Tente de novo.", "erro");
+      });
     });
   }
 

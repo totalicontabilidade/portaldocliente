@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v8";
+var VERSAO = "v9";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -31,6 +31,8 @@ var SHELL = [
   "./js/ui.js",
   "./js/motion.js",
   "./js/notificacoes.js",
+  "./lib/jspdf.umd.min.js",
+  "./js/termo.js",
   "./js/app.js",
   "./js/pwa.js",
   "./manifest.webmanifest",

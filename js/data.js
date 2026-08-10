@@ -94,6 +94,57 @@
     "Mulvi Pay", "PagBank", "Rede", "Stone"
   ];
 
+  /* Os três relatórios que a Totali precisa de cada maquininha,
+     todo mês. Mesma lista usada no aviso da tela e no termo de
+     compromisso — mudou aqui, muda nos dois lugares. */
+  var RELATORIOS_MENSAIS = [
+    "Relatório de vendas",
+    "Relatório de recebimentos",
+    "Relatório de antecipações"
+  ];
+
+  /* Por onde o cliente manda esses relatórios. Se um dia o envio
+     passar a ser por este portal, troque o texto aqui. */
+  var CANAL_RELATORIOS = "pelo Confi";
+
+  /* Textos do compromisso de envio dos relatórios.
+     Mesmo conteúdo do sistema checklist financeiro — o que o
+     cliente lê na tela e o que sai no termo em PDF precisam
+     dizer exatamente a mesma coisa. */
+  var COMPROMISSO = {
+    titulo: "Combinado.",
+    chamada: "Então você se compromete a enviar à Totali, todo mês, " + CANAL_RELATORIOS +
+             ", de cada maquininha marcada acima:",
+    itens: RELATORIOS_MENSAIS,
+    fecho: "Os relatórios são sempre do mês anterior. Sem eles não conseguimos lançar suas " +
+           "vendas nem as taxas, e o fechamento do mês fica parado. Se em algum momento ficar " +
+           "difícil, é só avisar que a gente troca para o acesso direto."
+  };
+
+  /* Termo em PDF gerado ao concluir a etapa. */
+  var TERMO = {
+    titulo: "Termo de Compromisso",
+    subtitulo: "Envio dos relatórios das maquininhas",
+    declaracao: "A empresa acima identificada declara que optou por enviar ela mesma os " +
+                "relatórios das suas máquinas de cartão, em vez de fornecer à Totali os dados " +
+                "de acesso aos portais das operadoras.",
+    compromisso: "Assim, a empresa se compromete a encaminhar à Totali Soluções Contábeis, " +
+                 "todo mês, " + CANAL_RELATORIOS + ", os documentos abaixo, referentes a cada " +
+                 "uma das suas maquininhas e sempre relativos ao MÊS ANTERIOR.",
+    itens: RELATORIOS_MENSAIS,
+    responsabilidadeTitulo: "Responsabilidade pelos prazos",
+    responsabilidade: "Sem o recebimento desses relatórios, a Totali não consegue lançar as " +
+                      "vendas nem as taxas do período, e o fechamento do mês fica parado. " +
+                      "A empresa está ciente de que atrasos, multas ou penalidades decorrentes " +
+                      "da falta de envio dos relatórios são de sua responsabilidade. " +
+                      "Se em algum momento o envio se tornar inviável, basta comunicar a Totali " +
+                      "para que o modelo seja alterado para o acesso direto aos portais.",
+    cienciaTitulo: "Ciência eletrônica",
+    ciencia: "Este termo é firmado eletronicamente, dispensando assinatura física, nos termos " +
+             "do art. 10, § 2º, da Medida Provisória nº 2.200-2/2001, que reconhece a validade " +
+             "de documentos eletrônicos quando admitidos pelas partes como válidos."
+  };
+
   var FORMAS_RELATORIO = [
     {
       id: "envio",
@@ -670,6 +721,10 @@
     FAQ: FAQ,
     BANCOS: BANCOS,
     MAQUINETAS: MAQUINETAS,
-    FORMAS_RELATORIO: FORMAS_RELATORIO
+    FORMAS_RELATORIO: FORMAS_RELATORIO,
+    RELATORIOS_MENSAIS: RELATORIOS_MENSAIS,
+    CANAL_RELATORIOS: CANAL_RELATORIOS,
+    COMPROMISSO: COMPROMISSO,
+    TERMO: TERMO
   };
 })(window);

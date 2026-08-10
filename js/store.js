@@ -138,7 +138,11 @@
         temBanco: "", bancos: [], bancoOutro: "",
         temMaquineta: "", maquinetas: [], maquinetaOutra: "",
         formaRelatorio: "", observacoes: "",
-        concluidoEm: 0
+        concluidoEm: 0,
+        protocolo: "",
+        /* Metadados do termo em PDF. O arquivo em si fica no
+           IndexedDB, como os demais documentos. */
+        termo: { id: "", nome: "", em: 0 }
       },
       gruposNA: {},
       itens: {},      /* chave do documento -> registro           */
@@ -229,6 +233,16 @@
       var formas = global.DATA.FORMAS_RELATORIO.map(function (x) { return x.id; });
       alvo.formaRelatorio = formas.indexOf(f.formaRelatorio) > -1 ? f.formaRelatorio : "";
       alvo.concluidoEm = typeof f.concluidoEm === "number" ? f.concluidoEm : 0;
+      if (typeof f.protocolo === "string" && /^CF-\d{6}-[A-Z0-9]{5}$/.test(f.protocolo)) {
+        alvo.protocolo = f.protocolo;
+      }
+      if (f.termo && typeof f.termo === "object") {
+        alvo.termo = {
+          id: typeof f.termo.id === "string" ? f.termo.id.slice(0, 60) : "",
+          nome: typeof f.termo.nome === "string" ? f.termo.nome.slice(0, 200) : "",
+          em: typeof f.termo.em === "number" ? f.termo.em : 0
+        };
+      }
     }
 
     if (bruto.gruposNA && typeof bruto.gruposNA === "object") {
@@ -842,11 +856,40 @@
       return true;
     },
 
+    /* Protocolo no mesmo formato do checklist financeiro:
+       CF-AAAAMM-XXXXX, com alfabeto sem caracteres que se
+       confundem ao ditar por telefone (0/O, 1/I). */
+    gerarProtocolo: function () {
+      var ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      var d = new Date();
+      var mes = (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1);
+      var bytes = new Uint8Array(5);
+      global.crypto.getRandomValues(bytes);
+      var sufixo = "";
+      for (var i = 0; i < 5; i++) sufixo += ALFABETO[bytes[i] % ALFABETO.length];
+      return "CF-" + d.getFullYear() + mes + "-" + sufixo;
+    },
+
     concluirFinanceiro: function () {
       if (!Store.financeiroRespondido()) return false;
-      Store.commit(function (st) { st.financeiro.concluidoEm = Date.now(); }, "financeiro");
-      Store.registrarEvento("financeiro:concluido", "", "");
+      Store.commit(function (st) {
+        st.financeiro.concluidoEm = Date.now();
+        if (!st.financeiro.protocolo) st.financeiro.protocolo = Store.gerarProtocolo();
+      }, "financeiro");
+      Store.registrarEvento("financeiro:concluido", "", estado.financeiro.protocolo);
       return true;
+    },
+
+    /* Guarda o PDF do termo e registra os metadados. */
+    guardarTermo: function (blob, nome, em) {
+      var id = global.U.uid();
+      return backend.guardarArquivo(id, blob).then(function () {
+        Store.commit(function (st) {
+          st.financeiro.termo = { id: id, nome: nome, em: em || Date.now() };
+        }, "financeiro");
+        Store.registrarEvento("termo:gerado", "", nome);
+        return id;
+      });
     },
 
     /* =======================================================
