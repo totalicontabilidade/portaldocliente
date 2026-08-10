@@ -93,9 +93,10 @@
     },
     {
       id: "acesso",
-      titulo: "Prefiro que a Totali acesse e baixe",
-      desc: "A Totali busca os relatórios direto no portal da maquininha. O acesso é combinado " +
-            "em conversa com a nossa equipe — nunca por formulário.",
+      titulo: "Informo o acesso, a Totali baixa sozinha",
+      desc: "Você informa login e senha de cada maquininha aqui mesmo. A senha é cifrada no seu " +
+            "aparelho antes de sair, e só a Totali consegue abrir. Usamos apenas para baixar os " +
+            "relatórios do mês — nunca para movimentar dinheiro.",
       recomendado: true
     }
   ];
@@ -206,16 +207,21 @@
         },
         {
           id: "certificado-digital",
+          credenciais: [
+            { id: "tipo", rotulo: "Tipo do certificado", tipo: "texto", dica: "A1 (arquivo) ou A3 (token/cartão)" },
+            { id: "senha", rotulo: "Senha do certificado", tipo: "senha" },
+            { id: "validade", rotulo: "Vence em", tipo: "texto", dica: "Opcional. Ex.: 12/2026" }
+          ],
           kind: "acesso",
           nome: "Certificado digital da empresa (e-CNPJ)",
           obrigatorio: true,
-          resumo: "Vamos combinar o acesso com você. Não peça nem envie senha por aqui.",
+          resumo: "A senha vai cifrada no seu aparelho — só a Totali consegue abrir.",
           ajuda: {
             oque: "É a assinatura eletrônica da empresa. Sem ela não é possível transmitir declarações, emitir certidões nem acessar o e-CAC da Receita Federal.",
             onde: [
-              "Caminho que recomendamos: você nos concede uma procuração eletrônica no e-CAC. Assim a Totali acessa o que precisa e o certificado nunca sai da sua mão.",
-              "Se o certificado for do tipo A1 (arquivo), combinamos a entrega por um canal seguro, fora deste portal.",
-              "Se for A3 (token ou cartão), o certificado fica com você — a procuração resolve."
+              "Se o certificado for A1 (arquivo), anexe o arquivo no campo acima e informe a senha no campo protegido.",
+              "Se for A3 (token ou cartão), o certificado fica fisicamente com você: informe a senha aqui e combinamos o uso com a nossa equipe.",
+              "Alternativa que dispensa senha: conceder procuração eletrônica no e-CAC, seguindo o passo a passo abaixo."
             ],
             dica: "Confira a data de validade. Certificado vencido trava a entrega de obrigações e gera multa.",
             passosTitulo: "Passo a passo da procuração eletrônica",
@@ -232,6 +238,10 @@
         },
         {
           id: "acesso-simples",
+          credenciais: [
+            { id: "codigo", rotulo: "Código de acesso", tipo: "senha" },
+            { id: "cpfResponsavel", rotulo: "CPF do responsável", tipo: "texto", dica: "O CPF usado para gerar o código" }
+          ],
           kind: "acesso",
           nome: "Acesso ao Simples Nacional",
           obrigatorio: false,
@@ -256,6 +266,10 @@
         },
         {
           id: "acesso-sefaz",
+          credenciais: [
+            { id: "usuario", rotulo: "Usuário", tipo: "texto" },
+            { id: "senha", rotulo: "Senha", tipo: "senha" }
+          ],
           kind: "acesso",
           nome: "Acesso à SEFAZ",
           obrigatorio: false,
@@ -331,6 +345,10 @@
         },
         {
           id: "acesso-empregador-web",
+          credenciais: [
+            { id: "usuario", rotulo: "CPF ou usuário do gov.br", tipo: "texto" },
+            { id: "senha", rotulo: "Senha", tipo: "senha" }
+          ],
           kind: "acesso",
           nome: "Acesso ao Empregador Web",
           obrigatorio: false,
@@ -338,11 +356,16 @@
           ajuda: {
             oque: "É o sistema do Ministério do Trabalho usado para requerimento de seguro-desemprego nas rescisões.",
             onde: ["O acesso é feito pelo portal gov.br da empresa ou pelo certificado digital."],
-            dica: "Com o certificado digital e a procuração, resolvemos sem precisar de senha."
+            dica: "Se preferir, o certificado digital com procuração também resolve — sem senha nenhuma."
           }
         },
         {
           id: "acesso-vt",
+          credenciais: [
+            { id: "site", rotulo: "Site de recarga", tipo: "texto" },
+            { id: "usuario", rotulo: "Usuário", tipo: "texto" },
+            { id: "senha", rotulo: "Senha", tipo: "senha" }
+          ],
           kind: "acesso",
           nome: "Acesso ao emissor de Vale Transporte",
           obrigatorio: false,

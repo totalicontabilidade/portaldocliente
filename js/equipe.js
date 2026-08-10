@@ -116,6 +116,84 @@
 
     $("#cCopiar").addEventListener("click", function () { copiar(campoLink.value, "Link"); });
     $("#cCopiarMsg").addEventListener("click", function () { copiar(campoMsg.value, "Mensagem"); });
+
+    iniciarChaves();
+  }
+
+  /* ---------- Par de chaves do canal seguro ---------- */
+  function iniciarChaves() {
+    var C = global.Cripto;
+    var status = $("#kStatus");
+    var privadaGerada = null;
+
+    function mostrarStatus(classe, texto) {
+      status.className = "notice " + classe;
+      status.lastElementChild.innerHTML = texto;
+    }
+
+    if (!C || !C.disponivel) {
+      mostrarStatus("notice--warn", "Este navegador não tem os recursos de criptografia. " +
+        "Use Chrome ou Edge atualizado.");
+      $("#kGerar").disabled = true;
+      return;
+    }
+
+    if (C.configurada) {
+      C.impressaoDigital(global.CHAVE_PUBLICA).then(function (imp) {
+        mostrarStatus("notice--ok", "<strong>Canal seguro ativo.</strong> O portal já aceita " +
+          "senhas. Impressão digital da chave: <strong>" + U.esc(imp) + "</strong>");
+      });
+    } else {
+      mostrarStatus("notice--warn", "<strong>Canal seguro não configurado.</strong> " +
+        "Enquanto isso, o portal não aceita senha nenhuma — ele avisa o cliente em vez de " +
+        "guardar às claras.");
+    }
+
+    $("#kGerar").addEventListener("click", function () {
+      var b = $("#kGerar");
+      b.disabled = true;
+      b.textContent = "Gerando…";
+      C.gerarPar().then(function (par) {
+        privadaGerada = par.privada;
+        $("#kPub").value = "window.CHAVE_PUBLICA = " +
+          JSON.stringify(par.publica, null, 2) + ";";
+        $("#kResultado").hidden = false;
+        b.textContent = "Gerar outro par";
+        b.disabled = false;
+        return C.impressaoDigital(par.publica);
+      }).then(function (imp) {
+        $("#kImpressao").textContent = imp;
+        UI.toast("Par gerado. Baixe a chave privada antes de sair desta página.", "ok", 9000);
+        $("#kResultado").scrollIntoView({ behavior: "smooth", block: "start" });
+      }).catch(function () {
+        b.disabled = false;
+        b.textContent = "Gerar par de chaves";
+        UI.toast("Não foi possível gerar o par de chaves.", "erro");
+      });
+    });
+
+    $("#kCopiarPub").addEventListener("click", function () { copiar($("#kPub").value, "Chave pública"); });
+
+    $("#kBaixarPriv").addEventListener("click", function () {
+      if (!privadaGerada) return;
+      var conteudo = JSON.stringify({
+        aviso: "CHAVE PRIVADA DA TOTALI. Guarde em cofre de senhas e mantenha uma copia offline. " +
+               "Nao envie por e-mail, nao coloque em repositorio, nao deixe no computador de trabalho. " +
+               "Sem ela nao ha como ler as senhas enviadas pelos clientes.",
+        geradaEm: new Date().toISOString(),
+        chave: privadaGerada
+      }, null, 2);
+      var blob = new Blob([conteudo], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "totali-chave-privada-NAO-COMPARTILHAR.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      UI.toast("Chave privada baixada. Guarde agora em local seguro.", "ok", 9000);
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);

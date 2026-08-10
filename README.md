@@ -253,7 +253,7 @@ Ao ligar o Cloud Messaging, lembre de liberar o domínio do Firebase em
 |---|---|
 | `arquivo` | Upload com validação de tipo, tamanho e nome |
 | `dado` | Campo curto de texto ou seleção (ex.: PIS, escolaridade) |
-| `acesso` | Credencial de sistema. **Nunca** exibe campo de senha |
+| `acesso` | Credencial de sistema. Senha cifrada no aparelho do cliente |
 
 ---
 
@@ -261,21 +261,52 @@ Ao ligar o Cloud Messaging, lembre de liberar o domínio do Firebase em
 
 Decisões tomadas e o motivo de cada uma.
 
-**Senhas nunca são coletadas.** O checklist original pede senha do Simples
-Nacional, da SEFAZ, do Empregador Web e do emissor de vale transporte. Senha
-digitada em formulário fica registrada no navegador, no servidor e nos backups —
-qualquer um deles pode vazar, e a responsabilidade passa a ser da contabilidade.
-Por isso esses itens viraram do tipo `acesso`: o cliente escolhe entre conceder
-**procuração eletrônica no e-CAC**, combinar por canal separado ou informar que a
-Totali já tem acesso. Não existe um único `input[type=password]` no sistema.
+### Senhas: criptografia ponta a ponta
 
-Isso **não** torna o processo menos autônomo. Os itens de acesso trazem um passo
-a passo numerado para o cliente resolver sozinho: como conceder a procuração
-eletrônica no e-CAC e como gerar o código de acesso do Simples Nacional. A
-procuração é, na prática, o caminho *mais* autônomo — o cliente faz online em
-minutos, não precisa entregar credencial nenhuma, escolhe o prazo e pode revogar
-quando quiser. Guardar senha de cliente, além do risco, dá trabalho recorrente:
-toda troca de senha quebra o acesso e vira um chamado.
+O cliente informa senhas pelo portal — certificado digital, Simples Nacional,
+SEFAZ, Empregador Web, vale transporte e o login de cada maquininha. **Elas
+nunca existem em texto legível em lugar nenhum do sistema.**
+
+Como funciona (`js/cripto.js`):
+
+1. O cliente digita. Nada é gravado ainda.
+2. Ao tocar em "Guardar com segurança", os valores são cifrados **no aparelho
+   dele**: sorteia-se uma chave AES-GCM de 256 bits só para aquele envio, ela
+   cifra os dados, e essa chave é trancada com a **chave pública RSA-OAEP da
+   Totali**.
+3. Só o envelope fechado entra no estado. Os campos são limpos da tela na
+   sequência.
+
+Consequência: quem tiver o `localStorage`, o backup, o banco de dados ou o
+próprio celular do cliente vê apenas texto embaralhado. Abrir exige a chave
+privada, que fica fora do sistema.
+
+**Verificado em teste:** senha ausente do `localStorage`, do DOM e da trilha de
+auditoria (que registra *que houve* envio e quais campos, nunca o conteúdo);
+chave errada não abre; envelope adulterado não abre (o AES-GCM autentica);
+credencial plantada em texto às claras no armazenamento é descartada ao carregar.
+
+**O preço disso, que precisa estar claro:**
+
+- A chave privada é a única forma de ler. **Perdeu, perdeu** — não há
+  recuperação, e é justamente isso que impede que outra pessoa leia.
+  Guarde em cofre de senhas e mantenha uma cópia offline.
+- Quem tem a chave privada lê tudo. Ela não é de uso diário e não deve ficar no
+  computador de trabalho.
+- Trocar a chave não reabre o que já foi enviado. Guarde as chaves antigas
+  enquanto houver dado cifrado com elas.
+
+**Enquanto `js/chave-publica.js` estiver `null`**, o portal recusa qualquer
+senha e avisa o cliente, em vez de guardar às claras. Gere o par em
+`equipe.html` → "Gerar par de chaves".
+
+Os itens de acesso continuam oferecendo alternativas a quem preferir não digitar
+senha: procuração eletrônica no e-CAC (com passo a passo numerado) ou "já está
+com a Totali".
+
+**Recomendação operacional:** onde a maquininha permitir (Stone e Cielo, entre
+outras), peça ao cliente um **usuário só de consulta**. Baixa relatório, não
+movimenta dinheiro. O portal já sugere isso ao cliente.
 
 **Content Security Policy restritiva** (`index.html`). `script-src 'self'`
 bloqueia qualquer script injetado, inclusive inline. Nenhuma CDN é usada: todos

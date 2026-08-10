@@ -142,6 +142,10 @@
       },
       gruposNA: {},
       itens: {},      /* chave do documento -> registro           */
+      /* Credenciais enviadas pelo cliente, SEMPRE cifradas com a
+         chave pública da Totali (js/cripto.js). Aqui nunca há
+         senha legível — só o envelope fechado. */
+      credenciais: {},
       mensagens: [],  /* conversa entre cliente e equipe          */
       eventos: []     /* trilha de auditoria (ver nota em registrarEvento) */
     };
@@ -265,6 +269,32 @@
           });
         }
         s.itens[String(k).slice(0, 160)] = novo;
+      });
+    }
+
+    /* Só entra o que tem a cara de um envelope cifrado. Se
+       alguém tentar plantar texto às claras aqui, é descartado. */
+    if (bruto.credenciais && typeof bruto.credenciais === "object") {
+      Object.keys(bruto.credenciais).slice(0, 200).forEach(function (k) {
+        var c = bruto.credenciais[k];
+        if (!c || typeof c !== "object" || !c.pacote) return;
+        var p = c.pacote;
+        if (typeof p.iv !== "string" || typeof p.chave !== "string" ||
+            typeof p.dados !== "string" || typeof p.alg !== "string") return;
+        s.credenciais[String(k).slice(0, 160)] = {
+          pacote: {
+            v: typeof p.v === "number" ? p.v : 1,
+            alg: p.alg.slice(0, 60),
+            iv: p.iv.slice(0, 64),
+            chave: p.chave.slice(0, 2048),
+            dados: p.dados.slice(0, 20000),
+            em: typeof p.em === "number" ? p.em : 0
+          },
+          campos: Array.isArray(c.campos)
+            ? c.campos.slice(0, 12).map(function (x) { return String(x).slice(0, 40); })
+            : [],
+          atualizadoEm: typeof c.atualizadoEm === "number" ? c.atualizadoEm : 0
+        };
       });
     }
 
@@ -512,7 +542,12 @@
 
       if (item.kind === "arquivo" && r.arquivos.length) return "enviado";
       if (item.kind === "dado" && String(r.valor || "").trim()) return "enviado";
-      if (item.kind === "acesso" && r.forma) return "enviado";
+      if (item.kind === "acesso" && r.forma) {
+        /* Escolher "informar o acesso" só resolve depois que a
+           credencial é realmente guardada. */
+        if (r.forma === "informar" && item.credenciais && !Store.temCredencial(chave)) return "pendente";
+        return "enviado";
+      }
       return "pendente";
     },
 
@@ -599,6 +634,52 @@
     avisar: function (evento) {
       if (typeof Store.notificador !== "function") return;
       try { Store.notificador(evento); } catch (e) { /* aviso nunca derruba a gravação */ }
+    },
+
+    /* =======================================================
+       Credenciais
+
+       O texto digitado NUNCA é gravado. Ele é cifrado com a
+       chave pública da Totali e só o envelope fechado entra no
+       estado. Nem o localStorage, nem o backup, nem o futuro
+       Firestore veem a senha.
+       ======================================================= */
+    guardarCredencial: function (chave, valores) {
+      var C = global.Cripto;
+      if (!C || !C.configurada) return Promise.reject(new Error("canal-nao-configurado"));
+
+      var limpos = {};
+      var campos = [];
+      Object.keys(valores || {}).slice(0, 12).forEach(function (k) {
+        var v = String(valores[k] == null ? "" : valores[k]).slice(0, 300);
+        if (!v) return;
+        limpos[String(k).slice(0, 40)] = v;
+        campos.push(String(k).slice(0, 40));
+      });
+      if (!campos.length) return Promise.resolve(false);
+
+      return C.cifrar(limpos).then(function (pacote) {
+        Store.commit(function (st) {
+          st.credenciais[chave] = { pacote: pacote, campos: campos, atualizadoEm: Date.now() };
+        }, "credenciais");
+        /* A auditoria registra QUE houve envio, jamais o conteúdo. */
+        Store.registrarEvento("credencial:enviada", chave, campos.join(", "));
+        return true;
+      });
+    },
+
+    temCredencial: function (chave) {
+      var c = estado.credenciais[chave];
+      return !!(c && c.pacote);
+    },
+
+    credencial: function (chave) { return estado.credenciais[chave] || null; },
+
+    removerCredencial: function (chave) {
+      if (!estado.credenciais[chave]) return false;
+      Store.commit(function (st) { delete st.credenciais[chave]; }, "credenciais");
+      Store.registrarEvento("credencial:removida", chave, "");
+      return true;
     },
 
     /* =======================================================

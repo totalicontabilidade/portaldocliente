@@ -467,14 +467,15 @@
       /* ---- tipo ACESSO ---- */
       if (item.kind === "acesso") {
         var FORMAS = [
+          { id: "informar",   rot: "Informar o acesso agora" },
           { id: "procuracao", rot: "Vou conceder procuração eletrônica" },
-          { id: "combinar",   rot: "Prefiro combinar com a Totali" },
           { id: "entregue",   rot: "Já está com a Totali" }
         ];
-        html += '<div class="notice notice--warn" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
+        html += '<div class="notice notice--info" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
             '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
-            '<span><strong>Nunca digite sua senha aqui.</strong> Escolha abaixo como prefere ' +
-            'liberar o acesso e a nossa equipe conduz o resto com você.</span>' +
+            '<span><strong>Pode informar com tranquilidade.</strong> A senha é embaralhada aqui ' +
+            'no seu aparelho antes de sair. Nem no seu celular, nem no nosso banco de dados ela ' +
+            'fica legível — só a Totali consegue abrir.</span>' +
           '</div>' +
           '<div class="item__actions">' +
             FORMAS.map(function (f) {
@@ -485,6 +486,10 @@
             }).join("") +
             '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>' +
           '</div>';
+
+        if (reg.forma === "informar" && item.credenciais) {
+          html += credenciaisHTML(chave, item.credenciais, { titulo: "Dados de acesso" });
+        }
       }
     }
 
@@ -674,6 +679,161 @@
   }
 
   /* ============================================================
+     Credenciais
+
+     O que o cliente digita aqui NUNCA é gravado em texto legível.
+     Ao salvar, os valores são cifrados no próprio aparelho com a
+     chave pública da Totali (js/cripto.js) e só o envelope
+     fechado entra no estado. Os campos são limpos da tela na
+     sequência — nem no formulário a senha fica parada.
+     ============================================================ */
+  function avisoCanalSeguro() {
+    var C = global.Cripto;
+    var motivo = C ? C.motivo() : "Recurso de criptografia indisponível.";
+    if (!motivo) return "";
+    return '<div class="notice notice--warn" style="margin-top:11px">' +
+      '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+      '<span><strong>Envio de senha indisponível.</strong> ' + U.esc(motivo) + '</span></div>';
+  }
+
+  function credenciaisHTML(chave, campos, opcoes) {
+    var o = opcoes || {};
+    var C = global.Cripto;
+    var guardada = Store.temCredencial(chave);
+    var reg = Store.credencial(chave);
+
+    if (guardada) {
+      return '<div class="cofre cofre--ok" data-cred="' + U.escAttr(chave) + '">' +
+        '<span class="cofre__icone">' + ic("ic-lock") + '</span>' +
+        '<span class="cofre__txt">' +
+          '<span class="cofre__t">Acesso guardado com segurança</span>' +
+          '<span class="cofre__d">' + U.esc(reg.campos.length) + ' ' +
+            U.plural(reg.campos.length, "campo cifrado", "campos cifrados") +
+            (reg.atualizadoEm ? " · " + U.esc(U.dataCurta(reg.atualizadoEm)) : "") +
+            '. Nem a senha nem o login ficam legíveis neste aparelho.</span>' +
+        '</span>' +
+        '<span class="cofre__acoes">' +
+          '<button type="button" class="btn btn--ghost btn--sm" data-cred-trocar="1">Substituir</button>' +
+          '<button type="button" class="btn btn--quiet btn--sm" data-cred-apagar="1">Apagar</button>' +
+        '</span>' +
+      '</div>';
+    }
+
+    if (!C || !C.configurada) return avisoCanalSeguro();
+
+    var html = '<div class="cofre" data-cred="' + U.escAttr(chave) + '">' +
+      '<div class="cofre__cabeca">' +
+        '<span class="cofre__icone">' + ic("ic-lock") + '</span>' +
+        '<span class="cofre__t">' + U.esc(o.titulo || "Informe o acesso") + '</span>' +
+      '</div>';
+
+    campos.forEach(function (c) {
+      var id = "cred-" + chave.replace(/[^a-zA-Z0-9]/g, "-") + "-" + c.id;
+      html += '<div class="field" style="margin-bottom:11px">' +
+        '<label class="field__label" for="' + U.escAttr(id) + '">' + U.esc(c.rotulo) + '</label>';
+      if (c.tipo === "senha") {
+        html += '<div class="campo-senha">' +
+          '<input type="password" class="input" id="' + U.escAttr(id) + '" ' +
+            'data-cred-campo="' + U.escAttr(c.id) + '" maxlength="300" ' +
+            'autocomplete="new-password" autocapitalize="none" spellcheck="false" ' +
+            'placeholder="••••••••">' +
+          '<button type="button" class="campo-senha__ver" data-ver-senha="1" ' +
+            'aria-label="Mostrar senha">' + ic("ic-olho") + '</button>' +
+        '</div>';
+      } else {
+        html += '<input type="text" class="input" id="' + U.escAttr(id) + '" ' +
+          'data-cred-campo="' + U.escAttr(c.id) + '" maxlength="300" ' +
+          'autocomplete="off" autocapitalize="none" spellcheck="false" ' +
+          'placeholder="' + U.escAttr(c.placeholder || "") + '">';
+      }
+      if (c.dica) html += '<div class="field__hint">' + U.esc(c.dica) + '</div>';
+      html += '</div>';
+    });
+
+    html += '<button type="button" class="btn btn--primary btn--sm btn--block" data-cred-salvar="1">' +
+        ic("ic-lock") + 'Guardar com segurança</button>' +
+      '<p class="cofre__nota">Ao guardar, os dados são embaralhados aqui no seu aparelho. ' +
+        'Só a Totali consegue abrir — nem quem tiver acesso a este celular consegue ler.</p>' +
+    '</div>';
+    return html;
+  }
+
+  function lerCredenciais(caixa) {
+    var valores = {};
+    $$("[data-cred-campo]", caixa).forEach(function (i) {
+      var v = String(i.value || "").trim();
+      if (v) valores[i.getAttribute("data-cred-campo")] = v;
+    });
+    return valores;
+  }
+
+  function limparCredenciais(caixa) {
+    $$("[data-cred-campo]", caixa).forEach(function (i) { i.value = ""; });
+  }
+
+  function ligarCredenciais() {
+    $$("[data-ver-senha]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var campo = b.parentNode.querySelector("input");
+        if (!campo) return;
+        var mostrando = campo.type === "text";
+        campo.type = mostrando ? "password" : "text";
+        b.setAttribute("aria-label", mostrando ? "Mostrar senha" : "Ocultar senha");
+        b.classList.toggle("campo-senha__ver--on", !mostrando);
+      });
+    });
+
+    $$("[data-cred-salvar]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var caixa = b.closest("[data-cred]");
+        var chave = caixa.getAttribute("data-cred");
+        var valores = lerCredenciais(caixa);
+        if (!Object.keys(valores).length) {
+          UI.toast("Preencha pelo menos um campo.", "erro");
+          return;
+        }
+        b.disabled = true;
+        Store.guardarCredencial(chave, valores).then(function (ok) {
+          limparCredenciais(caixa);   /* some da tela imediatamente */
+          Store.flush();
+          if (ok) UI.toast("Acesso guardado com segurança.", "ok");
+          render();
+        }, function () {
+          b.disabled = false;
+          limparCredenciais(caixa);
+          UI.toast("Não foi possível guardar com segurança. Nada foi salvo.", "erro");
+        });
+      });
+    });
+
+    $$("[data-cred-trocar]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var chave = b.closest("[data-cred]").getAttribute("data-cred");
+        Store.removerCredencial(chave);
+        Store.flush();
+        render();
+      });
+    });
+
+    $$("[data-cred-apagar]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var chave = b.closest("[data-cred]").getAttribute("data-cred");
+        UI.confirmar({
+          titulo: "Apagar acesso",
+          mensagem: "Os dados de acesso guardados serão removidos. Você pode informar de novo depois.",
+          confirmar: "Apagar", perigo: true
+        }).then(function (ok) {
+          if (!ok) return;
+          Store.removerCredencial(chave);
+          Store.flush();
+          UI.toast("Acesso apagado.", "ok");
+          render();
+        });
+      });
+    });
+  }
+
+  /* ============================================================
      Tela: Financeiro (bancos e maquininhas)
 
      Conteúdo herdado do sistema "checklist financeiro" da Totali,
@@ -794,9 +954,33 @@
       if (f.formaRelatorio === "acesso") {
         html += '<div class="notice notice--info" style="margin-top:14px">' +
           '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
-          '<span><strong>Não digite senha aqui.</strong> Nossa equipe entra em contato para ' +
-          'combinar o acesso pelo caminho mais seguro de cada maquininha — várias têm perfil de ' +
-          'consulta, que é o ideal: dá acesso só aos relatórios, sem mexer no dinheiro.</span></div>';
+          '<span><strong>Para que serve o acesso.</strong> Usamos só para baixar os relatórios do ' +
+          'mês. Nunca movimentamos dinheiro, não fazemos transferência e não alteramos nada. ' +
+          '<br><strong>Dica:</strong> várias maquininhas (Stone e Cielo, por exemplo) permitem criar ' +
+          'um usuário só de consulta — se puder, crie um para nós. ' +
+          '<br><strong>A Totali nunca pede a senha do seu banco.</strong></span></div>';
+
+        var escolhidas = f.maquinetas.slice();
+        if (f.maquinetaOutra.trim()) escolhidas.push(f.maquinetaOutra.trim());
+
+        if (!escolhidas.length) {
+          html += '<div class="notice" style="margin-top:12px">' +
+            '<span class="notice__icon">' + ic("ic-info") + '</span>' +
+            '<span>Marque acima quais maquininhas você usa para informar o acesso de cada uma.</span></div>';
+        } else {
+          escolhidas.forEach(function (nome) {
+            var chave = "financeiro/maquineta/" + nome;
+            html += '<div style="margin-top:14px">' +
+              '<div class="field__label" style="font-size:13px;color:var(--gold-2)">' +
+                U.esc(nome) + '</div>' +
+              credenciaisHTML(chave, [
+                { id: "login", rotulo: "Login / usuário", tipo: "texto",
+                  placeholder: "E-mail ou CNPJ de acesso" },
+                { id: "senha", rotulo: "Senha", tipo: "senha" }
+              ], { titulo: "Acesso da " + nome }) +
+            '</div>';
+          });
+        }
       }
       html += '</div>';
     }
@@ -1319,15 +1503,15 @@
       '<div class="contact-grid">' +
         '<a class="contact" href="https://wa.me/' + U.escAttr(org.whatsapp) + '" target="_blank" rel="noopener noreferrer">' +
           '<span class="contact__icon">' + ic("ic-phone") + '</span>' +
-          '<span><span class="contact__lbl">WhatsApp</span>' +
+          '<span class="contact__txt"><span class="contact__lbl">WhatsApp</span>' +
           '<span class="contact__val">' + U.esc(org.telefoneExibicao) + '</span></span></a>' +
         '<a class="contact" href="mailto:' + U.escAttr(org.email) + '">' +
           '<span class="contact__icon">' + ic("ic-mail") + '</span>' +
-          '<span><span class="contact__lbl">E-mail</span>' +
+          '<span class="contact__txt"><span class="contact__lbl">E-mail</span>' +
           '<span class="contact__val" style="font-size:13px">' + U.esc(org.email) + '</span></span></a>' +
         '<a class="contact" href="' + U.escAttr(org.site) + '" target="_blank" rel="noopener noreferrer">' +
           '<span class="contact__icon">' + ic("ic-external") + '</span>' +
-          '<span><span class="contact__lbl">Site</span>' +
+          '<span class="contact__txt"><span class="contact__lbl">Site</span>' +
           '<span class="contact__val" style="font-size:13px">totalicontabilidade.com.br</span></span></a>' +
       '</div>' +
     '</section>' +
@@ -1479,6 +1663,7 @@
 
     atualizarCabecalho();
     atualizarNav(rota);
+    ligarCredenciais();
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
     if (rota === "financeiro") bindFinanceiro();

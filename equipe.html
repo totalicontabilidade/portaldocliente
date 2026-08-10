@@ -174,6 +174,64 @@
       </div>
     </section>
 
+    <section class="section">
+      <div class="section__head"><div>
+        <div class="eyebrow">Canal seguro</div>
+        <h2 class="section__title" style="font-size:18px;margin-top:4px">Par de chaves</h2>
+        <p class="section__desc">É o que permite o cliente enviar senhas pelo portal sem que elas
+          fiquem legíveis em lugar nenhum. Faça uma vez só.</p>
+      </div></div>
+
+      <div class="card card--pad">
+        <div id="kStatus" class="notice" style="margin-bottom:16px">
+          <span class="notice__icon">
+            <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
+          </span>
+          <span>Verificando…</span>
+        </div>
+
+        <ol class="passos">
+          <li>Gere o par abaixo. A chave privada nunca sai deste navegador até você baixá-la.</li>
+          <li>Baixe a chave privada e guarde em cofre de senhas, com uma cópia offline. É a única
+            forma de ler o que os clientes enviarem.</li>
+          <li>Copie a chave pública e cole em <code>js/chave-publica.js</code>, no lugar do
+            <code>null</code>.</li>
+          <li>Publique. A partir daí o portal passa a aceitar senhas.</li>
+        </ol>
+
+        <div class="notice notice--warn" style="margin:16px 0">
+          <span class="notice__icon">
+            <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
+          </span>
+          <span><strong>Perdeu a chave privada, perdeu o acesso.</strong> Não há recuperação —
+          é isso que garante que ninguém mais consiga ler. Gere de novo só se for recomeçar do
+          zero: uma chave nova não abre o que foi enviado com a anterior.</span>
+        </div>
+
+        <button type="button" class="btn btn--primary" id="kGerar">Gerar par de chaves</button>
+
+        <div id="kResultado" hidden>
+          <hr class="hr">
+          <div class="field">
+            <label class="field__label" for="kPub">Chave pública — cole em js/chave-publica.js</label>
+            <textarea class="textarea" id="kPub" rows="7" readonly style="font-size:12px"></textarea>
+          </div>
+          <div class="row">
+            <button type="button" class="btn btn--ghost btn--sm" id="kCopiarPub">
+              <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Copiar chave pública
+            </button>
+            <button type="button" class="btn btn--gold btn--sm" id="kBaixarPriv">
+              Baixar chave privada
+            </button>
+          </div>
+          <div class="field__hint" style="margin-top:10px">
+            Impressão digital: <strong id="kImpressao">—</strong>. Confira que é a mesma no portal
+            e no painel.
+          </div>
+        </div>
+      </div>
+    </section>
+
     <footer class="foot">
       <strong>Totali Soluções Contábeis</strong><br>
       Página de uso interno — não divulgue este endereço.
@@ -183,6 +241,8 @@
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
+<script src="js/chave-publica.js"></script>
+<script src="js/cripto.js"></script>
 <script src="js/util.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/equipe.js"></script>
