@@ -48,20 +48,25 @@
      Blocos visuais reutilizáveis
      ============================================================ */
 
+  /* O anel nasce vazio (dashoffset = circunferência) e o motion.js
+     solta o valor final no quadro seguinte, para que ele "desenhe". */
   function anelHTML(pct) {
-    var r = 36, c = 2 * Math.PI * r;
+    var r = 39, c = 2 * Math.PI * r;
     var off = c - (U.clamp(pct, 0, 100) / 100) * c;
     return '' +
       '<div class="ring">' +
-        '<svg width="84" height="84" viewBox="0 0 84 84" aria-hidden="true">' +
+        '<svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">' +
           '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">' +
-            '<stop offset="0%" stop-color="#d8bd74"/><stop offset="100%" stop-color="#c2a250"/>' +
+            '<stop offset="0%" stop-color="#22456c"/>' +
+            '<stop offset="55%" stop-color="#c2a250"/>' +
+            '<stop offset="100%" stop-color="#f2e2b8"/>' +
           '</linearGradient></defs>' +
-          '<circle class="ring__track" cx="42" cy="42" r="' + r + '" fill="none" stroke-width="7"/>' +
-          '<circle class="ring__bar" cx="42" cy="42" r="' + r + '" fill="none" stroke-width="7" ' +
-                  'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/>' +
+          '<circle class="ring__track" cx="46" cy="46" r="' + r + '" fill="none" stroke-width="7.5"/>' +
+          '<circle class="ring__bar" cx="46" cy="46" r="' + r + '" fill="none" stroke-width="7.5" ' +
+                  'stroke-dasharray="' + c.toFixed(1) + '" ' +
+                  'stroke-dashoffset="' + c.toFixed(1) + '" data-off="' + off.toFixed(1) + '"/>' +
         '</svg>' +
-        '<div class="ring__value">' + pct + '<small>%</small></div>' +
+        '<div class="ring__value"><span data-count="' + pct + '">0</span><small>%</small></div>' +
       '</div>';
   }
 
@@ -117,8 +122,8 @@
     '<section class="section">' +
       '<div class="card card--pad">' +
         '<label class="row" style="align-items:flex-start;gap:11px;cursor:pointer">' +
-          '<input type="checkbox" id="aceiteLgpd" style="width:20px;height:20px;margin-top:2px;accent-color:#14293f;flex:none">' +
-          '<span class="text-sm" style="color:var(--ink-2);line-height:1.55">Li e concordo que a ' +
+          '<input type="checkbox" id="aceiteLgpd" style="width:20px;height:20px;margin-top:2px;flex:none">' +
+          '<span class="text-sm" style="color:var(--txt-2);line-height:1.6">Li e concordo que a ' +
             U.esc(DATA.ORG.nome) + ' trate os dados e documentos que eu enviar para a prestação dos ' +
             'serviços contábeis, conforme a Lei Geral de Proteção de Dados. ' +
             '<a href="#/privacidade" data-rota="privacidade">Ler a política completa</a>.</span>' +
@@ -192,16 +197,18 @@
       '<div class="hero__row">' +
         anelHTML(resumo.pct) +
         '<div class="hero__stats">' +
-          '<div><div class="stat__num">' + resumo.ok + '</div><div class="stat__lbl">Enviados</div></div>' +
-          '<div><div class="stat__num">' + resumo.pendentes + '</div><div class="stat__lbl">Pendentes</div></div>' +
-          '<div><div class="stat__num">' + resumo.pendentesObrigatorios + '</div><div class="stat__lbl">Obrigatórios</div></div>' +
+          '<div><div class="stat__num" data-count="' + resumo.ok + '">0</div>' +
+            '<div class="stat__lbl">Enviados</div></div>' +
+          '<div><div class="stat__num" data-count="' + resumo.pendentes + '">0</div>' +
+            '<div class="stat__lbl">Pendentes</div></div>' +
+          '<div><div class="stat__num" data-count="' + resumo.pendentesObrigatorios + '">0</div>' +
+            '<div class="stat__lbl">Obrigatórios</div></div>' +
         '</div>' +
       '</div>' +
       '<div class="hero__actions">' +
         '<button type="button" class="btn btn--gold" data-rota="documentos">' +
           ic("ic-upload") + 'Enviar documentos</button>' +
-        '<button type="button" class="btn btn--ghost" data-rota="ajuda" ' +
-          'style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff">' +
+        '<button type="button" class="btn btn--ghost" data-rota="ajuda">' +
           ic("ic-help") + 'Preciso de ajuda</button>' +
       '</div>' +
     '</section>';
@@ -218,7 +225,7 @@
         '<div class="card">' +
           pendentes.map(function (p) {
             return '<button type="button" class="group__head" data-rota="documentos" data-grupo="' +
-                     U.escAttr(p.grupo.id) + '" style="border-bottom:1px solid var(--line-2)">' +
+                     U.escAttr(p.grupo.id) + '" style="border-bottom:1px solid var(--stroke)">' +
               '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
               '<span class="group__info">' +
                 '<span class="group__title" style="display:block;font-size:14px">' + U.esc(p.item.nome) +
@@ -417,13 +424,13 @@
 
     if (aberto) {
       html += '<div class="group__body">';
-      html += '<div style="padding:14px 16px;border-bottom:1px solid var(--line-2)">' +
+      html += '<div style="padding:15px 16px;border-bottom:1px solid var(--stroke)">' +
                 '<p class="text-sm text-muted" style="line-height:1.55">' + U.esc(grupo.desc) + '</p>';
       if (grupo.permiteGrupoNA) {
         html += '<label class="row" style="margin-top:11px;cursor:pointer;gap:9px">' +
           '<input type="checkbox" data-grupona="1" ' + (grupoNA ? "checked" : "") +
-          ' style="width:18px;height:18px;accent-color:#14293f">' +
-          '<span class="text-sm" style="color:var(--ink-2)">' + U.esc(grupo.textoGrupoNA) + '</span></label>';
+          ' style="width:18px;height:18px">' +
+          '<span class="text-sm" style="color:var(--txt-2)">' + U.esc(grupo.textoGrupoNA) + '</span></label>';
       }
       html += '</div>';
 
@@ -448,9 +455,10 @@
               r.total++;
               if (sit === "enviado" || sit === "substituido") r.ok++;
             });
-            html += '<div style="padding:12px 16px;background:var(--bg-2);border-bottom:1px solid var(--line-2)">' +
+            html += '<div style="padding:13px 16px;background:rgba(194,162,80,.06);' +
+              'border-top:1px solid var(--stroke);border-bottom:1px solid var(--stroke)">' +
               '<div class="row" style="justify-content:space-between">' +
-                '<div><div style="font-size:13.5px;font-weight:650;color:var(--navy)">' +
+                '<div><div style="font-size:13.5px;font-weight:680;color:var(--gold-2)">' +
                   U.esc(s.nome || "Sócio sem nome") + '</div>' +
                   (s.cpf ? '<div class="text-xs text-muted">CPF ' + U.esc(s.cpf) + '</div>' : '') +
                 '</div>' +
@@ -946,6 +954,12 @@
     }
     alvo.className = "view";
     alvo.innerHTML = html;
+
+    /* Cada bloco de primeiro nível entra com fade e leve subida;
+       os cartões da Academy entram em cascata. */
+    $$("#view > *").forEach(function (n) { n.classList.add("reveal"); });
+    $$("#view .tile").forEach(function (n) { n.classList.add("reveal"); });
+    if (global.Motion) global.Motion.aplicar(alvo);
 
     var meta = ROTAS.filter(function (r) { return r.id === rota; })[0];
     document.title = (meta ? meta.titulo + " · " : "") + "Portal do Cliente · " + DATA.ORG.curto;

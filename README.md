@@ -34,11 +34,12 @@ no `localStorage` e os arquivos no `IndexedDB`. Nada trafega pela internet.
 index.html                 Casca do app: cabeçalho, menus, sprite de ícones
 manifest.webmanifest       Metadados do aplicativo instalável
 sw.js                      Service worker (offline). Suba a VERSAO a cada release
-css/styles.css             Design system completo
+css/styles.css             Design system completo (tema escuro)
 js/util.js                 Funções puras: escape, máscaras, validações, arquivos
 js/data.js                 CONTEÚDO: checklist, etapas, trilhas, FAQ
 js/store.js                Estado, persistência e cálculo de progresso
 js/ui.js                   Modal, toasts, ícones
+js/motion.js               Animações de entrada, contadores e anel de progresso
 js/app.js                  Rotas, telas e eventos
 js/pwa.js                  Instalação, service worker e proteções de contexto
 assets/                    Logo e ícones do aplicativo
@@ -52,6 +53,24 @@ assets/                    Logo e ícones do aplicativo
 - **Mudar cores, espaçamentos, cantos** → bloco `:root` em `css/styles.css`.
 - **Publicar uma trilha da Academy** → altere `status` para `"disponivel"` no
   item de `ACADEMY` e acrescente a lista de vídeos.
+
+### Visual
+
+Tema escuro sobre o azul-noite da Totali, com superfícies de vidro fosco
+(`backdrop-filter`) e o dourado da marca como único destaque. O fundo tem quatro
+camadas fixas — aurora em movimento lento, brilho pulsante, malha e granulado —
+declaradas no `index.html` e desenhadas em `css/styles.css`.
+
+O movimento fica isolado em `js/motion.js`: blocos entram em cascata conforme
+aparecem na tela, os números contam progressivamente e o anel de progresso se
+desenha. **Regra que não pode ser quebrada:** a animação nunca esconde conteúdo.
+O CSS só oculta um bloco quando o `motion.js` marca `<html class="motion">`, e
+existe uma rede de segurança que revela tudo em 1,6 s caso as animações não
+disparem (aba em segundo plano, navegador antigo, erro de script). Quem pediu
+menos movimento no sistema operacional recebe a interface estática.
+
+Contraste medido no tema escuro: 17:1 no texto principal, 5,3:1 no secundário e
+11,7:1 nos links dourados — acima do mínimo da WCAG AA em todos.
 
 ### Tipos de item do checklist
 

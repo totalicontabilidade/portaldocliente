@@ -146,7 +146,7 @@
       var decidiu = false;
       modal({
         titulo: opcoes.titulo || "Confirmar",
-        corpoHTML: '<p style="font-size:14px;line-height:1.6;color:var(--ink-2)">' +
+        corpoHTML: '<p style="font-size:14px;line-height:1.65;color:var(--txt-2)">' +
                    U.esc(opcoes.mensagem || "") + '</p>',
         acoes: [
           {
