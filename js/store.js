@@ -132,8 +132,8 @@
       socios: [],
       /* Etapa financeira — bancos e maquininhas. Veio do sistema
          "checklist financeiro", que passa a viver aqui dentro.
-         Credencial de maquininha NÃO entra aqui: ela é combinada
-         com a equipe, fora de formulário. */
+         O login e a senha de cada maquininha NÃO ficam aqui: vão
+         cifrados para `credenciais`, com chave própria. */
       financeiro: {
         temBanco: "", bancos: [], bancoOutro: "",
         temMaquineta: "", maquinetas: [], maquinetaOutra: "",

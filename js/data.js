@@ -116,7 +116,7 @@
   /* ---------- Catálogo de documentos ----------
      kind:
        "arquivo"  → upload de arquivo
-       "acesso"   → credencial de sistema (NUNCA pede senha digitada aqui)
+       "acesso"   → credencial de sistema (senha cifrada no aparelho)
        "dado"     → informação curta digitada (texto ou seleção)
      escopo:
        "empresa"  → um por empresa
@@ -271,9 +271,9 @@
               "Se preferir o código de acesso, entre no Portal do Simples Nacional e procure a opção de gerar código de acesso.",
               "Informe o CNPJ da empresa, o CPF do responsável no cadastro e o número do recibo da última declaração entregue.",
               "O portal mostra o código na tela. Guarde-o com você.",
-              "Volte aqui e escolha \"Prefiro combinar com a Totali\" — nós entramos em contato para receber o código por um canal seguro, fora deste portal."
+              "Volte aqui, escolha \"Informar o acesso agora\" e digite o código no campo protegido. Ele é cifrado no seu aparelho antes de sair."
             ],
-            passosNota: "O código de acesso pode ser gerado de novo a qualquer momento, o que invalida o anterior. É por isso que ele é bem menos arriscado que uma senha — mas ainda assim não pedimos que você o digite aqui."
+            passosNota: "O código de acesso pode ser gerado de novo a qualquer momento, o que invalida o anterior. Por isso ele é bem menos arriscado que uma senha comum."
           }
         },
         {
@@ -633,12 +633,16 @@
       a: "Fale com a gente. A maioria dos documentos pode ser obtida diretamente nos portais oficiais (Junta Comercial, Receita Federal, SEFAZ) e nós ajudamos nesse caminho. A entrega dos documentos pelo contador anterior também é uma obrigação profissional prevista no Código de Ética do contador."
     },
     {
-      q: "Por que vocês não pedem minhas senhas no formulário?",
-      a: "Por segurança. Senha digitada em formulário fica registrada em vários lugares — no navegador, no servidor e nos backups. Preferimos a procuração eletrônica no e-CAC: você autoriza a Totali a acessar o que precisa, sem entregar senha nenhuma, e pode cancelar essa autorização quando quiser."
+      q: "É seguro informar minhas senhas aqui?",
+      a: "É, e explicamos por quê. Quando você toca em \"Guardar com segurança\", a senha é embaralhada dentro do seu próprio aparelho, antes de sair dele. O portal usa uma chave que só serve para trancar; a chave que abre fica com a Totali, fora do sistema. Na prática: nem no seu celular, nem no nosso banco de dados, nem em backup a senha existe de forma legível. Só a nossa equipe consegue abrir, e apenas para fazer o que você contratou. Se preferir não digitar senha nenhuma, os itens de acesso oferecem alternativas: procuração eletrônica no e-CAC, com passo a passo, ou avisar que a Totali já tem acesso."
+    },
+    {
+      q: "Para que a Totali usa esses acessos?",
+      a: "Para emitir e transmitir o que a sua empresa precisa entregar, baixar relatórios de venda das maquininhas e consultar a situação fiscal. Nunca movimentamos dinheiro, não fazemos transferência e não alteramos cadastro sem falar com você. Onde a maquininha permitir, peça um usuário só de consulta e informe esse: ele baixa relatório e não deixa mexer no dinheiro. A Totali nunca pede a senha do seu banco."
     },
     {
       q: "Que tipos de arquivo posso enviar?",
-      a: "PDF, JPG, PNG, WEBP, além de planilhas e documentos do Office (XLS, XLSX, DOC, DOCX) e arquivos de texto do SPED (TXT e XML). Cada arquivo pode ter até 20 MB. Se o seu arquivo for maior, avise que combinamos outro caminho."
+      a: "PDF, imagens (JPG, PNG, WEBP), planilhas e documentos do Office (XLS, XLSX, DOC, DOCX) e arquivos de texto do SPED (TXT e XML). Nas mensagens você também pode anexar áudios (MP3, M4A, OGG, WAV) e tirar foto na hora pelo celular. Cada arquivo pode ter até 20 MB. Se o seu for maior, avise que combinamos outro caminho."
     },
     {
       q: "Tirei foto do documento. Serve?",

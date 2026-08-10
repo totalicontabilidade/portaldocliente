@@ -197,14 +197,14 @@ Totali passam a viver aqui dentro, e não como links soltos.
 e observações agora são a **etapa 4** do onboarding (`#/financeiro`), com as
 mesmas listas do sistema original.
 
-Duas diferenças propositais em relação ao original:
+Duas diferenças em relação ao original:
 
-1. **Não existe campo de login e senha de maquininha.** No sistema antigo esses
-   dados eram digitados no formulário e guardados numa subcoleção restrita a
-   admin. Aqui o cliente escolhe a forma e o acesso é combinado com a equipe
-   fora de formulário — mesma regra dos outros itens de acesso do portal. Vale
-   pedir à maquininha um **perfil de consulta**: dá acesso aos relatórios sem
-   permitir movimentar dinheiro.
+1. **As credenciais de maquininha são cifradas.** No sistema antigo login e
+   senha iam em texto legível para o Firestore, protegidos apenas pela regra de
+   acesso. Aqui passam pela criptografia ponta a ponta descrita na seção de
+   segurança: saem embaralhadas do aparelho do cliente e só abrem com a chave
+   privada da Totali. Recomende ao cliente um **perfil de consulta** na
+   maquininha — baixa relatório sem permitir movimentar dinheiro.
 2. **O termo em PDF ainda não é gerado.** O original usa jsPDF via CDN, o que a
    CSP daqui bloqueia de propósito. Ao portar, a biblioteca precisa ser
    vendorizada em `lib/`, como já se faz no projeto Tina.

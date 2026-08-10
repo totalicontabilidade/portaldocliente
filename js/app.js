@@ -151,7 +151,8 @@
         '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
         '<span><strong>Seus dados ficam protegidos.</strong> Enquanto o portal não estiver conectado ' +
         'ao servidor da ' + U.esc(DATA.ORG.curto) + ', tudo o que você anexa fica guardado apenas ' +
-        'neste aparelho — nada é enviado pela internet. Nunca pedimos senha em formulário.</span>' +
+        'neste aparelho — nada é enviado pela internet. As senhas que você informar são ' +
+        'cifradas antes de sair do aparelho: só a Totali consegue abrir.</span>' +
       '</div>' +
     '</section>' +
 
@@ -669,10 +670,12 @@
     if (item.kind === "acesso") {
       corpo += '<div class="help-block"><div class="notice notice--ok">' +
         '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
-        '<span><strong>Por que não pedimos a senha.</strong> Senha digitada em formulário fica ' +
-        'registrada em vários lugares. Com a procuração eletrônica você autoriza a ' +
-        U.esc(DATA.ORG.curto) + ' a acessar só o que é necessário, sem entregar credencial, ' +
-        'e pode cancelar quando quiser.</span></div></div>';
+        '<span><strong>Como a senha fica protegida.</strong> Ao tocar em "Guardar com segurança", ' +
+        'ela é embaralhada dentro do seu aparelho, antes de sair. O portal só tem a chave que ' +
+        'tranca; a que abre fica com a ' + U.esc(DATA.ORG.curto) + ', fora do sistema. ' +
+        'Nem neste aparelho, nem no nosso banco de dados a senha existe de forma legível. ' +
+        'Se preferir não digitar senha, use a procuração eletrônica — o passo a passo está ' +
+        'logo acima.</span></div></div>';
     }
 
     UI.modal({ titulo: item.nome, corpoHTML: corpo, acoes: [{ rotulo: "Entendi", classe: "btn--primary" }] });
@@ -838,10 +841,9 @@
 
      Conteúdo herdado do sistema "checklist financeiro" da Totali,
      que deixa de ter link próprio. Diferença importante em relação
-     ao original: aqui NÃO existe campo de login e senha de
-     maquininha. O cliente escolhe a forma, e o acesso é combinado
-     com a equipe fora de formulário — mesma regra dos demais
-     itens de acesso do portal.
+     ao original: o login e a senha da maquininha são cifrados no
+     aparelho do cliente antes de sair (js/cripto.js). No sistema
+     antigo eles iam em texto legível para o banco de dados.
      ============================================================ */
   function caixaSelecao(nome, valor, marcado, rotulo) {
     return '<label class="opcao' + (marcado ? " opcao--on" : "") + '">' +
@@ -1721,12 +1723,23 @@
           'armazenamento do próprio navegador. Nenhum arquivo trafega pela internet nesta fase.</span>' +
         '</div>' +
 
-        '<div class="help-block"><div class="help-block__t">Por que não pedimos senhas</div>' +
-          '<div class="help-block__c">Senha digitada em formulário fica registrada em muitos lugares — ' +
-          'no navegador, no servidor e nos backups — e qualquer um deles pode vazar. Por isso os itens ' +
-          'de acesso deste portal nunca têm campo de senha. O caminho que recomendamos é a procuração ' +
-          'eletrônica no e-CAC: você autoriza a ' + U.esc(org.curto) + ' a acessar apenas o necessário, ' +
-          'sem entregar credencial, e pode revogar a qualquer momento.</div></div>' +
+        '<div class="help-block"><div class="help-block__t">Como protegemos suas senhas</div>' +
+          '<div class="help-block__c">As senhas que você informa no portal são embaralhadas dentro ' +
+          'do seu próprio aparelho, antes de saírem dele. O portal carrega apenas a chave que ' +
+          'tranca; a que abre fica com a ' + U.esc(org.curto) + ', guardada fora do sistema. ' +
+          'Por isso, nem neste aparelho, nem no nosso banco de dados, nem em cópia de segurança a ' +
+          'senha existe de forma legível — só a nossa equipe consegue abrir.<br><br>' +
+          'Usamos esses acessos apenas para emitir e transmitir o que a sua empresa precisa entregar, ' +
+          'baixar relatórios de venda e consultar a situação fiscal. <strong>Nunca movimentamos ' +
+          'dinheiro e nunca pedimos a senha do seu banco.</strong><br><br>' +
+          'Se preferir não digitar senha nenhuma, os itens de acesso oferecem alternativas: ' +
+          'procuração eletrônica no e-CAC, com passo a passo dentro do portal, ou avisar que a ' +
+          U.esc(org.curto) + ' já tem acesso.</div></div>' +
+
+        '<div class="help-block"><div class="help-block__t">Você pode apagar quando quiser</div>' +
+          '<div class="help-block__c">Cada acesso guardado tem os botões <strong>Substituir</strong> ' +
+          'e <strong>Apagar</strong> na própria tela do documento. Trocou a senha no sistema? ' +
+          'Substitua aqui. Não quer mais deixar o acesso conosco? Apague e avise a equipe.</div></div>' +
 
         '<div class="help-block"><div class="help-block__t">Para que usamos seus dados</div>' +
           '<div class="help-block__c">Exclusivamente para prestar os serviços contábeis, fiscais e ' +
