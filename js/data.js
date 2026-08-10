@@ -62,11 +62,11 @@
   ------------------------------------------------ */
   var GRUPOS = [
     {
-      id: "fiscal",
+      id: "societario",
       escopo: "empresa",
-      icone: "ic-file",
-      titulo: "Contábil e Fiscal",
-      desc: "A história contábil da empresa. É o que permite continuar de onde a contabilidade anterior parou.",
+      icone: "ic-scroll",
+      titulo: "Societário",
+      desc: "Os atos de constituição da empresa. É por aqui que confirmamos quem são os sócios, o objeto e o capital.",
       itens: [
         {
           id: "contrato-social",
@@ -83,22 +83,17 @@
             ],
             dica: "Se você tiver um contrato consolidado (a última alteração que reescreve tudo), ele já substitui os anteriores — envie esse."
           }
-        },
-        {
-          id: "livros-fiscais",
-          kind: "arquivo",
-          nome: "Livros fiscais",
-          obrigatorio: false,
-          resumo: "Entradas, saídas e apuração de ICMS.",
-          ajuda: {
-            oque: "São os registros de todas as notas de compra e venda e do cálculo do ICMS do período.",
-            onde: [
-              "Com o contador anterior, normalmente em PDF ou nos arquivos do SPED Fiscal.",
-              "Se a empresa emite nota eletrônica, os arquivos podem ser gerados pelo sistema fiscal."
-            ],
-            dica: "Empresa só de serviços, sem ICMS? Marque \"não se aplica\" e siga em frente."
-          }
-        },
+        }
+      ]
+    },
+
+    {
+      id: "contabil",
+      escopo: "empresa",
+      icone: "ic-calculator",
+      titulo: "Contábil",
+      desc: "A memória contábil da empresa. É o que permite continuar exatamente de onde a contabilidade anterior parou.",
+      itens: [
         {
           id: "balancos",
           kind: "arquivo",
@@ -134,6 +129,31 @@
             onde: ["Com o contador anterior, no controle de ativo imobilizado."],
             dica: "Se a empresa não tem bens registrados no imobilizado, marque \"não se aplica\"."
           }
+        }
+      ]
+    },
+
+    {
+      id: "fiscal",
+      escopo: "empresa",
+      icone: "ic-receipt",
+      titulo: "Fiscal",
+      desc: "Escrituração de notas, impostos sobre vendas e os acessos que usamos para apurar e declarar.",
+      itens: [
+        {
+          id: "livros-fiscais",
+          kind: "arquivo",
+          nome: "Livros fiscais",
+          obrigatorio: false,
+          resumo: "Entradas, saídas e apuração de ICMS.",
+          ajuda: {
+            oque: "São os registros de todas as notas de compra e venda e do cálculo do ICMS do período.",
+            onde: [
+              "Com o contador anterior, normalmente em PDF ou nos arquivos do SPED Fiscal.",
+              "Se a empresa emite nota eletrônica, os arquivos podem ser gerados pelo sistema fiscal."
+            ],
+            dica: "Empresa só de serviços, sem ICMS? Marque \"não se aplica\" e siga em frente."
+          }
         },
         {
           id: "certificado-digital",
@@ -148,7 +168,17 @@
               "Se o certificado for do tipo A1 (arquivo), combinamos a entrega por um canal seguro, fora deste portal.",
               "Se for A3 (token ou cartão), o certificado fica com você — a procuração resolve."
             ],
-            dica: "Confira a data de validade. Certificado vencido trava a entrega de obrigações e gera multa."
+            dica: "Confira a data de validade. Certificado vencido trava a entrega de obrigações e gera multa.",
+            passosTitulo: "Passo a passo da procuração eletrônica",
+            passos: [
+              "Acesse o e-CAC no site da Receita Federal e entre com o certificado digital da empresa ou com a conta gov.br (nível prata ou ouro) do responsável legal.",
+              "Procure por \"Procurações\" — fica no menu Senhas e Procurações. Se não achar, use a busca do próprio e-CAC.",
+              "Escolha cadastrar uma nova procuração eletrônica para a Receita Federal.",
+              "Informe o CNPJ da Totali como procurador e defina o prazo de validade que preferir.",
+              "Marque os serviços que vamos usar. Se ficar em dúvida sobre quais, escolha todos — você pode revogar quando quiser.",
+              "Assine e conclua. Depois volte aqui e marque a opção \"Vou conceder procuração eletrônica\"."
+            ],
+            passosNota: "Não tem certificado digital nem conta gov.br prata ou ouro? Fale com a gente: nesse caso existe a procuração em papel, feita numa unidade da Receita, e nós orientamos o caminho."
           }
         },
         {
@@ -163,7 +193,16 @@
               "Com procuração eletrônica no e-CAC, a Totali acessa sem precisar de código.",
               "O código de acesso também pode ser gerado por você no portal do Simples Nacional, com CNPJ, CPF do responsável e número do recibo da última declaração."
             ],
-            dica: "Se a empresa não é optante pelo Simples, marque \"não se aplica\"."
+            dica: "Se a empresa não é optante pelo Simples, marque \"não se aplica\".",
+            passosTitulo: "Gerar o código de acesso você mesmo",
+            passos: [
+              "Se você já nos deu a procuração eletrônica no e-CAC, pare por aqui: ela já cobre o Simples Nacional e este item está resolvido.",
+              "Se preferir o código de acesso, entre no Portal do Simples Nacional e procure a opção de gerar código de acesso.",
+              "Informe o CNPJ da empresa, o CPF do responsável no cadastro e o número do recibo da última declaração entregue.",
+              "O portal mostra o código na tela. Guarde-o com você.",
+              "Volte aqui e escolha \"Prefiro combinar com a Totali\" — nós entramos em contato para receber o código por um canal seguro, fora deste portal."
+            ],
+            passosNota: "O código de acesso pode ser gerado de novo a qualquer momento, o que invalida o anterior. É por isso que ele é bem menos arriscado que uma senha — mas ainda assim não pedimos que você o digite aqui."
           }
         },
         {
@@ -179,18 +218,6 @@
               "Em alguns casos há usuário e senha próprios, criados no cadastro do contribuinte."
             ],
             dica: "Empresa sem inscrição estadual não precisa deste acesso — marque \"não se aplica\"."
-          }
-        },
-        {
-          id: "ir-socios-empresa",
-          kind: "arquivo",
-          nome: "Declaração de Imposto de Renda dos sócios",
-          obrigatorio: false,
-          resumo: "Última declaração entregue, com o recibo.",
-          ajuda: {
-            oque: "Usamos a declaração para conferir se a participação societária, o capital e a distribuição de lucros estão declarados de forma coerente com a contabilidade.",
-            onde: ["No programa da Receita Federal ou no e-CAC, em \"Meu Imposto de Renda\"."],
-            dica: "Envie a declaração completa e o recibo de entrega. Sócio isento pode marcar \"não se aplica\"."
           }
         }
       ]

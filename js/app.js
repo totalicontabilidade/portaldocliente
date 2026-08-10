@@ -15,6 +15,7 @@
   var ROTAS = [
     { id: "inicio",      titulo: "Início",     icone: "ic-home",     nav: true },
     { id: "documentos",  titulo: "Documentos", icone: "ic-folder",   nav: true },
+    { id: "mensagens",   titulo: "Mensagens",  icone: "ic-chat",     nav: true },
     { id: "academy",     titulo: "Academy",    icone: "ic-play",     nav: true },
     { id: "empresa",     titulo: "Empresa",    icone: "ic-building", nav: true },
     { id: "ajuda",       titulo: "Ajuda",      icone: "ic-help",     nav: true },
@@ -250,6 +251,39 @@
         '</div>' +
       '</section>';
     }
+
+    /* Atalhos — no celular, "Empresa" não cabe na barra inferior. */
+    var cadastroIncompleto = !st.empresa.razaoSocial || !st.empresa.cnpj || !st.empresa.responsavelNome;
+    var naoLidas = Store.naoLidas("cliente");
+    html +=
+    '<section class="section">' +
+      '<div class="card">' +
+        '<button type="button" class="group__head" data-rota="empresa" ' +
+          'style="border-bottom:1px solid var(--stroke)">' +
+          '<span class="group__icon">' + ic("ic-building") + '</span>' +
+          '<span class="group__info">' +
+            '<span class="group__title" style="font-size:14px">Dados da empresa</span>' +
+            '<span class="group__meta">' +
+              (cadastroIncompleto ? "Faltam informações do cadastro" : "Cadastro, sócios e responsável") +
+            '</span>' +
+          '</span>' +
+          (cadastroIncompleto
+            ? '<span class="badge badge--analise"><span class="dot"></span>Completar</span>' : '') +
+          '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
+        '</button>' +
+        '<button type="button" class="group__head" data-rota="mensagens">' +
+          '<span class="group__icon">' + ic("ic-chat") + '</span>' +
+          '<span class="group__info">' +
+            '<span class="group__title" style="font-size:14px">Mensagens</span>' +
+            '<span class="group__meta">Fale com quem cuida da sua empresa</span>' +
+          '</span>' +
+          (naoLidas
+            ? '<span class="badge badge--pendencia"><span class="dot"></span>' + naoLidas + ' ' +
+              U.plural(naoLidas, "nova", "novas") + '</span>' : '') +
+          '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
+        '</button>' +
+      '</div>' +
+    '</section>';
 
     /* Trilha das etapas */
     html +=
@@ -568,6 +602,19 @@
                '<span class="notice__icon">' + ic("ic-info") + '</span>' +
                '<span>' + U.esc(a.dica) + '</span></div></div>';
     }
+    /* Passo a passo para o cliente resolver sozinho. */
+    if (a.passos && a.passos.length) {
+      corpo += '<div class="help-block">' +
+        '<div class="help-block__t">' + U.esc(a.passosTitulo || "Passo a passo") + '</div>' +
+        '<ol class="passos">' + a.passos.map(function (p) {
+          return '<li>' + U.esc(p) + '</li>';
+        }).join("") + '</ol>' +
+        (a.passosNota
+          ? '<div class="help-block__c" style="margin-top:10px;color:var(--txt-3);font-size:12.5px">' +
+            U.esc(a.passosNota) + '</div>'
+          : '') +
+      '</div>';
+    }
     if (item.kind === "arquivo") {
       corpo += '<div class="help-block"><div class="help-block__t">Como enviar</div>' +
         '<div class="help-block__c">Aceitamos PDF, foto (JPG, PNG, WEBP), planilhas e documentos do ' +
@@ -584,6 +631,176 @@
     }
 
     UI.modal({ titulo: item.nome, corpoHTML: corpo, acoes: [{ rotulo: "Entendi", classe: "btn--primary" }] });
+  }
+
+  /* ============================================================
+     Tela: Mensagens
+     ============================================================ */
+
+  /* Descobre o nome legível de um documento a partir da chave. */
+  function nomeDoItem(chave) {
+    if (!chave) return "";
+    var partes = String(chave).split("/");
+    var grupo = DATA.GRUPOS.filter(function (g) { return g.id === partes[0]; })[0];
+    if (!grupo) return "";
+    var item = grupo.itens.filter(function (i) { return i.id === partes[partes.length - 1]; })[0];
+    if (!item) return "";
+    if (partes.length === 3) {
+      var socio = Store.estado.socios.filter(function (s) { return s.id === partes[1]; })[0];
+      if (socio && socio.nome) return item.nome + " · " + U.primeiroNome(socio.nome);
+    }
+    return item.nome;
+  }
+
+  function cartaoNotificacoes() {
+    var N = global.Notif;
+    if (!N || !N.suportado) return "";
+    if (N.ativo) return "";
+    var motivo = N.motivo();
+    if (motivo) {
+      return '<div class="notice notice--info" style="margin-bottom:16px">' +
+        '<span class="notice__icon">' + ic("ic-bell") + '</span>' +
+        '<span>' + U.esc(motivo) + '</span></div>';
+    }
+    return '<div class="notif" style="margin-bottom:16px">' +
+      '<span class="notif__icon">' + ic("ic-bell") + '</span>' +
+      '<span class="notif__txt">' +
+        '<span class="notif__t">Quer ser avisado?</span>' +
+        '<span class="notif__d">Ative os avisos e receba no celular quando pedirmos um documento, ' +
+        'revisarmos um envio ou mandarmos uma mensagem.</span>' +
+      '</span>' +
+      '<button type="button" class="btn btn--primary btn--sm" id="btnAtivarAvisos">Ativar</button>' +
+    '</div>';
+  }
+
+  function viewMensagens() {
+    var msgs = Store.mensagens();
+    var org = DATA.ORG;
+
+    var html = '<section class="section">' +
+      '<div class="section__head"><div>' +
+        '<h1 class="section__title" style="font-size:20px">Mensagens</h1>' +
+        '<p class="section__desc">Fale direto com quem cuida da sua empresa. ' +
+          U.esc(org.horario) + '.</p>' +
+      '</div></div>' +
+      cartaoNotificacoes();
+
+    if (!msgs.length) {
+      html += '<div class="card"><div class="empty">' +
+        '<div class="empty__icon">' + ic("ic-chat") + '</div>' +
+        '<div class="empty__title">Nenhuma mensagem ainda</div>' +
+        '<div class="empty__desc">Escreva abaixo se tiver qualquer dúvida sobre um documento ' +
+        'ou sobre a migração. Respondemos por aqui mesmo.</div>' +
+      '</div></div>';
+    } else {
+      var ultimoDia = "";
+      html += '<div class="chat">';
+      msgs.forEach(function (m) {
+        var dia = U.dataCurta(m.em);
+        if (dia && dia !== ultimoDia) {
+          ultimoDia = dia;
+          html += '<div class="chat__dia">' + U.esc(dia) + '</div>';
+        }
+        var doc = m.chave ? nomeDoItem(m.chave) : "";
+        html += '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") +
+                (m.autor === "equipe" && !m.lidaEm ? " msg--nova" : "") + '">' +
+          (m.autor === "equipe"
+            ? '<div class="msg__autor">' + U.esc(m.autorNome || org.curto) + '</div>' : '') +
+          (doc
+            ? '<button type="button" class="msg__ref" data-rota="documentos" data-grupo="' +
+              U.escAttr(String(m.chave).split("/")[0]) + '">' + ic("ic-file") + U.esc(doc) + '</button>'
+            : '') +
+          '<div>' + U.esc(m.texto).replace(/\n/g, "<br>") + '</div>' +
+          '<div class="msg__hora">' + U.esc(U.dataHora(m.em).split(" às ")[1] || "") + '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="composer">' +
+        '<textarea class="textarea" id="msgTexto" rows="1" maxlength="4000" ' +
+          'placeholder="Escreva sua mensagem…" aria-label="Escreva sua mensagem"></textarea>' +
+        '<button type="button" class="composer__send" id="btnEnviarMsg" disabled aria-label="Enviar">' +
+          ic("ic-send") + '</button>' +
+      '</div>' +
+      '<p class="text-xs text-muted" style="margin-top:10px;text-align:center">' +
+        'Precisa de resposta imediata? ' +
+        '<a href="https://wa.me/' + U.escAttr(org.whatsapp) + '" target="_blank" rel="noopener noreferrer">' +
+        'Chame no WhatsApp</a>.</p>' +
+    '</section>';
+
+    return html;
+  }
+
+  function bindMensagens() {
+    var campo = $("#msgTexto"), botao = $("#btnEnviarMsg");
+    if (!campo || !botao) return;
+
+    var ajustarAltura = function () {
+      campo.style.height = "auto";
+      campo.style.height = Math.min(campo.scrollHeight, 150) + "px";
+      botao.disabled = !campo.value.trim();
+    };
+    campo.addEventListener("input", ajustarAltura);
+
+    var enviar = function () {
+      var texto = campo.value.trim();
+      if (!texto) return;
+      Store.enviarMensagem(texto, {
+        autor: "cliente",
+        autorNome: Store.estado.empresa.responsavelNome || ""
+      });
+      Store.flush();
+      campo.value = "";
+      render();
+      /* Mantém o foco: quem está conversando costuma escrever de novo. */
+      var novo = $("#msgTexto");
+      if (novo) novo.focus();
+      irParaFimDaConversa();
+    };
+
+    botao.addEventListener("click", enviar);
+    campo.addEventListener("keydown", function (ev) {
+      /* Enter envia no computador; no celular, quebra linha. */
+      if (ev.key === "Enter" && !ev.shiftKey && global.innerWidth >= 900) {
+        ev.preventDefault();
+        enviar();
+      }
+    });
+
+    if (Store.marcarLidas("cliente")) {
+      Store.flush();
+      atualizarNav(estadoUI.rota);
+    }
+    irParaFimDaConversa();
+
+    var btnAvisos = $("#btnAtivarAvisos");
+    if (btnAvisos && global.Notif) {
+      btnAvisos.addEventListener("click", function () {
+        global.Notif.pedirPermissao().then(function (ok) {
+          if (ok) {
+            UI.toast("Avisos ativados. Você será notificado neste aparelho.", "ok");
+            global.Notif.avisar({
+              titulo: "Avisos ativados",
+              corpo: "É assim que a Totali vai te avisar sobre documentos e mensagens.",
+              tag: "teste", rota: "mensagens"
+            });
+          } else {
+            UI.toast("Não foi possível ativar. Verifique as permissões do navegador.", "erro");
+          }
+          render();
+        });
+      });
+    }
+  }
+
+  function irParaFimDaConversa() {
+    var chat = $(".chat");
+    if (!chat) return;
+    var ultimo = chat.lastElementChild;
+    if (ultimo && ultimo.scrollIntoView) {
+      try { ultimo.scrollIntoView({ block: "center", behavior: "auto" }); } catch (e) {}
+    }
   }
 
   /* ============================================================
@@ -975,6 +1192,7 @@
     switch (rota) {
       case "boas-vindas": html = viewBoasVindas(); break;
       case "documentos":  html = viewDocumentos(); break;
+      case "mensagens":   html = viewMensagens(); break;
       case "academy":     html = viewAcademy(); break;
       case "empresa":     html = viewEmpresa(); break;
       case "ajuda":       html = viewAjuda(); break;
@@ -996,6 +1214,7 @@
     atualizarNav(rota);
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
+    if (rota === "mensagens") bindMensagens();
     if (rota === "privacidade") bindPrivacidade();
   }
 
@@ -1007,6 +1226,9 @@
       var id = b.getAttribute("data-nav");
       if (id === rota) b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
+      /* A logo do cabeçalho é atalho para o início e nunca fica
+         apagada — ela precisa parecer sempre viva. */
+      if (b.classList.contains("brand")) return;
       var bloqueado = gate && ROTAS_LIVRES.indexOf(id) === -1;
       b.toggleAttribute("disabled", bloqueado);
       b.style.opacity = bloqueado ? ".45" : "";
@@ -1014,6 +1236,12 @@
 
     $$("[data-badge-pendentes]").forEach(function (n) {
       var v = resumo.pendentes;
+      if (v > 0 && !gate) { n.hidden = false; n.textContent = v > 99 ? "99+" : String(v); }
+      else n.hidden = true;
+    });
+
+    $$("[data-badge-mensagens]").forEach(function (n) {
+      var v = Store.naoLidas("cliente");
       if (v > 0 && !gate) { n.hidden = false; n.textContent = v > 99 ? "99+" : String(v); }
       else n.hidden = true;
     });
@@ -1401,7 +1629,28 @@
 
     ligarEventosGlobais();
 
+    /* Avisos ao cliente. Só notificamos o que veio da Totali —
+       ninguém precisa ser avisado da própria ação. */
+    Store.notificador = function (ev) {
+      var N = global.Notif;
+      if (!N || !N.ativo) return;
+
+      if (ev.tipo === "mensagem" && ev.mensagem && ev.mensagem.autor === "equipe") {
+        N.novaMensagem(ev.mensagem.autorNome, ev.mensagem.texto, estadoUI.rota);
+        return;
+      }
+      if (ev.tipo === "revisao" && ev.status) {
+        var nome = nomeDoItem(ev.chave) || "um documento";
+        if (ev.status === "pendencia") {
+          N.documentoRevisado(nome + (ev.motivo ? " — " + ev.motivo : ""), "pendencia", estadoUI.rota);
+        } else {
+          N.documentoRevisado(nome, ev.status, estadoUI.rota);
+        }
+      }
+    };
+
     Store.on(function (_, motivo) {
+      if (motivo === "mensagens" || motivo === "revisao") atualizarNav(estadoUI.rota);
       if (motivo === "erro-persistencia") {
         UI.toast("Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
                  "o navegador está em modo privado.", "erro", 9000);

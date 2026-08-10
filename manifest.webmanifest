@@ -10,8 +10,8 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
-  "background_color": "#0e1f30",
-  "theme_color": "#14293f",
+  "background_color": "#0d1926",
+  "theme_color": "#0d1926",
   "categories": ["business", "finance", "productivity"],
   "prefer_related_applications": false,
   "icons": [
@@ -25,6 +25,12 @@
       "name": "Enviar documentos",
       "short_name": "Documentos",
       "url": "./#/documentos",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mensagens",
+      "short_name": "Mensagens",
+      "url": "./#/mensagens",
       "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }]
     },
     {

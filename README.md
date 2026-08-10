@@ -14,13 +14,15 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Módulo | Situação |
 |---|---|
 | Estrutura, navegação e identidade visual | pronto |
-| Checklist de documentos (27 itens em 3 grupos) | pronto |
+| Checklist por departamento (5 áreas) | pronto |
 | Envio de arquivos com validação | pronto |
 | Cadastro da empresa e dos sócios | pronto |
 | PWA instalável e funcionamento offline | pronto |
 | Modelo de dados multiempresa (`empresaId`) | pronto |
 | Ciclo de revisão (análise / aprovado / pendência) | modelo e tela do cliente prontos |
-| Mensagens cliente ↔ equipe | modelo pronto, sem tela |
+| Mensagens cliente ↔ equipe | tela do cliente pronta |
+| Avisos no aparelho (portal aberto ou em 2º plano) | pronto |
+| Push com o aplicativo fechado | pendente (Firebase Cloud Messaging) |
 | Trilha de auditoria | modelo pronto (ver ressalva abaixo) |
 | Trilhas da Academy | telas prontas, vídeos pendentes |
 | Painel interno da equipe | pendente (`equipe.html`) |
@@ -45,6 +47,7 @@ js/data.js                 CONTEÚDO: checklist, etapas, trilhas, FAQ
 js/store.js                Estado, persistência e cálculo de progresso
 js/ui.js                   Modal, toasts, ícones
 js/motion.js               Animações de entrada, contadores e anel de progresso
+js/notificacoes.js         Avisos no aparelho e ganchos para o push do Firebase
 js/app.js                  Rotas, telas e eventos
 js/pwa.js                  Instalação, service worker e proteções de contexto
 assets/                    Logo e ícones do aplicativo
@@ -74,8 +77,12 @@ existe uma rede de segurança que revela tudo em 1,6 s caso as animações não
 disparem (aba em segundo plano, navegador antigo, erro de script). Quem pediu
 menos movimento no sistema operacional recebe a interface estática.
 
-Contraste medido no tema escuro: 17:1 no texto principal, 5,3:1 no secundário e
-11,7:1 nos links dourados — acima do mínimo da WCAG AA em todos.
+Contraste calibrado para leitura longa, não para o máximo possível: o piso não é
+preto (`#0d1926`) e o texto não é branco (`#d3dde8`). Fundo muito escuro com texto
+muito claro cria halação e cansa a vista. Medido sobre o fundo: 12,9:1 no texto
+principal, 7,9:1 no secundário, 5,6:1 no terciário e 10,4:1 nos dourados — todos
+acima do mínimo da WCAG AA. Halos e brilhos em volta de ícones, selos e barras
+foram reduzidos pelo mesmo motivo.
 
 ### Modelo de dados
 
@@ -131,6 +138,43 @@ O mesmo vale para o papel do usuário: `sanear()` força `papel: "cliente"` ao
 carregar, ignorando o que estiver gravado. Quem decide papel é o login, nunca o
 armazenamento local.
 
+### Departamentos
+
+O checklist é dividido pelas áreas que realmente cuidam de cada documento:
+
+| Departamento | Itens | Escopo |
+|---|---|---|
+| Societário | 1 | empresa |
+| Contábil | 3 | empresa |
+| Fiscal | 4 | empresa |
+| Departamento Pessoal | 9 | empresa |
+| Documentos dos sócios | 9 | **por sócio cadastrado** |
+
+O item "Declaração de Imposto de Renda dos sócios", que no checklist em papel
+aparecia duas vezes (uma na área contábil e outra na lista dos sócios), ficou
+só na lista dos sócios. Pedir o mesmo documento duas vezes confunde o cliente.
+Se quiser o item de volta na área contábil, é uma entrada em `js/data.js`.
+
+### Notificações
+
+São duas coisas diferentes, e só uma existe hoje:
+
+1. **Aviso local — funcionando.** O portal está aberto ou em segundo plano e
+   dispara o aviso sozinho (`js/notificacoes.js`). Não precisa de servidor.
+   Só avisa quando a pessoa **não** está olhando a tela em questão, e nunca
+   avisa alguém da própria ação.
+2. **Push com o aplicativo fechado — pendente.** Exige servidor. Os ouvintes
+   `push` e `notificationclick` já estão no `sw.js`; falta ligar o Firebase
+   Cloud Messaging e guardar a inscrição de cada aparelho.
+
+**Limite do iPhone:** no iOS, notificação da web só funciona com o portal
+**instalado na tela de início** (iOS 16.4+). No Safari comum o iPhone não
+notifica — nada no código muda isso. Por isso o portal explica o motivo em vez
+de simplesmente falhar.
+
+Ao ligar o Cloud Messaging, lembre de liberar o domínio do Firebase em
+`connect-src` na CSP do `index.html` — hoje ela permite apenas a própria origem.
+
 ### Tipos de item do checklist
 
 | `kind` | Comportamento |
@@ -152,6 +196,14 @@ qualquer um deles pode vazar, e a responsabilidade passa a ser da contabilidade.
 Por isso esses itens viraram do tipo `acesso`: o cliente escolhe entre conceder
 **procuração eletrônica no e-CAC**, combinar por canal separado ou informar que a
 Totali já tem acesso. Não existe um único `input[type=password]` no sistema.
+
+Isso **não** torna o processo menos autônomo. Os itens de acesso trazem um passo
+a passo numerado para o cliente resolver sozinho: como conceder a procuração
+eletrônica no e-CAC e como gerar o código de acesso do Simples Nacional. A
+procuração é, na prática, o caminho *mais* autônomo — o cliente faz online em
+minutos, não precisa entregar credencial nenhuma, escolhe o prazo e pode revogar
+quando quiser. Guardar senha de cliente, além do risco, dá trabalho recorrente:
+toda troca de senha quebra o acesso e vira um chamado.
 
 **Content Security Policy restritiva** (`index.html`). `script-src 'self'`
 bloqueia qualquer script injetado, inclusive inline. Nenhuma CDN é usada: todos

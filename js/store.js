@@ -516,7 +516,16 @@
         };
       }, "revisao");
       Store.registrarEvento("revisao:" + (status || "limpa"), chave, motivo || "", por || "");
+      Store.avisar({ tipo: "revisao", chave: chave, status: status, motivo: motivo || "" });
       return true;
+    },
+
+    /* Ponte para a camada de notificações. Quem preenche é o
+       app.js — assim o Store não precisa conhecer o navegador. */
+    notificador: null,
+    avisar: function (evento) {
+      if (typeof Store.notificador !== "function") return;
+      try { Store.notificador(evento); } catch (e) { /* aviso nunca derruba a gravação */ }
     },
 
     /* =======================================================
@@ -541,6 +550,7 @@
         st.mensagens.push(msg);
         if (st.mensagens.length > 300) st.mensagens = st.mensagens.slice(-300);
       }, "mensagens");
+      Store.avisar({ tipo: "mensagem", mensagem: msg });
       return msg;
     },
 
