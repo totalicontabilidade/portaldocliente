@@ -71,10 +71,13 @@
   }
 
   var ROTULO_SITUACAO = {
-    enviado:     { texto: "Enviado",        cls: "badge--enviado" },
-    substituido: { texto: "Coberto pela CNH", cls: "badge--aprovado" },
-    na:          { texto: "Não se aplica",  cls: "badge--na" },
-    pendente:    { texto: "Pendente",       cls: "badge--pendente" }
+    enviado:     { texto: "Enviado",           cls: "badge--enviado" },
+    analise:     { texto: "Em análise",        cls: "badge--analise" },
+    aprovado:    { texto: "Aprovado",          cls: "badge--aprovado" },
+    pendencia:   { texto: "Precisa corrigir",  cls: "badge--pendencia" },
+    substituido: { texto: "Coberto pela CNH",  cls: "badge--aprovado" },
+    na:          { texto: "Não se aplica",     cls: "badge--na" },
+    pendente:    { texto: "Pendente",          cls: "badge--pendente" }
   };
 
   function badgeSituacao(sit) {
@@ -142,6 +145,7 @@
     btn.addEventListener("click", function () {
       if (!chk.checked) return;
       Store.commit(function (st) { st.aceiteLGPD = Date.now(); }, "aceite");
+      Store.registrarEvento("lgpd:aceite", "", "consentimento registrado no portal");
       Store.flush();
       UI.toast("Tudo pronto. Vamos começar pelos dados da empresa.", "ok");
       navegar("empresa");
@@ -151,27 +155,26 @@
   /* ============================================================
      Tela: Início
      ============================================================ */
+  /* Correções pedidas pela Totali vêm primeiro: são o que trava a
+     migração. Depois, os obrigatórios que ainda não chegaram. */
   function proximosPendentes(limite) {
-    var out = [];
+    var correcoes = [], faltando = [];
     DATA.GRUPOS.forEach(function (g) {
-      var alvos = g.escopo === "socio"
-        ? Store.estado.socios.map(function (s) { return s; })
-        : [null];
+      var alvos = g.escopo === "socio" ? Store.estado.socios.slice() : [null];
       alvos.forEach(function (socio) {
         g.itens.forEach(function (item) {
-          if (out.length >= limite) return;
-          if (!item.obrigatorio) return;
           var sit = Store.situacao(g, item, socio ? socio.id : null);
-          if (sit === "pendente") {
-            out.push({
-              grupo: g, item: item,
-              sufixo: socio ? U.primeiroNome(socio.nome) || "sócio" : ""
-            });
-          }
+          if (sit !== "pendencia" && !(sit === "pendente" && item.obrigatorio)) return;
+          var entrada = {
+            grupo: g, item: item, sit: sit,
+            sufixo: socio ? U.primeiroNome(socio.nome) || "sócio" : ""
+          };
+          if (sit === "pendencia") correcoes.push(entrada);
+          else faltando.push(entrada);
         });
       });
     });
-    return out;
+    return correcoes.concat(faltando).slice(0, limite);
   }
 
   function viewInicio() {
@@ -216,11 +219,18 @@
     /* Próximos passos */
     var pendentes = proximosPendentes(4);
     if (pendentes.length) {
+      var temCorrecao = resumo.pendencias > 0;
       html +=
       '<section class="section">' +
         '<div class="section__head"><div>' +
-          '<h2 class="section__title">Próximos passos</h2>' +
-          '<p class="section__desc">Comece por aqui. São os documentos que mais travam a migração.</p>' +
+          '<h2 class="section__title">' + (temCorrecao ? "Precisa da sua atenção" : "Próximos passos") + '</h2>' +
+          '<p class="section__desc">' +
+            (temCorrecao
+              ? "Há " + resumo.pendencias + " " +
+                U.plural(resumo.pendencias, "documento que a Totali pediu para corrigir",
+                                            "documentos que a Totali pediu para corrigir") + "."
+              : "Comece por aqui. São os documentos que mais travam a migração.") +
+          '</p>' +
         '</div></div>' +
         '<div class="card">' +
           pendentes.map(function (p) {
@@ -230,8 +240,10 @@
               '<span class="group__info">' +
                 '<span class="group__title" style="display:block;font-size:14px">' + U.esc(p.item.nome) +
                   (p.sufixo ? ' <span class="text-xs text-muted">· ' + U.esc(p.sufixo) + '</span>' : '') + '</span>' +
-                '<span class="group__meta">' + U.esc(p.item.resumo || "") + '</span>' +
+                '<span class="group__meta">' +
+                  (p.sit === "pendencia" ? "Corrigir e reenviar" : U.esc(p.item.resumo || "")) + '</span>' +
               '</span>' +
+              (p.sit === "pendencia" ? badgeSituacao("pendencia") : '') +
               '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
             '</button>';
           }).join("") +
@@ -283,10 +295,11 @@
     var chave = Store.chaveItem(grupo.id, item.id, socioId);
     var reg = Store.estado.itens[chave] || { arquivos: [], valor: "", na: false, forma: "" };
     var sit = Store.situacao(grupo, item, socioId);
-    var pronto = sit === "enviado" || sit === "substituido";
+    var pronto = Store.resolvida(sit);
     var grupoNA = !!Store.estado.gruposNA[grupo.id];
 
-    var html = '<div class="item ' + (pronto ? "item--done " : "") + (sit === "na" ? "item--na" : "") +
+    var html = '<div class="item ' + (pronto ? "item--done " : "") +
+               (sit === "na" ? "item--na " : "") + (sit === "pendencia" ? "item--pendencia" : "") +
                '" data-chave="' + U.escAttr(chave) + '">' +
       '<div class="item__top">' +
         '<span class="item__mark" aria-hidden="true">' + ic("ic-check") + '</span>' +
@@ -298,6 +311,22 @@
               ic("ic-info") + 'Entenda este documento</button>' +
           '</div>' +
           (item.resumo ? '<div class="item__desc">' + U.esc(item.resumo) + '</div>' : '');
+
+    /* Recado da equipe quando o documento voltou para correção. */
+    if (sit === "pendencia") {
+      html += '<div class="notice notice--warn" style="margin-top:10px;padding:11px 13px;font-size:12.5px">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>A Totali pediu uma correção.</strong>' +
+          (reg.revisao && reg.revisao.motivo ? ' ' + U.esc(reg.revisao.motivo) : '') +
+          (reg.revisao && reg.revisao.em
+            ? ' <span class="text-xs" style="opacity:.75">— ' + U.esc(U.dataCurta(reg.revisao.em)) + '</span>'
+            : '') +
+          '</span></div>';
+    }
+    if (sit === "aprovado" && reg.revisao && reg.revisao.em) {
+      html += '<div class="item__desc" style="color:var(--ok)">Conferido pela Totali em ' +
+              U.esc(U.dataCurta(reg.revisao.em)) + '.</div>';
+    }
 
     if (grupoNA) {
       html += '<div class="item__desc">Este grupo foi marcado como não aplicável.</div>';
@@ -453,7 +482,7 @@
               var sit = Store.situacao(grupo, it, s.id);
               if (sit === "na") return;
               r.total++;
-              if (sit === "enviado" || sit === "substituido") r.ok++;
+              if (Store.resolvida(sit)) r.ok++;
             });
             html += '<div style="padding:13px 16px;background:rgba(194,162,80,.06);' +
               'border-top:1px solid var(--stroke);border-bottom:1px solid var(--stroke)">' +
@@ -701,7 +730,7 @@
           var sit = Store.situacao(g, it, s.id);
           if (sit === "na") return;
           r.total++;
-          if (sit === "enviado" || sit === "substituido") r.ok++;
+          if (Store.resolvida(sit)) r.ok++;
         });
         return '<div class="item">' +
           '<div class="item__top">' +
@@ -1142,6 +1171,7 @@
           var r = Store.item(cxn.chave);
           r.na = true; r.atualizadoEm = Date.now();
         }, "na");
+        Store.registrarEvento("item:naoSeAplica", cxn.chave, cxn.item.nome);
         Store.flush(); render();
         return;
       }
@@ -1168,7 +1198,9 @@
           r.forma = (r.forma === valor) ? "" : valor;
           r.na = false;
           r.atualizadoEm = Date.now();
+          r.revisao = { status: "", motivo: "", por: "", em: 0 };
         }, "acesso");
+        Store.registrarEvento("acesso:forma", cxf.chave, valor);
         Store.flush(); render();
         if (valor === "procuracao") {
           UI.toast("Combinado. Nossa equipe entra em contato para orientar a procuração.", "ok");

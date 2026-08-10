@@ -21,6 +21,7 @@
   "use strict";
 
   var CHAVE = "totali.onboarding.v1";
+  var MAX_EVENTOS = 400;
   var DB_NOME = "totali-onboarding";
   var DB_STORE = "arquivos";
   var DB_VERSAO = 1;
@@ -103,9 +104,19 @@
   /* =========================================================
      3. Estado
      ========================================================= */
+  var ESQUEMA = 2;
+
   function estadoInicial() {
     return {
-      v: 1,
+      v: ESQUEMA,
+      /* Identidade da empresa dentro do sistema. Hoje é gerada aqui;
+         quando o Firebase entrar, passa a ser o id do documento em
+         `empresas/{empresaId}` e é o que separa um cliente do outro. */
+      empresaId: global.U.uid(),
+      /* Quem está usando. Preenchido pelo login; "equipe" é o que
+         libera o painel interno da Totali. */
+      usuario: { uid: "", nome: "", email: "", papel: "cliente" },
+
       criadoEm: Date.now(),
       atualizadoEm: Date.now(),
       etapa: "boas-vindas",
@@ -116,12 +127,24 @@
       },
       socios: [],
       gruposNA: {},
-      itens: {}   /* chave -> registro do item */
+      itens: {},      /* chave do documento -> registro           */
+      mensagens: [],  /* conversa entre cliente e equipe          */
+      eventos: []     /* trilha de auditoria (ver nota em registrarEvento) */
     };
   }
 
+  function revisaoVazia() {
+    return { status: "", motivo: "", por: "", em: 0 };
+  }
+
   function registroVazio() {
-    return { arquivos: [], valor: "", na: false, obs: "", forma: "", atualizadoEm: 0 };
+    return {
+      arquivos: [], valor: "", na: false, obs: "", forma: "",
+      atualizadoEm: 0,
+      /* Preenchido pela equipe da Totali no painel interno.
+         status: "" | "analise" | "aprovado" | "pendencia" */
+      revisao: revisaoVazia()
+    };
   }
 
   /* Higieniza o que veio do armazenamento. Nunca confiamos no
@@ -135,6 +158,20 @@
     s.atualizadoEm = typeof bruto.atualizadoEm === "number" ? bruto.atualizadoEm : Date.now();
     if (typeof bruto.etapa === "string") s.etapa = bruto.etapa;
     if (typeof bruto.aceiteLGPD === "number") s.aceiteLGPD = bruto.aceiteLGPD;
+
+    /* Estado gravado antes do esquema 2 não tem empresaId: ganha um
+       agora e segue funcionando, sem perder nada do que já foi enviado. */
+    if (typeof bruto.empresaId === "string" && bruto.empresaId) {
+      s.empresaId = bruto.empresaId.slice(0, 60);
+    }
+    if (bruto.usuario && typeof bruto.usuario === "object") {
+      ["uid", "nome", "email"].forEach(function (k) {
+        if (typeof bruto.usuario[k] === "string") s.usuario[k] = bruto.usuario[k].slice(0, 160);
+      });
+      /* O papel nunca é decidido pelo que está gravado no aparelho —
+         quem manda é o login. Aqui só aceitamos o valor mais restrito. */
+      s.usuario.papel = "cliente";
+    }
 
     if (bruto.empresa && typeof bruto.empresa === "object") {
       Object.keys(s.empresa).forEach(function (k) {
@@ -170,6 +207,14 @@
         novo.forma = typeof r.forma === "string" ? r.forma.slice(0, 60) : "";
         novo.na = r.na === true;
         novo.atualizadoEm = typeof r.atualizadoEm === "number" ? r.atualizadoEm : 0;
+
+        if (r.revisao && typeof r.revisao === "object") {
+          var st = String(r.revisao.status || "");
+          if (["analise", "aprovado", "pendencia"].indexOf(st) > -1) novo.revisao.status = st;
+          novo.revisao.motivo = typeof r.revisao.motivo === "string" ? r.revisao.motivo.slice(0, 600) : "";
+          novo.revisao.por = typeof r.revisao.por === "string" ? r.revisao.por.slice(0, 120) : "";
+          novo.revisao.em = typeof r.revisao.em === "number" ? r.revisao.em : 0;
+        }
         if (Array.isArray(r.arquivos)) {
           novo.arquivos = r.arquivos.slice(0, 40).filter(function (a) {
             return a && typeof a === "object" && typeof a.id === "string";
@@ -186,6 +231,38 @@
         s.itens[String(k).slice(0, 160)] = novo;
       });
     }
+
+    if (Array.isArray(bruto.mensagens)) {
+      s.mensagens = bruto.mensagens.slice(-300).filter(function (m) {
+        return m && typeof m === "object" && typeof m.texto === "string";
+      }).map(function (m) {
+        return {
+          id: typeof m.id === "string" ? m.id.slice(0, 60) : global.U.uid(),
+          autor: m.autor === "equipe" ? "equipe" : "cliente",
+          autorNome: typeof m.autorNome === "string" ? m.autorNome.slice(0, 120) : "",
+          texto: String(m.texto).slice(0, 4000),
+          chave: typeof m.chave === "string" ? m.chave.slice(0, 160) : "",
+          em: typeof m.em === "number" ? m.em : 0,
+          lidaEm: typeof m.lidaEm === "number" ? m.lidaEm : 0
+        };
+      });
+    }
+
+    if (Array.isArray(bruto.eventos)) {
+      s.eventos = bruto.eventos.slice(-MAX_EVENTOS).filter(function (e) {
+        return e && typeof e === "object" && typeof e.tipo === "string";
+      }).map(function (e) {
+        return {
+          id: typeof e.id === "string" ? e.id.slice(0, 60) : global.U.uid(),
+          tipo: String(e.tipo).slice(0, 40),
+          chave: typeof e.chave === "string" ? e.chave.slice(0, 160) : "",
+          detalhe: typeof e.detalhe === "string" ? e.detalhe.slice(0, 300) : "",
+          ator: typeof e.ator === "string" ? e.ator.slice(0, 120) : "",
+          em: typeof e.em === "number" ? e.em : 0
+        };
+      });
+    }
+
     return s;
   }
 
@@ -296,17 +373,27 @@
           r.arquivos.push(meta);
           r.na = false;
           r.atualizadoEm = Date.now();
+          /* Documento reenviado volta para a fila de conferência:
+             uma pendência anterior não pode continuar valendo. */
+          r.revisao = revisaoVazia();
         }, "arquivos");
+        Store.registrarEvento("arquivo:anexou", chave, meta.nome);
         return meta;
       });
     },
 
     removerArquivo: function (chave, arquivoId) {
+      var nome = "";
+      var atual = estado.itens[chave];
+      if (atual) {
+        (atual.arquivos || []).forEach(function (a) { if (a.id === arquivoId) nome = a.nome; });
+      }
       Store.commit(function () {
         var r = Store.item(chave);
         r.arquivos = r.arquivos.filter(function (a) { return a.id !== arquivoId; });
         r.atualizadoEm = Date.now();
       }, "arquivos");
+      Store.registrarEvento("arquivo:removeu", chave, nome);
       return backend.removerArquivo(arquivoId).catch(function () {});
     },
 
@@ -324,8 +411,14 @@
        5. Cálculo de situação e progresso
        ======================================================= */
 
-    /* Um item pode estar: "na" (não se aplica), "substituido"
-       (a CNH cobre RG e CPF), "enviado" ou "pendente". */
+    /* Situações possíveis de um documento, na ordem em que vencem:
+         na          — não se aplica (item ou grupo inteiro)
+         substituido — a CNH cobre RG e CPF
+         pendencia   — a equipe recusou; o cliente precisa reenviar
+         aprovado    — a equipe conferiu e aceitou
+         analise     — entregue, a equipe está conferindo
+         enviado     — entregue, ainda sem revisão
+         pendente    — nada entregue                                   */
     situacao: function (grupo, item, socioId) {
       if (estado.gruposNA[grupo.id]) return "na";
       var chave = Store.chaveItem(grupo.id, item.id, socioId);
@@ -338,15 +431,27 @@
         if (sub && sub.arquivos && sub.arquivos.length) return "substituido";
       }
       if (!r) return "pendente";
+
+      var rev = (r.revisao && r.revisao.status) || "";
+      if (rev === "pendencia") return "pendencia";
+      if (rev === "aprovado") return "aprovado";
+      if (rev === "analise") return "analise";
+
       if (item.kind === "arquivo" && r.arquivos.length) return "enviado";
       if (item.kind === "dado" && String(r.valor || "").trim()) return "enviado";
       if (item.kind === "acesso" && r.forma) return "enviado";
       return "pendente";
     },
 
+    /* Situações que contam como "resolvido" na barra de progresso.
+       Pendência NÃO conta: o documento voltou para o cliente. */
+    RESOLVIDAS: ["enviado", "substituido", "analise", "aprovado"],
+
+    resolvida: function (sit) { return Store.RESOLVIDAS.indexOf(sit) > -1; },
+
     /* Resumo de um grupo, considerando sócios quando for o caso. */
     resumoGrupo: function (grupo) {
-      var total = 0, ok = 0, pendentesObrig = 0;
+      var total = 0, ok = 0, pendentesObrig = 0, pendencias = 0, aprovados = 0;
       var alvos = grupo.escopo === "socio"
         ? estado.socios.map(function (s) { return s.id; })
         : [null];
@@ -356,7 +461,9 @@
           var sit = Store.situacao(grupo, item, socioId);
           if (sit === "na") return;
           total++;
-          if (sit === "enviado" || sit === "substituido") ok++;
+          if (sit === "pendencia") pendencias++;
+          if (sit === "aprovado") aprovados++;
+          if (Store.resolvida(sit)) ok++;
           else if (item.obrigatorio) pendentesObrig++;
         });
       });
@@ -365,6 +472,8 @@
         ok: ok,
         pendentes: total - ok,
         pendentesObrigatorios: pendentesObrig,
+        pendencias: pendencias,
+        aprovados: aprovados,
         pct: total ? Math.round((ok / total) * 100) : 0,
         completo: total > 0 && ok === total,
         vazio: total === 0
@@ -372,18 +481,121 @@
     },
 
     resumoGeral: function () {
-      var total = 0, ok = 0, obrig = 0;
+      var total = 0, ok = 0, obrig = 0, pend = 0, aprov = 0;
       global.DATA.GRUPOS.forEach(function (g) {
         var r = Store.resumoGrupo(g);
         total += r.total; ok += r.ok; obrig += r.pendentesObrigatorios;
+        pend += r.pendencias; aprov += r.aprovados;
       });
       return {
         total: total,
         ok: ok,
         pendentes: total - ok,
         pendentesObrigatorios: obrig,
+        pendencias: pend,
+        aprovados: aprov,
         pct: total ? Math.round((ok / total) * 100) : 0
       };
+    },
+
+    /* =======================================================
+       6. Revisão pela equipe da Totali
+       Estes métodos são a base do painel interno. Hoje rodam
+       no próprio aparelho; no Firebase serão gravações
+       autorizadas apenas para quem tem papel "equipe".
+       ======================================================= */
+    revisar: function (chave, status, motivo, por) {
+      if (["analise", "aprovado", "pendencia", ""].indexOf(status) === -1) return false;
+      Store.commit(function () {
+        var r = Store.item(chave);
+        r.revisao = {
+          status: status,
+          motivo: status === "pendencia" ? String(motivo || "").slice(0, 600) : "",
+          por: String(por || "").slice(0, 120),
+          em: Date.now()
+        };
+      }, "revisao");
+      Store.registrarEvento("revisao:" + (status || "limpa"), chave, motivo || "", por || "");
+      return true;
+    },
+
+    /* =======================================================
+       7. Mensagens entre cliente e equipe
+       `chave` opcional prende a mensagem a um documento — é o
+       que permite cobrar um item específico que está faltando.
+       ======================================================= */
+    enviarMensagem: function (texto, opcoes) {
+      var o = opcoes || {};
+      var t = String(texto || "").trim().slice(0, 4000);
+      if (!t) return null;
+      var msg = {
+        id: global.U.uid(),
+        autor: o.autor === "equipe" ? "equipe" : "cliente",
+        autorNome: String(o.autorNome || "").slice(0, 120),
+        texto: t,
+        chave: String(o.chave || "").slice(0, 160),
+        em: Date.now(),
+        lidaEm: 0
+      };
+      Store.commit(function (st) {
+        st.mensagens.push(msg);
+        if (st.mensagens.length > 300) st.mensagens = st.mensagens.slice(-300);
+      }, "mensagens");
+      return msg;
+    },
+
+    mensagens: function (chave) {
+      if (!chave) return estado.mensagens.slice();
+      return estado.mensagens.filter(function (m) { return m.chave === chave; });
+    },
+
+    naoLidas: function (paraQuem) {
+      var deQuem = paraQuem === "equipe" ? "cliente" : "equipe";
+      return estado.mensagens.filter(function (m) {
+        return m.autor === deQuem && !m.lidaEm;
+      }).length;
+    },
+
+    marcarLidas: function (paraQuem) {
+      var deQuem = paraQuem === "equipe" ? "cliente" : "equipe";
+      var agora = Date.now(), mudou = false;
+      Store.commit(function (st) {
+        st.mensagens.forEach(function (m) {
+          if (m.autor === deQuem && !m.lidaEm) { m.lidaEm = agora; mudou = true; }
+        });
+      }, "mensagens");
+      return mudou;
+    },
+
+    /* =======================================================
+       8. Trilha de auditoria
+
+       ATENÇÃO: gravada no próprio aparelho, portanto o cliente
+       pode adulterá-la. Serve para dar forma ao recurso e para
+       depuração — NÃO tem valor probatório. Vira auditoria de
+       verdade quando for escrita no servidor, por Cloud
+       Function, com o uid autenticado e sem permissão de
+       escrita para o cliente.
+       ======================================================= */
+    registrarEvento: function (tipo, chave, detalhe, ator) {
+      var ev = {
+        id: global.U.uid(),
+        tipo: String(tipo || "").slice(0, 40),
+        chave: String(chave || "").slice(0, 160),
+        detalhe: String(detalhe || "").slice(0, 300),
+        ator: String(ator || estado.usuario.nome || estado.usuario.uid || "cliente").slice(0, 120),
+        em: Date.now()
+      };
+      Store.commit(function (st) {
+        st.eventos.push(ev);
+        if (st.eventos.length > MAX_EVENTOS) st.eventos = st.eventos.slice(-MAX_EVENTOS);
+      }, "eventos");
+      return ev;
+    },
+
+    eventos: function (chave) {
+      if (!chave) return estado.eventos.slice();
+      return estado.eventos.filter(function (e) { return e.chave === chave; });
     },
 
     /* Etapa atual do onboarding, deduzida do preenchimento. */

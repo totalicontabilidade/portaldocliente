@@ -18,7 +18,12 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Envio de arquivos com validação | pronto |
 | Cadastro da empresa e dos sócios | pronto |
 | PWA instalável e funcionamento offline | pronto |
+| Modelo de dados multiempresa (`empresaId`) | pronto |
+| Ciclo de revisão (análise / aprovado / pendência) | modelo e tela do cliente prontos |
+| Mensagens cliente ↔ equipe | modelo pronto, sem tela |
+| Trilha de auditoria | modelo pronto (ver ressalva abaixo) |
 | Trilhas da Academy | telas prontas, vídeos pendentes |
+| Painel interno da equipe | pendente (`equipe.html`) |
 | Login por empresa | pendente (Firebase Authentication) |
 | Banco de dados e armazenamento na nuvem | pendente (Firebase) |
 | Integração com o checklist contábil interno | pendente |
@@ -71,6 +76,60 @@ menos movimento no sistema operacional recebe a interface estática.
 
 Contraste medido no tema escuro: 17:1 no texto principal, 5,3:1 no secundário e
 11,7:1 nos links dourados — acima do mínimo da WCAG AA em todos.
+
+### Modelo de dados
+
+O estado é multiempresa desde já. `empresaId` nasce na primeira visita e é o
+que separa um cliente do outro — no Firebase ele vira o id do documento em
+`empresas/{empresaId}`.
+
+Mapeamento planejado, para não haver surpresa na migração:
+
+```
+empresas/{empresaId}                    cadastro, regime, responsável, etapa
+empresas/{empresaId}/itens/{chave}      arquivos[], valor, na, forma, revisao{}
+empresas/{empresaId}/socios/{socioId}   nome, cpf
+empresas/{empresaId}/mensagens/{id}     autor, texto, chave, lidaEm
+empresas/{empresaId}/eventos/{id}       auditoria
+usuarios/{uid}                          papel ("cliente" | "equipe"), empresaId
+Storage: empresas/{empresaId}/{chave}/{arquivoId}
+```
+
+`Store.chaveItem()` já produz `fiscal/contrato-social` e
+`socios/{socioId}/rg` — a mesma chave serve de id de documento e de caminho no
+Storage, sem conversão.
+
+### Ciclo de vida de um documento
+
+| Situação | Quem define | Conta no progresso |
+|---|---|---|
+| `pendente` | nada enviado | não |
+| `enviado` | cliente anexou | sim |
+| `analise` | equipe começou a conferir | sim |
+| `aprovado` | equipe aceitou | sim |
+| `pendencia` | equipe recusou, com motivo | **não** |
+| `substituido` | CNH cobre RG e CPF | sim |
+| `na` | não se aplica | fora da conta |
+
+Reenviar um documento **limpa a revisão anterior** (`Store.anexar`): uma
+pendência não pode continuar valendo sobre um arquivo novo. A pendência aparece
+para o cliente com o motivo escrito pela equipe, destacada em vermelho, e sobe
+para o topo de "Precisa da sua atenção" na tela inicial.
+
+A API que o painel interno vai consumir já existe em `js/store.js`:
+`Store.revisar(chave, status, motivo, por)`, `Store.enviarMensagem(texto, {autor, chave})`,
+`Store.mensagens(chave)`, `Store.naoLidas(paraQuem)`, `Store.registrarEvento(...)`.
+
+### Ressalva sobre a trilha de auditoria
+
+Hoje ela é gravada no aparelho do cliente, portanto **ele pode adulterá-la**.
+Serve para dar forma ao recurso e para depuração — não tem valor probatório.
+Vira auditoria de verdade quando for escrita no servidor por Cloud Function, com
+o `uid` autenticado e sem permissão de escrita para o cliente.
+
+O mesmo vale para o papel do usuário: `sanear()` força `papel: "cliente"` ao
+carregar, ignorando o que estiver gravado. Quem decide papel é o login, nunca o
+armazenamento local.
 
 ### Tipos de item do checklist
 

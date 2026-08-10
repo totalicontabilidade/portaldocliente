@@ -563,6 +563,12 @@ input[type=checkbox]{accent-color:var(--gold)}
 .item:hover{background:rgba(255,255,255,.02)}
 .item--done{background:rgba(74,222,155,.035)}
 .item--na{opacity:.6}
+/* Documento devolvido pela equipe: precisa saltar aos olhos. */
+.item--pendencia{
+  background:rgba(255,122,114,.06);
+  box-shadow:inset 3px 0 0 var(--danger);
+}
+.item--pendencia .item__mark{border-color:var(--danger-br);background:rgba(255,122,114,.1)}
 .item__top{display:flex;align-items:flex-start;gap:12px}
 .item__mark{
   width:23px;height:23px;border-radius:8px;flex:none;margin-top:1px;
