@@ -2581,6 +2581,47 @@
      um código de convite e os dados vêm do Firestore. Aí some
      até essa informação da URL.
   ------------------------------------------------------------ */
+  /* Convite pelo servidor: o link traz só o código (?k=). O portal
+     entra como visitante anônimo, registra o acesso e busca a
+     empresa no banco. Reabrir o mesmo link em outro aparelho
+     funciona — é assim que o cliente não perde nada ao trocar de
+     celular ou limpar o navegador. */
+  function aplicarConviteDoServidor() {
+    var codigo = null;
+    try { codigo = new URLSearchParams(location.search).get("k"); } catch (e) { codigo = null; }
+    if (!codigo) return Promise.resolve(false);
+
+    try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+
+    var FB = global.FB;
+    if (!FB || !FB.ligado) {
+      setTimeout(function () {
+        UI.toast("Sem conexão com o servidor. Tente de novo quando estiver online.", "erro", 9000);
+      }, 700);
+      return Promise.resolve(false);
+    }
+
+    return FB.entrarComoCliente(codigo).then(function (empresaId) {
+      return FB.db.collection("empresas").doc(empresaId).get().then(function (doc) {
+        var d = doc.exists ? (doc.data() || {}) : {};
+        var r = Store.aplicarConvite({
+          id: empresaId,
+          r: d.razaoSocial, f: d.nomeFantasia,
+          c: d.cnpj, g: d.regime
+        });
+        if (r === "outra") {
+          UI.toast("Este link é de outra empresa. Os dados deste aparelho foram mantidos.", "erro", 9000);
+          return false;
+        }
+        Store.flush();
+        return true;
+      });
+    }, function (e) {
+      setTimeout(function () { UI.toast(FB.explicar(e), "erro", 9000); }, 700);
+      return false;
+    });
+  }
+
   function aplicarConviteDaURL() {
     var codigo = null;
     try { codigo = new URLSearchParams(location.search).get("c"); } catch (e) { codigo = null; }
@@ -2656,6 +2697,17 @@
       if (!location.hash) location.replace("#/inicio");
       render();
       document.body.classList.add("pronto");
+
+      /* O convite do servidor depende de rede, então roda depois
+         da primeira pintura: a tela nunca fica esperando. */
+      var FB = global.FB;
+      if (FB) {
+        FB.pronto.then(function () {
+          return aplicarConviteDoServidor();
+        }).then(function (mudou) {
+          if (mudou) render();
+        });
+      }
     }, function () {
       $("#view").innerHTML =
         '<div class="card card--pad"><div class="notice notice--warn">' +

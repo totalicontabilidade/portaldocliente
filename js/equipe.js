@@ -25,11 +25,22 @@
     return location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
   }
 
-  function montarLink(base, dados) {
+  function baseLimpa(base) {
     var limpo = String(base || "").trim().replace(/[?#].*$/, "");
     if (!limpo) limpo = enderecoPadrao();
     if (!/\/$/.test(limpo) && !/\.html$/i.test(limpo)) limpo += "/";
-    return limpo + "?c=" + U.textoParaB64url(JSON.stringify(dados)) + "#/inicio";
+    return limpo;
+  }
+
+  /* Link do modo local: carrega os dados da empresa embutidos. */
+  function montarLink(base, dados) {
+    return baseLimpa(base) + "?c=" + U.textoParaB64url(JSON.stringify(dados)) + "#/inicio";
+  }
+
+  /* Link do modo servidor: leva só o código do convite. Nenhum
+     dado da empresa passa pela barra de endereço. */
+  function montarLinkCodigo(base, codigo) {
+    return baseLimpa(base) + "?k=" + encodeURIComponent(codigo) + "#/inicio";
   }
 
   function mensagemPronta(nomeEmpresa, link) {
@@ -65,7 +76,77 @@
     } catch (e) { terminar(false); }
   }
 
+  /* ---------- Porta de entrada ---------- */
+  function mostrar(id, sim) {
+    var el = $(id);
+    if (el) el.hidden = !sim;
+  }
+
+  function erroLogin(texto) {
+    var caixa = $("#lgErro");
+    if (!caixa) return;
+    caixa.hidden = !texto;
+    if (texto) $("#lgErroTxt").textContent = texto;
+  }
+
+  function iniciarPorta() {
+    var FB = global.FB;
+
+    /* Sem servidor configurado, o painel abre em modo local —
+       gera link e monta conteúdo, mas nada chega ao cliente. */
+    if (!FB || !FB.ligado) {
+      mostrar("#secSemConexao", true);
+      mostrar("#painel", true);
+      var motivo = {
+        "biblioteca-ausente": "A biblioteca do Firebase não carregou.",
+        "nao-configurado": "O projeto ainda não foi configurado.",
+        "falha-init": "Não foi possível iniciar a conexão."
+      }[FB && FB.erro] || "";
+      if ($("#scMotivo")) $("#scMotivo").textContent = motivo;
+      return;
+    }
+
+    FB.observarSessao(function (equipe) {
+      var dentro = !!equipe;
+      mostrar("#secLogin", !dentro);
+      mostrar("#painel", dentro);
+      if (dentro && $("#pnQuem")) {
+        $("#pnQuem").textContent = (equipe.nome || equipe.email) +
+          (equipe.papel === "admin" ? " · administrador" : " · equipe");
+      }
+    });
+
+    var btn = $("#lgEntrar");
+    var entrar = function () {
+      var email = $("#lgEmail").value.trim();
+      var senha = $("#lgSenha").value;
+      if (!email || !senha) { erroLogin("Preencha e-mail e senha."); return; }
+      erroLogin("");
+      btn.disabled = true;
+      btn.textContent = "Entrando…";
+      FB.entrarComoEquipe(email, senha).then(function () {
+        $("#lgSenha").value = "";
+        btn.disabled = false;
+        btn.textContent = "Entrar";
+      }, function (e) {
+        btn.disabled = false;
+        btn.textContent = "Entrar";
+        erroLogin(FB.explicar(e));
+      });
+    };
+    btn.addEventListener("click", entrar);
+    $("#lgSenha").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") entrar();
+    });
+
+    $("#pnSair").addEventListener("click", function () {
+      FB.sair();
+    });
+  }
+
   function iniciar() {
+    iniciarPorta();
+
     var razao = $("#cRazao"), fantasia = $("#cFantasia"), cnpj = $("#cCnpj"),
         regime = $("#cRegime"), base = $("#cBase"),
         erroCnpj = $("#cErrCnpj"), resultado = $("#cResultado"),
@@ -93,25 +174,72 @@
 
       try { localStorage.setItem(CHAVE_BASE, base.value.trim()); } catch (e) { /* segue */ }
 
-      var dados = {
-        v: 1,
-        id: U.uid(),
-        r: r,
-        f: fantasia.value.trim(),
-        c: c,
-        g: regime.value,
-        em: Date.now()
+      var empresa = {
+        razaoSocial: r,
+        nomeFantasia: fantasia.value.trim(),
+        cnpj: c,
+        regime: regime.value
       };
-      var link = montarLink(base.value, dados);
-      var nome = dados.f || dados.r;
+      var nome = empresa.nomeFantasia || empresa.razaoSocial;
+      var FB = global.FB;
 
-      campoLink.value = link;
-      campoMsg.value = mensagemPronta(nome, link);
-      $("#cWhats").href = "https://wa.me/?text=" + encodeURIComponent(campoMsg.value);
+      var mostrarResultado = function (link) {
+        campoLink.value = link;
+        campoMsg.value = mensagemPronta(nome, link);
+        $("#cWhats").href = "https://wa.me/?text=" + encodeURIComponent(campoMsg.value);
+        resultado.hidden = false;
+        resultado.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
 
-      resultado.hidden = false;
-      resultado.scrollIntoView({ behavior: "smooth", block: "start" });
-      UI.toast("Link gerado para " + nome + ".", "ok");
+      var botao = $("#cGerar");
+
+      /* Com servidor: cria a empresa e o convite no banco. O link
+         leva só o código — nenhum dado da empresa passa pela URL. */
+      if (FB && FB.ligado && FB.equipe) {
+        botao.disabled = true;
+        botao.textContent = "Criando…";
+
+        var codigo = FB.novoCodigo();
+        var refEmpresa = FB.db.collection("empresas").doc();
+
+        refEmpresa.set({
+          razaoSocial: empresa.razaoSocial,
+          nomeFantasia: empresa.nomeFantasia,
+          cnpj: empresa.cnpj,
+          regime: empresa.regime,
+          responsavelNome: "", responsavelEmail: "",
+          responsavelTelefone: "", responsavelCargo: "",
+          etapa: "boas-vindas",
+          aceiteLGPD: null,
+          criadaPor: FB.equipe.uid,
+          criadaEm: FB.agora(),
+          atualizadoEm: FB.agora()
+        }).then(function () {
+          return FB.db.collection("convites").doc(codigo).set({
+            empresaId: refEmpresa.id,
+            ativo: true,
+            criadoPor: FB.equipe.uid,
+            criadoEm: FB.agora()
+          });
+        }).then(function () {
+          botao.disabled = false;
+          botao.textContent = "Gerar link do cliente";
+          mostrarResultado(montarLinkCodigo(base.value, codigo));
+          UI.toast("Empresa criada e link gerado para " + nome + ".", "ok");
+        }, function (e) {
+          botao.disabled = false;
+          botao.textContent = "Gerar link do cliente";
+          UI.toast("Não foi possível criar: " + FB.explicar(e), "erro", 9000);
+        });
+        return;
+      }
+
+      /* Sem servidor: link com os dados embutidos, como antes. */
+      mostrarResultado(montarLink(base.value, {
+        v: 1, id: U.uid(), r: empresa.razaoSocial, f: empresa.nomeFantasia,
+        c: empresa.cnpj, g: empresa.regime, em: Date.now()
+      }));
+      UI.toast("Link gerado em modo local para " + nome + ".", "ok");
     });
 
     $("#cCopiar").addEventListener("click", function () { copiar(campoLink.value, "Link"); });

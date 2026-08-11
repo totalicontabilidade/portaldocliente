@@ -70,14 +70,56 @@
 <div class="shell" style="grid-template-columns:minmax(0,1fr);max-width:760px">
   <main class="main">
 
-    <section class="section">
-      <div class="notice notice--warn" style="margin-bottom:18px">
+    <!-- Porta de entrada da equipe -->
+    <section class="section" id="secLogin" hidden>
+      <div class="card card--pad" style="max-width:420px;margin:40px auto">
+        <div class="eyebrow">Uso interno</div>
+        <h1 class="section__title" style="font-size:20px;margin:6px 0 6px">Entrar no painel</h1>
+        <p class="section__desc" style="margin-bottom:18px">Acesso restrito à equipe da Totali.</p>
+
+        <div class="field">
+          <label class="field__label" for="lgEmail">E-mail</label>
+          <input type="email" class="input" id="lgEmail" autocomplete="username"
+                 inputmode="email" placeholder="voce@totalicontabilidade.com.br">
+        </div>
+        <div class="field">
+          <label class="field__label" for="lgSenha">Senha</label>
+          <input type="password" class="input" id="lgSenha" autocomplete="current-password">
+        </div>
+
+        <div class="notice notice--warn" id="lgErro" hidden style="margin-bottom:14px">
+          <span class="notice__icon">
+            <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
+          </span>
+          <span id="lgErroTxt"></span>
+        </div>
+
+        <button type="button" class="btn btn--primary btn--block" id="lgEntrar">Entrar</button>
+      </div>
+    </section>
+
+    <!-- Aviso quando o servidor não responde -->
+    <section class="section" id="secSemConexao" hidden>
+      <div class="notice notice--warn">
         <span class="notice__icon">
           <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
         </span>
-        <span><strong>Ferramenta provisória, sem login.</strong> Ela só monta o link — não acessa
-        documento nem dado de cliente nenhum. Quando o Firebase entrar, vira o painel interno com
-        autenticação e o link passa a levar apenas um código de convite.</span>
+        <span><strong>Sem conexão com o servidor.</strong> <span id="scMotivo"></span>
+        As ferramentas abaixo continuam funcionando no modo local, mas o que você fizer
+        não chega ao cliente.</span>
+      </div>
+    </section>
+
+    <div id="painel" hidden>
+
+    <section class="section">
+      <div class="notice notice--ok" style="margin-bottom:18px">
+        <span class="notice__icon">
+          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+        </span>
+        <span><strong id="pnQuem">—</strong>
+        <button type="button" class="btn btn--quiet btn--sm" id="pnSair"
+                style="margin-left:8px">Sair</button></span>
       </div>
 
       <div class="section__head"><div>
@@ -335,6 +377,8 @@
       </div>
     </section>
 
+    </div><!-- /painel -->
+
     <footer class="foot">
       <strong>Totali Soluções Contábeis</strong><br>
       Página de uso interno — não divulgue este endereço.
@@ -344,6 +388,12 @@
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
+<script src="lib/firebase-app-compat.js"></script>
+<script src="lib/firebase-auth-compat.js"></script>
+<script src="lib/firebase-firestore-compat.js"></script>
+<script src="lib/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/firebase.js"></script>
 <script src="js/chave-publica.js"></script>
 <script src="js/cripto.js"></script>
 <script src="js/util.js"></script>
