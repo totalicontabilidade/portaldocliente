@@ -621,58 +621,104 @@
     }
   ];
 
-  /* ---------- Academy (conteúdo futuro) ---------- */
+  /* ---------- Vídeos ----------
+     Os vídeos ficam no YouTube, como "não listados", e aqui
+     guardamos só o identificador. Não listado quer dizer: não
+     aparece em busca nem no canal, mas quem tem o link assiste.
+     Se precisar que só pessoas específicas vejam, aí tem de ser
+     "privado" — e privado NÃO toca em site nenhum, nem aqui.
+
+     O identificador é o trecho depois de "v=" no endereço:
+     youtube.com/watch?v=dQw4w9WgXcQ  ->  "dQw4w9WgXcQ"
+
+     Deixe "" enquanto o vídeo não estiver pronto: o portal mostra
+     "em breve" no lugar do player, sem quebrar nada.
+  ------------------------------- */
+
+  /* Vídeo de apresentação, na tela inicial. */
+  var VIDEO_INICIO = {
+    youtube: "",
+    titulo: "Bem-vindo à Totali",
+    desc: "Em poucos minutos, mostramos como funciona o portal, o que vamos precisar de você " +
+          "e o que acontece em cada etapa da migração.",
+    duracao: ""
+  };
+
   var ACADEMY = [
     {
       id: "primeiros-passos",
       kicker: "Trilha 1",
       titulo: "Primeiros passos com a Totali",
       desc: "Como funciona a rotina mensal, o que esperar de nós e o que precisamos de você a cada mês.",
-      duracao: "4 vídeos · 12 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "Quem cuida da sua empresa", duracao: "3 min", youtube: "" },
+        { titulo: "O calendário do seu mês", duracao: "4 min", youtube: "" },
+        { titulo: "Como falar com a gente", duracao: "2 min", youtube: "" },
+        { titulo: "O que muda depois da migração", duracao: "3 min", youtube: "" }
+      ]
     },
     {
       id: "notas-fiscais",
       kicker: "Trilha 2",
       titulo: "Emissão de notas fiscais",
       desc: "Passo a passo para emitir nota de serviço e de produto sem errar no imposto.",
-      duracao: "5 vídeos · 18 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "Nota de serviço: passo a passo", duracao: "5 min", youtube: "" },
+        { titulo: "Nota de produto: passo a passo", duracao: "5 min", youtube: "" },
+        { titulo: "Escolhendo o código do serviço", duracao: "3 min", youtube: "" },
+        { titulo: "Erros mais comuns na emissão", duracao: "3 min", youtube: "" },
+        { titulo: "Cancelar e corrigir uma nota", duracao: "2 min", youtube: "" }
+      ]
     },
     {
       id: "guias-impostos",
       kicker: "Trilha 3",
       titulo: "Guias e impostos do mês",
       desc: "Onde encontrar suas guias, como pagar e o que acontece se atrasar.",
-      duracao: "3 vídeos · 9 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "Onde ficam as suas guias", duracao: "3 min", youtube: "" },
+        { titulo: "Como pagar e comprovar", duracao: "3 min", youtube: "" },
+        { titulo: "Atrasou? O que fazer", duracao: "3 min", youtube: "" }
+      ]
     },
     {
       id: "folha-pessoal",
       kicker: "Trilha 4",
       titulo: "Contratar e demitir sem dor de cabeça",
       desc: "O que enviar para admitir, o que observar em férias e o que fazer numa rescisão.",
-      duracao: "6 vídeos · 22 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "Admissão: documentos e prazos", duracao: "4 min", youtube: "" },
+        { titulo: "Férias: como programar", duracao: "4 min", youtube: "" },
+        { titulo: "13º salário sem susto", duracao: "3 min", youtube: "" },
+        { titulo: "Rescisão: o passo a passo", duracao: "5 min", youtube: "" },
+        { titulo: "Atestado, falta e advertência", duracao: "3 min", youtube: "" },
+        { titulo: "eSocial: o que é e por que importa", duracao: "3 min", youtube: "" }
+      ]
     },
     {
       id: "documentos-mensais",
       kicker: "Trilha 5",
       titulo: "O que enviar todo mês",
       desc: "Extratos, notas de compra, notas de venda e comprovantes: o calendário da sua empresa.",
-      duracao: "3 vídeos · 10 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "A lista do mês", duracao: "4 min", youtube: "" },
+        { titulo: "Extratos bancários: como baixar", duracao: "3 min", youtube: "" },
+        { titulo: "Relatórios da maquininha", duracao: "3 min", youtube: "" }
+      ]
     },
     {
       id: "pro-labore",
       kicker: "Trilha 6",
       titulo: "Pró-labore e distribuição de lucros",
       desc: "A diferença entre retirar como sócio e como empregado, e o impacto no seu imposto.",
-      duracao: "4 vídeos · 14 min",
-      status: "em-breve"
+      videos: [
+        { titulo: "Pró-labore: o que é", duracao: "3 min", youtube: "" },
+        { titulo: "Distribuição de lucros", duracao: "4 min", youtube: "" },
+        { titulo: "Quanto retirar de cada forma", duracao: "4 min", youtube: "" },
+        { titulo: "O que isso muda no seu IR", duracao: "3 min", youtube: "" }
+      ]
     }
   ];
-
   /* ---------- Perguntas frequentes ---------- */
   var FAQ = [
     {
@@ -718,6 +764,7 @@
     ETAPAS: ETAPAS,
     GRUPOS: GRUPOS,
     ACADEMY: ACADEMY,
+    VIDEO_INICIO: VIDEO_INICIO,
     FAQ: FAQ,
     BANCOS: BANCOS,
     MAQUINETAS: MAQUINETAS,

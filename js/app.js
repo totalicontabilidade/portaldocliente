@@ -26,6 +26,7 @@
 
   var estadoUI = {
     gruposAbertos: {},
+    trilhasAbertas: {},
     faqAberta: {},
     rota: "inicio"
   };
@@ -250,11 +251,31 @@
       '</div>' +
     '</section>';
 
-    /* Envio concluído: a Academy sobe para o topo da tela. */
     var passos = Store.trilha();
     var enviouTudo = passos.filter(function (p) {
       return (p.id === "documentos" || p.id === "financeiro") && p.situacao === "concluida";
     }).length === 2;
+
+    /* Vídeo de apresentação do portal. Enquanto não houver vídeo
+       publicado, o espaço só é ocupado durante o onboarding — depois
+       dele, não faz sentido manter um "em breve" na tela inicial. */
+    var vi = DATA.VIDEO_INICIO;
+    if (vi && (idYoutubeValido(vi.youtube) || !enviouTudo)) {
+      html += '<section class="section">' +
+        '<div class="card">' +
+          videoHTML(vi.youtube, vi.titulo, "video--largo") +
+          '<div style="padding:15px 17px 17px">' +
+            '<div class="tile__kicker">Comece por aqui</div>' +
+            '<h2 class="tile__title" style="font-size:16px">' + U.esc(vi.titulo) + '</h2>' +
+            '<p class="tile__desc">' + U.esc(vi.desc) + '</p>' +
+            (vi.duracao ? '<div class="tile__foot"><span class="text-xs text-muted">' +
+              U.esc(vi.duracao) + '</span></div>' : '') +
+          '</div>' +
+        '</div>' +
+      '</section>';
+    }
+
+    /* Envio concluído: a Academy sobe para o topo da tela. */
     if (enviouTudo) html += academyDestaqueHTML();
 
     /* Próximos passos */
@@ -1448,38 +1469,157 @@
 
   /* ============================================================
      Tela: Academy
+
+     Os vídeos ficam no YouTube (não listados) e só carregam
+     quando o cliente toca em assistir — antes disso o YouTube
+     não recebe nada dele. Usamos o domínio youtube-nocookie.
      ============================================================ */
+
+  /* Só passa adiante o que tem cara de identificador do YouTube.
+     Nunca montar a URL do player com texto arbitrário. */
+  function idYoutubeValido(id) {
+    return typeof id === "string" && /^[A-Za-z0-9_-]{11}$/.test(id);
+  }
+
+  function trilhaLiberada(t) {
+    return (t.videos || []).some(function (v) { return idYoutubeValido(v.youtube); });
+  }
+
+  function contarLiberados(t) {
+    return (t.videos || []).filter(function (v) { return idYoutubeValido(v.youtube); }).length;
+  }
+
+  /* Bloco de vídeo: capa própria + botão. O player entra depois. */
+  function videoHTML(idYt, titulo, classe) {
+    if (!idYoutubeValido(idYt)) {
+      return '<div class="video ' + (classe || "") + '">' +
+        '<div class="video__capa video__capa--soon">' +
+          '<span class="tile__play">' + ic("ic-play") + '</span>' +
+          '<span class="video__soon">Em breve</span>' +
+        '</div></div>';
+    }
+    return '<div class="video ' + (classe || "") + '" data-video="' + U.escAttr(idYt) + '" ' +
+        'data-video-titulo="' + U.escAttr(titulo || "Vídeo") + '">' +
+      '<button type="button" class="video__capa" data-tocar="1" ' +
+        'aria-label="Assistir: ' + U.escAttr(titulo || "vídeo") + '">' +
+        '<span class="tile__play">' + ic("ic-play") + '</span>' +
+        '<span class="video__rot">Assistir</span>' +
+      '</button></div>';
+  }
+
   function tileAcademy(t) {
-    return '<article class="tile tile--soon">' +
+    var liberada = trilhaLiberada(t);
+    var n = (t.videos || []).length;
+    var prontos = contarLiberados(t);
+    return '<article class="tile' + (liberada ? "" : " tile--soon") + '">' +
       '<div class="tile__thumb"><span class="tile__play">' + ic("ic-play") + '</span></div>' +
       '<div class="tile__body">' +
         '<div class="tile__kicker">' + U.esc(t.kicker) + '</div>' +
         '<h3 class="tile__title">' + U.esc(t.titulo) + '</h3>' +
         '<p class="tile__desc">' + U.esc(t.desc) + '</p>' +
         '<div class="tile__foot">' +
-          '<span class="badge badge--pendente"><span class="dot"></span>Em breve</span>' +
-          '<span class="text-xs text-muted">' + U.esc(t.duracao) + '</span>' +
+          (liberada
+            ? '<span class="badge badge--aprovado"><span class="dot"></span>Disponível</span>'
+            : '<span class="badge badge--pendente"><span class="dot"></span>Em breve</span>') +
+          '<span class="text-xs text-muted">' +
+            (liberada ? prontos + " de " + n + " " + U.plural(n, "vídeo", "vídeos")
+                      : n + " " + U.plural(n, "vídeo", "vídeos")) + '</span>' +
         '</div>' +
       '</div>' +
     '</article>';
   }
 
+  function trilhaHTMLAcademy(t) {
+    var aberta = !!estadoUI.trilhasAbertas[t.id];
+    var liberada = trilhaLiberada(t);
+    var videos = t.videos || [];
+
+    var html = '<section class="card group" data-open="' + (aberta ? "true" : "false") +
+               '" data-trilha="' + U.escAttr(t.id) + '">' +
+      '<button type="button" class="group__head" data-abrir-trilha="1" ' +
+        'aria-expanded="' + (aberta ? "true" : "false") + '">' +
+        '<span class="group__icon">' + ic("ic-play") + '</span>' +
+        '<span class="group__info">' +
+          '<span class="group__title">' + U.esc(t.titulo) + '</span>' +
+          '<span class="group__meta">' + U.esc(t.kicker) + ' · ' + videos.length + ' ' +
+            U.plural(videos.length, "vídeo", "vídeos") +
+            (liberada ? "" : " · em breve") + '</span>' +
+        '</span>' +
+        (liberada ? '<span class="badge badge--aprovado"><span class="dot"></span>Disponível</span>' : '') +
+        '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
+      '</button>';
+
+    if (aberta) {
+      html += '<div class="group__body">' +
+        '<div style="padding:14px 16px;border-bottom:1px solid var(--stroke)">' +
+          '<p class="text-sm text-muted" style="line-height:1.55">' + U.esc(t.desc) + '</p></div>';
+      videos.forEach(function (v, i) {
+        var ok = idYoutubeValido(v.youtube);
+        html += '<div class="aula' + (ok ? "" : " aula--soon") + '"' +
+            (ok ? ' data-video="' + U.escAttr(v.youtube) + '" data-video-titulo="' +
+                  U.escAttr(v.titulo) + '"' : '') + '>' +
+          '<span class="aula__n">' + (i + 1) + '</span>' +
+          '<span class="aula__info">' +
+            '<span class="aula__t">' + U.esc(v.titulo) + '</span>' +
+            '<span class="aula__d">' + U.esc(v.duracao || "") +
+              (ok ? "" : " · em breve") + '</span>' +
+          '</span>' +
+          (ok
+            ? '<button type="button" class="btn btn--ghost btn--sm" data-tocar="1">' +
+              ic("ic-play") + 'Assistir</button>'
+            : '<span class="badge badge--pendente"><span class="dot"></span>Em breve</span>') +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    return html + '</section>';
+  }
+
   function viewAcademy() {
+    var total = DATA.ACADEMY.reduce(function (a, t) { return a + (t.videos || []).length; }, 0);
+    var prontos = DATA.ACADEMY.reduce(function (a, t) { return a + contarLiberados(t); }, 0);
+
     return '' +
     '<section class="hero">' +
       '<div class="eyebrow">Totali Academy</div>' +
       '<h1 class="hero__title">Aprenda a rotina da sua empresa</h1>' +
       '<p class="hero__desc">Trilhas curtas e diretas sobre notas fiscais, impostos, folha de pagamento ' +
         'e o que enviar todo mês. Sem juridiquês.</p>' +
+      '<div class="hero__row">' +
+        '<div class="hero__stats">' +
+          '<div><div class="stat__num" data-count="' + prontos + '">0</div>' +
+            '<div class="stat__lbl">Disponíveis</div></div>' +
+          '<div><div class="stat__num" data-count="' + total + '">0</div>' +
+            '<div class="stat__lbl">No total</div></div>' +
+        '</div>' +
+      '</div>' +
     '</section>' +
     '<section class="section">' +
       '<div class="section__head"><div>' +
         '<h2 class="section__title">Trilhas</h2>' +
-        '<p class="section__desc">Estamos gravando os vídeos. Assim que uma trilha for publicada, ' +
-          'ela aparece liberada aqui.</p>' +
+        '<p class="section__desc">' +
+          (prontos
+            ? "Toque numa trilha para ver as aulas."
+            : "Estamos gravando. Assim que uma aula for publicada, ela aparece liberada aqui.") +
+        '</p>' +
       '</div></div>' +
-      '<div class="tiles">' + DATA.ACADEMY.map(tileAcademy).join("") + '</div>' +
+      DATA.ACADEMY.map(trilhaHTMLAcademy).join("") +
     '</section>' + rodape();
+  }
+
+  /* Player em janela: só aqui o YouTube é chamado. */
+  function abrirVideo(idYt, titulo) {
+    if (!idYoutubeValido(idYt)) return;
+    var src = "https://www.youtube-nocookie.com/embed/" + idYt +
+              "?rel=0&modestbranding=1&playsinline=1&autoplay=1";
+    UI.modal({
+      titulo: titulo || "Vídeo",
+      corpoHTML: '<div class="player">' +
+        '<iframe src="' + U.escAttr(src) + '" title="' + U.escAttr(titulo || "Vídeo") + '" ' +
+        'referrerpolicy="no-referrer" allowfullscreen ' +
+        'allow="accelerometer; encrypted-media; picture-in-picture; fullscreen"></iframe>' +
+      '</div>'
+    });
   }
 
   /* ============================================================
@@ -1839,18 +1979,28 @@
           'para <a href="mailto:' + U.escAttr(org.email) + '">' + U.esc(org.email) + '</a>.</div></div>' +
 
         '<div class="help-block"><div class="help-block__t">Cuidado com o aparelho compartilhado</div>' +
-          '<div class="help-block__c">Se você estiver usando um computador de uso comum, apague os ' +
-          'dados deste portal ao terminar. O botão abaixo remove tudo definitivamente.</div></div>' +
+          '<div class="help-block__c">Se você estiver usando um computador de uso comum, saia do ' +
+          'portal e feche o navegador ao terminar. Em caso de dúvida, fale com a gente.</div></div>' +
       '</div>' +
     '</section>' +
 
+    /* O cliente não apaga os próprios dados: documento de migração
+       some por engano é um estrago que ninguém desfaz. O direito da
+       LGPD continua garantido — a exclusão é feita pela equipe,
+       mediante pedido. */
     '<section class="section">' +
       '<div class="card card--pad">' +
-        '<h2 class="section__title" style="font-size:15px">Apagar meus dados deste aparelho</h2>' +
-        '<p class="section__desc" style="margin-bottom:14px">Remove o cadastro, os sócios e todos os ' +
-          'arquivos anexados' + (usado ? " (" + U.esc(U.bytes(usado)) + ")" : "") + '. Não há como desfazer.</p>' +
-        '<button type="button" class="btn btn--danger" id="btnApagarTudo">' +
-          ic("ic-trash") + 'Apagar tudo</button>' +
+        '<h2 class="section__title" style="font-size:15px">Quer apagar seus dados?</h2>' +
+        '<p class="section__desc" style="margin-bottom:14px">É um direito seu. Peça pelas ' +
+          'Mensagens ou escreva para <a href="mailto:' + U.escAttr(org.email) + '">' +
+          U.esc(org.email) + '</a>. Nossa equipe cuida da exclusão e confirma quando estiver ' +
+          'feito.<br><br>Fazemos assim, e não com um botão aqui, para que um toque acidental não ' +
+          'apague documentos que você levou dias reunindo. Guardamos apenas o que a lei exige ' +
+          'que a contabilidade mantenha.' +
+          (usado ? '<br><br>Neste aparelho há ' + U.esc(U.bytes(usado)) + ' de arquivos seus.' : '') +
+        '</p>' +
+        '<button type="button" class="btn btn--ghost" data-rota="mensagens">' +
+          ic("ic-chat") + 'Pedir pelas Mensagens</button>' +
       '</div>' +
     '</section>' + rodape();
   }
@@ -2190,6 +2340,23 @@
         return;
       }
 
+      /* --- Academy --- */
+      var abrirTrilha = ev.target.closest("[data-abrir-trilha]");
+      if (abrirTrilha) {
+        var tid = abrirTrilha.closest("[data-trilha]").getAttribute("data-trilha");
+        estadoUI.trilhasAbertas[tid] = !estadoUI.trilhasAbertas[tid];
+        render();
+        return;
+      }
+
+      var tocar = ev.target.closest("[data-tocar]");
+      if (tocar) {
+        var caixa = tocar.closest("[data-video]");
+        if (caixa) abrirVideo(caixa.getAttribute("data-video"),
+                              caixa.getAttribute("data-video-titulo"));
+        return;
+      }
+
       /* --- FAQ --- */
       var faq = ev.target.closest("[data-faq]");
       if (faq) {
@@ -2344,27 +2511,9 @@
     });
   }
 
-  function bindPrivacidade() {
-    var btn = $("#btnApagarTudo");
-    if (!btn) return;
-    btn.addEventListener("click", function () {
-      UI.confirmar({
-        titulo: "Apagar todos os dados",
-        mensagem: "O cadastro, os sócios e todos os arquivos anexados serão removidos deste " +
-                  "aparelho definitivamente. Não é possível desfazer.",
-        confirmar: "Apagar tudo", perigo: true
-      }).then(function (ok) {
-        if (!ok) return;
-        Store.apagarTudo().then(function () {
-          estadoUI.gruposAbertos = {};
-          estadoUI.faqAberta = {};
-          UI.toast("Todos os dados foram apagados deste aparelho.", "ok");
-          navegar("boas-vindas");
-          render();
-        });
-      });
-    });
-  }
+  /* Store.apagarTudo() continua existindo — quem chama é a equipe,
+     pelo painel interno. O cliente não tem esse botão. */
+  function bindPrivacidade() { /* nada a ligar por enquanto */ }
 
   /* ============================================================
      Convite gerado pela equipe
