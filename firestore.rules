@@ -4,8 +4,21 @@ rules_version = '2';
 // Totali · Portal de Onboarding — regras do Firestore
 //
 // Princípio: a tela esconde, a regra impede. Nada aqui confia no
-// que o navegador manda. Se uma permissão não estiver escrita,
-// ela não existe — a última regra nega tudo o que sobrou.
+// que o navegador manda. O que não estiver escrito não existe —
+// a última regra nega tudo o que sobrou.
+//
+// SEM CLOUD FUNCTIONS
+// -------------------
+// Esta versão não depende de Cloud Functions. O vínculo entre o
+// cliente e a empresa dele é feito por CONVITE: o link carrega um
+// código longo e aleatório; ao abrir, o cliente registra o
+// próprio uid em /empresas/{id}/acessos/{uid}, e a regra confere
+// o código antes de deixar. Daí em diante, o acesso é verificado
+// pela existência desse documento.
+//
+// Consequência assumida: quem tiver o link entra. É o mesmo
+// modelo de qualquer link de acesso — e é o que o cliente pediu,
+// para ele não precisar de senha.
 //
 // Quem é quem:
 //   cliente  entra sem cadastro (login anônimo) e só enxerga a
@@ -34,17 +47,17 @@ service cloud.firestore {
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.papel == 'admin';
     }
 
-    // O cliente carrega o vínculo com a empresa no próprio token,
-    // gravado por Cloud Function quando ele abre o convite.
+    // O cliente provou o convite e registrou o próprio uid.
     function ehDonoDaEmpresa(empresaId) {
-      return logado() && request.auth.token.empresaId == empresaId;
+      return logado() &&
+             exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(request.auth.uid));
     }
 
     function equipeOuDono(empresaId) {
       return ehEquipe() || ehDonoDaEmpresa(empresaId);
     }
 
-    // ---------- Utilidades de validação ----------
+    // ---------- Utilidades ----------
 
     function soEstesCampos(campos) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
@@ -54,13 +67,24 @@ service cloud.firestore {
       return valor is string && valor.size() <= max;
     }
 
+    // ---------- Convites ----------
+    //
+    // O código é o segredo, e ele só existe dentro do link. Ler
+    // um convite exige saber o código inteiro (get por id);
+    // listar é proibido, então não dá para varrer a coleção.
+
+    match /convites/{codigo} {
+      allow get: if true;
+      allow list: if ehEquipe();
+      allow create, update, delete: if ehEquipe();
+    }
+
     // ---------- Empresas ----------
 
     match /empresas/{empresaId} {
       allow read: if equipeOuDono(empresaId);
 
-      // Quem cria a empresa é a equipe, pelo painel. O cliente
-      // recebe o link já com a empresa cadastrada.
+      // Quem cadastra a empresa é a equipe, pelo painel.
       allow create: if ehEquipe()
                     && textoAte(request.resource.data.razaoSocial, 150)
                     && request.resource.data.razaoSocial.size() > 2
@@ -77,16 +101,38 @@ service cloud.firestore {
 
       allow delete: if ehAdmin();
 
+      // ---------- Acessos: o cliente prova o convite ----------
+      //
+      // Só dá para registrar o PRÓPRIO uid, e só apresentando um
+      // código de convite que aponte para esta empresa. Sem o
+      // código não há acesso; com o código, só para esta empresa.
+      match /acessos/{uid} {
+        allow read: if ehEquipe() || request.auth.uid == uid;
+
+        allow create: if logado()
+                      && request.auth.uid == uid
+                      && request.resource.data.codigo is string
+                      && exists(/databases/$(database)/documents/convites/$(request.resource.data.codigo))
+                      && get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.empresaId == empresaId
+                      && get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.ativo == true;
+
+        // Registro de acesso não se reescreve. Para revogar,
+        // a equipe apaga — e o cliente perde o acesso na hora.
+        allow update: if false;
+        allow delete: if ehEquipe();
+      }
+
       // ---------- Documentos do checklist ----------
       match /itens/{chave} {
         allow read: if equipeOuDono(empresaId);
 
         // O cliente mexe no envio; a revisão é da equipe.
-        allow create, update: if ehEquipe()
-                              || (ehDonoDaEmpresa(empresaId) && soEstesCampos([
-                                   'arquivos', 'valor', 'na', 'forma',
-                                   'obs', 'atualizadoEm'
-                                 ]));
+        allow create: if ehEquipe() || ehDonoDaEmpresa(empresaId);
+        allow update: if ehEquipe()
+                      || (ehDonoDaEmpresa(empresaId) && soEstesCampos([
+                           'arquivos', 'valor', 'na', 'forma',
+                           'obs', 'atualizadoEm'
+                         ]));
         allow delete: if ehAdmin();
       }
 
@@ -126,14 +172,14 @@ service cloud.firestore {
       // ---------- Mensagens ----------
       //
       // Cada um escreve como si mesmo. Mensagem enviada não se
-      // reescreve nem se apaga: o histórico da conversa precisa
-      // valer alguma coisa. Só a marca de lida muda.
+      // reescreve nem se apaga: o histórico precisa valer alguma
+      // coisa. Só a marca de lida muda.
       match /mensagens/{msgId} {
         allow read: if equipeOuDono(empresaId);
 
-        allow create: if (ehEquipe() && request.resource.data.autor == 'equipe')
-                      || (ehDonoDaEmpresa(empresaId) && request.resource.data.autor == 'cliente')
-                      && textoAte(request.resource.data.texto, 4000);
+        allow create: if textoAte(request.resource.data.texto, 4000)
+                      && ((ehEquipe() && request.resource.data.autor == 'equipe')
+                          || (ehDonoDaEmpresa(empresaId) && request.resource.data.autor == 'cliente'));
 
         allow update: if equipeOuDono(empresaId) && soEstesCampos(['lidaEm']);
         allow delete: if ehAdmin();
@@ -141,12 +187,15 @@ service cloud.firestore {
 
       // ---------- Trilha de auditoria ----------
       //
-      // Ninguém escreve daqui: quem grava é Cloud Function, que
-      // roda com privilégio de servidor e ignora estas regras.
-      // É o que torna o registro confiável.
+      // ATENÇÃO, e isto precisa estar claro: sem Cloud Functions,
+      // quem grava aqui é o próprio navegador. A regra impede
+      // apagar e reescrever, mas NÃO impede o cliente de inventar
+      // um evento. Serve para acompanhar e depurar; NÃO tem valor
+      // probatório. Vira prova quando for gravada pelo servidor.
       match /eventos/{eventoId} {
         allow read: if ehEquipe();
-        allow write: if false;
+        allow create: if equipeOuDono(empresaId);
+        allow update, delete: if false;
       }
     }
 
@@ -160,22 +209,12 @@ service cloud.firestore {
       allow write: if ehEquipe();
     }
 
-    // ---------- Convites ----------
-    //
-    // O link do cliente carrega só um código. Ele lê o convite
-    // para descobrir de qual empresa é, e a Cloud Function grava
-    // o vínculo no token dele.
-    match /convites/{codigo} {
-      allow read: if true;
-      allow create, update: if ehEquipe();
-      allow delete: if ehEquipe();
-    }
-
     // ---------- Equipe ----------
+    //
+    // O PRIMEIRO documento aqui é criado à mão pelo console.
+    // Depois disso, só admin cria outros. Ninguém se promove.
     match /usuarios/{uid} {
       allow read: if (logado() && request.auth.uid == uid) || ehAdmin();
-      // Papel só se concede pelo console ou por admin. Ninguém
-      // se promove sozinho.
       allow create, update: if ehAdmin()
                             && request.resource.data.papel in ['admin', 'equipe'];
       allow delete: if ehAdmin() && request.auth.uid != uid;

@@ -10,7 +10,12 @@
   style-src 'self' 'unsafe-inline';
   img-src 'self' data:;
   font-src 'self';
-  connect-src 'self';
+  connect-src 'self'
+    https://firestore.googleapis.com
+    https://identitytoolkit.googleapis.com
+    https://securetoken.googleapis.com
+    https://firebasestorage.googleapis.com
+    https://portaldocliente-8cc7d.firebasestorage.app;
   object-src 'none';
   base-uri 'none';
   form-action 'none';
