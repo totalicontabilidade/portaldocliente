@@ -26,7 +26,7 @@
 
   var estadoUI = {
     gruposAbertos: {},
-    trilhasAbertas: {},
+    trilhaAberta: "",
     faqAberta: {},
     rota: "inicio"
   };
@@ -1507,12 +1507,49 @@
       '</button></div>';
   }
 
+  /* Capa própria: só caminho relativo dentro do próprio site.
+     Endereço externo, javascript: e afins não passam daqui —
+     a CSP também barraria, mas não dependemos só dela. */
+  function capaPropriaValida(caminho) {
+    return typeof caminho === "string" &&
+           /^[A-Za-z0-9_\-./]{1,160}$/.test(caminho) &&
+           caminho.indexOf("..") === -1 &&
+           caminho.charAt(0) !== "/" &&
+           /\.(png|jpe?g|webp)$/i.test(caminho);
+  }
+
+  /* A capa vem, nesta ordem: imagem própria enviada pela equipe,
+     miniatura do YouTube, ou a capa desenhada por nós. */
+  function capaHTML(item, classe) {
+    var url = "";
+    if (capaPropriaValida(item.capa)) url = item.capa;
+    else if (idYoutubeValido(item.youtube)) {
+      url = "https://i.ytimg.com/vi/" + item.youtube + "/hqdefault.jpg";
+    }
+    if (url) {
+      return '<span class="capa ' + (classe || "") + '">' +
+        '<img src="' + U.escAttr(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' +
+        '<span class="capa__veu"></span>' +
+        '<span class="tile__play">' + ic("ic-play") + '</span></span>';
+    }
+    return '<span class="capa capa--vazia ' + (classe || "") + '">' +
+      '<span class="tile__play">' + ic("ic-play") + '</span></span>';
+  }
+
+  /* Capa da trilha: a própria, ou a do primeiro vídeo publicado. */
+  function capaDaTrilha(t) {
+    if (t.capa) return { capa: t.capa };
+    var comVideo = (t.videos || []).filter(function (v) { return idYoutubeValido(v.youtube); })[0];
+    return comVideo || { capa: "", youtube: "" };
+  }
+
   function tileAcademy(t) {
     var liberada = trilhaLiberada(t);
     var n = (t.videos || []).length;
     var prontos = contarLiberados(t);
-    return '<article class="tile' + (liberada ? "" : " tile--soon") + '">' +
-      '<div class="tile__thumb"><span class="tile__play">' + ic("ic-play") + '</span></div>' +
+    return '<article class="tile' + (liberada ? " tile--link" : " tile--soon") + '"' +
+        (liberada ? ' data-trilha="' + U.escAttr(t.id) + '" data-abrir-trilha="1" tabindex="0" role="button"' : '') + '>' +
+      capaHTML(capaDaTrilha(t), "capa--tile") +
       '<div class="tile__body">' +
         '<div class="tile__kicker">' + U.esc(t.kicker) + '</div>' +
         '<h3 class="tile__title">' + U.esc(t.titulo) + '</h3>' +
@@ -1522,63 +1559,63 @@
             ? '<span class="badge badge--aprovado"><span class="dot"></span>Disponível</span>'
             : '<span class="badge badge--pendente"><span class="dot"></span>Em breve</span>') +
           '<span class="text-xs text-muted">' +
-            (liberada ? prontos + " de " + n + " " + U.plural(n, "vídeo", "vídeos")
-                      : n + " " + U.plural(n, "vídeo", "vídeos")) + '</span>' +
+            (liberada ? prontos + " de " + n + " " + U.plural(n, "aula", "aulas")
+                      : n + " " + U.plural(n, "aula", "aulas")) + '</span>' +
         '</div>' +
       '</div>' +
     '</article>';
   }
 
-  function trilhaHTMLAcademy(t) {
-    var aberta = !!estadoUI.trilhasAbertas[t.id];
-    var liberada = trilhaLiberada(t);
-    var videos = t.videos || [];
-
-    var html = '<section class="card group" data-open="' + (aberta ? "true" : "false") +
-               '" data-trilha="' + U.escAttr(t.id) + '">' +
-      '<button type="button" class="group__head" data-abrir-trilha="1" ' +
-        'aria-expanded="' + (aberta ? "true" : "false") + '">' +
-        '<span class="group__icon">' + ic("ic-play") + '</span>' +
-        '<span class="group__info">' +
-          '<span class="group__title">' + U.esc(t.titulo) + '</span>' +
-          '<span class="group__meta">' + U.esc(t.kicker) + ' · ' + videos.length + ' ' +
-            U.plural(videos.length, "vídeo", "vídeos") +
-            (liberada ? "" : " · em breve") + '</span>' +
-        '</span>' +
-        (liberada ? '<span class="badge badge--aprovado"><span class="dot"></span>Disponível</span>' : '') +
-        '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
-      '</button>';
-
-    if (aberta) {
-      html += '<div class="group__body">' +
-        '<div style="padding:14px 16px;border-bottom:1px solid var(--stroke)">' +
-          '<p class="text-sm text-muted" style="line-height:1.55">' + U.esc(t.desc) + '</p></div>';
-      videos.forEach(function (v, i) {
-        var ok = idYoutubeValido(v.youtube);
-        html += '<div class="aula' + (ok ? "" : " aula--soon") + '"' +
-            (ok ? ' data-video="' + U.escAttr(v.youtube) + '" data-video-titulo="' +
-                  U.escAttr(v.titulo) + '"' : '') + '>' +
-          '<span class="aula__n">' + (i + 1) + '</span>' +
-          '<span class="aula__info">' +
-            '<span class="aula__t">' + U.esc(v.titulo) + '</span>' +
-            '<span class="aula__d">' + U.esc(v.duracao || "") +
-              (ok ? "" : " · em breve") + '</span>' +
-          '</span>' +
+  /* Dentro de uma trilha, cada aula também é um cartão com capa. */
+  function cartaoAula(v, i) {
+    var ok = idYoutubeValido(v.youtube);
+    return '<article class="tile' + (ok ? " tile--link" : " tile--soon") + '"' +
+        (ok ? ' data-video="' + U.escAttr(v.youtube) + '" data-video-titulo="' +
+              U.escAttr(v.titulo) + '" data-tocar="1" tabindex="0" role="button"' : '') + '>' +
+      capaHTML(v, "capa--tile") +
+      '<div class="tile__body">' +
+        '<div class="tile__kicker">Aula ' + (i + 1) + '</div>' +
+        '<h3 class="tile__title">' + U.esc(v.titulo) + '</h3>' +
+        (v.desc ? '<p class="tile__desc">' + U.esc(v.desc) + '</p>' : '') +
+        '<div class="tile__foot">' +
           (ok
-            ? '<button type="button" class="btn btn--ghost btn--sm" data-tocar="1">' +
-              ic("ic-play") + 'Assistir</button>'
+            ? '<span class="badge badge--aprovado"><span class="dot"></span>Assistir</span>'
             : '<span class="badge badge--pendente"><span class="dot"></span>Em breve</span>') +
-        '</div>';
-      });
-      html += '</div>';
-    }
-    return html + '</section>';
+          (v.duracao ? '<span class="text-xs text-muted">' + U.esc(v.duracao) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</article>';
   }
 
   function viewAcademy() {
     var total = DATA.ACADEMY.reduce(function (a, t) { return a + (t.videos || []).length; }, 0);
     var prontos = DATA.ACADEMY.reduce(function (a, t) { return a + contarLiberados(t); }, 0);
+    var aberta = estadoUI.trilhaAberta
+      ? DATA.ACADEMY.filter(function (t) { return t.id === estadoUI.trilhaAberta; })[0]
+      : null;
 
+    /* --- Dentro de uma trilha --- */
+    if (aberta) {
+      return '<section class="section">' +
+        '<button type="button" class="btn btn--ghost btn--sm" data-voltar-trilhas="1" ' +
+          'style="margin-bottom:16px">' + ic("ic-chevron-right", "gira180") + 'Todas as trilhas</button>' +
+        '<div class="hero">' +
+          '<div class="eyebrow">' + U.esc(aberta.kicker) + '</div>' +
+          '<h1 class="hero__title">' + U.esc(aberta.titulo) + '</h1>' +
+          '<p class="hero__desc">' + U.esc(aberta.desc) + '</p>' +
+        '</div>' +
+      '</section>' +
+      '<section class="section">' +
+        '<div class="section__head"><div>' +
+          '<h2 class="section__title">Aulas</h2>' +
+          '<p class="section__desc">' + contarLiberados(aberta) + ' de ' +
+            (aberta.videos || []).length + ' disponíveis.</p>' +
+        '</div></div>' +
+        '<div class="tiles">' + (aberta.videos || []).map(cartaoAula).join("") + '</div>' +
+      '</section>' + rodape();
+    }
+
+    /* --- Grade de trilhas --- */
     return '' +
     '<section class="hero">' +
       '<div class="eyebrow">Totali Academy</div>' +
@@ -1603,7 +1640,7 @@
             : "Estamos gravando. Assim que uma aula for publicada, ela aparece liberada aqui.") +
         '</p>' +
       '</div></div>' +
-      DATA.ACADEMY.map(trilhaHTMLAcademy).join("") +
+      '<div class="tiles">' + DATA.ACADEMY.map(tileAcademy).join("") + '</div>' +
     '</section>' + rodape();
   }
 
@@ -2341,19 +2378,27 @@
       }
 
       /* --- Academy --- */
+      var tocar = ev.target.closest("[data-tocar]");
+      if (tocar) {
+        var caixa = tocar.closest("[data-video]") || tocar;
+        if (caixa.getAttribute("data-video")) {
+          abrirVideo(caixa.getAttribute("data-video"), caixa.getAttribute("data-video-titulo"));
+          return;
+        }
+      }
+
       var abrirTrilha = ev.target.closest("[data-abrir-trilha]");
       if (abrirTrilha) {
-        var tid = abrirTrilha.closest("[data-trilha]").getAttribute("data-trilha");
-        estadoUI.trilhasAbertas[tid] = !estadoUI.trilhasAbertas[tid];
-        render();
+        var alvoTrilha = abrirTrilha.closest("[data-trilha]") || abrirTrilha;
+        estadoUI.trilhaAberta = alvoTrilha.getAttribute("data-trilha");
+        navegar("academy");
         return;
       }
 
-      var tocar = ev.target.closest("[data-tocar]");
-      if (tocar) {
-        var caixa = tocar.closest("[data-video]");
-        if (caixa) abrirVideo(caixa.getAttribute("data-video"),
-                              caixa.getAttribute("data-video-titulo"));
+      if (ev.target.closest("[data-voltar-trilhas]")) {
+        estadoUI.trilhaAberta = "";
+        render();
+        global.scrollTo({ top: 0, behavior: "auto" });
         return;
       }
 
@@ -2444,6 +2489,15 @@
     /* Impede que um arquivo solto fora de um item abra no navegador */
     global.addEventListener("dragover", function (ev) { ev.preventDefault(); });
     global.addEventListener("drop", function (ev) { ev.preventDefault(); });
+
+    /* Cartão com role="button" precisa responder a Enter e espaço. */
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      var alvo = ev.target.closest && ev.target.closest('[role="button"][tabindex]');
+      if (!alvo) return;
+      ev.preventDefault();
+      alvo.click();
+    });
 
     global.addEventListener("hashchange", render);
     global.addEventListener("beforeunload", function () { Store.flush(); });

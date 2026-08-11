@@ -644,7 +644,7 @@
     duracao: ""
   };
 
-  var ACADEMY = [
+  var ACADEMY_PADRAO = [
     {
       id: "primeiros-passos",
       kicker: "Trilha 1",
@@ -719,6 +719,42 @@
       ]
     }
   ];
+  /* A Academy pode vir do painel da equipe (js/academy.js). Se
+     vier, ela manda; senão, usa a grade padrão acima. Tudo que
+     chega de fora é conferido campo a campo — o arquivo é
+     gerado por uma ferramenta, mas não confiamos nele às cegas. */
+  function saneiaAcademy(bruta) {
+    if (!Array.isArray(bruta) || !bruta.length) return null;
+    var idYt = /^[A-Za-z0-9_-]{11}$/;
+    var limpas = bruta.slice(0, 40).map(function (t, i) {
+      if (!t || typeof t !== "object") return null;
+      var titulo = String(t.titulo || "").slice(0, 120).trim();
+      if (!titulo) return null;
+      var videos = Array.isArray(t.videos) ? t.videos.slice(0, 60) : [];
+      return {
+        id: String(t.id || ("trilha-" + (i + 1))).slice(0, 60).replace(/[^a-zA-Z0-9_-]/g, ""),
+        kicker: String(t.kicker || ("Trilha " + (i + 1))).slice(0, 40),
+        titulo: titulo,
+        desc: String(t.desc || "").slice(0, 400),
+        capa: typeof t.capa === "string" && /^[A-Za-z0-9_\-\/.]{1,160}$/.test(t.capa) ? t.capa : "",
+        videos: videos.map(function (v) {
+          if (!v || typeof v !== "object") return null;
+          var vt = String(v.titulo || "").slice(0, 140).trim();
+          if (!vt) return null;
+          return {
+            titulo: vt,
+            duracao: String(v.duracao || "").slice(0, 20),
+            desc: String(v.desc || "").slice(0, 400),
+            youtube: idYt.test(v.youtube) ? v.youtube : "",
+            capa: typeof v.capa === "string" && /^[A-Za-z0-9_\-\/.]{1,160}$/.test(v.capa) ? v.capa : ""
+          };
+        }).filter(Boolean)
+      };
+    }).filter(Boolean);
+    return limpas.length ? limpas : null;
+  }
+
+  var ACADEMY = saneiaAcademy(global.ACADEMY_CONFIG && global.ACADEMY_CONFIG.trilhas) || ACADEMY_PADRAO;
   /* ---------- Perguntas frequentes ---------- */
   var FAQ = [
     {
