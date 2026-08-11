@@ -454,30 +454,35 @@ input[type=checkbox]{accent-color:var(--gold)}
   position:relative;overflow:hidden;
   border-radius:var(--r-xl);
   padding:26px 22px 28px;
+  /* Base quase lisa: quem desenha o painel são as manchas de luz
+     do ::before. Um degradê forte aqui competiria com elas. */
   background:
-    linear-gradient(150deg,rgba(34,69,108,.45),rgba(14,31,48,.55) 55%,rgba(10,21,36,.5)),
+    linear-gradient(150deg,rgba(15,28,42,.86),rgba(15,28,42,.93)),
     var(--glass);
   border:1px solid var(--stroke);
   backdrop-filter:blur(22px) saturate(1.4);
   -webkit-backdrop-filter:blur(22px) saturate(1.4);
   box-shadow:var(--sh-3);
 }
-/* Textura "seda": ondas largas de luz e granulado fino sobre o
-   degradê. Sem forma geométrica — só sugere material. */
+/* Textura "aurora com grão": manchas difusas de luz, e granulado
+   fino por cima. Sem nenhuma forma geométrica.
+
+   O fio dourado do topo virou uma camada deste mesmo fundo para
+   liberar o ::after: o grão precisa de mix-blend-mode próprio e
+   por isso não cabe junto das demais camadas. */
 .hero::before{
   content:"";position:absolute;inset:0;pointer-events:none;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.14'/%3E%3C/svg%3E"),
-    repeating-linear-gradient(112deg,
-      rgba(255,255,255,.026) 0px, rgba(255,255,255,.026) 40px,
-      rgba(255,255,255,0) 40px, rgba(255,255,255,0) 130px),
-    radial-gradient(90% 130% at 100% 0%,rgba(194,162,80,.2),transparent 55%),
-    radial-gradient(70% 90% at 0% 100%,rgba(32,64,95,.8),transparent 62%);
+    linear-gradient(90deg,transparent,rgba(220,196,135,.7),transparent)
+      top center / 84% 1px no-repeat,
+    radial-gradient(60% 90% at 78% 8%,rgba(194,162,80,.28),transparent 62%),
+    radial-gradient(75% 100% at 8% 96%,rgba(42,77,112,.72),transparent 66%),
+    radial-gradient(45% 70% at 96% 88%,rgba(26,49,73,.85),transparent 70%);
 }
 .hero::after{
-  content:"";position:absolute;top:0;left:8%;right:8%;height:1px;
-  background:linear-gradient(90deg,transparent,var(--gold-2),transparent);
-  opacity:.7;
+  content:"";position:absolute;inset:0;pointer-events:none;
+  opacity:.42;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
 }
 .hero>*{position:relative;z-index:1}
 .hero__greeting{font-size:12.5px;color:var(--txt-3);font-weight:520}
