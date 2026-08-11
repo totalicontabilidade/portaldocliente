@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// ============================================================
+// Totali · Portal de Onboarding — regras do Storage
+//
+// Aqui ficam os arquivos: documentos do checklist, anexos de
+// mensagem e o termo em PDF. A validação do navegador é
+// conveniência; a barreira de verdade é esta.
+//
+// Caminhos:
+//   empresas/{empresaId}/documentos/{chave}/{arquivoId}
+//   empresas/{empresaId}/mensagens/{msgId}/{arquivoId}
+//   empresas/{empresaId}/termo/{arquivo}
+// ============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function ehEquipe() {
+      return logado() &&
+             firestore.exists(/databases/(default)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function ehAdmin() {
+      return ehEquipe() &&
+             firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.papel == 'admin';
+    }
+
+    function ehDonoDaEmpresa(empresaId) {
+      return logado() && request.auth.token.empresaId == empresaId;
+    }
+
+    function equipeOuDono(empresaId) {
+      return ehEquipe() || ehDonoDaEmpresa(empresaId);
+    }
+
+    // 20 MB por arquivo — o mesmo limite que o portal mostra.
+    function tamanhoOk() {
+      return request.resource.size <= 20 * 1024 * 1024;
+    }
+
+    // Lista fechada de tipos. Nada de executável, nada de HTML
+    // (que viraria página ativa servida do nosso domínio).
+    function tipoOk() {
+      return request.resource.contentType.matches(
+        'application/pdf'
+        + '|image/(jpeg|png|webp|heic|heif)'
+        + '|audio/(mpeg|mp4|ogg|wav|webm|amr)'
+        + '|text/(plain|csv|xml)'
+        + '|application/(xml|zip|x-zip-compressed)'
+        + '|application/msword'
+        + '|application/vnd\\.ms-excel'
+        + '|application/vnd\\.openxmlformats-officedocument\\..*'
+      );
+    }
+
+    match /empresas/{empresaId}/documentos/{chave}/{arquivoId} {
+      allow read: if equipeOuDono(empresaId);
+      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk();
+      // Arquivo enviado não se sobrescreve: para trocar, apaga e
+      // envia outro. Evita que uma versão suma sem rastro.
+      allow update: if false;
+      allow delete: if ehEquipe() || ehDonoDaEmpresa(empresaId);
+    }
+
+    match /empresas/{empresaId}/mensagens/{msgId}/{arquivoId} {
+      allow read: if equipeOuDono(empresaId);
+      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk();
+      allow update: if false;
+      // Anexo de mensagem só some por decisão de admin: faz parte
+      // do histórico da conversa.
+      allow delete: if ehAdmin();
+    }
+
+    match /empresas/{empresaId}/termo/{arquivo} {
+      allow read: if equipeOuDono(empresaId);
+      allow create: if equipeOuDono(empresaId)
+                    && tamanhoOk()
+                    && request.resource.contentType == 'application/pdf';
+      allow update: if false;
+      allow delete: if ehAdmin();
+    }
+
+    // Capas da Academy e imagens do portal: todo mundo lê,
+    // só a equipe publica.
+    match /publico/{arquivo=**} {
+      allow read: if true;
+      allow write: if ehEquipe()
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    match /{tudo=**} {
+      allow read, write: if false;
+    }
+  }
+}

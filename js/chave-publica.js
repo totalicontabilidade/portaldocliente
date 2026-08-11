@@ -23,7 +23,16 @@
    está guardado só abre com a chave privada correspondente.
    Guarde as chaves antigas enquanto houver dado cifrado com elas.
    ============================================================ */
-window.CHAVE_PUBLICA = null;
+window.CHAVE_PUBLICA = {
+  "alg": "RSA-OAEP-256",
+  "e": "AQAB",
+  "ext": true,
+  "key_ops": [
+    "encrypt"
+  ],
+  "kty": "RSA",
+  "n": "s2g9h268y_rtSsPd5P9-CQUqYTdGUKLJ6LcFVIXQonoi1nHAgnjm7IBETl8B72cH3s0lFUSRxcz3ppZK9-MwOLFwYqVyG-zwWJcWZSLqxCkdb1ADS1tCoZ9Fmpo3eLUonj2yMZbA5RdbPlHHlRRypmRD62aF81vbXvAJ_XyWYBQ3RqOwddlkSw-3R-E9Gha9mXVXnxu8a0XRA5sa_xgimyxRZWF4GOuzeidZijhk54L8qyH7KscOGztde40zcUxDx6BpoN01QIp4SW0cCcTmkv3H7HRvgOwDtnHoc7qKQ2OLICJp82ArgXEzyBc2K1TauLfEA40lZ0waJfMYeDBQd2ZFyKhMeRm9bvtDO70h9kFTnoYXTFQ0hwdYZaR8-a4rnqVnNfOleQoD0uvShvxUpDJF4nZPViFqaq7MwvzH5a_hijf_ifk_OUFckqZ3iPnaXPuaM3dIKF_CKiTkaRqFDrxbOCUH6elyfE7bGSfsG1yZbJNydlS2B_cbZf0KelMX"
+};
 
 /* Exemplo do formato esperado:
 
