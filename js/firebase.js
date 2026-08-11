@@ -8,11 +8,12 @@
               /usuarios/{uid}. Apagar o documento corta o acesso
               na hora, sem mexer na conta.
 
-     CLIENTE  sem cadastro e sem senha. Ele abre o link com o
-              código do convite, o navegador cria uma conta
-              anônima e registra o próprio identificador em
-              /empresas/{id}/acessos/{uid}. A regra do banco só
-              aceita esse registro se o código conferir.
+     CLIENTE  abre o link do convite UMA VEZ e cria a própria
+              senha. Nesse momento o portal registra o acesso em
+              /empresas/{id}/acessos/{uid}, anota a empresa em
+              /clientes/{uid} e queima o convite. Depois disso
+              ele entra com e-mail e senha, sem precisar do link.
+              Link encaminhado ou vazado depois não dá acesso.
 
    O portal continua funcionando sem servidor: se o Firebase não
    estiver configurado ou estiver fora do ar, tudo cai para o
@@ -127,52 +128,93 @@
     return s;
   }
 
-  /* Abre o convite: entra como anônimo e registra o acesso.
-     Chamar de novo é inofensivo — se o registro já existe, só
-     confirma. É isso que permite ao cliente trocar de celular
-     ou limpar o navegador e voltar pelo mesmo link. */
-  function entrarComoCliente(codigo) {
-    if (!auth || !db) return Promise.reject(new Error("sem-conexao"));
+  /* Confere o convite sem gastar nada: serve para a tela de
+     cadastro já mostrar de qual empresa é o link. */
+  function lerConvite(codigo) {
+    if (!db) return Promise.reject(new Error("sem-conexao"));
     var cod = String(codigo || "").trim();
     if (!/^[A-Za-z0-9]{10,40}$/.test(cod)) return Promise.reject(new Error("codigo-invalido"));
 
-    var empresaId = "";
-    return db.collection("convites").doc(cod).get()
-      .then(function (doc) {
-        if (!doc.exists) throw new Error("convite-inexistente");
-        var d = doc.data() || {};
-        if (d.ativo !== true) throw new Error("convite-inativo");
-        empresaId = String(d.empresaId || "");
-        if (!empresaId) throw new Error("convite-invalido");
-        return auth.currentUser ? auth.currentUser : auth.signInAnonymously().then(function (c) { return c.user; });
+    return db.collection("convites").doc(cod).get().then(function (doc) {
+      if (!doc.exists) throw new Error("convite-inexistente");
+      var d = doc.data() || {};
+      if (d.ativo !== true) throw new Error("convite-usado");
+      if (!d.empresaId) throw new Error("convite-invalido");
+      return { codigo: cod, empresaId: String(d.empresaId) };
+    });
+  }
+
+  /* Cadastro do cliente: cria a conta com senha, registra o
+     acesso à empresa e QUEIMA o convite. Feito uma vez só —
+     depois ele entra por e-mail e senha, sem precisar do link. */
+  function cadastrarCliente(codigo, email, senha) {
+    if (!auth || !db) return Promise.reject(new Error("sem-conexao"));
+    var convite = null, uid = "";
+
+    return lerConvite(codigo)
+      .then(function (c) {
+        convite = c;
+        return auth.createUserWithEmailAndPassword(String(email).trim(), String(senha));
       })
-      .then(function (u) {
-        var ref = db.collection("empresas").doc(empresaId).collection("acessos").doc(u.uid);
-        return ref.get().then(function (jaTem) {
-          if (jaTem.exists) return true;
-          return ref.set({
-            codigo: cod,
-            em: global.firebase.firestore.FieldValue.serverTimestamp()
-          });
+      .then(function (cred) {
+        uid = cred.user.uid;
+        return db.collection("empresas").doc(convite.empresaId)
+                 .collection("acessos").doc(uid)
+                 .set({ codigo: convite.codigo, em: agora() });
+      })
+      .then(function () {
+        return db.collection("clientes").doc(uid).set({
+          empresaId: convite.empresaId,
+          email: String(email).trim(),
+          em: agora()
         });
       })
       .then(function () {
-        empresaAtual = empresaId;
-        return empresaId;
+        /* Convite queimado: link encaminhado ou vazado depois
+           não serve para mais ninguém. Se falhar, o cadastro já
+           está feito — não desfaz nada por causa disso. */
+        return db.collection("convites").doc(convite.codigo).update({
+          ativo: false, usadoPor: uid, usadoEm: agora()
+        }).catch(function () { /* segue */ });
+      })
+      .then(function () {
+        empresaAtual = convite.empresaId;
+        return convite.empresaId;
       });
   }
 
-  /* Reconecta uma sessão de cliente já existente, sem código. */
-  function retomarCliente(empresaId) {
-    if (!auth || !db || !empresaId) return Promise.resolve("");
+  function entrarComoCliente(email, senha) {
+    if (!auth || !db) return Promise.reject(new Error("sem-conexao"));
+    return auth.signInWithEmailAndPassword(String(email).trim(), String(senha))
+      .then(function (cred) { return descobrirEmpresa(cred.user.uid); });
+  }
+
+  /* Em que empresa este usuário entra. */
+  function descobrirEmpresa(uid) {
+    return db.collection("clientes").doc(uid).get().then(function (doc) {
+      if (!doc.exists) throw new Error("sem-empresa");
+      var id = String((doc.data() || {}).empresaId || "");
+      if (!id) throw new Error("sem-empresa");
+      empresaAtual = id;
+      return id;
+    });
+  }
+
+  function recuperarSenha(email) {
+    if (!auth) return Promise.reject(new Error("sem-conexao"));
+    return auth.sendPasswordResetEmail(String(email).trim());
+  }
+
+  /* Sessão de cliente já aberta neste aparelho. */
+  function retomarCliente() {
+    if (!auth || !db) return Promise.resolve("");
     var u = auth.currentUser;
-    if (!u) return Promise.resolve("");
-    return db.collection("empresas").doc(empresaId).collection("acessos").doc(u.uid).get()
-      .then(function (doc) {
-        if (!doc.exists) return "";
-        empresaAtual = empresaId;
-        return empresaId;
-      }, function () { return ""; });
+    if (!u || u.isAnonymous) return Promise.resolve("");
+    return descobrirEmpresa(u.uid).catch(function () { return ""; });
+  }
+
+  function agora() {
+    return global.firebase.firestore.FieldValue.serverTimestamp();
   }
 
   /* ---------- Mensagens de erro em português ---------- */
@@ -187,7 +229,11 @@
     "sem-permissao": "Esta conta não tem acesso ao painel. Fale com o administrador.",
     "sem-conexao": "Sem conexão com o servidor.",
     "convite-inexistente": "Este link não é válido. Peça um novo à Totali.",
-    "convite-inativo": "Este link foi desativado. Peça um novo à Totali.",
+    "convite-usado": "Este link já foi usado para criar um acesso. Entre com seu e-mail e senha, ou peça um novo link à Totali.",
+    "sem-empresa": "Esta conta ainda não está ligada a nenhuma empresa. Abra o link de convite que a Totali enviou.",
+    "auth/email-already-in-use": "Já existe uma conta com este e-mail. Entre com sua senha ou use \"Esqueci minha senha\".",
+    "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
+    "auth/missing-password": "Digite uma senha.",
     "convite-invalido": "Este link está incompleto. Peça um novo à Totali.",
     "codigo-invalido": "Este link não é válido. Peça um novo à Totali.",
     "permission-denied": "Sem permissão para esta ação."
@@ -210,13 +256,14 @@
     get empresaId() { return empresaAtual; },
     observarSessao: observarSessao,
     entrarComoEquipe: entrarComoEquipe,
+    lerConvite: lerConvite,
+    cadastrarCliente: cadastrarCliente,
     entrarComoCliente: entrarComoCliente,
+    recuperarSenha: recuperarSenha,
     retomarCliente: retomarCliente,
     novoCodigo: novoCodigo,
     sair: sair,
     explicar: explicar,
-    agora: function () {
-      return global.firebase.firestore.FieldValue.serverTimestamp();
-    }
+    agora: agora
   };
 })(window);

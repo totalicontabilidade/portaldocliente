@@ -10,20 +10,23 @@ rules_version = '2';
 // SEM CLOUD FUNCTIONS
 // -------------------
 // Esta versão não depende de Cloud Functions. O vínculo entre o
-// cliente e a empresa dele é feito por CONVITE: o link carrega um
-// código longo e aleatório; ao abrir, o cliente registra o
-// próprio uid em /empresas/{id}/acessos/{uid}, e a regra confere
-// o código antes de deixar. Daí em diante, o acesso é verificado
-// pela existência desse documento.
+// cliente e a empresa dele nasce do CONVITE, e o acesso do dia a
+// dia é feito com e-mail e senha.
 //
-// Consequência assumida: quem tiver o link entra. É o mesmo
-// modelo de qualquer link de acesso — e é o que o cliente pediu,
-// para ele não precisar de senha.
+// Como funciona:
+//   1. A equipe cadastra a empresa e gera um convite. O link
+//      carrega só um código longo e aleatório.
+//   2. O cliente abre o link uma vez e cria a senha dele. Nesse
+//      momento o portal registra /empresas/{id}/acessos/{uid} e
+//      /clientes/{uid}, e QUEIMA o convite.
+//   3. Dali em diante ele entra com e-mail e senha, sem o link.
+//
+// Convite queimado não serve mais: se o link for encaminhado ou
+// vazar depois, não dá acesso a ninguém.
 //
 // Quem é quem:
-//   cliente  entra sem cadastro (login anônimo) e só enxerga a
-//            empresa cujo convite ele abriu
-//   equipe   entra com e-mail e senha e existe em /usuarios/{uid}
+//   cliente  e-mail e senha; enxerga só a empresa do convite dele
+//   equipe   e-mail e senha, e existe em /usuarios/{uid}
 //   admin    membro da equipe com papel "admin"
 // ============================================================
 
@@ -76,7 +79,34 @@ service cloud.firestore {
     match /convites/{codigo} {
       allow get: if true;
       allow list: if ehEquipe();
-      allow create, update, delete: if ehEquipe();
+      allow create, delete: if ehEquipe();
+
+      // A equipe altera à vontade. O cliente só pode QUEIMAR o
+      // convite que ele acabou de usar — e só isso, num caminho
+      // sem volta: de ativo para inativo, nunca o contrário.
+      allow update: if ehEquipe()
+                    || (logado()
+                        && resource.data.ativo == true
+                        && request.resource.data.ativo == false
+                        && request.resource.data.usadoPor == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['ativo', 'usadoPor', 'usadoEm']));
+    }
+
+    // ---------- De qual empresa é cada cliente ----------
+    //
+    // Criado junto com o acesso. Serve para o portal descobrir,
+    // no login seguinte, qual empresa carregar — sem o link.
+    match /clientes/{uid} {
+      allow read: if (logado() && request.auth.uid == uid) || ehEquipe();
+
+      allow create: if logado()
+                    && request.auth.uid == uid
+                    && request.resource.data.empresaId is string
+                    && exists(/databases/$(database)/documents/empresas/$(request.resource.data.empresaId)/acessos/$(uid));
+
+      allow update: if false;
+      allow delete: if ehEquipe();
     }
 
     // ---------- Empresas ----------

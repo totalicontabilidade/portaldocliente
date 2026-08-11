@@ -133,6 +133,176 @@
   }
 
   /* ============================================================
+     Porta de entrada do cliente
+
+     O link do convite serve uma vez, para criar a senha. Depois
+     disso o cliente entra por e-mail e senha, e o link não vale
+     mais para ninguém.
+     ============================================================ */
+  var porta = { modo: "", codigo: "", empresaNome: "", ocupado: false };
+
+  function portaHTML() {
+    var cadastro = porta.modo === "cadastro";
+    return '<section class="section">' +
+      '<div class="card card--pad" style="max-width:440px;margin:24px auto">' +
+        '<div class="eyebrow">' + (cadastro ? "Bem-vindo" : "Portal do Cliente") + '</div>' +
+        '<h1 class="section__title" style="font-size:21px;margin:8px 0 6px">' +
+          (cadastro ? "Crie o seu acesso" : "Entrar") + '</h1>' +
+        '<p class="section__desc" style="margin-bottom:20px">' +
+          (cadastro
+            ? (porta.empresaNome
+                ? "Você foi convidado por " + U.esc(DATA.ORG.curto) + " para o portal de " +
+                  "<strong>" + U.esc(porta.empresaNome) + "</strong>. Escolha uma senha — é com " +
+                  "ela que você vai entrar daqui em diante."
+                : "Escolha uma senha para acessar o seu portal.")
+            : "Use o e-mail e a senha que você cadastrou.") +
+        '</p>' +
+
+        '<div class="field">' +
+          '<label class="field__label" for="ptEmail">E-mail</label>' +
+          '<input type="email" class="input" id="ptEmail" inputmode="email" ' +
+            'autocomplete="' + (cadastro ? "username" : "username") + '" ' +
+            'placeholder="voce@suaempresa.com.br">' +
+        '</div>' +
+
+        '<div class="field">' +
+          '<label class="field__label" for="ptSenha">Senha</label>' +
+          '<div class="campo-senha">' +
+            '<input type="password" class="input" id="ptSenha" ' +
+              'autocomplete="' + (cadastro ? "new-password" : "current-password") + '">' +
+            '<button type="button" class="campo-senha__ver" data-ver-porta="1" ' +
+              'aria-label="Mostrar senha">' + ic("ic-olho") + '</button>' +
+          '</div>' +
+          (cadastro ? '<div class="field__hint">Pelo menos 6 caracteres.</div>' : '') +
+        '</div>' +
+
+        (cadastro
+          ? '<div class="field">' +
+              '<label class="field__label" for="ptSenha2">Repita a senha</label>' +
+              '<input type="password" class="input" id="ptSenha2" autocomplete="new-password">' +
+            '</div>'
+          : '') +
+
+        '<div class="notice notice--warn" id="ptErro" hidden style="margin-bottom:14px">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span id="ptErroTxt"></span>' +
+        '</div>' +
+
+        '<button type="button" class="btn btn--primary btn--block" id="ptEnviar">' +
+          (cadastro ? "Criar meu acesso" : "Entrar") + '</button>' +
+
+        (cadastro
+          ? '<p class="text-xs text-muted" style="margin-top:14px;text-align:center">' +
+            'Já criou seu acesso? <a href="#" data-porta-modo="login">Entrar</a></p>'
+          : '<p class="text-xs text-muted" style="margin-top:14px;text-align:center">' +
+            '<a href="#" data-esqueci="1">Esqueci minha senha</a></p>') +
+      '</div>' +
+    '</section>' + rodape();
+  }
+
+  function erroPorta(texto) {
+    var caixa = $("#ptErro");
+    if (!caixa) return;
+    caixa.hidden = !texto;
+    if (texto) $("#ptErroTxt").textContent = texto;
+  }
+
+  function bindPorta() {
+    var FB = global.FB;
+    var enviar = $("#ptEnviar");
+    if (!enviar) return;
+
+    $$("[data-ver-porta]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var campo = b.parentNode.querySelector("input");
+        campo.type = campo.type === "password" ? "text" : "password";
+        b.classList.toggle("campo-senha__ver--on", campo.type === "text");
+      });
+    });
+
+    $$("[data-porta-modo]").forEach(function (a) {
+      a.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        porta.modo = a.getAttribute("data-porta-modo");
+        render();
+      });
+    });
+
+    var esqueci = $("[data-esqueci]");
+    if (esqueci) esqueci.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      var email = ($("#ptEmail").value || "").trim();
+      if (!U.validaEmail(email)) {
+        erroPorta("Digite seu e-mail no campo acima para receber o link de recuperação.");
+        $("#ptEmail").focus();
+        return;
+      }
+      FB.recuperarSenha(email).then(function () {
+        erroPorta("");
+        UI.toast("Enviamos um link de recuperação para " + email + ".", "ok", 9000);
+      }, function (e) { erroPorta(FB.explicar(e)); });
+    });
+
+    var agir = function () {
+      if (porta.ocupado) return;
+      var email = ($("#ptEmail").value || "").trim();
+      var senha = $("#ptSenha").value || "";
+
+      if (!U.validaEmail(email)) { erroPorta("Digite um e-mail válido."); return; }
+      if (!senha) { erroPorta("Digite sua senha."); return; }
+
+      if (porta.modo === "cadastro") {
+        if (senha.length < 6) { erroPorta("A senha precisa ter pelo menos 6 caracteres."); return; }
+        if (senha !== ($("#ptSenha2").value || "")) { erroPorta("As duas senhas não são iguais."); return; }
+      }
+
+      erroPorta("");
+      porta.ocupado = true;
+      enviar.disabled = true;
+      enviar.textContent = porta.modo === "cadastro" ? "Criando…" : "Entrando…";
+
+      var acao = porta.modo === "cadastro"
+        ? FB.cadastrarCliente(porta.codigo, email, senha)
+        : FB.entrarComoCliente(email, senha);
+
+      acao.then(function (empresaId) {
+        porta.ocupado = false;
+        return carregarEmpresa(empresaId);
+      }).then(function () {
+        porta.modo = "";
+        porta.codigo = "";
+        render();
+        UI.toast("Tudo certo. Bem-vindo!", "ok");
+      }, function (e) {
+        porta.ocupado = false;
+        enviar.disabled = false;
+        enviar.textContent = porta.modo === "cadastro" ? "Criar meu acesso" : "Entrar";
+        erroPorta(FB.explicar(e));
+      });
+    };
+
+    enviar.addEventListener("click", agir);
+    var ultimo = $("#ptSenha2") || $("#ptSenha");
+    ultimo.addEventListener("keydown", function (ev) { if (ev.key === "Enter") agir(); });
+  }
+
+  /* Traz os dados da empresa do servidor para o estado local. */
+  function carregarEmpresa(empresaId) {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !empresaId) return Promise.resolve(false);
+    return FB.db.collection("empresas").doc(empresaId).get().then(function (doc) {
+      if (!doc.exists) return false;
+      var d = doc.data() || {};
+      Store.aplicarConvite({
+        id: empresaId, r: d.razaoSocial, f: d.nomeFantasia,
+        c: d.cnpj, g: d.regime
+      });
+      Store.flush();
+      return true;
+    }, function () { return false; });
+  }
+
+  /* ============================================================
      Tela: Boas-vindas (primeira visita)
      ============================================================ */
   function viewBoasVindas() {
@@ -2075,6 +2245,21 @@
 
     var alvo = $("#view");
     var html;
+
+    /* Cadastro ou login pendente vence qualquer rota. */
+    if (porta.modo) {
+      alvo.className = "view";
+      alvo.innerHTML = portaHTML();
+      $$("#view > *").forEach(function (n) { n.classList.add("reveal"); });
+      if (global.Motion) global.Motion.aplicar(alvo);
+      document.title = (porta.modo === "cadastro" ? "Criar acesso" : "Entrar") +
+                       " · Portal do Cliente · " + DATA.ORG.curto;
+      atualizarCabecalho();
+      atualizarNav("");
+      bindPorta();
+      return;
+    }
+
     switch (rota) {
       case "boas-vindas": html = viewBoasVindas(); break;
       case "documentos":  html = viewDocumentos(); break;
@@ -2587,38 +2772,50 @@
      funciona — é assim que o cliente não perde nada ao trocar de
      celular ou limpar o navegador. */
   function aplicarConviteDoServidor() {
+    var FB = global.FB;
+    if (!FB || !FB.ligado) return Promise.resolve(false);
+
     var codigo = null;
     try { codigo = new URLSearchParams(location.search).get("k"); } catch (e) { codigo = null; }
-    if (!codigo) return Promise.resolve(false);
+
+    /* Sem código: ou já existe sessão aberta neste aparelho, ou
+       a pessoa precisa entrar. Com o servidor no ar, o portal é
+       de acesso restrito — ninguém vê nada sem senha. */
+    if (!codigo) {
+      return FB.retomarCliente().then(function (empresaId) {
+        if (empresaId) return carregarEmpresa(empresaId);
+        if (FB.equipe) return false;      /* equipe testando: deixa passar */
+        porta.modo = "login";
+        return true;
+      });
+    }
 
     try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
 
-    var FB = global.FB;
-    if (!FB || !FB.ligado) {
-      setTimeout(function () {
-        UI.toast("Sem conexão com o servidor. Tente de novo quando estiver online.", "erro", 9000);
-      }, 700);
-      return Promise.resolve(false);
-    }
-
-    return FB.entrarComoCliente(codigo).then(function (empresaId) {
-      return FB.db.collection("empresas").doc(empresaId).get().then(function (doc) {
+    /* Com código: mostra a tela de criar acesso, já dizendo de
+       qual empresa é o convite. */
+    return FB.lerConvite(codigo).then(function (c) {
+      return FB.db.collection("empresas").doc(c.empresaId).get().then(function (doc) {
         var d = doc.exists ? (doc.data() || {}) : {};
-        var r = Store.aplicarConvite({
-          id: empresaId,
-          r: d.razaoSocial, f: d.nomeFantasia,
-          c: d.cnpj, g: d.regime
-        });
-        if (r === "outra") {
-          UI.toast("Este link é de outra empresa. Os dados deste aparelho foram mantidos.", "erro", 9000);
-          return false;
-        }
-        Store.flush();
+        porta.modo = "cadastro";
+        porta.codigo = c.codigo;
+        porta.empresaNome = d.nomeFantasia || d.razaoSocial || "";
+        return true;
+      }, function () {
+        porta.modo = "cadastro";
+        porta.codigo = c.codigo;
         return true;
       });
     }, function (e) {
-      setTimeout(function () { UI.toast(FB.explicar(e), "erro", 9000); }, 700);
-      return false;
+      /* Convite já usado: provavelmente é o próprio cliente
+         reabrindo o link antigo. Manda para o login. */
+      var msg = FB.explicar(e);
+      return FB.retomarCliente().then(function (empresaId) {
+        if (empresaId) return carregarEmpresa(empresaId);
+        porta.modo = "login";
+        setTimeout(function () { UI.toast(msg, "erro", 9000); }, 700);
+        return true;
+      });
     });
   }
 
@@ -2703,7 +2900,15 @@
       var FB = global.FB;
       if (FB) {
         FB.pronto.then(function () {
-          return aplicarConviteDoServidor();
+          if (!FB.ligado) return false;
+          /* Espera o Firebase decidir se já há sessão aberta,
+             senão a tela pisca do login para o portal. */
+          return new Promise(function (resolve) {
+            var parar = FB.auth.onAuthStateChanged(function () {
+              parar();
+              resolve(aplicarConviteDoServidor());
+            });
+          });
         }).then(function (mudou) {
           if (mudou) render();
         });
