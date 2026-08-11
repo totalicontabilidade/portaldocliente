@@ -11,7 +11,7 @@
   "use strict";
 
   /* ---------- Identidade da contabilidade ---------- */
-  var ORG = {
+  var ORG_PADRAO = {
     nome: "Totali Soluções Contábeis",
     curto: "Totali",
     email: "cadastro@totalicontabilidade.com.br",
@@ -111,7 +111,7 @@
      Mesmo conteúdo do sistema checklist financeiro — o que o
      cliente lê na tela e o que sai no termo em PDF precisam
      dizer exatamente a mesma coisa. */
-  var COMPROMISSO = {
+  var COMPROMISSO_PADRAO = {
     titulo: "Combinado.",
     chamada: "Então você se compromete a enviar à Totali, todo mês, " + CANAL_RELATORIOS +
              ", de cada maquininha marcada acima:",
@@ -122,7 +122,7 @@
   };
 
   /* Termo em PDF gerado ao concluir a etapa. */
-  var TERMO = {
+  var TERMO_PADRAO = {
     titulo: "Termo de Compromisso",
     subtitulo: "Envio dos relatórios das maquininhas",
     declaracao: "A empresa acima identificada declara que optou por enviar ela mesma os " +
@@ -173,7 +173,7 @@
        "empresa"  → um por empresa
        "socio"    → um por sócio cadastrado
   ------------------------------------------------ */
-  var GRUPOS = [
+  var GRUPOS_PADRAO = [
     {
       id: "societario",
       escopo: "empresa",
@@ -636,7 +636,7 @@
   ------------------------------- */
 
   /* Vídeo de apresentação, na tela inicial. */
-  var VIDEO_INICIO = {
+  var VIDEO_INICIO_PADRAO = {
     youtube: "",
     titulo: "Bem-vindo à Totali",
     desc: "Em poucos minutos, mostramos como funciona o portal, o que vamos precisar de você " +
@@ -719,44 +719,8 @@
       ]
     }
   ];
-  /* A Academy pode vir do painel da equipe (js/academy.js). Se
-     vier, ela manda; senão, usa a grade padrão acima. Tudo que
-     chega de fora é conferido campo a campo — o arquivo é
-     gerado por uma ferramenta, mas não confiamos nele às cegas. */
-  function saneiaAcademy(bruta) {
-    if (!Array.isArray(bruta) || !bruta.length) return null;
-    var idYt = /^[A-Za-z0-9_-]{11}$/;
-    var limpas = bruta.slice(0, 40).map(function (t, i) {
-      if (!t || typeof t !== "object") return null;
-      var titulo = String(t.titulo || "").slice(0, 120).trim();
-      if (!titulo) return null;
-      var videos = Array.isArray(t.videos) ? t.videos.slice(0, 60) : [];
-      return {
-        id: String(t.id || ("trilha-" + (i + 1))).slice(0, 60).replace(/[^a-zA-Z0-9_-]/g, ""),
-        kicker: String(t.kicker || ("Trilha " + (i + 1))).slice(0, 40),
-        titulo: titulo,
-        desc: String(t.desc || "").slice(0, 400),
-        capa: typeof t.capa === "string" && /^[A-Za-z0-9_\-\/.]{1,160}$/.test(t.capa) ? t.capa : "",
-        videos: videos.map(function (v) {
-          if (!v || typeof v !== "object") return null;
-          var vt = String(v.titulo || "").slice(0, 140).trim();
-          if (!vt) return null;
-          return {
-            titulo: vt,
-            duracao: String(v.duracao || "").slice(0, 20),
-            desc: String(v.desc || "").slice(0, 400),
-            youtube: idYt.test(v.youtube) ? v.youtube : "",
-            capa: typeof v.capa === "string" && /^[A-Za-z0-9_\-\/.]{1,160}$/.test(v.capa) ? v.capa : ""
-          };
-        }).filter(Boolean)
-      };
-    }).filter(Boolean);
-    return limpas.length ? limpas : null;
-  }
-
-  var ACADEMY = saneiaAcademy(global.ACADEMY_CONFIG && global.ACADEMY_CONFIG.trilhas) || ACADEMY_PADRAO;
   /* ---------- Perguntas frequentes ---------- */
-  var FAQ = [
+  var FAQ_PADRAO = [
     {
       q: "Preciso enviar tudo de uma vez?",
       a: "Não. Envie no seu ritmo — cada arquivo fica salvo assim que você anexa e a barra de progresso vai acompanhando. Você pode fechar o portal e voltar depois de onde parou."
@@ -795,6 +759,213 @@
     }
   ];
 
+  /* ============================================================
+     Conteúdo vindo do painel da equipe (js/conteudo.js)
+
+     Cada bloco é opcional e passa por um saneador antes de valer.
+     O arquivo é gerado por uma ferramenta nossa, mas mesmo assim
+     não confiamos nele às cegas: campo por campo, com limite de
+     tamanho e lista fechada onde faz sentido.
+     ============================================================ */
+  var CFG = global.CONTEUDO || {};
+
+  function txt(v, max, padrao) {
+    return typeof v === "string" && v.trim() ? v.slice(0, max) : (padrao || "");
+  }
+
+  function listaDeTextos(v, maxItens, maxTexto) {
+    if (!Array.isArray(v)) return null;
+    var l = v.slice(0, maxItens)
+      .map(function (x) { return txt(x, maxTexto); })
+      .filter(Boolean);
+    return l.length ? l : null;
+  }
+
+  function aplicaOrg(bruto) {
+    if (!bruto || typeof bruto !== "object") return ORG_PADRAO;
+    var o = JSON.parse(JSON.stringify(ORG_PADRAO));
+    ["nome", "curto", "email", "telefoneExibicao", "whatsapp", "site", "instagram", "horario"]
+      .forEach(function (k) { if (typeof bruto[k] === "string" && bruto[k].trim()) o[k] = bruto[k].slice(0, 200); });
+    /* Só http(s) — nada de javascript: no botão do site. */
+    if (!/^https?:\/\//i.test(o.site)) o.site = ORG_PADRAO.site;
+    o.whatsapp = String(o.whatsapp).replace(/\D+/g, "").slice(0, 15) || ORG_PADRAO.whatsapp;
+
+    if (bruto.local && typeof bruto.local === "object") {
+      ["nome", "endereco", "cidade", "cep"].forEach(function (k) {
+        if (typeof bruto.local[k] === "string") o.local[k] = bruto.local[k].slice(0, 200);
+      });
+      var la = parseFloat(bruto.local.lat), ln = parseFloat(bruto.local.lng);
+      if (isFinite(la) && la >= -90 && la <= 90) o.local.lat = la;
+      if (isFinite(ln) && ln >= -180 && ln <= 180) o.local.lng = ln;
+      if (typeof bruto.local.link === "string" && /^https?:\/\//i.test(bruto.local.link)) {
+        o.local.link = bruto.local.link.slice(0, 300);
+      }
+    }
+    return o;
+  }
+
+  var ID_YT = /^[A-Za-z0-9_-]{11}$/;
+  var CAPA_OK = /^[A-Za-z0-9_\-./]{1,160}$/;
+
+  function capaSegura(c) {
+    return (typeof c === "string" && CAPA_OK.test(c) && c.indexOf("..") === -1 &&
+            c.charAt(0) !== "/" && /\.(png|jpe?g|webp)$/i.test(c)) ? c : "";
+  }
+
+  function aplicaVideoInicio(bruto) {
+    if (!bruto || typeof bruto !== "object") return VIDEO_INICIO_PADRAO;
+    return {
+      youtube: ID_YT.test(bruto.youtube) ? bruto.youtube : "",
+      titulo: txt(bruto.titulo, 140, VIDEO_INICIO_PADRAO.titulo),
+      desc: txt(bruto.desc, 400, VIDEO_INICIO_PADRAO.desc),
+      duracao: txt(bruto.duracao, 20, ""),
+      capa: capaSegura(bruto.capa)
+    };
+  }
+
+  function aplicaAcademy(bruta) {
+    if (!Array.isArray(bruta) || !bruta.length) return ACADEMY_PADRAO;
+    var limpas = bruta.slice(0, 40).map(function (t, i) {
+      if (!t || typeof t !== "object") return null;
+      var titulo = txt(t.titulo, 120);
+      if (!titulo) return null;
+      return {
+        id: txt(t.id, 60, "trilha-" + (i + 1)).replace(/[^a-zA-Z0-9_-]/g, "") || ("trilha-" + (i + 1)),
+        kicker: txt(t.kicker, 40, "Trilha " + (i + 1)),
+        titulo: titulo,
+        desc: txt(t.desc, 400),
+        capa: capaSegura(t.capa),
+        videos: (Array.isArray(t.videos) ? t.videos.slice(0, 60) : []).map(function (v) {
+          if (!v || typeof v !== "object") return null;
+          var vt = txt(v.titulo, 140);
+          if (!vt) return null;
+          return {
+            titulo: vt,
+            duracao: txt(v.duracao, 20),
+            desc: txt(v.desc, 400),
+            youtube: ID_YT.test(v.youtube) ? v.youtube : "",
+            capa: capaSegura(v.capa)
+          };
+        }).filter(Boolean)
+      };
+    }).filter(Boolean);
+    return limpas.length ? limpas : ACADEMY_PADRAO;
+  }
+
+  var KINDS = ["arquivo", "dado", "acesso"];
+  var ESCOPOS = ["empresa", "socio"];
+  var ICONES = ["ic-scroll", "ic-calculator", "ic-receipt", "ic-users", "ic-badge",
+                "ic-file", "ic-folder", "ic-card", "ic-building"];
+
+  function aplicaGrupos(brutos) {
+    if (!Array.isArray(brutos) || !brutos.length) return GRUPOS_PADRAO;
+    var limpos = brutos.slice(0, 20).map(function (g, i) {
+      if (!g || typeof g !== "object") return null;
+      var titulo = txt(g.titulo, 80);
+      if (!titulo) return null;
+      var itens = (Array.isArray(g.itens) ? g.itens.slice(0, 60) : []).map(function (it, j) {
+        if (!it || typeof it !== "object") return null;
+        var nome = txt(it.nome, 140);
+        if (!nome) return null;
+        var novo = {
+          id: txt(it.id, 60, "item-" + (j + 1)).replace(/[^a-zA-Z0-9_-]/g, "") || ("item-" + (j + 1)),
+          kind: KINDS.indexOf(it.kind) > -1 ? it.kind : "arquivo",
+          nome: nome,
+          obrigatorio: it.obrigatorio === true,
+          resumo: txt(it.resumo, 240),
+          ajuda: {
+            oque: txt(it.ajuda && it.ajuda.oque, 800),
+            onde: listaDeTextos(it.ajuda && it.ajuda.onde, 8, 400) || [],
+            dica: txt(it.ajuda && it.ajuda.dica, 600),
+            passosTitulo: txt(it.ajuda && it.ajuda.passosTitulo, 120),
+            passos: listaDeTextos(it.ajuda && it.ajuda.passos, 12, 400) || [],
+            passosNota: txt(it.ajuda && it.ajuda.passosNota, 600)
+          }
+        };
+        if (Array.isArray(it.substitui)) {
+          novo.substitui = it.substitui.slice(0, 6).map(function (x) { return txt(x, 60); }).filter(Boolean);
+        }
+        if (typeof it.substituivelPor === "string") novo.substituivelPor = txt(it.substituivelPor, 60);
+        if (it.kind === "dado") {
+          novo.formato = it.formato === "selecao" ? "selecao" : "numero";
+          novo.placeholder = txt(it.placeholder, 60);
+          novo.maxlen = typeof it.maxlen === "number" ? global.U.clamp(it.maxlen, 1, 400) : 60;
+          if (novo.formato === "selecao") novo.opcoes = listaDeTextos(it.opcoes, 40, 120) || [];
+        }
+        if (it.kind === "acesso" && Array.isArray(it.credenciais)) {
+          novo.credenciais = it.credenciais.slice(0, 12).map(function (c) {
+            if (!c || typeof c !== "object") return null;
+            var rot = txt(c.rotulo, 80);
+            if (!rot) return null;
+            return {
+              id: txt(c.id, 40, "campo").replace(/[^a-zA-Z0-9_-]/g, "") || "campo",
+              rotulo: rot,
+              tipo: c.tipo === "senha" ? "senha" : "texto",
+              dica: txt(c.dica, 200),
+              placeholder: txt(c.placeholder, 80)
+            };
+          }).filter(Boolean);
+        }
+        return novo;
+      }).filter(Boolean);
+
+      if (!itens.length) return null;
+      var novoG = {
+        id: txt(g.id, 60, "grupo-" + (i + 1)).replace(/[^a-zA-Z0-9_-]/g, "") || ("grupo-" + (i + 1)),
+        escopo: ESCOPOS.indexOf(g.escopo) > -1 ? g.escopo : "empresa",
+        icone: ICONES.indexOf(g.icone) > -1 ? g.icone : "ic-file",
+        titulo: titulo,
+        desc: txt(g.desc, 400),
+        itens: itens
+      };
+      if (g.permiteGrupoNA === true) {
+        novoG.permiteGrupoNA = true;
+        novoG.textoGrupoNA = txt(g.textoGrupoNA, 160, "Não se aplica à minha empresa");
+      }
+      return novoG;
+    }).filter(Boolean);
+    return limpos.length ? limpos : GRUPOS_PADRAO;
+  }
+
+  function aplicaFaq(bruta) {
+    if (!Array.isArray(bruta) || !bruta.length) return FAQ_PADRAO;
+    var l = bruta.slice(0, 40).map(function (f) {
+      if (!f || typeof f !== "object") return null;
+      var q = txt(f.q, 200), a = txt(f.a, 2000);
+      return (q && a) ? { q: q, a: a } : null;
+    }).filter(Boolean);
+    return l.length ? l : FAQ_PADRAO;
+  }
+
+  function aplicaCompromisso(bruto) {
+    if (!bruto || typeof bruto !== "object") return COMPROMISSO_PADRAO;
+    return {
+      titulo: txt(bruto.titulo, 80, COMPROMISSO_PADRAO.titulo),
+      chamada: txt(bruto.chamada, 500, COMPROMISSO_PADRAO.chamada),
+      itens: listaDeTextos(bruto.itens, 12, 200) || COMPROMISSO_PADRAO.itens,
+      fecho: txt(bruto.fecho, 800, COMPROMISSO_PADRAO.fecho)
+    };
+  }
+
+  function aplicaTermo(bruto) {
+    if (!bruto || typeof bruto !== "object") return TERMO_PADRAO;
+    var t = JSON.parse(JSON.stringify(TERMO_PADRAO));
+    ["titulo", "subtitulo", "declaracao", "compromisso", "responsabilidadeTitulo",
+     "responsabilidade", "cienciaTitulo", "ciencia"].forEach(function (k) {
+      if (typeof bruto[k] === "string" && bruto[k].trim()) t[k] = bruto[k].slice(0, 3000);
+    });
+    var itens = listaDeTextos(bruto.itens, 12, 200);
+    if (itens) t.itens = itens;
+    return t;
+  }
+
+  var ORG = aplicaOrg(CFG.org);
+  var VIDEO_INICIO = aplicaVideoInicio(CFG.videoInicio);
+  var ACADEMY = aplicaAcademy(CFG.academy);
+  var GRUPOS = aplicaGrupos(CFG.grupos);
+  var FAQ = aplicaFaq(CFG.faq);
+  var COMPROMISSO = aplicaCompromisso(CFG.compromisso);
+  var TERMO = aplicaTermo(CFG.termo);
   global.DATA = {
     ORG: ORG,
     ETAPAS: ETAPAS,

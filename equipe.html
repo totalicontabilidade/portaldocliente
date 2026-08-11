@@ -295,9 +295,9 @@
     <section class="section">
       <div class="section__head"><div>
         <div class="eyebrow">Conteúdo</div>
-        <h2 class="section__title" style="font-size:18px;margin-top:4px">Academy</h2>
-        <p class="section__desc">Monte as trilhas e as aulas aqui. Nada de mexer em código:
-          ao terminar, baixe o arquivo e substitua em <code>js/academy.js</code>.</p>
+        <h2 class="section__title" style="font-size:18px;margin-top:4px">Conteúdo do portal</h2>
+        <p class="section__desc">Tudo que o cliente vê se altera aqui: contatos, vídeos, trilhas,
+          documentos, perguntas e os textos do termo. Nada por código.</p>
       </div></div>
 
       <div class="card card--pad">
@@ -306,38 +306,26 @@
             <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
           </span>
           <span>
-            <strong id="acResumo">—</strong><br>
-            <span id="acOrigem" style="color:var(--txt-3)"></span>
+            <strong id="pcResumo">—</strong><br>
+            <span id="pcOrigem" style="color:var(--txt-3)"></span>
           </span>
         </div>
 
-        <div class="notice notice--info" style="margin-bottom:18px">
-          <span class="notice__icon">
-            <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
-          </span>
-          <span>Suba o vídeo no YouTube como <strong>não listado</strong> e cole o link aqui —
-          pegamos o identificador sozinhos. Vídeo <strong>privado</strong> não funciona em site
-          nenhum. A capa vem automaticamente do YouTube.</span>
-        </div>
-
-        <div id="acLista"></div>
+        <div id="pcLista"></div>
 
         <div class="row" style="margin-top:18px">
-          <button type="button" class="btn btn--ghost btn--sm" id="acAddTrilha">
-            Adicionar trilha
+          <button type="button" class="btn btn--primary btn--sm" id="pcBaixar">
+            <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Baixar conteudo.js
           </button>
-          <button type="button" class="btn btn--primary btn--sm" id="acBaixar">
-            <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Baixar academy.js
-          </button>
-          <button type="button" class="btn btn--quiet btn--sm" id="acRestaurar">
+          <button type="button" class="btn btn--quiet btn--sm" id="pcRestaurar">
             Descartar rascunho
           </button>
         </div>
 
         <p class="field__hint" style="margin-top:12px">
-          O rascunho fica salvo neste navegador enquanto você trabalha. Ele só vai para o ar
-          depois que você baixar o arquivo, substituir em <code>js/academy.js</code> e publicar.
-          Quando o Firebase entrar, esse passo some — a alteração vale na hora.
+          O rascunho fica salvo neste navegador enquanto você trabalha. Ele só vai para o ar depois
+          que você baixar o arquivo, substituir em <code>js/conteudo.js</code> e publicar. Quando o
+          Firebase entrar, esse passo some — a alteração vale na hora.
         </p>
       </div>
     </section>
@@ -355,9 +343,9 @@
 <script src="js/cripto.js"></script>
 <script src="js/util.js"></script>
 <script src="js/ui.js"></script>
-<script src="js/academy.js"></script>
+<script src="js/conteudo.js"></script>
 <script src="js/data.js"></script>
 <script src="js/equipe.js"></script>
-<script src="js/academy-editor.js"></script>
+<script src="js/painel-conteudo.js"></script>
 </body>
 </html>
