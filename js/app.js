@@ -103,7 +103,7 @@
           ? '<span class="rail__trava">Conclua a etapa anterior</span>' : '') + '</div>';
     }).join("");
 
-    return '<section class="section">' +
+    return '<section class="section"' + (o.id ? ' id="' + U.escAttr(o.id) + '"' : '') + '>' +
       '<div class="section__head"><div>' +
         '<h2 class="section__title">' + U.esc(o.titulo || "Como vai funcionar") + '</h2>' +
         '<p class="section__desc">' +
@@ -112,7 +112,9 @@
               passos.length + " concluídas."
             : "A migração acontece em " + passos.length + " etapas.") +
         '</p>' +
-      '</div></div>' +
+      '</div>' +
+      (o.tutorial ? botaoTutorial(o.tutorial, "Ver o tutorial") : '') +
+      '</div>' +
       '<div class="card card--pad"><div class="rail">' + itens + '</div></div>' +
     '</section>';
   }
@@ -267,7 +269,9 @@
 
       acao.then(function (empresaId) {
         porta.ocupado = false;
-        return carregarEmpresa(empresaId);
+        return entrarNaEmpresa(empresaId).then(function (ok) {
+          if (!ok) throw new Error("empresa-nao-carregou");
+        });
       }).then(function () {
         porta.modo = "";
         porta.codigo = "";
@@ -286,20 +290,19 @@
     ultimo.addEventListener("keydown", function (ev) { if (ev.key === "Enter") agir(); });
   }
 
-  /* Traz os dados da empresa do servidor para o estado local. */
-  function carregarEmpresa(empresaId) {
+  /* Entrar na empresa: daqui em diante o portal grava no servidor.
+
+     É esta linha que faz o progresso deixar de morar no navegador.
+     Tudo o que o cliente já enviou volta do servidor — de qualquer
+     aparelho, em qualquer janela — e o que ele fizer agora sobe
+     para lá. Se falhar, avisamos: fingir que salvou seria pior. */
+  function entrarNaEmpresa(empresaId) {
     var FB = global.FB;
     if (!FB || !FB.ligado || !empresaId) return Promise.resolve(false);
-    return FB.db.collection("empresas").doc(empresaId).get().then(function (doc) {
-      if (!doc.exists) return false;
-      var d = doc.data() || {};
-      Store.aplicarConvite({
-        id: empresaId, r: d.razaoSocial, f: d.nomeFantasia,
-        c: d.cnpj, g: d.regime
-      });
-      Store.flush();
-      return true;
-    }, function () { return false; });
+    return Store.usarServidor(empresaId).then(function (ok) {
+      if (ok) atualizarCabecalho();
+      return ok;
+    });
   }
 
   /* ============================================================
@@ -320,10 +323,10 @@
     '<section class="section">' +
       '<div class="notice notice--info">' +
         '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
-        '<span><strong>Seus dados ficam protegidos.</strong> Enquanto o portal não estiver conectado ' +
-        'ao servidor da ' + U.esc(DATA.ORG.curto) + ', tudo o que você anexa fica guardado apenas ' +
-        'neste aparelho — nada é enviado pela internet. As senhas que você informar são ' +
-        'cifradas antes de sair do aparelho: só a Totali consegue abrir.</span>' +
+        '<span><strong>Seus dados ficam protegidos.</strong> O que você enviar fica guardado no ' +
+        'servidor da ' + U.esc(DATA.ORG.curto) + ', ligado só à sua empresa, e volta para você em ' +
+        'qualquer aparelho onde entrar com sua senha. As senhas que você informar são cifradas ' +
+        'antes de sair do aparelho: só a Totali consegue abrir.</span>' +
       '</div>' +
     '</section>' +
 
@@ -402,7 +405,7 @@
             : "Faltam " + resumo.pendentes + " " + U.plural(resumo.pendentes, "documento", "documentos") +
               " para concluirmos sua migração. Você pode enviar aos poucos.") +
       '</p>' +
-      '<div class="hero__row">' +
+      '<div class="hero__row" id="blocoResumo">' +
         anelHTML(resumo.pct) +
         '<div class="hero__stats">' +
           '<div><div class="stat__num" data-count="' + resumo.ok + '">0</div>' +
@@ -431,7 +434,7 @@
        dele, não faz sentido manter um "em breve" na tela inicial. */
     var vi = DATA.VIDEO_INICIO;
     if (vi && (idYoutubeValido(vi.youtube) || !enviouTudo)) {
-      html += '<section class="section">' +
+      html += '<section class="section" id="blocoVideo">' +
         '<div class="card">' +
           videoHTML(vi.youtube, vi.titulo, "video--largo") +
           '<div style="padding:15px 17px 17px">' +
@@ -453,7 +456,7 @@
     if (pendentes.length) {
       var temCorrecao = resumo.pendencias > 0;
       html +=
-      '<section class="section">' +
+      '<section class="section" id="blocoPendentes">' +
         '<div class="section__head"><div>' +
           '<h2 class="section__title">' + (temCorrecao ? "Precisa da sua atenção" : "Próximos passos") + '</h2>' +
           '<p class="section__desc">' +
@@ -517,7 +520,10 @@
     '</section>';
 
     /* Trilha das etapas — cada uma leva à sua tela. */
-    html += trilhaHTML({ titulo: "Onde você está", clicavel: true });
+    html += trilhaHTML({
+      titulo: "Onde você está", clicavel: true,
+      id: "blocoTrilha", tutorial: "inicio"
+    });
 
     /* Academy — discreta durante o envio, protagonista depois dele. */
     html +=
@@ -796,7 +802,7 @@
         '</div>' +
         '<div class="pbar"><div class="pbar__fill" style="width:' + resumo.pct + '%"></div></div>' +
         (usado ? '<div class="text-xs text-muted" style="margin-top:9px">' +
-          U.esc(U.bytes(usado)) + ' anexados neste aparelho</div>' : '') +
+          U.esc(U.bytes(usado)) + ' enviados até agora</div>' : '') +
       '</div>' +
     '</section>';
 
@@ -1485,7 +1491,7 @@
     soltarURLs();
     $$("[data-anexo]").forEach(function (no) {
       var id = no.getAttribute("data-anexo");
-      Store.baixarArquivo(id).then(function (blob) {
+      Store.baixarArquivo(id, "mensagem").then(function (blob) {
         if (!blob) return;
         var url = URL.createObjectURL(blob);
         urlsTemporarias.push(url);
@@ -1851,7 +1857,7 @@
             ? "Confira se está tudo certo e complete quem será o nosso contato."
             : "Confirme as informações básicas. É com elas que abrimos seu cadastro nos nossos sistemas.") +
         '</p>' +
-      '</div></div>' +
+      '</div>' + botaoTutorial("empresa", "Ver o tutorial") + '</div>' +
 
       '<div class="card card--pad">' +
         (trava
@@ -1862,6 +1868,7 @@
               '<a href="#/mensagens" data-rota="mensagens">Mensagens</a> que corrigimos.</span>' +
             '</div>'
           : '') +
+        '<div id="blocoEmpresa">' +
         '<div class="field"><label class="field__label" for="fRazao">Razão social' +
           '<span class="field__req">*</span></label>' +
           '<input type="text" class="input" id="fRazao" data-emp="razaoSocial" maxlength="150" ' +
@@ -1890,6 +1897,9 @@
             '</select></div>' +
         '</div>' +
 
+        '</div>' +
+
+        '<div id="blocoResponsavel">' +
         '<hr class="hr">' +
         '<h3 style="font-size:14px;font-weight:650;margin-bottom:4px">Responsável pelo contato</h3>' +
         '<p class="text-xs text-muted" style="margin-bottom:14px">Quem a Totali procura quando precisar ' +
@@ -1924,12 +1934,13 @@
           '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
           '<span>As alterações são salvas sozinhas assim que você sai do campo.</span>' +
         '</div>' +
+        '</div>' +
       '</div>' +
     '</section>';
 
     /* Sócios */
     html +=
-    '<section class="section">' +
+    '<section class="section" id="blocoSocios">' +
       '<div class="section__head"><div>' +
         '<h2 class="section__title">Sócios</h2>' +
         '<p class="section__desc">Cada sócio cadastrado ganha a própria lista de documentos.</p>' +
@@ -1977,7 +1988,66 @@
     }
     html += '</section>';
 
+    /* Fecho da etapa: enquanto falta algo, diz exatamente o quê;
+       quando tudo chega, leva de volta para a trilha. Sem isto a
+       tela terminava no vazio e o cliente não sabia o que fazer. */
+    html += '<section class="section" id="blocoEtapa">' + blocoEtapaEmpresa() + '</section>';
+
     return html + rodape();
+  }
+
+  /* Campos obrigatórios da etapa "cadastro", na mesma ordem em que
+     aparecem na tela. É a mesma conta que a trilha do início faz. */
+  var OBRIGATORIOS_EMPRESA = [
+    { campo: "razaoSocial", nome: "a razão social" },
+    { campo: "cnpj", nome: "o CNPJ" },
+    { campo: "responsavelNome", nome: "o nome do responsável" },
+    { campo: "responsavelEmail", nome: "o e-mail do responsável" },
+    { campo: "responsavelTelefone", nome: "o telefone do responsável" }
+  ];
+
+  function faltamNoCadastro() {
+    var e = Store.estado.empresa;
+    return OBRIGATORIOS_EMPRESA.filter(function (o) {
+      return !String(e[o.campo] || "").trim();
+    }).map(function (o) { return o.nome; });
+  }
+
+  function listaEmTexto(itens) {
+    if (itens.length === 1) return itens[0];
+    return itens.slice(0, -1).join(", ") + " e " + itens[itens.length - 1];
+  }
+
+  function blocoEtapaEmpresa() {
+    var faltam = faltamNoCadastro();
+
+    if (faltam.length) {
+      return '<div class="feito feito--falta">' +
+        '<span class="feito__icone feito__icone--falta">' + ic("ic-info") + '</span>' +
+        '<span class="feito__txt">' +
+          '<span class="feito__t">Ainda falta preencher</span>' +
+          '<span class="feito__d">Para concluir esta etapa, preencha ' +
+            U.esc(listaEmTexto(faltam)) + '. Os sócios você pode cadastrar depois, ' +
+            'mas quanto antes, mais rápido a gente anda.</span>' +
+        '</span>' +
+      '</div>';
+    }
+
+    return '<div class="feito">' +
+      '<span class="feito__icone">' + ic("ic-check-circle") + '</span>' +
+      '<span class="feito__txt">' +
+        '<span class="feito__t">Etapa concluída: dados da empresa</span>' +
+        '<span class="feito__d">Recebemos o cadastro e o contato do responsável. ' +
+          'O próximo passo é enviar os documentos — a tela de início mostra quais são ' +
+          'e por onde começar.</span>' +
+        '<span class="feito__acoes">' +
+          '<button type="button" class="btn btn--gold" data-rota="inicio">' +
+            ic("ic-home") + 'Voltar ao início</button>' +
+          '<button type="button" class="btn btn--ghost" data-rota="documentos">' +
+            'Ir para os documentos</button>' +
+        '</span>' +
+      '</span>' +
+    '</div>';
   }
 
   function formSocio(socio) {
@@ -2120,8 +2190,8 @@
     '<section class="section">' +
       '<div class="card card--pad">' +
         '<h2 class="section__title" style="font-size:15px">Privacidade e segurança</h2>' +
-        '<p class="section__desc" style="margin-bottom:14px">Entenda como tratamos seus dados e ' +
-          'como apagar tudo deste aparelho.</p>' +
+        '<p class="section__desc" style="margin-bottom:14px">Entenda como tratamos seus dados, ' +
+          'onde eles ficam guardados e como suas senhas são protegidas.</p>' +
         '<button type="button" class="btn btn--ghost btn--sm" data-rota="privacidade">' +
           ic("ic-shield") + 'Abrir política</button>' +
       '</div>' +
@@ -2146,9 +2216,15 @@
       '<div class="card card--pad stack">' +
         '<div class="notice notice--ok">' +
           '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
-          '<span><strong>Onde estão seus documentos agora.</strong> Este portal ainda não está ' +
-          'conectado ao servidor. Tudo o que você anexa fica guardado apenas neste aparelho, no ' +
-          'armazenamento do próprio navegador. Nenhum arquivo trafega pela internet nesta fase.</span>' +
+          (Store.noServidor
+            ? '<span><strong>Onde estão seus documentos.</strong> Tudo o que você envia vai para o ' +
+              'servidor da ' + U.esc(org.curto) + ', ligado exclusivamente à sua empresa, por ' +
+              'conexão cifrada. Só quem tem o seu login, ou a nossa equipe, enxerga esses ' +
+              'arquivos. Uma cópia fica também neste aparelho, para o portal abrir rápido e ' +
+              'funcionar sem sinal — sair da conta apaga essa cópia.</span>'
+            : '<span><strong>Onde estão seus documentos agora.</strong> Esta sessão está sem ' +
+              'conexão com o servidor. Tudo o que você anexa fica guardado apenas neste aparelho, ' +
+              'no armazenamento do próprio navegador, até a conexão voltar.</span>') +
         '</div>' +
 
         '<div class="help-block"><div class="help-block__t">Como protegemos suas senhas</div>' +
@@ -2231,6 +2307,140 @@
   }
 
   /* ============================================================
+     Tutoriais guiados
+
+     Texto curto, uma ideia por passo, sem palavra de informática.
+     A pessoa do outro lado pode nunca ter usado um portal na
+     vida — e não deveria precisar aprender nada além de "leia
+     isto e toque ali".
+     ============================================================ */
+  var TUTORIAIS = {
+    empresa: [
+      { alvo: null,
+        titulo: "Vamos preencher juntos",
+        texto: "Esta tela tem três partes: conferir os dados da empresa, dizer quem conversa " +
+               "com a gente e cadastrar os sócios. Vou mostrar uma de cada vez." },
+      { alvo: "#blocoEmpresa",
+        titulo: "1. Confira o que já veio pronto",
+        texto: "A Totali preencheu a razão social e o CNPJ para você. Aqui é só conferir. " +
+               "Se encontrar algum erro, avise pelas Mensagens que a gente corrige." },
+      { alvo: "#blocoResponsavel",
+        titulo: "2. Quem fala com a gente",
+        texto: "Escreva o nome completo de quem cuida disso na empresa — pode ser você mesmo. " +
+               "Depois o e-mail e o telefone com WhatsApp. É por esses contatos que a Totali " +
+               "procura você." },
+      { alvo: "#blocoSocios",
+        titulo: "3. Cadastre os sócios",
+        texto: "Toque em Adicionar e escreva o nome de um sócio do contrato social. Repita para " +
+               "cada um. Depois, cada sócio ganha a própria lista de documentos." },
+      { alvo: "#blocoEtapa",
+        titulo: "Não existe botão de salvar",
+        texto: "Cada campo é guardado sozinho assim que você sai dele. Este quadro mostra o que " +
+               "ainda falta e, quando estiver tudo certo, te leva para o próximo passo." }
+    ],
+
+    inicio: [
+      { alvo: null,
+        titulo: "Este é o seu portal",
+        texto: "Em menos de um minuto eu mostro onde fica cada coisa. Se quiser rever depois, " +
+               "o botão \"Ver o tutorial\" fica logo abaixo, na parte das etapas." },
+      { alvo: "#blocoVideo",
+        titulo: "Comece pelo vídeo",
+        texto: "Toque na imagem para assistir. Em poucos minutos a gente explica como funciona a " +
+               "sua migração para a Totali." },
+      { alvo: "#blocoResumo",
+        titulo: "Quanto já foi entregue",
+        texto: "Este círculo mostra a porcentagem do que você já enviou. Os números ao lado " +
+               "contam quantos documentos chegaram e quantos ainda faltam." },
+      { alvo: "#blocoPendentes",
+        titulo: "O que falta enviar",
+        texto: "Estes são os documentos mais importantes que ainda não chegaram. Toque em um " +
+               "deles para ir direto ao ponto de enviar — pode ser foto pelo celular." },
+      { alvo: "#blocoTrilha",
+        titulo: "Onde você está",
+        texto: "A migração acontece por etapas. A que está acesa é a sua vez; as concluídas " +
+               "ficam com um visto. Pode tocar em qualquer etapa liberada." },
+      { alvo: ".tabbar",
+        titulo: "O menu fica aqui embaixo",
+        texto: "Por esta barra você vai para os documentos, para as mensagens com a nossa equipe " +
+               "e para os vídeos do Academy." },
+      { alvo: ".sidenav",
+        titulo: "O menu fica aqui do lado",
+        texto: "Por este menu você vai para os documentos, para as mensagens com a nossa equipe " +
+               "e para os vídeos do Academy." }
+    ]
+  };
+
+  function abrirTutorial(nome) {
+    var passos = TUTORIAIS[nome];
+    if (!passos || !global.Tour) return;
+    global.Tour.iniciar({
+      passos: passos,
+      /* Vale como visto mesmo se a pessoa sair no meio: quem já
+         entendeu não precisa ser interrompido de novo. E quem
+         quiser rever tem o botão. */
+      aoFim: function () {
+        if (Store.marcarTutorial(nome)) Store.flush();
+      }
+    });
+  }
+
+  /* Primeira vez naquela tela: o tutorial abre sozinho. Depois,
+     só quando a pessoa pedir. */
+  function talvezTutorial(rota) {
+    if (!global.Tour || global.Tour.aberto) return;
+    if (!Store.estado.aceiteLGPD) return;
+    if (rota !== "inicio" && rota !== "empresa") return;
+    if (Store.tutorialVisto(rota)) return;
+    setTimeout(function () {
+      /* Entre o pedido e a hora de abrir, a pessoa pode ter
+         mudado de tela. */
+      if (estadoUI.rota === rota && !Store.tutorialVisto(rota)) abrirTutorial(rota);
+    }, 500);
+  }
+
+  function botaoTutorial(nome, rotulo) {
+    return '<button type="button" class="btn btn--ghost btn--sm" data-tutorial="' +
+      U.escAttr(nome) + '">' + ic("ic-bussola") + U.esc(rotulo || "Ver o tutorial") + '</button>';
+  }
+
+  /* ============================================================
+     Sair da conta
+     ============================================================ */
+  function sairDaConta() {
+    UI.confirmar({
+      titulo: "Sair da conta",
+      mensagem: "Tudo o que você já enviou fica guardado com a Totali. Para voltar, é só entrar " +
+                "com o mesmo e-mail e senha — deste ou de qualquer outro aparelho.",
+      confirmar: "Sair"
+    }).then(function (ok) {
+      if (!ok) return;
+      var FB = global.FB;
+      /* Grava o que estiver pendente ANTES de encerrar a sessão:
+         depois do logout o servidor não aceita mais escrita. Sem
+         internet a gravação fica pendurada, então esperamos no
+         máximo alguns segundos — sair não pode travar. */
+      Promise.race([
+        Promise.resolve(Store.flush()),
+        new Promise(function (r) { setTimeout(r, 4000); })
+      ]).then(function () {
+        return FB && FB.ligado ? FB.sair().catch(function () {}) : null;
+      }).then(function () {
+        /* Limpa a cópia deste aparelho. O próximo a usar este
+           computador não pode ver nada da empresa anterior. */
+        return Store.sairDaConta();
+      }).then(function () {
+        porta.modo = "login";
+        porta.codigo = "";
+        porta.empresaNome = "";
+        if (location.hash !== "#/inicio") location.hash = "#/inicio";
+        else render();
+        UI.toast("Você saiu da sua conta.", "ok");
+      });
+    });
+  }
+
+  /* ============================================================
      Render
      ============================================================ */
   /* Telas acessíveis antes do aceite: o cliente sempre pode ler a
@@ -2292,6 +2502,7 @@
     if (rota === "mensagens") bindMensagens();
     if (rota === "ajuda") bindAjuda();
     if (rota === "privacidade") bindPrivacidade();
+    talvezTutorial(rota);
   }
 
   /* O cabeçalho mostra a empresa do cliente assim que ela é
@@ -2315,6 +2526,13 @@
   function atualizarNav(rota) {
     var resumo = Store.resumoGeral();
     var gate = !Store.estado.aceiteLGPD;
+
+    /* Sair só faz sentido com sessão de verdade. Sem servidor não
+       há de onde sair, e o botão só confundiria. */
+    var temSessao = Store.noServidor && !porta.modo;
+    [$("#btnSair"), $("#btnSairMenu")].forEach(function (b) {
+      if (b) b.hidden = !temSessao;
+    });
 
     $$("[data-nav]").forEach(function (b) {
       var id = b.getAttribute("data-nav");
@@ -2360,6 +2578,14 @@
     var fila = Promise.resolve();
     var enviados = 0, erros = 0;
 
+    /* Subir arquivo leva tempo em conexão de celular. Sem este
+       aviso, a pessoa acha que não aconteceu nada e tenta de
+       novo — e aí manda o mesmo documento duas vezes. */
+    if (Store.noServidor) {
+      UI.toast("Enviando " + arquivos.length + " " +
+               U.plural(arquivos.length, "arquivo", "arquivos") + "… não feche a página.", "", 8000);
+    }
+
     arquivos.forEach(function (f) {
       fila = fila.then(function () {
         var erro = U.validaArquivo(f, usado);
@@ -2385,9 +2611,9 @@
     });
   }
 
-  function abrirArquivo(id, nome) {
-    Store.baixarArquivo(id).then(function (blob) {
-      if (!blob) { UI.toast("Arquivo não encontrado neste aparelho.", "erro"); return; }
+  function abrirArquivo(id, nome, tipo) {
+    Store.baixarArquivo(id, tipo).then(function (blob) {
+      if (!blob) { UI.toast("Não foi possível abrir este arquivo. Verifique a conexão.", "erro"); return; }
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
@@ -2419,6 +2645,17 @@
   function ligarEventosGlobais() {
     /* Navegação por atributo data-rota (funciona em botões e links). */
     document.addEventListener("click", function (ev) {
+      if (ev.target.closest("#btnSair") || ev.target.closest("#btnSairMenu")) {
+        sairDaConta();
+        return;
+      }
+
+      var verTutorial = ev.target.closest("[data-tutorial]");
+      if (verTutorial) {
+        abrirTutorial(verTutorial.getAttribute("data-tutorial"));
+        return;
+      }
+
       var navBtn = ev.target.closest("[data-nav]");
       if (navBtn && !navBtn.disabled) {
         ev.preventDefault();
@@ -2471,7 +2708,7 @@
       /* Anexo de mensagem: abre a imagem ou baixa o arquivo. */
       var anexo = ev.target.closest("[data-anexo]");
       if (anexo && anexo.tagName === "BUTTON") {
-        abrirArquivo(anexo.getAttribute("data-anexo"), anexo.getAttribute("data-nome"));
+        abrirArquivo(anexo.getAttribute("data-anexo"), anexo.getAttribute("data-nome"), "mensagem");
         return;
       }
 
@@ -2481,7 +2718,7 @@
         if (!cxr) return;
         UI.confirmar({
           titulo: "Remover arquivo",
-          mensagem: "O arquivo será apagado deste aparelho. Você poderá enviar outro depois.",
+          mensagem: "O arquivo será removido do portal. Você poderá enviar outro no lugar.",
           confirmar: "Remover", perigo: true
         }).then(function (ok) {
           if (!ok) return;
@@ -2550,7 +2787,7 @@
         UI.confirmar({
           titulo: "Remover sócio",
           mensagem: "Todos os documentos de " + (s && s.nome ? s.nome : "deste sócio") +
-                    " serão apagados deste aparelho.",
+                    " serão removidos do portal.",
           confirmar: "Remover", perigo: true
         }).then(function (ok) {
           if (!ok) return;
@@ -2688,7 +2925,39 @@
     global.addEventListener("beforeunload", function () { Store.flush(); });
   }
 
+  /* Comemoração de uma vez só: quando o último campo obrigatório
+     entra, a tela deixaria a pessoa parada sem saber o que fazer.
+     Esta janela é o convite para seguir. */
+  var avisouCadastroPronto = false;
+
+  function celebrarCadastro() {
+    if (avisouCadastroPronto) return;
+    avisouCadastroPronto = true;
+    UI.modal({
+      titulo: "Pronto! Etapa concluída",
+      corpoHTML:
+        '<p style="font-size:14px;line-height:1.7;color:var(--txt-2)">' +
+          'Os dados da sua empresa e o contato do responsável já estão com a Totali. ' +
+          'Não precisa salvar nada — já está guardado.</p>' +
+        '<p style="font-size:14px;line-height:1.7;color:var(--txt-2);margin-top:10px">' +
+          '<strong style="color:var(--txt)">O próximo passo é enviar os documentos.</strong> ' +
+          'Na tela de início você vê a lista do que falta e a ordem sugerida.</p>',
+      acoes: [
+        { rotulo: "Continuar aqui", classe: "btn--ghost" },
+        {
+          rotulo: "Voltar ao início", classe: "btn--primary",
+          onClick: function () { navegar("inicio"); }
+        }
+      ]
+    });
+  }
+
   function bindEmpresa() {
+    /* Trocar de tela e voltar pode mostrar a janela de novo, mas
+       só depois de a etapa ter sido reaberta — nunca duas vezes
+       na mesma passagem. */
+    avisouCadastroPronto = faltamNoCadastro().length === 0;
+
     $$("[data-emp]").forEach(function (campo) {
       var chave = campo.getAttribute("data-emp");
       var mascara = campo.getAttribute("data-mascara");
@@ -2724,9 +2993,18 @@
           campo.removeAttribute("aria-invalid");
         }
 
+        var faltavam = faltamNoCadastro().length;
         Store.commit(function (st) { st.empresa[chave] = v; }, "empresa");
         Store.flush();
         atualizarNav(estadoUI.rota);
+
+        /* Só o quadro do fim é redesenhado. Redesenhar a tela
+           inteira aqui tiraria o foco de quem está andando de
+           campo em campo pelo Tab. */
+        var faltam = faltamNoCadastro().length;
+        var caixa = $("#blocoEtapa");
+        if (caixa && faltam !== faltavam) caixa.innerHTML = blocoEtapaEmpresa();
+        if (faltavam > 0 && faltam === 0) celebrarCadastro();
       });
     });
   }
@@ -2783,7 +3061,7 @@
        de acesso restrito — ninguém vê nada sem senha. */
     if (!codigo) {
       return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return carregarEmpresa(empresaId);
+        if (empresaId) return entrarNaEmpresa(empresaId);
         if (FB.equipe) return false;      /* equipe testando: deixa passar */
         porta.modo = "login";
         return true;
@@ -2811,7 +3089,7 @@
          reabrindo o link antigo. Manda para o login. */
       var msg = FB.explicar(e);
       return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return carregarEmpresa(empresaId);
+        if (empresaId) return entrarNaEmpresa(empresaId);
         porta.modo = "login";
         setTimeout(function () { UI.toast(msg, "erro", 9000); }, 700);
         return true;
@@ -2884,8 +3162,11 @@
     Store.on(function (_, motivo) {
       if (motivo === "mensagens" || motivo === "revisao") atualizarNav(estadoUI.rota);
       if (motivo === "erro-persistencia") {
-        UI.toast("Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
-                 "o navegador está em modo privado.", "erro", 9000);
+        UI.toast(Store.noServidor
+          ? "Não conseguimos salvar no servidor agora. Verifique a internet — o que você digitou " +
+            "não se perde, tentamos de novo sozinhos."
+          : "Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
+            "o navegador está em modo privado.", "erro", 9000);
       }
     });
 
@@ -2911,6 +3192,13 @@
           });
         }).then(function (mudou) {
           if (mudou) render();
+        }, function (e) {
+          /* Sessão aberta mas empresa que não carrega: sem rede,
+             ou vínculo desfeito pela equipe. Melhor pedir o login
+             de novo do que deixar a tela num meio-termo. */
+          porta.modo = "login";
+          render();
+          UI.toast(global.FB.explicar(e), "erro", 9000);
         });
       }
     }, function () {

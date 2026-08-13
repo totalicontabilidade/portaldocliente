@@ -212,9 +212,39 @@
       return "O conteúdo do arquivo não corresponde à extensão \"." + ext + "\".";
     }
     if (typeof totalAtual === "number" && totalAtual + file.size > MAX_TOTAL) {
-      return "Espaço esgotado neste dispositivo. Fale com a Totali para enviarmos o restante por outro canal.";
+      return "Limite de espaço atingido. Fale com a Totali para enviarmos o restante por outro canal.";
     }
     return null;
+  }
+
+  /* Tipo declarado no envio para o servidor.
+
+     O celular às vezes entrega o arquivo sem dizer o que é —
+     acontece muito com HEIC do iPhone, XML de nota fiscal e áudio
+     de WhatsApp. O servidor recusa o que não sabe identificar,
+     então deduzimos pela extensão, que já passou pela allowlist
+     acima. Nunca inventamos um tipo fora da lista. */
+  var MIME_PADRAO = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
+    heic: "image/heic", heif: "image/heif",
+    xml: "text/xml", txt: "text/plain", csv: "text/csv",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    zip: "application/zip",
+    mp3: "audio/mpeg", m4a: "audio/mp4", ogg: "audio/ogg", oga: "audio/ogg",
+    opus: "audio/ogg", wav: "audio/wav", weba: "audio/webm", amr: "audio/amr"
+  };
+  var MIME_ACEITOS = {};
+  Object.keys(MIME_PADRAO).forEach(function (k) { MIME_ACEITOS[MIME_PADRAO[k]] = true; });
+
+  function mimeDoArquivo(arquivo) {
+    var declarado = String((arquivo && arquivo.type) || "").toLowerCase();
+    if (MIME_ACEITOS[declarado]) return declarado;
+    var porExtensao = MIME_PADRAO[extensao(arquivo && arquivo.name)];
+    return porExtensao || declarado || "application/pdf";
   }
 
   function iconePorExtensao(ext) {
@@ -276,6 +306,7 @@
     validaArquivo: validaArquivo,
     nomeSeguro: nomeSeguro,
     extensao: extensao,
+    mimeDoArquivo: mimeDoArquivo,
     iconePorExtensao: iconePorExtensao,
     debounce: debounce,
     clamp: clamp,

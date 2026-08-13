@@ -4,12 +4,18 @@
 
    ARQUITETURA
    -----------
-   Toda gravação passa por um "backend". Hoje existe apenas o
-   LocalBackend (localStorage + IndexedDB, tudo no aparelho do
-   cliente). Quando o Firebase entrar, basta criar um
-   FirebaseBackend com os mesmos quatro métodos
-   (carregar/salvar/apagar + arquivos) e trocar a linha marcada
-   com [TROCA-FIREBASE]. Nada mais no sistema precisa mudar.
+   Toda gravação passa por um "backend". São dois:
+
+     LocalBackend  localStorage + IndexedDB, tudo no aparelho.
+                   É o que roda antes do login e quando o
+                   servidor não está disponível.
+     Nuvem         Firestore + Storage (js/nuvem.js). Entra em
+                   cena assim que o cliente faz login, com
+                   Store.usarServidor(empresaId).
+
+   Enquanto o backend for o local, o progresso vive só naquele
+   navegador. Com o servidor, o cliente reencontra tudo em
+   qualquer aparelho — e é por isso que o login existe.
 
    O QUE NUNCA É GRAVADO
    ---------------------
@@ -93,12 +99,14 @@
         Arquivos.limpar().then(resolve, function () { resolve(); });
       });
     },
+    /* O terceiro argumento diz de que natureza é o arquivo
+       ("documento" ou "mensagem"). Aqui não muda nada; no
+       servidor, decide em que pasta ele é guardado. */
     guardarArquivo: function (id, blob) { return Arquivos.guardar(id, blob); },
     obterArquivo:   function (id) { return Arquivos.obter(id); },
     removerArquivo: function (id) { return Arquivos.remover(id); }
   };
 
-  /* [TROCA-FIREBASE] — trocar aqui quando o Firebase entrar. */
   var backend = LocalBackend;
 
   /* =========================================================
@@ -150,8 +158,18 @@
          chave pública da Totali (js/cripto.js). Aqui nunca há
          senha legível — só o envelope fechado. */
       credenciais: {},
+      /* Recibo de credencial: quais campos foram enviados e
+         quando. Existe porque o envelope cifrado, no servidor, só
+         admin lê — sem o recibo o portal esqueceria, a cada
+         login, que a senha já tinha sido informada e pediria de
+         novo. Aqui não há nada da senha em si. */
+      recibosCredenciais: {},
       mensagens: [],  /* conversa entre cliente e equipe          */
-      eventos: []     /* trilha de auditoria (ver nota em registrarEvento) */
+      eventos: [],    /* trilha de auditoria (ver nota em registrarEvento) */
+      /* Quando cada tutorial guiado já foi visto. Fica no
+         servidor junto com o resto: quem já aprendeu não precisa
+         rever a explicação ao trocar de aparelho. */
+      tutoriais: {}
     };
   }
 
@@ -312,6 +330,27 @@
       });
     }
 
+    /* Recibos: números e nomes de campo, nada além disso. */
+    if (bruto.recibosCredenciais && typeof bruto.recibosCredenciais === "object") {
+      Object.keys(bruto.recibosCredenciais).slice(0, 200).forEach(function (k) {
+        var r = bruto.recibosCredenciais[k];
+        if (!r || typeof r !== "object") return;
+        s.recibosCredenciais[String(k).slice(0, 160)] = {
+          campos: Array.isArray(r.campos)
+            ? r.campos.slice(0, 12).map(function (x) { return String(x).slice(0, 40); })
+            : [],
+          em: typeof r.em === "number" ? r.em : 0
+        };
+      });
+    }
+
+    if (bruto.tutoriais && typeof bruto.tutoriais === "object") {
+      Object.keys(bruto.tutoriais).slice(0, 20).forEach(function (k) {
+        var v = bruto.tutoriais[k];
+        if (typeof v === "number") s.tutoriais[String(k).slice(0, 40)] = v;
+      });
+    }
+
     if (Array.isArray(bruto.mensagens)) {
       s.mensagens = bruto.mensagens.slice(-300).filter(function (m) {
         return m && typeof m === "object" && typeof m.texto === "string";
@@ -365,15 +404,22 @@
   var ouvintes = [];
   var erroPersistencia = false;
 
+  var trocandoBackend = false;
+
   var salvarAgora = function () {
+    /* Durante a troca de backend o estado está a meio caminho:
+       gravar agora escreveria no lugar errado. */
+    if (trocandoBackend) return Promise.resolve(false);
     estado.atualizadoEm = Date.now();
-    backend.salvar(estado).then(function () {
+    return backend.salvar(estado).then(function () {
       erroPersistencia = false;
+      return true;
     }, function () {
       if (!erroPersistencia) {
         erroPersistencia = true;
         notificar("erro-persistencia");
       }
+      return false;
     });
   };
   var salvarDebounced = null;   /* criado no init, depende de U */
@@ -394,8 +440,60 @@
       });
     },
 
+    /* =======================================================
+       Passar a gravar no servidor
+
+       Chamado logo depois do login. A partir daqui o portal
+       para de depender deste navegador: o que o cliente já
+       enviou volta do servidor, e o que ele fizer daqui em
+       diante sobe para lá.
+
+       O estado local é DESCARTADO e substituído pelo do
+       servidor. É de propósito: o servidor é a verdade, e
+       aproveitar sobras de outra sessão neste aparelho seria
+       misturar dados de gente diferente.
+    ------------------------------------------------------- */
+    usarServidor: function (empresaId) {
+      if (!global.Nuvem || !global.FB || !global.FB.ligado || !empresaId) {
+        return Promise.resolve(false);
+      }
+      if (backend.nome === "nuvem" && backend.empresaId === empresaId) {
+        return Promise.resolve(true);
+      }
+      var novo = global.Nuvem.criar(empresaId, Arquivos);
+      trocandoBackend = true;
+      return novo.carregar().then(function (bruto) {
+        backend = novo;
+        estado = sanear(bruto);
+        estado.empresaId = empresaId;
+        trocandoBackend = false;
+        erroPersistencia = false;
+        notificar("servidor");
+        return true;
+      }, function (e) {
+        trocandoBackend = false;
+        throw e;
+      });
+    },
+
+    /* Sair da conta: volta ao backend local e apaga a cópia
+       deste aparelho. O que está no servidor fica intacto — e o
+       próximo a usar o computador não vê nada do anterior. */
+    sairDaConta: function () {
+      trocandoBackend = true;
+      backend = LocalBackend;
+      return LocalBackend.apagar().then(function () {
+        estado = estadoInicial();
+        trocandoBackend = false;
+        erroPersistencia = false;
+        notificar("saiu");
+        return true;
+      });
+    },
+
     get estado() { return estado; },
     get backendNome() { return backend.nome; },
+    get noServidor() { return backend.nome === "nuvem"; },
     get temErroDePersistencia() { return erroPersistencia; },
 
     on: function (fn) { if (typeof fn === "function") ouvintes.push(fn); },
@@ -407,8 +505,10 @@
       notificar(motivo || "commit");
     },
 
-    /* Grava imediatamente (usado antes de sair da página). */
-    flush: function () { salvarAgora(); },
+    /* Grava imediatamente (antes de sair da página ou da conta).
+       Devolve promessa: quem precisa ter certeza de que subiu
+       antes de encerrar a sessão pode esperar. */
+    flush: function () { return salvarAgora(); },
 
     apagarTudo: function () {
       return backend.apagar().then(function () {
@@ -496,7 +596,7 @@
         tipo: file.type || "",
         em: Date.now()
       };
-      return backend.guardarArquivo(meta.id, file).then(function () {
+      return backend.guardarArquivo(meta.id, file, "documento").then(function () {
         Store.commit(function () {
           var r = Store.item(chave);
           r.arquivos.push(meta);
@@ -523,10 +623,12 @@
         r.atualizadoEm = Date.now();
       }, "arquivos");
       Store.registrarEvento("arquivo:removeu", chave, nome);
-      return backend.removerArquivo(arquivoId).catch(function () {});
+      return backend.removerArquivo(arquivoId, "documento").catch(function () {});
     },
 
-    baixarArquivo: function (arquivoId) { return backend.obterArquivo(arquivoId); },
+    baixarArquivo: function (arquivoId, tipo) {
+      return backend.obterArquivo(arquivoId, tipo || "documento");
+    },
 
     /* Guarda um anexo de mensagem e devolve só os metadados —
        o conteúdo fica no IndexedDB, como os documentos. */
@@ -537,7 +639,7 @@
         tamanho: file.size,
         tipo: file.type || ""
       };
-      return backend.guardarArquivo(meta.id, file).then(function () { return meta; });
+      return backend.guardarArquivo(meta.id, file, "mensagem").then(function () { return meta; });
     },
 
     bytesUsados: function () {
@@ -698,7 +800,12 @@
 
       return C.cifrar(limpos).then(function (pacote) {
         Store.commit(function (st) {
-          st.credenciais[chave] = { pacote: pacote, campos: campos, atualizadoEm: Date.now() };
+          var agora = Date.now();
+          st.credenciais[chave] = { pacote: pacote, campos: campos, atualizadoEm: agora };
+          /* O recibo é o que sobrevive ao logout: no próximo
+             acesso o portal sabe que esta senha já veio, sem
+             precisar (nem poder) abrir o envelope. */
+          st.recibosCredenciais[chave] = { campos: campos, em: agora };
         }, "credenciais");
         /* A auditoria registra QUE houve envio, jamais o conteúdo. */
         Store.registrarEvento("credencial:enviada", chave, campos.join(", "));
@@ -708,15 +815,34 @@
 
     temCredencial: function (chave) {
       var c = estado.credenciais[chave];
-      return !!(c && c.pacote);
+      if (c && c.pacote) return true;
+      var r = estado.recibosCredenciais[chave];
+      return !!(r && r.campos && r.campos.length);
     },
 
-    credencial: function (chave) { return estado.credenciais[chave] || null; },
+    credencial: function (chave) {
+      if (estado.credenciais[chave]) return estado.credenciais[chave];
+      var r = estado.recibosCredenciais[chave];
+      return r ? { pacote: null, campos: r.campos, atualizadoEm: r.em } : null;
+    },
 
     removerCredencial: function (chave) {
-      if (!estado.credenciais[chave]) return false;
-      Store.commit(function (st) { delete st.credenciais[chave]; }, "credenciais");
+      if (!estado.credenciais[chave] && !estado.recibosCredenciais[chave]) return false;
+      Store.commit(function (st) {
+        delete st.credenciais[chave];
+        delete st.recibosCredenciais[chave];
+      }, "credenciais");
+      if (backend.removerCredencial) backend.removerCredencial(chave).catch(function () {});
       Store.registrarEvento("credencial:removida", chave, "");
+      return true;
+    },
+
+    /* ---- Tutoriais guiados ---- */
+    tutorialVisto: function (nome) { return !!estado.tutoriais[nome]; },
+
+    marcarTutorial: function (nome) {
+      if (estado.tutoriais[nome]) return false;
+      Store.commit(function (st) { st.tutoriais[nome] = Date.now(); }, "tutorial");
       return true;
     },
 
@@ -883,7 +1009,7 @@
     /* Guarda o PDF do termo e registra os metadados. */
     guardarTermo: function (blob, nome, em) {
       var id = global.U.uid();
-      return backend.guardarArquivo(id, blob).then(function () {
+      return backend.guardarArquivo(id, blob, "documento").then(function () {
         Store.commit(function (st) {
           st.financeiro.termo = { id: id, nome: nome, em: em || Date.now() };
         }, "financeiro");

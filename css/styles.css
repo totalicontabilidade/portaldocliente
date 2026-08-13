@@ -1441,3 +1441,95 @@ input[type=checkbox]{accent-color:var(--gold)}
   .composer{bottom:18px}
   .msg{max-width:min(78%,560px)}
 }
+
+/* ============================================================
+   Tutorial guiado
+
+   A tela inteira escurece e só uma parte fica acesa. É o mesmo
+   recurso de quem aponta o dedo e diz "olha aqui": não sobra
+   para onde a atenção fugir. O véu não é preto puro — o azul da
+   marca continua aparecendo por baixo.
+   ============================================================ */
+.tour{position:fixed;inset:0;z-index:120}
+/* A página continua podendo rolar: é rolando que o tutorial leva
+   a pessoa até cada parte da tela. Travar a rolagem aqui deixaria
+   os passos de baixo inalcançáveis. */
+body.tour-aberto{overscroll-behavior:contain}
+
+.tour__spot{
+  position:fixed;border-radius:16px;
+  box-shadow:0 0 0 100vmax rgba(8,16,26,.8), 0 0 0 1px var(--stroke-gold) inset;
+  /* Curto de propósito: a área acesa também se reposiciona a cada
+     quadro da rolagem, e uma transição longa a faria arrastar
+     atrás da tela. */
+  transition:left .12s linear,top .12s linear,width .12s linear,height .12s linear;
+  pointer-events:none;
+}
+.tour__spot[hidden]{display:none}
+/* Passo de abertura e de encerramento não acendem nada: aí o
+   véu vem do próprio fundo do tutorial. */
+.tour--cheio{background:rgba(8,16,26,.8)}
+
+.tour__balao{
+  position:fixed;z-index:2;width:min(420px,calc(100vw - 24px));
+  padding:18px 18px 15px;
+  border:1px solid var(--stroke-2);border-radius:var(--r-lg);
+  background:linear-gradient(155deg,rgba(26,49,73,.98),rgba(15,28,42,.99));
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:var(--sh-3);
+  animation:tourEntra .26s var(--ease) both;
+}
+@keyframes tourEntra{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .tour__balao{animation:none}
+  .tour__spot{transition:none}
+}
+
+.tour__conta{
+  font-size:11px;font-weight:640;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--gold-2);
+}
+.tour__titulo{font-size:17px;font-weight:660;color:var(--txt);margin:7px 0 6px;line-height:1.35}
+.tour__texto{font-size:14px;line-height:1.65;color:var(--txt-2)}
+
+.tour__pontos{display:flex;gap:5px;margin:14px 0 12px}
+.tour__ponto{width:16px;height:3px;border-radius:2px;background:var(--stroke-2)}
+.tour__ponto--on{background:linear-gradient(90deg,var(--gold),var(--gold-2))}
+
+.tour__acoes{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tour__espaco{flex:1;min-width:0}
+
+/* ============================================================
+   Cartão de etapa concluída
+
+   Aparece quando o cliente termina um passo e a tela ficaria
+   parada, sem dizer para onde ir. É o empurrãozinho de volta
+   para a trilha.
+   ============================================================ */
+.feito{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:18px 18px 16px;
+  border:1px solid var(--stroke-gold);border-radius:var(--r-lg);
+  background:linear-gradient(140deg,rgba(92,195,148,.1),rgba(42,77,112,.16));
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.feito__icone{
+  width:42px;height:42px;flex:none;border-radius:13px;display:grid;place-items:center;
+  background:rgba(92,195,148,.16);border:1px solid var(--ok-br);color:var(--ok);
+}
+.feito__icone .ic{width:22px;height:22px}
+.feito__txt{flex:1;min-width:0;display:block}
+.feito__t{display:block;font-size:15px;font-weight:660;color:var(--txt)}
+.feito__d{display:block;font-size:13px;color:var(--txt-2);margin-top:4px;line-height:1.6}
+.feito__acoes{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+
+/* Mesma caixa, outro momento: aqui a etapa ainda não fechou. O
+   tom é de recado, não de conquista. */
+.feito--falta{
+  border-color:var(--stroke);
+  background:linear-gradient(140deg,rgba(107,164,221,.09),rgba(26,49,73,.5));
+}
+.feito__icone--falta{
+  background:rgba(107,164,221,.14);border-color:var(--info-br);color:var(--info);
+}
+.feito__acoes .btn{white-space:normal;height:auto;min-height:38px}

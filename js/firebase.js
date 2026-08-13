@@ -147,6 +147,29 @@
   /* Cadastro do cliente: cria a conta com senha, registra o
      acesso à empresa e QUEIMA o convite. Feito uma vez só —
      depois ele entra por e-mail e senha, sem precisar do link. */
+  /* Cria a conta — ou entra nela, se já existir.
+
+     Um cadastro pode parar no meio: a conta nasce, e o registro
+     do acesso não chega a ser gravado por queda de rede. Da
+     segunda vez, o e-mail "já está em uso" e a pessoa fica presa
+     sem ter feito nada errado. Então tentamos entrar com a mesma
+     senha e concluir o que faltou. Senha diferente continua
+     sendo recusada — isso aqui não é atalho para invadir conta
+     alheia: sem a senha certa, nada avança. */
+  function criarOuEntrar(email, senha) {
+    var e = String(email).trim(), s = String(senha);
+    return auth.createUserWithEmailAndPassword(e, s).then(
+      function (cred) { return cred.user; },
+      function (erro) {
+        if (!erro || erro.code !== "auth/email-already-in-use") throw erro;
+        return auth.signInWithEmailAndPassword(e, s).then(
+          function (cred) { return cred.user; },
+          function () { throw new Error("senha-nao-confere"); }
+        );
+      }
+    );
+  }
+
   function cadastrarCliente(codigo, email, senha) {
     if (!auth || !db) return Promise.reject(new Error("sem-conexao"));
     var convite = null, uid = "";
@@ -154,19 +177,30 @@
     return lerConvite(codigo)
       .then(function (c) {
         convite = c;
-        return auth.createUserWithEmailAndPassword(String(email).trim(), String(senha));
+        return criarOuEntrar(email, senha);
       })
-      .then(function (cred) {
-        uid = cred.user.uid;
-        return db.collection("empresas").doc(convite.empresaId)
-                 .collection("acessos").doc(uid)
-                 .set({ codigo: convite.codigo, em: agora() });
+      /* Registro de acesso e vínculo com a empresa não se
+         reescrevem — a regra do servidor recusa. Numa segunda
+         tentativa eles já podem existir; então conferimos antes
+         de gravar, em vez de esbarrar num "sem permissão". */
+      .then(function (usuario) {
+        uid = usuario.uid;
+        var ref = db.collection("empresas").doc(convite.empresaId)
+                    .collection("acessos").doc(uid);
+        return ref.get().then(function (doc) {
+          if (doc.exists) return null;
+          return ref.set({ codigo: convite.codigo, em: agora() });
+        });
       })
       .then(function () {
-        return db.collection("clientes").doc(uid).set({
-          empresaId: convite.empresaId,
-          email: String(email).trim(),
-          em: agora()
+        var ref = db.collection("clientes").doc(uid);
+        return ref.get().then(function (doc) {
+          if (doc.exists) return null;
+          return ref.set({
+            empresaId: convite.empresaId,
+            email: String(email).trim(),
+            em: agora()
+          });
         });
       })
       .then(function () {
@@ -236,7 +270,12 @@
     "auth/missing-password": "Digite uma senha.",
     "convite-invalido": "Este link está incompleto. Peça um novo à Totali.",
     "codigo-invalido": "Este link não é válido. Peça um novo à Totali.",
-    "permission-denied": "Sem permissão para esta ação."
+    "permission-denied": "Sem permissão para esta ação.",
+    "empresa-inexistente": "Não encontramos a empresa ligada a este acesso. Fale com a Totali.",
+    "empresa-nao-carregou": "Entramos na sua conta, mas não conseguimos carregar os dados da empresa. " +
+                            "Verifique a internet e tente de novo.",
+    "senha-nao-confere": "Já existe uma conta com este e-mail, e a senha digitada não é a dela. " +
+                         "Use \"Esqueci minha senha\" ou entre com a senha que você criou."
   };
 
   function explicar(erro) {

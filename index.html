@@ -208,6 +208,13 @@
   <symbol id="ic-som" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 9.5h3l4-3.5v12l-4-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.6a7.5 7.5 0 0 1 0 10.8"/>
   </symbol>
+  <symbol id="ic-sair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 4.5H18A1.5 1.5 0 0 1 19.5 6v12a1.5 1.5 0 0 1-1.5 1.5h-3.5"/>
+    <path d="M11 8.5 14.5 12 11 15.5"/><path d="M14 12H4.5"/>
+  </symbol>
+  <symbol id="ic-bussola" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="m15.2 8.8-1.9 4.5-4.5 1.9 1.9-4.5z"/>
+  </symbol>
   <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2.5" y="5" width="19" height="14" rx="2.2"/><path d="M2.5 9.8h19"/>
     <path d="M6 14.5h3.5M13 14.5h5"/>
@@ -234,6 +241,11 @@
     <button type="button" class="hbtn" data-nav="ajuda" aria-label="Ajuda">
       <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>
       <span class="hbtn__label">Ajuda</span>
+    </button>
+    <!-- Só aparece com sessão aberta: sem login não há de onde sair. -->
+    <button type="button" class="hbtn" id="btnSair" hidden aria-label="Sair da conta">
+      <svg class="ic" aria-hidden="true"><use href="#ic-sair"></use></svg>
+      <span class="hbtn__label">Sair</span>
     </button>
   </div>
 </header>
@@ -268,6 +280,10 @@
     </button>
     <button type="button" class="sidenav__item" data-nav="ajuda">
       <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>Ajuda
+    </button>
+
+    <button type="button" class="sidenav__item" id="btnSairMenu" hidden>
+      <svg class="ic" aria-hidden="true"><use href="#ic-sair"></use></svg>Sair da conta
     </button>
 
     <div class="sidenav__card">
@@ -334,8 +350,10 @@
 <script src="js/util.js"></script>
 <script src="js/conteudo.js"></script>
 <script src="js/data.js"></script>
+<script src="js/nuvem.js"></script>
 <script src="js/store.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/tour.js"></script>
 <script src="js/motion.js"></script>
 <script src="js/notificacoes.js"></script>
 <script src="lib/jspdf.umd.min.js"></script>
