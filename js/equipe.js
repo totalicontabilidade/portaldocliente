@@ -17,12 +17,20 @@
   var $ = UI.$;
   var CHAVE_BASE = "totali.onboarding.equipe.base";
 
+  /* Só serve endereço de verdade. Caminho de arquivo no disco
+     (file://) gera link que abre a pasta em vez do portal — foi
+     o que aconteceu antes de existir esta checagem. */
+  function enderecoValido(url) {
+    return /^https?:\/\/[^\s]+$/i.test(String(url || "").trim());
+  }
+
   function enderecoPadrao() {
     var salvo = null;
     try { salvo = localStorage.getItem(CHAVE_BASE); } catch (e) { salvo = null; }
-    if (salvo) return salvo;
+    if (enderecoValido(salvo)) return salvo;
     /* Mesma pasta desta página, trocando equipe.html por index.html */
-    return location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
+    var daPagina = location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
+    return enderecoValido(daPagina) ? daPagina : "";
   }
 
   function baseLimpa(base) {
@@ -171,6 +179,14 @@
         cnpj.focus();
         return;
       }
+      if (!enderecoValido(base.value)) {
+        base.focus();
+        base.setAttribute("aria-invalid", "true");
+        UI.toast("O endereço do portal precisa começar com http:// ou https://. " +
+                 "Sem isso o link abre a pasta do computador, não o portal.", "erro", 9000);
+        return;
+      }
+      base.removeAttribute("aria-invalid");
 
       try { localStorage.setItem(CHAVE_BASE, base.value.trim()); } catch (e) { /* segue */ }
 
