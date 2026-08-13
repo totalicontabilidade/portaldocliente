@@ -366,23 +366,13 @@
   /* Correções pedidas pela Totali vêm primeiro: são o que trava a
      migração. Depois, os obrigatórios que ainda não chegaram. */
   function proximosPendentes(limite) {
-    var correcoes = [], faltando = [];
-    DATA.GRUPOS.forEach(function (g) {
-      var alvos = g.escopo === "socio" ? Store.estado.socios.slice() : [null];
-      alvos.forEach(function (socio) {
-        g.itens.forEach(function (item) {
-          var sit = Store.situacao(g, item, socio ? socio.id : null);
-          if (sit !== "pendencia" && !(sit === "pendente" && item.obrigatorio)) return;
-          var entrada = {
-            grupo: g, item: item, sit: sit,
-            sufixo: socio ? U.primeiroNome(socio.nome) || "sócio" : ""
-          };
-          if (sit === "pendencia") correcoes.push(entrada);
-          else faltando.push(entrada);
-        });
+    return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS, { limite: limite })
+      .map(function (p) {
+        return {
+          grupo: p.grupo, item: p.item, sit: p.sit,
+          sufixo: p.socio ? (U.primeiroNome(p.socio.nome) || "sócio") : ""
+        };
       });
-    });
-    return correcoes.concat(faltando).slice(0, limite);
   }
 
   function viewInicio() {

@@ -532,7 +532,7 @@
 
     /* ---- chaves ---- */
     chaveItem: function (grupoId, itemId, socioId) {
-      return socioId ? grupoId + "/" + socioId + "/" + itemId : grupoId + "/" + itemId;
+      return global.Situacao.chaveItem(grupoId, itemId, socioId);
     },
 
     item: function (chave) {
@@ -670,99 +670,37 @@
     },
 
     /* =======================================================
-       5. Cálculo de situação e progresso
+       5. Situação e progresso
+
+       A conta em si mora em js/situacao.js, e o painel da equipe
+       chama exatamente a mesma função. É o que garante que o
+       número que o cliente vê e o que a equipe vê sejam o mesmo.
        ======================================================= */
 
-    /* Situações possíveis de um documento, na ordem em que vencem:
-         na          — não se aplica (item ou grupo inteiro)
-         substituido — a CNH cobre RG e CPF
-         pendencia   — a equipe recusou; o cliente precisa reenviar
-         aprovado    — a equipe conferiu e aceitou
-         analise     — entregue, a equipe está conferindo
-         enviado     — entregue, ainda sem revisão
-         pendente    — nada entregue                                   */
-    situacao: function (grupo, item, socioId) {
-      if (estado.gruposNA[grupo.id]) return "na";
-      var chave = Store.chaveItem(grupo.id, item.id, socioId);
-      var r = estado.itens[chave];
-      if (r && r.na) return "na";
-
-      if (item.substituivelPor) {
-        var subChave = Store.chaveItem(grupo.id, item.substituivelPor, socioId);
-        var sub = estado.itens[subChave];
-        if (sub && sub.arquivos && sub.arquivos.length) return "substituido";
-      }
-      if (!r) return "pendente";
-
-      var rev = (r.revisao && r.revisao.status) || "";
-      if (rev === "pendencia") return "pendencia";
-      if (rev === "aprovado") return "aprovado";
-      if (rev === "analise") return "analise";
-
-      if (item.kind === "arquivo" && r.arquivos.length) return "enviado";
-      if (item.kind === "dado" && String(r.valor || "").trim()) return "enviado";
-      if (item.kind === "acesso" && r.forma) {
-        /* Escolher "informar o acesso" só resolve depois que a
-           credencial é realmente guardada. */
-        if (r.forma === "informar" && item.credenciais && !Store.temCredencial(chave)) return "pendente";
-        return "enviado";
-      }
-      return "pendente";
+    /* Recorte do estado no formato que o cálculo espera. */
+    dadosSituacao: function () {
+      return {
+        itens: estado.itens,
+        gruposNA: estado.gruposNA,
+        socios: estado.socios,
+        temCredencial: Store.temCredencial
+      };
     },
 
-    /* Situações que contam como "resolvido" na barra de progresso.
-       Pendência NÃO conta: o documento voltou para o cliente. */
-    RESOLVIDAS: ["enviado", "substituido", "analise", "aprovado"],
+    situacao: function (grupo, item, socioId) {
+      return global.Situacao.de(Store.dadosSituacao(), grupo, item, socioId);
+    },
 
-    resolvida: function (sit) { return Store.RESOLVIDAS.indexOf(sit) > -1; },
+    get RESOLVIDAS() { return global.Situacao.RESOLVIDAS; },
 
-    /* Resumo de um grupo, considerando sócios quando for o caso. */
+    resolvida: function (sit) { return global.Situacao.resolvida(sit); },
+
     resumoGrupo: function (grupo) {
-      var total = 0, ok = 0, pendentesObrig = 0, pendencias = 0, aprovados = 0;
-      var alvos = grupo.escopo === "socio"
-        ? estado.socios.map(function (s) { return s.id; })
-        : [null];
-
-      alvos.forEach(function (socioId) {
-        grupo.itens.forEach(function (item) {
-          var sit = Store.situacao(grupo, item, socioId);
-          if (sit === "na") return;
-          total++;
-          if (sit === "pendencia") pendencias++;
-          if (sit === "aprovado") aprovados++;
-          if (Store.resolvida(sit)) ok++;
-          else if (item.obrigatorio) pendentesObrig++;
-        });
-      });
-      return {
-        total: total,
-        ok: ok,
-        pendentes: total - ok,
-        pendentesObrigatorios: pendentesObrig,
-        pendencias: pendencias,
-        aprovados: aprovados,
-        pct: total ? Math.round((ok / total) * 100) : 0,
-        completo: total > 0 && ok === total,
-        vazio: total === 0
-      };
+      return global.Situacao.resumoGrupo(Store.dadosSituacao(), grupo);
     },
 
     resumoGeral: function () {
-      var total = 0, ok = 0, obrig = 0, pend = 0, aprov = 0;
-      global.DATA.GRUPOS.forEach(function (g) {
-        var r = Store.resumoGrupo(g);
-        total += r.total; ok += r.ok; obrig += r.pendentesObrigatorios;
-        pend += r.pendencias; aprov += r.aprovados;
-      });
-      return {
-        total: total,
-        ok: ok,
-        pendentes: total - ok,
-        pendentesObrigatorios: obrig,
-        pendencias: pend,
-        aprovados: aprov,
-        pct: total ? Math.round((ok / total) * 100) : 0
-      };
+      return global.Situacao.resumoGeral(Store.dadosSituacao(), global.DATA.GRUPOS);
     },
 
     /* =======================================================

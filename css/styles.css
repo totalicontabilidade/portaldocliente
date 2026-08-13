@@ -1533,3 +1533,106 @@ body.tour-aberto{overscroll-behavior:contain}
   background:rgba(107,164,221,.14);border-color:var(--info-br);color:var(--info);
 }
 .feito__acoes .btn{white-space:normal;height:auto;min-height:38px}
+
+/* ============================================================
+   Painel da equipe
+
+   Mesma linguagem visual do portal do cliente — quem trabalha o
+   dia inteiro aqui merece a mesma tela cuidada. O que muda é a
+   densidade: aqui a pessoa precisa ver muita coisa de uma vez.
+   ============================================================ */
+.filtros{display:flex;flex-wrap:wrap;gap:7px}
+.filtro{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;
+  border:1px solid var(--stroke);background:var(--glass);
+  color:var(--txt-2);font-size:12.5px;font-weight:560;
+  transition:border-color .18s var(--ease),background .18s var(--ease),color .18s var(--ease);
+}
+.filtro b{color:var(--txt);font-weight:700}
+.filtro:hover{border-color:var(--stroke-2);color:var(--txt)}
+.filtro--on{
+  border-color:var(--stroke-gold);color:var(--txt);
+  background:linear-gradient(140deg,rgba(194,162,80,.16),rgba(194,162,80,.07));
+}
+
+/* Ficha do cliente: rótulo à esquerda, valor à direita, quebrando
+   para baixo quando a tela é estreita. */
+.ficha__linha{
+  display:flex;flex-wrap:wrap;gap:4px 16px;
+  padding:8px 0;border-bottom:1px solid var(--stroke);
+}
+.ficha__linha:last-child{border-bottom:0}
+.ficha__rot{flex:none;min-width:150px;font-size:12.5px;color:var(--txt-3)}
+.ficha__val{flex:1;min-width:0;font-size:13.5px;color:var(--txt);overflow-wrap:anywhere}
+.ficha__val i{color:var(--txt-4);font-style:normal}
+.ficha__nums{
+  display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:12px;
+  font-size:12.5px;color:var(--txt-3);
+}
+.ficha__nums b{color:var(--txt);font-size:14px;font-weight:680}
+
+/* Arquivos enviados pelo cliente */
+.arqs{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+.arq{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  padding:8px 11px;border-radius:10px;
+  border:1px solid var(--stroke);background:var(--glass);
+  font-size:12.5px;color:var(--txt-2);
+  transition:border-color .18s var(--ease),color .18s var(--ease);
+}
+.arq:hover{border-color:var(--stroke-gold);color:var(--txt)}
+.arq .ic{width:16px;height:16px;flex:none;color:var(--gold-2)}
+.arq__n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arq__t{flex:none;color:var(--txt-4);font-size:11.5px}
+
+/* Conversa dentro da ficha */
+.conversa{
+  display:flex;flex-direction:column;gap:10px;
+  max-height:420px;overflow-y:auto;padding-right:4px;
+}
+
+/* Credencial aberta. Fica visível o mínimo de tempo possível e
+   nunca é gravada em lugar nenhum. */
+.cred__saida{
+  margin-top:10px;padding:11px 13px;border-radius:12px;
+  border:1px solid var(--stroke-gold);
+  background:linear-gradient(140deg,rgba(194,162,80,.1),rgba(26,49,73,.4));
+}
+.cred__par{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}
+.cred__rot{flex:none;min-width:110px;font-size:12px;color:var(--txt-3)}
+.cred__v{
+  flex:1;min-width:0;font-size:13.5px;color:var(--txt);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  overflow-wrap:anywhere;
+}
+
+@media (max-width:520px){
+  .ficha__rot{min-width:0;flex-basis:100%}
+  .cred__rot{min-width:0;flex-basis:100%}
+}
+
+/* Linha de cliente na lista do painel.
+
+   Não dá para reaproveitar .group__head aqui: os selos de
+   situação são longos ("Aguardando correção") e, em tela de
+   celular, espremiam o nome da empresa até quebrar letra a
+   letra. Aqui o selo desce para a linha de baixo quando não
+   cabe. */
+.cliente{
+  display:flex;flex-wrap:wrap;align-items:center;gap:9px 13px;
+  width:100%;padding:15px 16px;text-align:left;
+  transition:background .2s var(--ease);
+}
+.cliente:hover{background:var(--glass)}
+.cliente__info{flex:1 1 170px;min-width:0}
+.cliente__nome{
+  display:block;font-size:14.5px;font-weight:640;color:var(--txt);
+  overflow-wrap:anywhere;
+}
+.cliente__meta{
+  display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.cliente__chev{flex:none;margin-left:auto;color:var(--txt-4)}
+.cliente__chev .ic{width:20px;height:20px}
