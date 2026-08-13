@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v17";
+var VERSAO = "v18";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [

@@ -14,7 +14,7 @@
   default-src 'self';
   script-src 'self';
   style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https://i.ytimg.com;
+  img-src 'self' data: blob: https://i.ytimg.com https://firebasestorage.googleapis.com;
   font-src 'self';
   connect-src 'self'
     https://firestore.googleapis.com
@@ -22,7 +22,7 @@
     https://securetoken.googleapis.com
     https://firebasestorage.googleapis.com
     https://portaldocliente-8cc7d.firebasestorage.app;
-  media-src 'self' blob:;
+  media-src 'self' blob: https://firebasestorage.googleapis.com;
   worker-src 'self';
   manifest-src 'self';
   object-src 'none';

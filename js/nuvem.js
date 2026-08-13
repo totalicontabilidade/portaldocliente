@@ -64,6 +64,13 @@
     return saida;
   }
 
+  /* Registro de documento sem nada dentro. `atualizadoEm` fica em
+     zero de propósito: se levasse a hora atual, toda gravação
+     pareceria diferente e o documento seria reescrito para sempre. */
+  var ITEM_VAZIO = {
+    arquivos: [], valor: "", na: false, forma: "", obs: "", atualizadoEm: 0
+  };
+
   function criar(empresaId, cacheLocal) {
     var FB = global.FB;
     var db = FB.db;
@@ -344,16 +351,26 @@
       }
       juntar("financeiro/geral", raiz.collection("financeiro").doc("geral"), payloadGeral(st));
 
-      /* Sumiram do estado: sócio removido leva junto os documentos
-         dele. Mensagem e evento nunca entram nesta conta. */
+      /* Sumiram do estado.
+
+         Sócio some de verdade — a regra permite ao dono apagar.
+
+         Documento, NÃO: apagar documento é coisa de administrador,
+         e é assim de propósito, para o histórico de conferência da
+         equipe não evaporar. Então o documento removido pelo
+         cliente vira um registro VAZIO, que é o mesmo que "nada
+         enviado". Tentar apagar aqui derrubaria o lote inteiro por
+         falta de permissão — e junto com ele iria tudo o mais que
+         estivesse na mesma gravação. */
       var apagar = [];
       Object.keys(retrato).forEach(function (caminho) {
         if (caminho.indexOf("socios/") === 0 && !vistosSocios[caminho]) apagar.push(caminho);
-        if (caminho.indexOf("itens/") === 0 && !vistosItens[caminho]) apagar.push(caminho);
+        if (caminho.indexOf("itens/") === 0 && !vistosItens[caminho]) {
+          juntar(caminho, raiz.collection("itens").doc(caminho.slice(6)), ITEM_VAZIO);
+        }
       });
       apagar.forEach(function (caminho) {
-        var partes = caminho.split("/");
-        escritas.push({ ref: raiz.collection(partes[0]).doc(partes[1]), modo: "delete" });
+        escritas.push({ ref: raiz.collection("socios").doc(caminho.slice(7)), modo: "delete" });
       });
 
       if (!escritas.length) return Promise.resolve(true);
@@ -405,29 +422,45 @@
       });
     }
 
-    function baixar(id, tipo) {
-      return refArquivo(id, tipo).getDownloadURL().then(function (url) {
-        return fetch(url).then(function (r) {
-          if (!r.ok) throw new Error("download-falhou");
-          return r.blob();
-        });
+    /* Endereço direto do arquivo, com a chave de leitura embutida.
+       Serve para abrir e para exibir prévia sem precisar trazer os
+       bytes para dentro da página. */
+    function urlArquivo(id, tipo) {
+      if (!storage) return Promise.resolve("");
+      return refArquivo(id, tipo).getDownloadURL().catch(function () {
+        /* Anexo de mensagem e documento moram em pastas
+           diferentes; se não estava numa, tenta a outra. */
+        return refArquivo(id, tipo === "mensagem" ? "documento" : "mensagem")
+          .getDownloadURL().catch(function () { return ""; });
       });
     }
+
+    /* Trazer os bytes exige CORS liberado no bucket. Enquanto não
+       estiver, a primeira tentativa falha e nós paramos de tentar —
+       o portal segue funcionando pelo endereço direto, e o console
+       não vira uma parede de erro repetido. */
+    var podeBaixarBytes = true;
 
     function obterArquivo(id, tipo) {
       var doCache = cacheLocal ? cacheLocal.obter(id).catch(function () { return null; })
                                : Promise.resolve(null);
       return doCache.then(function (blob) {
-        if (blob) return blob;
-        if (!storage) return null;
-        return baixar(id, tipo).catch(function () {
-          /* Anexo de mensagem e documento moram em pastas
-             diferentes; se não estava numa, tenta a outra. */
-          return baixar(id, tipo === "mensagem" ? "documento" : "mensagem")
-            .catch(function () { return null; });
+        /* Só vale como acerto do cache o que for arquivo mesmo. */
+        if (blob instanceof Blob) return blob;
+        if (!storage || !podeBaixarBytes) return null;
+
+        return urlArquivo(id, tipo).then(function (url) {
+          if (!url) return null;
+          return fetch(url).then(function (r) {
+            if (!r.ok) throw new Error("download-falhou");
+            return r.blob();
+          });
         }).then(function (b) {
           if (b && cacheLocal) cacheLocal.guardar(id, b).catch(function () {});
           return b;
+        }, function () {
+          podeBaixarBytes = false;
+          return null;
         });
       });
     }
@@ -457,6 +490,7 @@
       apagar: apagar,
       guardarArquivo: guardarArquivo,
       obterArquivo: obterArquivo,
+      urlArquivo: urlArquivo,
       removerArquivo: removerArquivo
     };
   }

@@ -1491,14 +1491,22 @@
     soltarURLs();
     $$("[data-anexo]").forEach(function (no) {
       var id = no.getAttribute("data-anexo");
-      Store.baixarArquivo(id, "mensagem").then(function (blob) {
-        if (!blob) return;
-        var url = URL.createObjectURL(blob);
-        urlsTemporarias.push(url);
+      var aplicar = function (url) {
+        if (!url) return;
         var img = no.querySelector("img");
         if (img) { img.src = url; return; }
         var som = no.querySelector("audio");
         if (som) { som.src = url; }
+      };
+      Store.baixarArquivo(id, "mensagem").then(function (blob) {
+        if (blob) {
+          var url = URL.createObjectURL(blob);
+          urlsTemporarias.push(url);
+          aplicar(url);
+          return null;
+        }
+        /* Sem os bytes aqui, a prévia vem direto do servidor. */
+        return Store.urlArquivo(id, "mensagem").then(aplicar);
       }, function () { /* anexo ausente: o cartão fica sem prévia */ });
     });
   }
@@ -2006,11 +2014,24 @@
     { campo: "responsavelTelefone", nome: "o telefone do responsável" }
   ];
 
-  function faltamNoCadastro() {
+  function camposFaltando() {
     var e = Store.estado.empresa;
     return OBRIGATORIOS_EMPRESA.filter(function (o) {
       return !String(e[o.campo] || "").trim();
     }).map(function (o) { return o.nome; });
+  }
+
+  /* Sócio faz parte da etapa, não é extra: é o cadastro do sócio
+     que cria a lista de documentos dele. Fechar a etapa sem
+     nenhum deixaria o cliente achando que entregou tudo. */
+  function faltamSocios() {
+    return Store.estado.socios.length === 0;
+  }
+
+  function faltamNoCadastro() {
+    var lista = camposFaltando();
+    if (faltamSocios()) lista.push("socios");
+    return lista;
   }
 
   function listaEmTexto(itens) {
@@ -2019,16 +2040,30 @@
   }
 
   function blocoEtapaEmpresa() {
-    var faltam = faltamNoCadastro();
+    var campos = camposFaltando();
+    var semSocio = faltamSocios();
 
-    if (faltam.length) {
+    if (campos.length || semSocio) {
+      var texto;
+      if (campos.length && semSocio) {
+        texto = "Preencha " + listaEmTexto(campos) + ". Depois, cadastre pelo menos um sócio — " +
+                "é o cadastro do sócio que cria a lista de documentos dele.";
+      } else if (campos.length) {
+        texto = "Para concluir esta etapa, preencha " + listaEmTexto(campos) + ".";
+      } else {
+        texto = "Falta cadastrar os sócios. Adicione todos os que constam do contrato social — " +
+                "é o cadastro do sócio que cria a lista de documentos dele.";
+      }
       return '<div class="feito feito--falta">' +
         '<span class="feito__icone feito__icone--falta">' + ic("ic-info") + '</span>' +
         '<span class="feito__txt">' +
-          '<span class="feito__t">Ainda falta preencher</span>' +
-          '<span class="feito__d">Para concluir esta etapa, preencha ' +
-            U.esc(listaEmTexto(faltam)) + '. Os sócios você pode cadastrar depois, ' +
-            'mas quanto antes, mais rápido a gente anda.</span>' +
+          '<span class="feito__t">Ainda falta um pouco</span>' +
+          '<span class="feito__d">' + U.esc(texto) + '</span>' +
+          (campos.length ? '' :
+            '<span class="feito__acoes">' +
+              '<button type="button" class="btn btn--primary" id="btnAddSocioEtapa">' +
+                ic("ic-plus") + 'Adicionar sócio</button>' +
+            '</span>') +
         '</span>' +
       '</div>';
     }
@@ -2037,7 +2072,7 @@
       '<span class="feito__icone">' + ic("ic-check-circle") + '</span>' +
       '<span class="feito__txt">' +
         '<span class="feito__t">Etapa concluída: dados da empresa</span>' +
-        '<span class="feito__d">Recebemos o cadastro e o contato do responsável. ' +
+        '<span class="feito__d">Recebemos o cadastro, o contato do responsável e os sócios. ' +
           'O próximo passo é enviar os documentos — a tela de início mostra quais são ' +
           'e por onde começar.</span>' +
         '<span class="feito__acoes">' +
@@ -2089,6 +2124,10 @@
               cpfCampo.focus();
               return;
             }
+            /* Guardado ANTES da mudança: é a comparação que diz se
+               esta foi a ação que fechou a etapa. */
+            var faltavam = faltamNoCadastro().length;
+
             if (socio) {
               Store.commit(function (st) {
                 var alvo = st.socios.filter(function (x) { return x.id === socio.id; })[0];
@@ -2101,6 +2140,7 @@
             UI.fecharModal();
             UI.toast(socio ? "Sócio atualizado." : "Sócio adicionado.", "ok");
             render();
+            if (estadoUI.rota === "empresa") conferirEtapaEmpresa(faltavam);
           }
         }
       ]
@@ -2332,7 +2372,8 @@
       { alvo: "#blocoSocios",
         titulo: "3. Cadastre os sócios",
         texto: "Toque em Adicionar e escreva o nome de um sócio do contrato social. Repita para " +
-               "cada um. Depois, cada sócio ganha a própria lista de documentos." },
+               "cada um. Este passo é necessário: é o cadastro do sócio que cria a lista de " +
+               "documentos dele." },
       { alvo: "#blocoEtapa",
         titulo: "Não existe botão de salvar",
         texto: "Cada campo é guardado sozinho assim que você sai dele. Este quadro mostra o que " +
@@ -2611,18 +2652,42 @@
     });
   }
 
+  /* Abrir um arquivo tem dois caminhos.
+
+     Se os bytes estiverem aqui — porque foi este aparelho que
+     enviou, ou porque o download direto está liberado — abrimos do
+     próprio aparelho, já com o nome certo.
+
+     Se não, abrimos pelo endereço do servidor, em outra aba. É o
+     que faz o cliente conseguir rever, do celular, o documento que
+     mandou do computador. */
   function abrirArquivo(id, nome, tipo) {
     Store.baixarArquivo(id, tipo).then(function (blob) {
-      if (!blob) { UI.toast("Não foi possível abrir este arquivo. Verifique a conexão.", "erro"); return; }
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = U.nomeSeguro(nome || "documento");
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      if (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = U.nomeSeguro(nome || "documento");
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        return null;
+      }
+      return Store.urlArquivo(id, tipo).then(function (endereco) {
+        if (!endereco) {
+          UI.toast("Não foi possível abrir este arquivo. Verifique a conexão.", "erro");
+          return;
+        }
+        var b = document.createElement("a");
+        b.href = endereco;
+        b.target = "_blank";
+        b.rel = "noopener noreferrer";
+        document.body.appendChild(b);
+        b.click();
+        document.body.removeChild(b);
+      });
     }, function () {
       UI.toast("Não foi possível abrir o arquivo.", "erro");
     });
@@ -2775,7 +2840,10 @@
       }
 
       /* --- Sócios --- */
-      if (ev.target.closest("#btnAddSocio")) { abrirFormSocio(null); return; }
+      if (ev.target.closest("#btnAddSocio") || ev.target.closest("#btnAddSocioEtapa")) {
+        abrirFormSocio(null);
+        return;
+      }
 
       var editar = ev.target.closest("[data-editar-socio]");
       if (editar) { abrirFormSocio(editar.getAttribute("data-editar-socio")); return; }
@@ -2925,19 +2993,23 @@
     global.addEventListener("beforeunload", function () { Store.flush(); });
   }
 
-  /* Comemoração de uma vez só: quando o último campo obrigatório
-     entra, a tela deixaria a pessoa parada sem saber o que fazer.
-     Esta janela é o convite para seguir. */
-  var avisouCadastroPronto = false;
+  /* Chamada depois de qualquer mudança na tela de Empresa, com a
+     contagem de pendências de ANTES. Assim a janela de etapa
+     concluída aparece exatamente na virada — nunca a cada visita,
+     nunca duas vezes. */
+  function conferirEtapaEmpresa(faltavam) {
+    var faltam = faltamNoCadastro().length;
+    var caixa = $("#blocoEtapa");
+    if (caixa && faltam !== faltavam) caixa.innerHTML = blocoEtapaEmpresa();
+    if (faltavam > 0 && faltam === 0) celebrarCadastro();
+  }
 
   function celebrarCadastro() {
-    if (avisouCadastroPronto) return;
-    avisouCadastroPronto = true;
     UI.modal({
       titulo: "Pronto! Etapa concluída",
       corpoHTML:
         '<p style="font-size:14px;line-height:1.7;color:var(--txt-2)">' +
-          'Os dados da sua empresa e o contato do responsável já estão com a Totali. ' +
+          'Os dados da sua empresa, o contato do responsável e os sócios já estão com a Totali. ' +
           'Não precisa salvar nada — já está guardado.</p>' +
         '<p style="font-size:14px;line-height:1.7;color:var(--txt-2);margin-top:10px">' +
           '<strong style="color:var(--txt)">O próximo passo é enviar os documentos.</strong> ' +
@@ -2953,11 +3025,6 @@
   }
 
   function bindEmpresa() {
-    /* Trocar de tela e voltar pode mostrar a janela de novo, mas
-       só depois de a etapa ter sido reaberta — nunca duas vezes
-       na mesma passagem. */
-    avisouCadastroPronto = faltamNoCadastro().length === 0;
-
     $$("[data-emp]").forEach(function (campo) {
       var chave = campo.getAttribute("data-emp");
       var mascara = campo.getAttribute("data-mascara");
@@ -3001,10 +3068,7 @@
         /* Só o quadro do fim é redesenhado. Redesenhar a tela
            inteira aqui tiraria o foco de quem está andando de
            campo em campo pelo Tab. */
-        var faltam = faltamNoCadastro().length;
-        var caixa = $("#blocoEtapa");
-        if (caixa && faltam !== faltavam) caixa.innerHTML = blocoEtapaEmpresa();
-        if (faltavam > 0 && faltam === 0) celebrarCadastro();
+        conferirEtapaEmpresa(faltavam);
       });
     });
   }

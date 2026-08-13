@@ -58,7 +58,19 @@
         var t = db.transaction(DB_STORE, modo);
         var st = t.objectStore(DB_STORE);
         var out = fn(st);
-        t.oncomplete = function () { resolve(out && out.result !== undefined ? out.result : out); };
+        t.oncomplete = function () {
+          /* O IndexedDB devolve um "pedido", não o valor. Quando o
+             arquivo não está guardado aqui, o pedido termina com
+             resultado vazio — e é preciso responder NADA, não o
+             pedido em si. Devolver o objeto do pedido faz quem
+             chamou pensar que achou o arquivo, e aí o portal nem
+             tenta buscar no servidor. */
+          if (out && typeof out === "object" && "result" in out) {
+            resolve(out.result === undefined ? null : out.result);
+            return;
+          }
+          resolve(out);
+        };
         t.onerror = function () { reject(t.error); };
         t.onabort = function () { reject(t.error); };
       });
@@ -630,6 +642,13 @@
       return backend.obterArquivo(arquivoId, tipo || "documento");
     },
 
+    /* Endereço direto do arquivo no servidor. Vazio quando o
+       portal está rodando só no aparelho. */
+    urlArquivo: function (arquivoId, tipo) {
+      if (!backend.urlArquivo) return Promise.resolve("");
+      return backend.urlArquivo(arquivoId, tipo || "documento").catch(function () { return ""; });
+    },
+
     /* Guarda um anexo de mensagem e devolve só os metadados —
        o conteúdo fica no IndexedDB, como os documentos. */
     guardarAnexo: function (file, nomeSugerido) {
@@ -1032,8 +1051,11 @@
 
       var concluidas = {
         "boas-vindas": !!estado.aceiteLGPD,
+        /* Sócio conta na etapa: sem ele, a lista de documentos de
+           sócio nasce vazia e o cliente acha que já entregou tudo. */
         "cadastro": !!(e.razaoSocial && e.cnpj && e.responsavelNome &&
-                       e.responsavelEmail && e.responsavelTelefone),
+                       e.responsavelEmail && e.responsavelTelefone &&
+                       estado.socios.length > 0),
         "documentos": r.total > 0 && r.pendentesObrigatorios === 0 && r.pendencias === 0,
         "financeiro": !!estado.financeiro.concluidoEm,
         "analise": estado.etapa === "analise-ok" || estado.etapa === "ativo",
