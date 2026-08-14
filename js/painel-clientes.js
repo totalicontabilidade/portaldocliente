@@ -351,6 +351,8 @@
      chegou e mostra só o que falta.
      ========================================================= */
   var filtroPendencia = "todas";
+  var abertosPend = {};     /* empresas abertas   */
+  var fechadosSetor = {};   /* setores fechados   */
 
   function pendenciasPorEmpresa() {
     return empresas.map(function (c) {
@@ -414,40 +416,95 @@
       return;
     }
 
-    caixa.innerHTML = grupos.map(function (g) {
-      var c = g.cliente;
-      var correcoes = g.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
-      return '<div class="card" style="margin-bottom:12px">' +
-        '<div class="pend__topo">' +
+    caixa.innerHTML = grupos.map(cartaoPendencia).join("");
+  }
+
+  /* Cada empresa é um cartão que abre e fecha; dentro dela, um
+     bloco por setor. Com dez clientes na tela, a lista aberta de
+     uma vez viraria uma página impossível de percorrer. */
+  function cartaoPendencia(g) {
+    var c = g.cliente;
+    var abertoEmp = !!abertosPend["emp:" + c.id];
+    var correcoes = g.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+
+    return '<div class="card pend" data-open="' + (abertoEmp ? "true" : "false") + '" ' +
+        'style="margin-bottom:12px">' +
+      '<div class="pend__topo">' +
+        '<button type="button" class="pend__abrir" data-pemp="' + U.escAttr(c.id) + '">' +
           '<span class="group__icon">' + ic("ic-building") + '</span>' +
           '<span class="cliente__info">' +
             '<span class="cliente__nome">' + U.esc(nomeDe(c)) + '</span>' +
             '<span class="cliente__meta">' + g.itens.length + ' ' +
               U.plural(g.itens.length, "pendência", "pendências") +
-              (correcoes ? ' · ' + correcoes + ' ' +
-                U.plural(correcoes, "correção pedida", "correções pedidas") : '') +
               (c.empresa.responsavelNome ? ' · ' + U.esc(c.empresa.responsavelNome) : '') +
             '</span>' +
           '</span>' +
-          '<span class="pend__acoes">' +
-            '<button type="button" class="btn btn--primary btn--sm" data-cobrar="' +
-              U.escAttr(c.id) + '">' + ic("ic-send") + 'Cobrar</button>' +
-            '<button type="button" class="btn btn--ghost btn--sm" data-cliente="' +
-              U.escAttr(c.id) + '">Abrir ficha</button>' +
+          (correcoes
+            ? '<span class="badge badge--pendencia"><span class="dot"></span>' + correcoes + ' ' +
+              U.plural(correcoes, "correção", "correções") + '</span>'
+            : '') +
+          '<span class="cliente__chev">' + ic("ic-chevron-down") + '</span>' +
+        '</button>' +
+        '<span class="pend__acoes">' +
+          '<button type="button" class="btn btn--primary btn--sm" data-cobrar="' +
+            U.escAttr(c.id) + '">' + ic("ic-send") + 'Cobrar</button>' +
+          '<button type="button" class="btn btn--ghost btn--sm" data-cliente="' +
+            U.escAttr(c.id) + '">Abrir ficha</button>' +
+        '</span>' +
+      '</div>' +
+      (abertoEmp ? setoresHTML(c, g.itens) : '') +
+    '</div>';
+  }
+
+  /* Dentro da empresa, um bloco por setor. Estes nascem ABERTOS:
+     quem abriu a empresa quer ver o que falta, não clicar de novo
+     em cada departamento. Fechar é a exceção, então guardamos os
+     fechados, não os abertos. */
+  function setoresHTML(c, itens) {
+    var porSetor = [];
+    var indice = {};
+    itens.forEach(function (p) {
+      if (!indice[p.grupo.id]) {
+        indice[p.grupo.id] = { grupo: p.grupo, itens: [] };
+        porSetor.push(indice[p.grupo.id]);
+      }
+      indice[p.grupo.id].itens.push(p);
+    });
+
+    return porSetor.map(function (s) {
+      var chave = c.id + "|" + s.grupo.id;
+      var fechado = !!fechadosSetor[chave];
+      var correcoes = s.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+
+      return '<div class="pend__setor" data-open="' + (fechado ? "false" : "true") + '">' +
+        '<button type="button" class="group__head group__head--selo pend__setorCab" ' +
+            'data-psetor="' + U.escAttr(chave) + '">' +
+          '<span class="group__icon">' + ic(s.grupo.icone) + '</span>' +
+          '<span class="group__info">' +
+            '<span class="group__title" style="display:block;font-size:14px">' +
+              U.esc(s.grupo.titulo) + '</span>' +
+            '<span class="group__meta" style="display:block">' + s.itens.length + ' ' +
+              U.plural(s.itens.length, "pendência", "pendências") + '</span>' +
           '</span>' +
-        '</div>' +
-        g.itens.map(function (p) {
+          (correcoes
+            ? '<span class="badge badge--pendencia"><span class="dot"></span>' + correcoes + ' ' +
+              U.plural(correcoes, "correção", "correções") + '</span>'
+            : '') +
+          '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
+        '</button>' +
+        (fechado ? '' : s.itens.map(function (p) {
           return '<div class="item"><div class="item__top">' +
-            '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
             '<div class="item__main">' +
               '<div class="item__name">' + U.esc(p.item.nome) +
                 (p.socio ? ' <span class="text-xs text-muted">· ' +
                   U.esc(p.socio.nome || "sócio") + '</span>' : '') + '</div>' +
               '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
-                '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span></div>' +
+                (p.item.obrigatorio
+                  ? '<span class="text-xs text-muted">obrigatório</span>' : '') +
+              '</div>' +
             '</div>' +
           '</div></div>';
-        }).join("") +
+        }).join("")) +
       '</div>';
     }).join("");
   }
@@ -1415,6 +1472,32 @@
 
       var fp = alvo.closest("[data-fpend]");
       if (fp) { filtroPendencia = fp.getAttribute("data-fpend"); desenharPendencias(); return; }
+
+      /* Abrir e fechar empresa e setor. Depois de redesenhar, a
+         página volta para onde o cartão estava, senão a lista
+         pula debaixo do dedo. */
+      var pemp = alvo.closest("[data-pemp]");
+      if (pemp) {
+        var idEmp = pemp.getAttribute("data-pemp");
+        var antesEmp = pemp.getBoundingClientRect().top;
+        abertosPend["emp:" + idEmp] = !abertosPend["emp:" + idEmp];
+        desenharPendencias();
+        var novoEmp = document.querySelector('[data-pemp="' + idEmp + '"]');
+        if (novoEmp) global.scrollBy(0, novoEmp.getBoundingClientRect().top - antesEmp);
+        return;
+      }
+
+      var pset = alvo.closest("[data-psetor]");
+      if (pset) {
+        var chaveSet = pset.getAttribute("data-psetor");
+        var antesSet = pset.getBoundingClientRect().top;
+        if (fechadosSetor[chaveSet]) delete fechadosSetor[chaveSet];
+        else fechadosSetor[chaveSet] = true;
+        desenharPendencias();
+        var novoSet = document.querySelector('[data-psetor="' + chaveSet + '"]');
+        if (novoSet) global.scrollBy(0, novoSet.getBoundingClientRect().top - antesSet);
+        return;
+      }
 
       var fm = alvo.closest("[data-fmsg]");
       if (fm) { filtroMensagem = fm.getAttribute("data-fmsg"); desenharMensagens(); return; }
