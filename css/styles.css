@@ -1732,3 +1732,46 @@ body.tour-aberto{overscroll-behavior:contain}
   margin:0 auto 20px;
   filter:drop-shadow(0 4px 16px rgba(0,0,0,.45));
 }
+
+/* ============================================================
+   Caixa de entrada e lista de pendências
+
+   Conversa com mensagem não lida ganha marca dourada na lateral.
+   Mensagem de cliente parada é cliente esperando resposta — não
+   pode passar despercebida no meio da lista.
+   ============================================================ */
+.cliente--novo{
+  background:linear-gradient(90deg,rgba(194,162,80,.1),transparent 60%);
+  box-shadow:inset 3px 0 0 var(--gold);
+}
+.cliente--novo .cliente__nome{color:var(--txt);font-weight:700}
+
+.conversa--alta{max-height:min(60vh,560px)}
+
+/* Cabeçalho da empresa na lista de pendências */
+.pend__topo{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 13px;
+  padding:15px 16px;border-bottom:1px solid var(--stroke);
+}
+.pend__acoes{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+@media (max-width:560px){
+  .pend__acoes{margin-left:0;flex-basis:100%}
+  .pend__acoes .btn{flex:1}
+}
+
+/* Barra inferior com seis abas: as letras encolhem para caber em
+   tela de 320px sem cortar palavra. */
+.tabbar--6 .tabbar__item{font-size:9px;letter-spacing:0;gap:2px}
+.tabbar--6 .tabbar__item .ic{width:20px;height:20px}
+.tabbar--6 .tabbar__badge{left:calc(50% + 6px);min-width:15px;height:15px;font-size:9px}
+@media (min-width:420px){
+  .tabbar--6 .tabbar__item{font-size:10px}
+}
+
+/* Cabeçalho de seção com botão de ação à direita.
+
+   Em tela estreita o botão espremia o texto e as duas coisas se
+   sobrepunham. Agora ele desce para a linha de baixo quando o
+   texto precisa da largura toda. */
+.section__head{flex-wrap:wrap}
+.section__head > div:first-child{flex:1 1 230px;min-width:0}

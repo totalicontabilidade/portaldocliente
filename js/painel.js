@@ -26,10 +26,12 @@
   var UI = global.UI, U = global.U;
   var $ = UI.$, $$ = UI.$$;
 
-  var ABAS = ["clientes", "novo", "conteudo", "seguranca"];
+  var ABAS = ["clientes", "pendencias", "mensagens", "novo", "conteudo", "seguranca"];
   var PADRAO = "clientes";
   var TITULOS = {
     clientes: "Clientes",
+    pendencias: "Pendências",
+    mensagens: "Mensagens",
     novo: "Novo cliente",
     conteudo: "Conteúdo do portal",
     seguranca: "Segurança"
@@ -97,13 +99,22 @@
     $("#pnQuem").title = equipe.email || "";
   }
 
-  /* ---------- Aviso de atenção no menu ---------- */
-  function marcarAtencao(quantos) {
-    $$("[data-badge-atencao]").forEach(function (n) {
-      if (quantos > 0) { n.hidden = false; n.textContent = quantos > 99 ? "99+" : String(quantos); }
-      else n.hidden = true;
+  /* ---------- Avisos no menu ----------
+     Cada aba pode carregar um número: quantos clientes esperam
+     conferência, quantas pendências existem, quantas mensagens
+     não foram lidas. É o que faz a pessoa saber onde tem
+     trabalho sem abrir aba por aba. */
+  function marcarBadges(contas) {
+    Object.keys(contas || {}).forEach(function (chave) {
+      var n = contas[chave];
+      $$("[data-badge-" + chave + "]").forEach(function (el) {
+        if (n > 0) { el.hidden = false; el.textContent = n > 99 ? "99+" : String(n); }
+        else el.hidden = true;
+      });
     });
   }
+
+  function marcarAtencao(quantos) { marcarBadges({ atencao: quantos }); }
 
   /* ---------- Entrar e sair ---------- */
   function mostrarPainel(dentro) {
@@ -149,6 +160,7 @@
     },
     mostrarPainel: mostrarPainel,
     marcarAtencao: marcarAtencao,
+    marcarBadges: marcarBadges,
     /* Avisa quem precisa saber que a aba mudou — a lista de
        clientes usa para carregar só quando é olhada. */
     aoTrocar: function (fn) { if (typeof fn === "function") ouvintes.push(fn); }

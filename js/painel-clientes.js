@@ -112,6 +112,8 @@
     if (carregando) return Promise.resolve();
     carregando = true;
     desenharLista();
+    desenharPendencias();
+    desenharMensagens();
 
     return FB.db.collection("empresas").get().then(function (snap) {
       var ids = [];
@@ -130,13 +132,22 @@
         return nomeDe(a).localeCompare(nomeDe(b), "pt-BR");
       });
       carregando = false;
-      desenharLista();
+      desenharTudo();
     }, function (e) {
       carregando = false;
       empresas = [];
-      desenharLista();
+      desenharTudo();
       UI.toast("Não foi possível carregar os clientes: " + FB.explicar(e), "erro", 9000);
     });
+  }
+
+  /* As três abas comem da mesma carga de dados. Redesenhar todas
+     evita o caso de trocar de aba e encontrar número velho. */
+  function desenharTudo() {
+    desenharLista();
+    desenharPendencias();
+    desenharMensagens();
+    atualizarContadores();
   }
 
   function nomeDe(c) {
@@ -287,6 +298,28 @@
     atualizarPlacar();
   }
 
+  /* Os números do menu. Ficam fora do desenho de cada tela
+     porque valem para todas: a pessoa precisa ver que tem
+     mensagem nova mesmo estando na aba de conteúdo. */
+  function atualizarContadores() {
+    if (!global.Painel) return;
+    var conferir = 0, correcao = 0, pendencias = 0, naoLidas = 0;
+
+    empresas.forEach(function (c) {
+      var est = estadoDoCliente(c);
+      if (est.chave === "correcao") correcao++;
+      else if (est.chave === "conferir") conferir++;
+      pendencias += global.Situacao.pendencias(c.dados, DATA.GRUPOS).length;
+      naoLidas += naoLidasDe(c);
+    });
+
+    global.Painel.marcarBadges({
+      atencao: conferir + correcao,
+      pendencias: pendencias,
+      mensagens: naoLidas
+    });
+  }
+
   /* Contagem por situação — dá o panorama sem abrir ninguém. */
   function atualizarPlacar() {
     var placar = $("#clPlacar");
@@ -298,13 +331,6 @@
       conta[k] = (conta[k] || 0) + 1;
     });
 
-    /* O menu mostra quantos clientes esperam alguma ação nossa:
-       documento para conferir ou correção que já foi pedida e
-       ainda não voltou. É o número que diz "tem trabalho aqui". */
-    if (global.Painel) {
-      global.Painel.marcarAtencao((conta.conferir || 0) + (conta.correcao || 0));
-    }
-
     var ordem = ["correcao", "conferir", "faltando", "cadastro", "naoentrou", "emdia"];
     placar.innerHTML =
       '<button type="button" class="filtro' + (filtro.situacao === "todos" ? " filtro--on" : "") +
@@ -314,6 +340,319 @@
           (filtro.situacao === k ? " filtro--on" : "") + '" data-filtro="' + U.escAttr(k) + '">' +
           U.esc(ROTULO_ESTADO[k].texto) + ' <b>' + conta[k] + '</b></button>';
       }).join("");
+  }
+
+  /* =========================================================
+     Aba Pendências — o que falta chegar, de todo mundo
+
+     A lista de clientes responde "como está cada um". Esta
+     responde outra pergunta, que é a do dia a dia: "quem eu
+     cobro hoje, e do quê". Por isso ela ignora tudo o que já
+     chegou e mostra só o que falta.
+     ========================================================= */
+  var filtroPendencia = "todas";
+
+  function pendenciasPorEmpresa() {
+    return empresas.map(function (c) {
+      var lista = global.Situacao.pendencias(c.dados, DATA.GRUPOS);
+      if (filtroPendencia === "correcao") {
+        lista = lista.filter(function (p) { return p.sit === "pendencia"; });
+      } else if (filtroPendencia === "faltando") {
+        lista = lista.filter(function (p) { return p.sit !== "pendencia"; });
+      }
+      return { cliente: c, itens: lista };
+    }).filter(function (x) { return x.itens.length; })
+      .sort(function (a, b) {
+        /* Quem tem correção pedida vem primeiro: é o cliente que
+           já mandou algo e está preso esperando. */
+        var ca = a.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+        var cb = b.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+        if (ca !== cb) return cb - ca;
+        return b.itens.length - a.itens.length;
+      });
+  }
+
+  function desenharPendencias() {
+    var caixa = $("#pdLista");
+    if (!caixa) return;
+
+    if (carregando) {
+      caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
+        'Carregando…</p></div>';
+      return;
+    }
+
+    var grupos = pendenciasPorEmpresa();
+    var totalCorrecao = 0, totalFaltando = 0;
+    empresas.forEach(function (c) {
+      global.Situacao.pendencias(c.dados, DATA.GRUPOS).forEach(function (p) {
+        if (p.sit === "pendencia") totalCorrecao++; else totalFaltando++;
+      });
+    });
+
+    var filtros = $("#pdFiltros");
+    if (filtros) {
+      filtros.innerHTML = [
+        { id: "todas", rotulo: "Todas", n: totalCorrecao + totalFaltando },
+        { id: "correcao", rotulo: "Correções pedidas", n: totalCorrecao },
+        { id: "faltando", rotulo: "Ainda não enviados", n: totalFaltando }
+      ].map(function (f) {
+        return '<button type="button" class="filtro' +
+          (filtroPendencia === f.id ? " filtro--on" : "") +
+          '" data-fpend="' + f.id + '">' + U.esc(f.rotulo) + ' <b>' + f.n + '</b></button>';
+      }).join("");
+    }
+
+    if (!grupos.length) {
+      caixa.innerHTML = '<div class="card"><div class="empty">' +
+        '<div class="empty__icon">' + ic("ic-check-circle") + '</div>' +
+        '<div class="empty__title">Nada pendente</div>' +
+        '<div class="empty__desc">' +
+          (empresas.length ? "Todo mundo entregou o que era obrigatório."
+                           : "Ainda não há cliente cadastrado.") + '</div>' +
+      '</div></div>';
+      return;
+    }
+
+    caixa.innerHTML = grupos.map(function (g) {
+      var c = g.cliente;
+      var correcoes = g.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+      return '<div class="card" style="margin-bottom:12px">' +
+        '<div class="pend__topo">' +
+          '<span class="group__icon">' + ic("ic-building") + '</span>' +
+          '<span class="cliente__info">' +
+            '<span class="cliente__nome">' + U.esc(nomeDe(c)) + '</span>' +
+            '<span class="cliente__meta">' + g.itens.length + ' ' +
+              U.plural(g.itens.length, "pendência", "pendências") +
+              (correcoes ? ' · ' + correcoes + ' ' +
+                U.plural(correcoes, "correção pedida", "correções pedidas") : '') +
+              (c.empresa.responsavelNome ? ' · ' + U.esc(c.empresa.responsavelNome) : '') +
+            '</span>' +
+          '</span>' +
+          '<span class="pend__acoes">' +
+            '<button type="button" class="btn btn--primary btn--sm" data-cobrar="' +
+              U.escAttr(c.id) + '">' + ic("ic-send") + 'Cobrar</button>' +
+            '<button type="button" class="btn btn--ghost btn--sm" data-cliente="' +
+              U.escAttr(c.id) + '">Abrir ficha</button>' +
+          '</span>' +
+        '</div>' +
+        g.itens.map(function (p) {
+          return '<div class="item"><div class="item__top">' +
+            '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
+            '<div class="item__main">' +
+              '<div class="item__name">' + U.esc(p.item.nome) +
+                (p.socio ? ' <span class="text-xs text-muted">· ' +
+                  U.esc(p.socio.nome || "sócio") + '</span>' : '') + '</div>' +
+              '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
+                '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span></div>' +
+            '</div>' +
+          '</div></div>';
+        }).join("") +
+      '</div>';
+    }).join("");
+  }
+
+  /* =========================================================
+     Aba Mensagens — caixa de entrada de todas as conversas
+
+     Mensagem de cliente parada é cliente esperando resposta.
+     Por isso o não lido não é um detalhe na lista: é a coisa
+     mais visível da tela.
+     ========================================================= */
+  var filtroMensagem = "todas";
+  var conversaAberta = null;
+
+  function naoLidasDe(c) {
+    return c.mensagens.filter(function (m) {
+      return m.autor === "cliente" && !m.lidaEm;
+    }).length;
+  }
+
+  function ultimaDe(c) {
+    return c.mensagens.length ? c.mensagens[c.mensagens.length - 1] : null;
+  }
+
+  function conversas() {
+    var lista = empresas.filter(function (c) { return c.mensagens.length; });
+    if (filtroMensagem === "naolidas") {
+      lista = lista.filter(function (c) { return naoLidasDe(c) > 0; });
+    }
+    return lista.sort(function (a, b) {
+      var na = naoLidasDe(a), nb = naoLidasDe(b);
+      if ((na > 0) !== (nb > 0)) return nb - na;
+      return ((ultimaDe(b) || {}).em || 0) - ((ultimaDe(a) || {}).em || 0);
+    });
+  }
+
+  function desenharMensagens() {
+    var caixa = $("#msLista");
+    if (!caixa) return;
+
+    if (conversaAberta) { desenharConversa(); return; }
+
+    $("#msTopo").hidden = false;
+    $("#msConversa").hidden = true;
+    caixa.hidden = false;
+
+    if (carregando) {
+      caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
+        'Carregando…</p></div>';
+      return;
+    }
+
+    var totalNaoLidas = empresas.reduce(function (a, c) { return a + naoLidasDe(c); }, 0);
+    var comConversa = empresas.filter(function (c) { return c.mensagens.length; }).length;
+
+    var filtros = $("#msFiltros");
+    if (filtros) {
+      filtros.innerHTML =
+        '<button type="button" class="filtro' + (filtroMensagem === "todas" ? " filtro--on" : "") +
+          '" data-fmsg="todas">Todas <b>' + comConversa + '</b></button>' +
+        '<button type="button" class="filtro' + (filtroMensagem === "naolidas" ? " filtro--on" : "") +
+          '" data-fmsg="naolidas">Não lidas <b>' + totalNaoLidas + '</b></button>';
+    }
+
+    var lista = conversas();
+    if (!lista.length) {
+      caixa.innerHTML = '<div class="card"><div class="empty">' +
+        '<div class="empty__icon">' + ic("ic-chat") + '</div>' +
+        '<div class="empty__title">' +
+          (filtroMensagem === "naolidas" ? "Nenhuma mensagem esperando resposta"
+                                         : "Nenhuma conversa ainda") + '</div>' +
+        '<div class="empty__desc">' +
+          (filtroMensagem === "naolidas"
+            ? "Tudo o que os clientes escreveram já foi lido."
+            : "Quando um cliente escrever pelo portal, a conversa aparece aqui.") + '</div>' +
+      '</div></div>';
+      return;
+    }
+
+    caixa.innerHTML = '<div class="card">' + lista.map(function (c) {
+      var novas = naoLidasDe(c);
+      var ultima = ultimaDe(c) || {};
+      var dele = ultima.autor === "cliente";
+      return '<button type="button" class="cliente' + (novas ? " cliente--novo" : "") +
+          '" data-conversa="' + U.escAttr(c.id) + '" ' +
+          'style="border-bottom:1px solid var(--stroke)">' +
+        '<span class="group__icon">' + ic("ic-chat") + '</span>' +
+        '<span class="cliente__info">' +
+          '<span class="cliente__nome">' + U.esc(nomeDe(c)) + '</span>' +
+          '<span class="cliente__meta">' +
+            (dele ? "" : "Você: ") + U.esc(String(ultima.texto || "(anexo)").slice(0, 90)) +
+          '</span>' +
+          '<span class="cliente__meta">' + U.esc(U.dataHora(ultima.em)) + '</span>' +
+        '</span>' +
+        (novas
+          ? '<span class="badge badge--pendencia"><span class="dot"></span>' + novas + ' ' +
+            U.plural(novas, "nova", "novas") + '</span>'
+          : '') +
+        '<span class="cliente__chev">' + ic("ic-chevron-right") + '</span>' +
+      '</button>';
+    }).join("") + '</div>';
+  }
+
+  function abrirConversa(id) {
+    var c = empresas.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    conversaAberta = c;
+    desenharConversa();
+    global.scrollTo({ top: 0, behavior: "auto" });
+    marcarLidas(c);
+  }
+
+  function fecharConversa() {
+    conversaAberta = null;
+    desenharMensagens();
+  }
+
+  function desenharConversa() {
+    var c = conversaAberta;
+    if (!c) return;
+    $("#msTopo").hidden = true;
+    $("#msLista").hidden = true;
+    var alvo = $("#msConversa");
+    alvo.hidden = false;
+
+    alvo.innerHTML =
+      '<div class="row" style="margin-bottom:14px">' +
+        '<button type="button" class="btn btn--ghost btn--sm" id="msVoltar">' +
+          ic("ic-chevron-right", "gira180") + 'Todas as conversas</button>' +
+        '<button type="button" class="btn btn--quiet btn--sm" data-cliente="' +
+          U.escAttr(c.id) + '">Abrir ficha do cliente</button>' +
+      '</div>' +
+      '<div class="section__head"><div>' +
+        '<div class="eyebrow">Conversa</div>' +
+        '<h2 class="section__title" style="font-size:19px;margin-top:4px">' +
+          U.esc(nomeDe(c)) + '</h2>' +
+        '<p class="section__desc">' +
+          (c.empresa.responsavelNome
+            ? U.esc(c.empresa.responsavelNome) +
+              (c.empresa.responsavelTelefone ? " · " + U.esc(c.empresa.responsavelTelefone) : "")
+            : "Sem responsável informado") + '</p>' +
+      '</div></div>' +
+      '<div class="card card--pad">' +
+        (c.mensagens.length
+          ? '<div class="conversa conversa--alta">' + c.mensagens.map(function (m) {
+              return '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") + '">' +
+                '<div class="msg__autor">' +
+                  U.esc(m.autor === "equipe" ? (m.autorNome || "Totali") : "Cliente") + '</div>' +
+                '<div>' + U.esc(m.texto) + '</div>' +
+                '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
+                ((m.anexos || []).length
+                  ? '<div class="arqs">' + m.anexos.map(function (a) {
+                      return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
+                        '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="mensagem">' +
+                        ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
+                    }).join("") + '</div>'
+                  : '') +
+              '</div>';
+            }).join("") + '</div>'
+          : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
+        '<div class="field" style="margin-top:14px">' +
+          '<label class="field__label" for="msTexto">Responder</label>' +
+          '<textarea class="textarea" id="msTexto" rows="3" maxlength="4000" ' +
+            'placeholder="Escreva aqui…"></textarea>' +
+        '</div>' +
+        '<button type="button" class="btn btn--primary btn--sm" id="msEnviar">' +
+          ic("ic-send") + 'Enviar</button>' +
+      '</div>';
+
+    var voltar = $("#msVoltar");
+    if (voltar) voltar.addEventListener("click", fecharConversa);
+
+    var enviar = $("#msEnviar");
+    if (enviar) enviar.addEventListener("click", function () {
+      var campo = $("#msTexto");
+      if (!campo.value.trim()) { campo.focus(); return; }
+      enviar.disabled = true;
+      enviarMensagem(campo.value, "", c).then(function () { desenharConversa(); });
+    });
+
+    var fim = alvo.querySelector(".conversa");
+    if (fim) fim.scrollTop = fim.scrollHeight;
+  }
+
+  /* Abrir a conversa marca como lidas as mensagens do cliente.
+     A regra do servidor deixa a equipe alterar só o campo de
+     leitura — nada mais da mensagem se reescreve. */
+  function marcarLidas(c) {
+    var pendentes = c.mensagens.filter(function (m) {
+      return m.autor === "cliente" && !m.lidaEm;
+    });
+    if (!pendentes.length) return;
+
+    var agora = Date.now();
+    var lote = FB.db.batch();
+    pendentes.forEach(function (m) {
+      lote.set(FB.db.collection("empresas").doc(c.id).collection("mensagens").doc(m.id),
+               { lidaEm: agora }, { merge: true });
+    });
+
+    lote.commit().then(function () {
+      pendentes.forEach(function (m) { m.lidaEm = agora; });
+      atualizarContadores();
+      if (conversaAberta === c) desenharConversa();
+    }, function () { /* segue mostrando como não lida */ });
   }
 
   /* =========================================================
@@ -793,8 +1132,8 @@
     });
   }
 
-  function enviarMensagem(texto, chave) {
-    var c = aberto;
+  function enviarMensagem(texto, chave, cliente) {
+    var c = cliente || aberto;
     var t = String(texto || "").trim().slice(0, 4000);
     if (!c || !t) return Promise.resolve(false);
 
@@ -813,7 +1152,8 @@
              .collection("mensagens").doc(id).set(msg).then(function () {
       msg.id = id;
       c.mensagens.push(msg);
-      desenharFicha();
+      if (aberto === c) desenharFicha();
+      atualizarContadores();
       UI.toast("Mensagem enviada.", "ok");
       return true;
     }, function (e) {
@@ -1026,27 +1366,33 @@
     });
 
     var cobrar = $("#clCobrar");
-    if (cobrar) cobrar.addEventListener("click", function () {
-      var texto = montarCobranca(aberto);
-      if (!texto) return;
-      var m = UI.modal({
-        titulo: "Cobrar o que falta",
-        corpoHTML:
-          '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
-            'A mensagem vai para a aba Mensagens do portal do cliente. Ajuste o texto se quiser.</p>' +
-          '<div class="field" style="margin-bottom:0">' +
-            '<textarea class="textarea" id="cbTexto" rows="10" style="font-size:13px"></textarea>' +
-          '</div>',
-        acoes: [
-          { rotulo: "Cancelar", classe: "btn--ghost" },
-          {
-            rotulo: "Enviar cobrança", classe: "btn--primary",
-            onClick: function () { enviarMensagem($("#cbTexto", m.caixa).value); }
+    if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+  }
+
+  /* A cobrança serve tanto da ficha quanto da lista de
+     pendências, então mora fora das duas. */
+  function abrirCobranca(c) {
+    var texto = montarCobranca(c);
+    if (!texto) { UI.toast("Este cliente não tem pendência para cobrar.", "ok"); return; }
+    var m = UI.modal({
+      titulo: "Cobrar " + nomeDe(c),
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
+          'A mensagem vai para a aba Mensagens do portal do cliente. Ajuste o texto se quiser.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<textarea class="textarea" id="cbTexto" rows="10" style="font-size:13px"></textarea>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Enviar cobrança", classe: "btn--primary",
+          onClick: function () {
+            enviarMensagem($("#cbTexto", m.caixa).value, "", c);
           }
-        ]
-      });
-      $("#cbTexto", m.caixa).value = texto;
+        }
+      ]
     });
+    $("#cbTexto", m.caixa).value = texto;
   }
 
   function ligarGlobais() {
@@ -1054,8 +1400,33 @@
       var alvo = ev.target.closest ? ev.target : null;
       if (!alvo) return;
 
+      /* Abrir a ficha funciona de qualquer aba: leva junto para a
+         aba de clientes, senão a ficha abriria fora de vista. */
       var cliente = alvo.closest("[data-cliente]");
-      if (cliente) { abrirCliente(cliente.getAttribute("data-cliente")); return; }
+      if (cliente) {
+        var idCliente = cliente.getAttribute("data-cliente");
+        if (global.Painel && global.Painel.aba !== "clientes") global.Painel.abrir("clientes");
+        abrirCliente(idCliente);
+        return;
+      }
+
+      var conversa = alvo.closest("[data-conversa]");
+      if (conversa) { abrirConversa(conversa.getAttribute("data-conversa")); return; }
+
+      var fp = alvo.closest("[data-fpend]");
+      if (fp) { filtroPendencia = fp.getAttribute("data-fpend"); desenharPendencias(); return; }
+
+      var fm = alvo.closest("[data-fmsg]");
+      if (fm) { filtroMensagem = fm.getAttribute("data-fmsg"); desenharMensagens(); return; }
+
+      var cob = alvo.closest("[data-cobrar]");
+      if (cob) {
+        var alvoCobranca = empresas.filter(function (x) {
+          return x.id === cob.getAttribute("data-cobrar");
+        })[0];
+        if (alvoCobranca) abrirCobranca(alvoCobranca);
+        return;
+      }
 
       /* Abrir e fechar bloco da ficha. Redesenhar a ficha inteira
          embaralharia a rolagem, então depois do desenho a página
@@ -1137,11 +1508,23 @@
       desenharLista();
     }, 200));
 
-    var atualizar = $("#clAtualizar");
-    if (atualizar) atualizar.addEventListener("click", function () { carregarLista(); });
+    ["#clAtualizar", "#pdAtualizar", "#msAtualizar"].forEach(function (sel) {
+      var b = $(sel);
+      if (b) b.addEventListener("click", function () { carregarLista(); });
+    });
 
     var csv = $("#clCSV");
     if (csv) csv.addEventListener("click", exportarCSV);
+
+    /* Ao voltar para uma aba, redesenha: os números podem ter
+       mudado enquanto a pessoa estava em outra. */
+    if (global.Painel) {
+      global.Painel.aoTrocar(function (aba) {
+        if (aba === "pendencias") desenharPendencias();
+        if (aba === "mensagens") desenharMensagens();
+        if (aba === "clientes" && !aberto) desenharLista();
+      });
+    }
   }
 
   /* =========================================================
@@ -1180,7 +1563,10 @@
       else {
         empresas = [];
         aberto = null;
-        if (global.Painel) global.Painel.marcarAtencao(0);
+        conversaAberta = null;
+        if (global.Painel) {
+          global.Painel.marcarBadges({ atencao: 0, pendencias: 0, mensagens: 0 });
+        }
       }
     });
   }

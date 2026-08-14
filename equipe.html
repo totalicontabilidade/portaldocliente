@@ -231,6 +231,14 @@
       <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
       <span class="sidenav__badge" data-badge-atencao hidden></span>
     </button>
+    <button type="button" class="sidenav__item" data-aba="pendencias">
+      <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>Pendências
+      <span class="sidenav__badge" data-badge-pendencias hidden></span>
+    </button>
+    <button type="button" class="sidenav__item" data-aba="mensagens">
+      <svg class="ic" aria-hidden="true"><use href="#ic-chat"></use></svg>Mensagens
+      <span class="sidenav__badge" data-badge-mensagens hidden></span>
+    </button>
     <button type="button" class="sidenav__item" data-aba="novo">
       <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Novo cliente
     </button>
@@ -287,6 +295,44 @@
 
       <div id="clLista"></div>
       <div id="clFicha" hidden></div>
+    </section>
+
+    <!-- ---------------- Aba: Pendências ----------------
+         Só o que falta chegar, de todas as empresas de uma vez.
+         É a lista de quem cobrar hoje.
+         ------------------------------------------------- -->
+    <section data-painel="pendencias" hidden>
+      <div class="section__head"><div>
+        <div class="eyebrow">Cobrança</div>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">Pendências</h1>
+        <p class="section__desc">O que ainda falta chegar, empresa por empresa. Correções pedidas
+          aparecem primeiro — são elas que travam a migração.</p>
+      </div>
+      <button type="button" class="btn btn--quiet btn--sm" id="pdAtualizar">Atualizar</button></div>
+
+      <div class="filtros" id="pdFiltros"></div>
+      <div id="pdLista" style="margin-top:14px"></div>
+    </section>
+
+    <!-- ---------------- Aba: Mensagens ----------------
+         Caixa de entrada de todas as conversas. Não lida em
+         destaque, porque mensagem de cliente parada é cliente
+         esperando resposta.
+         ------------------------------------------------ -->
+    <section data-painel="mensagens" hidden>
+      <div id="msTopo">
+        <div class="section__head"><div>
+          <div class="eyebrow">Conversas</div>
+          <h1 class="section__title" style="font-size:20px;margin-top:4px">Mensagens</h1>
+          <p class="section__desc">Tudo o que os clientes escreveram, em um lugar só.</p>
+        </div>
+        <button type="button" class="btn btn--quiet btn--sm" id="msAtualizar">Atualizar</button></div>
+
+        <div class="filtros" id="msFiltros"></div>
+      </div>
+
+      <div id="msLista" style="margin-top:14px"></div>
+      <div id="msConversa" hidden></div>
     </section>
 
     <!-- ---------------- Aba: Novo cliente ---------------- -->
@@ -554,10 +600,18 @@
   </main>
 </div>
 
-<nav class="tabbar" id="pnTabbar" aria-label="Navegação do painel" hidden>
+<nav class="tabbar tabbar--6" id="pnTabbar" aria-label="Navegação do painel" hidden>
   <button type="button" class="tabbar__item" data-aba="clientes">
     <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
     <span class="tabbar__badge" data-badge-atencao hidden></span>
+  </button>
+  <button type="button" class="tabbar__item" data-aba="pendencias">
+    <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>Pendências
+    <span class="tabbar__badge" data-badge-pendencias hidden></span>
+  </button>
+  <button type="button" class="tabbar__item" data-aba="mensagens">
+    <svg class="ic" aria-hidden="true"><use href="#ic-chat"></use></svg>Mensagens
+    <span class="tabbar__badge" data-badge-mensagens hidden></span>
   </button>
   <button type="button" class="tabbar__item" data-aba="novo">
     <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Novo
@@ -566,7 +620,7 @@
     <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo
   </button>
   <button type="button" class="tabbar__item" data-aba="seguranca">
-    <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
+    <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Chaves
   </button>
 </nav>
 
