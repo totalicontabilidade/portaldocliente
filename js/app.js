@@ -459,7 +459,8 @@
         '</div></div>' +
         '<div class="card">' +
           pendentes.map(function (p) {
-            return '<button type="button" class="group__head" data-rota="documentos" data-grupo="' +
+            return '<button type="button" class="group__head group__head--selo" ' +
+                     'data-rota="documentos" data-grupo="' +
                      U.escAttr(p.grupo.id) + '" style="border-bottom:1px solid var(--stroke)">' +
               '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
               '<span class="group__info">' +
@@ -482,7 +483,7 @@
     html +=
     '<section class="section">' +
       '<div class="card">' +
-        '<button type="button" class="group__head" data-rota="empresa" ' +
+        '<button type="button" class="group__head group__head--selo" data-rota="empresa" ' +
           'style="border-bottom:1px solid var(--stroke)">' +
           '<span class="group__icon">' + ic("ic-building") + '</span>' +
           '<span class="group__info">' +
@@ -495,7 +496,7 @@
             ? '<span class="badge badge--analise"><span class="dot"></span>Completar</span>' : '') +
           '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
         '</button>' +
-        '<button type="button" class="group__head" data-rota="mensagens">' +
+        '<button type="button" class="group__head group__head--selo" data-rota="mensagens">' +
           '<span class="group__icon">' + ic("ic-chat") + '</span>' +
           '<span class="group__info">' +
             '<span class="group__title" style="font-size:14px">Mensagens</span>' +

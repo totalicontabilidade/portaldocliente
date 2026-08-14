@@ -121,20 +121,40 @@
       (dica ? '<div class="field__hint">' + U.esc(dica) + '</div>' : '') + '</div>';
   }
 
-  function secao(id, titulo, resumo, corpoFn) {
-    var aberta = !!abertos[id];
+  /* Cada seção com seu próprio ícone e um selo de estado. A pessoa
+     bate o olho e sabe o que está publicado e o que falta, sem
+     abrir uma por uma. */
+  function secao(o) {
+    var aberta = !!abertos[o.id];
     return '<section class="card group" data-open="' + (aberta ? "true" : "false") + '" ' +
         'style="margin-bottom:12px">' +
-      '<button type="button" class="group__head" data-secao="' + id + '">' +
-        '<span class="group__icon">' + UI.icone("ic-file") + '</span>' +
+      '<button type="button" class="group__head' + (o.selo ? " group__head--selo" : "") +
+        '" data-secao="' + o.id + '">' +
+        '<span class="group__icon">' + UI.icone(o.icone || "ic-file") + '</span>' +
         '<span class="group__info">' +
-          '<span class="group__title">' + U.esc(titulo) + '</span>' +
-          '<span class="group__meta">' + U.esc(resumo) + '</span>' +
+          '<span class="group__title" style="display:block">' + U.esc(o.titulo) + '</span>' +
+          '<span class="group__meta" style="display:block">' + U.esc(o.resumo) + '</span>' +
         '</span>' +
+        (o.selo
+          ? '<span class="badge ' + (o.seloOk ? "badge--aprovado" : "badge--pendente") + '">' +
+            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
+          : '') +
         '<span class="group__chev">' + UI.icone("ic-chevron-down") + '</span>' +
       '</button>' +
-      (aberta ? '<div class="group__body" style="padding:16px">' + corpoFn() + '</div>' : '') +
+      (aberta ? '<div class="group__body" style="padding:16px">' + o.corpo() + '</div>' : '') +
     '</section>';
+  }
+
+  /* Capa do YouTube. É o que transforma uma lista de códigos numa
+     lista de vídeos: dá para ver na hora se o link colado é mesmo
+     a aula certa. */
+  function capaYt(id, classe) {
+    if (!ID_YT.test(id)) {
+      return '<span class="capa capa--vazia ' + (classe || "") + '">' +
+        UI.icone("ic-play") + '</span>';
+    }
+    return '<img class="capa ' + (classe || "") + '" loading="lazy" alt="" ' +
+      'src="https://i.ytimg.com/vi/' + U.escAttr(id) + '/mqdefault.jpg">';
   }
 
   /* ---------- Seções ---------- */
@@ -170,7 +190,18 @@
 
   function secaoVideo() {
     var v = C.videoInicio;
-    return '<div class="notice notice--info" style="margin-bottom:16px">' +
+    return '<div class="previa">' +
+        capaYt(v.youtube, "capa--larga") +
+        '<div class="previa__txt">' +
+          '<div class="previa__t">' + U.esc(v.titulo || "(sem título)") + '</div>' +
+          '<div class="previa__d">' + U.esc(v.desc || "") + '</div>' +
+          '<div class="previa__m">' +
+            (ID_YT.test(v.youtube)
+              ? "Publicado" + (v.duracao ? " · " + U.esc(v.duracao) : "")
+              : "Sem vídeo — o espaço fica reservado no portal") + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="notice notice--info" style="margin:14px 0 16px">' +
         '<span class="notice__icon">' + UI.icone("ic-alert") + '</span>' +
         '<span>Suba no YouTube como <strong>não listado</strong> e cole o link. Vídeo privado não ' +
         'toca em site nenhum. A capa vem sozinha do YouTube.</span></div>' +
@@ -183,9 +214,10 @@
   function secaoAcademy() {
     return (C.academy || []).map(function (t, i) {
       var pub = (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); }).length;
+      var primeira = (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); })[0];
       return '<div class="ac-trilha">' +
         '<div class="ac-trilha__topo">' + ordemBtns("academy", i) +
-          '<span class="ac-trilha__n">' + (i + 1) + '</span>' +
+          capaYt(primeira ? primeira.youtube : "", "capa--trilha") +
           '<span style="flex:1;min-width:0">' +
             '<span class="ac-trilha__t">' + U.esc(t.titulo || "(sem título)") + '</span>' +
             '<span class="ac-trilha__d">' + pub + ' de ' + (t.videos || []).length + ' publicadas</span>' +
@@ -201,7 +233,7 @@
           (t.videos || []).map(function (v, j) {
             var ok = ID_YT.test(v.youtube);
             return '<div class="ac-aula">' + ordemBtns("academy." + i + ".videos", j) +
-              '<span class="ac-aula__n">' + (j + 1) + '</span>' +
+              capaYt(v.youtube, "capa--aula") +
               '<span class="ac-aula__campos">' +
                 '<input type="text" class="input" data-campo="academy.' + i + '.videos.' + j + '.titulo" ' +
                   'maxlength="140" placeholder="Título da aula" value="' + U.escAttr(v.titulo || "") + '">' +
@@ -238,7 +270,8 @@
       (C.grupos || []).map(function (g, i) {
         return '<div class="ac-trilha">' +
           '<div class="ac-trilha__topo">' + ordemBtns("grupos", i) +
-            '<span class="ac-trilha__n">' + (i + 1) + '</span>' +
+            '<span class="group__icon" style="width:38px;height:38px;border-radius:11px;flex:none">' +
+              UI.icone(g.icone || "ic-file") + '</span>' +
             '<span style="flex:1;min-width:0">' +
               '<span class="ac-trilha__t">' + U.esc(g.titulo || "(sem título)") + '</span>' +
               '<span class="ac-trilha__d">' + (g.itens || []).length + ' documentos · ' +
@@ -366,15 +399,45 @@
     var docs = (C.grupos || []).reduce(function (a, g) { return a + (g.itens || []).length; }, 0);
     var aulas = (C.academy || []).reduce(function (a, t) { return a + (t.videos || []).length; }, 0);
 
+    var aulasPub = (C.academy || []).reduce(function (a, t) {
+      return a + (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); }).length;
+    }, 0);
+    var temVideo = ID_YT.test(C.videoInicio.youtube);
+
+    /* Ordem pensada pelo uso, não pela estrutura do arquivo: em
+       cima o que a equipe mexe toda semana (vídeos, documentos),
+       embaixo o que quase nunca muda (contato, endereço, textos
+       jurídicos). Pedido do Raoni depois de usar a tela. */
     $("#pcLista").innerHTML =
-      secao("org", "Contatos e endereço", C.org.telefoneExibicao + " · " + C.org.horario, secaoOrg) +
-      secao("video", "Vídeo de abertura",
-            ID_YT.test(C.videoInicio.youtube) ? "publicado" : "sem vídeo", secaoVideo) +
-      secao("academy", "Academy", (C.academy || []).length + " trilhas · " + aulas + " aulas", secaoAcademy) +
-      secao("grupos", "Documentos do checklist",
-            (C.grupos || []).length + " departamentos · " + docs + " documentos", secaoGrupos) +
-      secao("faq", "Perguntas frequentes", (C.faq || []).length + " perguntas", secaoFaq) +
-      secao("textos", "Compromisso e termo", "textos do PDF e do aviso", secaoTextos);
+      secao({
+        id: "video", icone: "ic-play", titulo: "Vídeo de abertura",
+        resumo: "O primeiro vídeo que o cliente vê na tela inicial",
+        selo: temVideo ? "Publicado" : "Sem vídeo", seloOk: temVideo, corpo: secaoVideo
+      }) +
+      secao({
+        id: "academy", icone: "ic-play", titulo: "Academy",
+        resumo: (C.academy || []).length + " trilhas · " + aulas + " aulas",
+        selo: aulasPub + " no ar", seloOk: aulasPub > 0, corpo: secaoAcademy
+      }) +
+      secao({
+        id: "grupos", icone: "ic-folder", titulo: "Documentos do checklist",
+        resumo: (C.grupos || []).length + " departamentos · " + docs + " documentos",
+        corpo: secaoGrupos
+      }) +
+      secao({
+        id: "faq", icone: "ic-help", titulo: "Perguntas frequentes",
+        resumo: (C.faq || []).length + " perguntas na tela de Ajuda",
+        corpo: secaoFaq
+      }) +
+      secao({
+        id: "textos", icone: "ic-scroll", titulo: "Compromisso e termo",
+        resumo: "Textos do aviso na tela e do PDF assinado", corpo: secaoTextos
+      }) +
+      secao({
+        id: "org", icone: "ic-building", titulo: "Contatos e endereço",
+        resumo: "Muda raramente — " + C.org.telefoneExibicao + " · " + C.org.horario,
+        corpo: secaoOrg
+      });
 
     $("#pcResumo").textContent = docs + " documentos · " + (C.academy || []).length +
       " trilhas · " + (C.faq || []).length + " perguntas";
@@ -509,7 +572,10 @@
       var caminho = el.getAttribute("data-campo");
       if (!caminho) return;
       if (el.type === "checkbox") { definir(caminho, el.checked); desenhar(); return; }
-      if (el.tagName === "SELECT") { definir(caminho, el.value); desenhar(); }
+      if (el.tagName === "SELECT") { definir(caminho, el.value); desenhar(); return; }
+      /* Ao sair do campo do vídeo, redesenha para a capa aparecer.
+         Durante a digitação não: seria uma capa nova por tecla. */
+      if (el.getAttribute("data-yt")) desenhar();
     });
 
     $("#pcBaixar").addEventListener("click", baixar);

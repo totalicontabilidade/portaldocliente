@@ -1063,9 +1063,28 @@
      ========================================================= */
   function iniciar() {
     FB = global.FB;
+
+    /* Sem servidor não há cliente para mostrar. Antes esta seção
+       simplesmente sumia, e quem abrisse a página achava que o
+       painel não tinha mudado. Agora ela diz o motivo — o mais
+       comum é abrir o arquivo direto do computador, com endereço
+       começando em file://, em vez de pelo endereço do portal. */
     if (!FB || !FB.ligado) {
+      var caixa = $("#clLista");
+      if (caixa) {
+        caixa.innerHTML = '<div class="notice notice--warn">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>A lista de clientes precisa de conexão com o servidor.</strong> ' +
+          (location.protocol === "file:"
+            ? 'Esta página foi aberta direto do computador (endereço começando em ' +
+              '<code>file://</code>), e nesse modo o Firebase não funciona. Abra pelo endereço ' +
+              'do portal — em teste, <code>http://localhost:8100/equipe.html</code>.'
+            : 'Verifique a internet e recarregue a página.') + '</span></div>';
+      }
+      var topo = $("#clTopo");
+      if (topo) topo.hidden = true;
       var secao = $("#secClientes");
-      if (secao) secao.hidden = true;
+      if (secao) secao.hidden = false;
       return;
     }
 
