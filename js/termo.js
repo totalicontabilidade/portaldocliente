@@ -24,7 +24,7 @@
   /* A logo entra como imagem; se por algum motivo não carregar,
      o termo sai com o nome escrito e segue válido. */
   function carregarLogo() {
-    return fetch("assets/totali-logo-branca.png")
+    return fetch("assets/totali-portal-cor.png")
       .then(function (r) { return r.ok ? r.blob() : null; })
       .then(function (blob) {
         if (!blob) return null;

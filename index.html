@@ -225,7 +225,7 @@
      ============================================================ -->
 <header class="app-header dark-surface">
   <button type="button" class="brand" data-nav="inicio" aria-label="Totali · voltar para o início">
-    <img class="brand__logo" src="assets/totali-logo-branca.png" alt="Totali Soluções Contábeis" width="730" height="277">
+    <img class="brand__logo" src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis" width="200" height="209">
     <span class="brand__divider" aria-hidden="true"></span>
     <span class="brand__text">
       <span class="brand__title" id="brandTitulo">Portal do Cliente</span>
@@ -234,6 +234,14 @@
   </button>
 
   <div class="header-actions">
+    <!-- Quem está usando. Some quando não há sessão. -->
+    <span class="usuario" id="ctQuem" hidden>
+      <span class="usuario__avatar" id="ctIniciais" aria-hidden="true">—</span>
+      <span class="usuario__txt">
+        <span class="usuario__nome" id="ctNome">—</span>
+        <span class="usuario__papel">Sua conta</span>
+      </span>
+    </span>
     <button type="button" class="hbtn hbtn--gold" id="btnInstalar" hidden>
       <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>
       <span class="hbtn__label">Instalar</span>

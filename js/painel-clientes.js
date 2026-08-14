@@ -298,6 +298,13 @@
       conta[k] = (conta[k] || 0) + 1;
     });
 
+    /* O menu mostra quantos clientes esperam alguma ação nossa:
+       documento para conferir ou correção que já foi pedida e
+       ainda não voltou. É o número que diz "tem trabalho aqui". */
+    if (global.Painel) {
+      global.Painel.marcarAtencao((conta.conferir || 0) + (conta.correcao || 0));
+    }
+
     var ordem = ["correcao", "conferir", "faltando", "cadastro", "naoentrou", "emdia"];
     placar.innerHTML =
       '<button type="button" class="filtro' + (filtro.situacao === "todos" ? " filtro--on" : "") +
@@ -316,6 +323,10 @@
     var c = empresas.filter(function (x) { return x.id === id; })[0];
     if (!c) return;
     aberto = c;
+    /* Só "o que falta" nasce aberto: é o motivo de a equipe abrir
+       a ficha. O resto fica recolhido, e o selo do cabeçalho diz
+       onde tem trabalho esperando. */
+    abertosFicha = { falta: true };
     $("#clLista").hidden = true;
     $("#clTopo").hidden = true;
     $("#clFicha").hidden = false;
@@ -334,6 +345,54 @@
   function linhaDado(rotulo, valor) {
     return '<div class="ficha__linha"><span class="ficha__rot">' + U.esc(rotulo) + '</span>' +
       '<span class="ficha__val">' + (valor ? U.esc(valor) : '<i>não informado</i>') + '</span></div>';
+  }
+
+  /* =========================================================
+     Blocos recolhíveis da ficha
+
+     A ficha de um cliente com 26 documentos vira uma página
+     quilométrica. Aqui cada parte fecha, e o que está fechado
+     avisa se tem coisa esperando — senão recolher viraria
+     esconder trabalho.
+     ========================================================= */
+  var abertosFicha = {};
+
+  function bloco(o) {
+    var aberto = !!abertosFicha[o.id];
+    return '<section class="card group" data-open="' + (aberto ? "true" : "false") + '" ' +
+        'style="margin-bottom:12px">' +
+      '<button type="button" class="group__head group__head--selo" data-bloco="' +
+          U.escAttr(o.id) + '">' +
+        '<span class="group__icon">' + ic(o.icone || "ic-file") + '</span>' +
+        '<span class="group__info">' +
+          '<span class="group__title" style="display:block">' + U.esc(o.titulo) + '</span>' +
+          '<span class="group__meta" style="display:block">' + U.esc(o.resumo || "") + '</span>' +
+        '</span>' +
+        (o.selo
+          ? '<span class="badge ' + (o.seloCls || "badge--analise") + '">' +
+            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
+          : '') +
+        '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
+      '</button>' +
+      (aberto ? '<div class="group__body" style="padding:16px">' + o.corpo() + '</div>' : '') +
+    '</section>';
+  }
+
+  /* O que este grupo tem esperando a equipe. É o que aparece no
+     cabeçalho quando o bloco está fechado. */
+  function atencaoDoGrupo(c, g) {
+    var conferir = 0, correcao = 0;
+    var alvos = g.escopo === "socio"
+      ? c.dados.socios.map(function (s) { return s.id; })
+      : [null];
+    alvos.forEach(function (socioId) {
+      g.itens.forEach(function (item) {
+        var sit = global.Situacao.de(c.dados, g, item, socioId);
+        if (sit === "enviado") conferir++;
+        if (sit === "pendencia") correcao++;
+      });
+    });
+    return { conferir: conferir, correcao: correcao };
   }
 
   function desenharFicha() {
@@ -369,67 +428,24 @@
         '</div>' +
       '</section>' +
 
-      /* ---- Dados do cadastro ---- */
-      '<section class="section">' +
-        '<div class="section__head"><div>' +
-          '<h3 class="section__title" style="font-size:16px">Cadastro e contato</h3>' +
-        '</div></div>' +
-        '<div class="card card--pad">' +
-          linhaDado("Razão social", e.razaoSocial) +
-          linhaDado("Nome fantasia", e.nomeFantasia) +
-          linhaDado("CNPJ", e.cnpj) +
-          linhaDado("Regime", e.regime) +
-          '<hr class="hr">' +
-          linhaDado("Responsável", e.responsavelNome) +
-          linhaDado("Função", e.responsavelCargo) +
-          linhaDado("E-mail", e.responsavelEmail) +
-          linhaDado("Telefone", e.responsavelTelefone) +
-          '<hr class="hr">' +
-          linhaDado("Aceite da LGPD", e.aceiteLGPD ? U.dataHora(e.aceiteLGPD) : "") +
-          '<div class="row" style="margin-top:12px">' +
-            (e.responsavelEmail
-              ? '<a class="btn btn--ghost btn--sm" href="mailto:' + U.escAttr(e.responsavelEmail) +
-                '">' + ic("ic-mail") + 'Enviar e-mail</a>' : '') +
-            (e.responsavelTelefone
-              ? '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener noreferrer" href="' +
-                U.escAttr("https://wa.me/55" + U.soDigitos(e.responsavelTelefone)) + '">' +
-                ic("ic-phone") + 'WhatsApp</a>' : '') +
-          '</div>' +
-        '</div>' +
-      '</section>' +
-
-      /* ---- Sócios ---- */
-      '<section class="section">' +
-        '<div class="section__head"><div>' +
-          '<h3 class="section__title" style="font-size:16px">Sócios</h3>' +
-          '<p class="section__desc">' + c.dados.socios.length + ' ' +
-            U.plural(c.dados.socios.length, "cadastrado", "cadastrados") + '</p>' +
-        '</div></div>' +
-        '<div class="card card--pad">' +
-          (c.dados.socios.length
-            ? c.dados.socios.map(function (s) {
-                return linhaDado(s.nome || "Sócio", s.cpf || "");
-              }).join("")
-            : '<p class="text-sm text-muted">Nenhum sócio cadastrado — a lista de documentos ' +
-              'de sócio ainda não existe para este cliente.</p>') +
-        '</div>' +
-      '</section>';
-
-    /* ---- O que falta ---- */
-    html += '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h3 class="section__title" style="font-size:16px">O que falta</h3>' +
-        '<p class="section__desc">Correções pedidas primeiro, depois os obrigatórios que ' +
-          'ainda não chegaram.</p>' +
-      '</div>' +
-      (pendentes.length
-        ? '<button type="button" class="btn btn--primary btn--sm" id="clCobrar">' +
-          ic("ic-send") + 'Cobrar pelo portal</button>'
-        : '') +
-      '</div>' +
-      '<div class="card' + (pendentes.length ? '' : ' card--pad') + '">' +
-        (pendentes.length
-          ? pendentes.map(function (p) {
+      /* ---- O que falta: único bloco que já nasce aberto, porque
+             é o motivo de a equipe abrir esta ficha. ---- */
+      bloco({
+        id: "falta", icone: "ic-alert", titulo: "O que falta",
+        resumo: pendentes.length
+          ? "Correções pedidas primeiro, depois os obrigatórios"
+          : "Tudo o que era obrigatório já chegou",
+        selo: pendentes.length ? pendentes.length + " " +
+          U.plural(pendentes.length, "item", "itens") : "",
+        seloCls: est.resumo.pendencias ? "badge--pendencia" : "badge--pendente",
+        corpo: function () {
+          if (!pendentes.length) {
+            return '<p class="text-sm text-muted">Nada pendente. Tudo o que era obrigatório ' +
+              'já chegou.</p>';
+          }
+          return '<button type="button" class="btn btn--primary btn--sm" id="clCobrar" ' +
+              'style="margin-bottom:14px">' + ic("ic-send") + 'Cobrar pelo portal</button>' +
+            pendentes.map(function (p) {
               return '<div class="item"><div class="item__top">' +
                 '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
                 '<div class="item__main">' +
@@ -440,19 +456,60 @@
                     '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span></div>' +
                 '</div>' +
               '</div></div>';
-            }).join("")
-          : '<p class="text-sm text-muted">Nada pendente. Tudo o que era obrigatório já chegou.</p>') +
-      '</div>' +
-    '</section>';
+            }).join("");
+        }
+      }) +
 
-    /* ---- Documentos, grupo a grupo ---- */
-    html += '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h3 class="section__title" style="font-size:16px">Documentos</h3>' +
-        '<p class="section__desc">Abra para conferir, aprovar ou pedir correção.</p>' +
-      '</div></div>' +
-      DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("") +
-    '</section>';
+      /* ---- Cadastro ---- */
+      bloco({
+        id: "cadastro", icone: "ic-building", titulo: "Cadastro e contato",
+        resumo: (e.responsavelNome || "Sem responsável informado") +
+          (e.responsavelTelefone ? " · " + e.responsavelTelefone : ""),
+        selo: est.cadastroOk ? "" : "Incompleto", seloCls: "badge--pendente",
+        corpo: function () {
+          return linhaDado("Razão social", e.razaoSocial) +
+            linhaDado("Nome fantasia", e.nomeFantasia) +
+            linhaDado("CNPJ", e.cnpj) +
+            linhaDado("Regime", e.regime) +
+            '<hr class="hr">' +
+            linhaDado("Responsável", e.responsavelNome) +
+            linhaDado("Função", e.responsavelCargo) +
+            linhaDado("E-mail", e.responsavelEmail) +
+            linhaDado("Telefone", e.responsavelTelefone) +
+            '<hr class="hr">' +
+            linhaDado("Aceite da LGPD", e.aceiteLGPD ? U.dataHora(e.aceiteLGPD) : "") +
+            '<div class="row" style="margin-top:12px">' +
+              (e.responsavelEmail
+                ? '<a class="btn btn--ghost btn--sm" href="mailto:' + U.escAttr(e.responsavelEmail) +
+                  '">' + ic("ic-mail") + 'Enviar e-mail</a>' : '') +
+              (e.responsavelTelefone
+                ? '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener noreferrer" href="' +
+                  U.escAttr("https://wa.me/55" + U.soDigitos(e.responsavelTelefone)) + '">' +
+                  ic("ic-phone") + 'WhatsApp</a>' : '') +
+            '</div>';
+        }
+      }) +
+
+      /* ---- Sócios ---- */
+      bloco({
+        id: "socios", icone: "ic-badge", titulo: "Sócios",
+        resumo: c.dados.socios.length
+          ? c.dados.socios.map(function (s) { return s.nome || "sócio"; }).join(", ")
+          : "Nenhum cadastrado",
+        selo: c.dados.socios.length ? "" : "Falta cadastrar", seloCls: "badge--pendente",
+        corpo: function () {
+          return c.dados.socios.length
+            ? c.dados.socios.map(function (s) {
+                return linhaDado(s.nome || "Sócio", s.cpf || "");
+              }).join("")
+            : '<p class="text-sm text-muted">Nenhum sócio cadastrado — a lista de documentos ' +
+              'de sócio ainda não existe para este cliente.</p>';
+        }
+      });
+
+    /* ---- Documentos, um bloco por departamento ---- */
+    html += '<div class="ficha__titulo">Documentos</div>' +
+      DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
 
     html += financeiroHTML(c);
     html += credenciaisHTML(c);
@@ -464,36 +521,48 @@
 
   function grupoHTML(c, g) {
     var resumo = global.Situacao.resumoGrupo(c.dados, g);
+    var atencao = atencaoDoGrupo(c, g);
     var alvos = g.escopo === "socio"
       ? c.dados.socios.map(function (s) { return s.id; })
       : [null];
 
-    if (!alvos.length) {
-      return '<div class="card card--pad" style="margin-bottom:12px">' +
-        '<div class="group__title">' + U.esc(g.titulo) + '</div>' +
-        '<p class="text-sm text-muted" style="margin-top:6px">Depende dos sócios, e nenhum foi ' +
-        'cadastrado ainda.</p></div>';
+    /* O selo é a razão de o bloco poder ficar fechado: recolhido
+       sem aviso, esconderia trabalho. */
+    var selo = "", seloCls = "badge--analise";
+    if (atencao.conferir) {
+      selo = atencao.conferir + " para conferir";
+    } else if (atencao.correcao) {
+      selo = atencao.correcao + " " + U.plural(atencao.correcao, "correção", "correções");
+      seloCls = "badge--pendencia";
+    } else if (resumo.completo) {
+      selo = "Completo";
+      seloCls = "badge--aprovado";
     }
 
-    var linhas = "";
-    alvos.forEach(function (socioId) {
-      var socio = socioId
-        ? c.dados.socios.filter(function (s) { return s.id === socioId; })[0]
-        : null;
-      g.itens.forEach(function (item) {
-        linhas += itemHTML(c, g, item, socio);
-      });
+    return bloco({
+      id: "grupo:" + g.id, icone: g.icone, titulo: g.titulo,
+      resumo: alvos.length
+        ? resumo.ok + " de " + resumo.total +
+          (c.dados.gruposNA[g.id] ? " · marcado como não se aplica" : "")
+        : "Depende dos sócios, e nenhum foi cadastrado",
+      selo: selo, seloCls: seloCls,
+      corpo: function () {
+        if (!alvos.length) {
+          return '<p class="text-sm text-muted">Este departamento tem um documento por sócio, ' +
+            'e o cliente ainda não cadastrou nenhum.</p>';
+        }
+        var linhas = "";
+        alvos.forEach(function (socioId) {
+          var socio = socioId
+            ? c.dados.socios.filter(function (s) { return s.id === socioId; })[0]
+            : null;
+          g.itens.forEach(function (item) {
+            linhas += itemHTML(c, g, item, socio);
+          });
+        });
+        return linhas;
+      }
     });
-
-    return '<div class="card" style="margin-bottom:12px">' +
-      '<div class="group__head" style="cursor:default">' +
-        '<span class="group__icon">' + ic(g.icone) + '</span>' +
-        '<span class="group__info">' +
-          '<span class="group__title" style="display:block">' + U.esc(g.titulo) + '</span>' +
-          '<span class="group__meta" style="display:block">' + resumo.ok + ' de ' + resumo.total +
-            (c.dados.gruposNA[g.id] ? ' · marcado como não se aplica' : '') + '</span>' +
-        '</span>' +
-      '</div>' + linhas + '</div>';
   }
 
   function itemHTML(c, g, item, socio) {
@@ -561,48 +630,44 @@
   /* ---------- Financeiro ---------- */
   function financeiroHTML(c) {
     var f = c.financeiro;
-    if (!f) {
-      return '<section class="section">' +
-        '<div class="section__head"><div>' +
-          '<h3 class="section__title" style="font-size:16px">Bancos e maquininhas</h3>' +
-        '</div></div>' +
-        '<div class="card card--pad"><p class="text-sm text-muted">O cliente ainda não ' +
-        'respondeu esta etapa.</p></div></section>';
-    }
 
-    var forma = (DATA.FORMAS_RELATORIO || []).filter(function (x) {
-      return x.id === f.formaRelatorio;
-    })[0];
-
-    var lista = function (arr, outro) {
-      var todos = (arr || []).slice();
-      if (outro) todos.push(outro);
-      return todos.length ? todos.join(", ") : "";
-    };
-
-    return '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h3 class="section__title" style="font-size:16px">Bancos e maquininhas</h3>' +
-        '<p class="section__desc">' +
-          (f.concluidoEm ? 'Concluído em ' + U.esc(U.dataHora(f.concluidoEm)) +
-            (f.protocolo ? ' · protocolo ' + U.esc(f.protocolo) : '')
-           : 'Respondido em parte — ainda não foi concluído.') + '</p>' +
-      '</div></div>' +
-      '<div class="card card--pad">' +
-        linhaDado("Tem conta em banco", f.temBanco === "sim" ? "Sim" : f.temBanco === "nao" ? "Não" : "") +
-        linhaDado("Bancos", lista(f.bancos, f.bancoOutro)) +
-        linhaDado("Tem maquininha", f.temMaquineta === "sim" ? "Sim" : f.temMaquineta === "nao" ? "Não" : "") +
-        linhaDado("Maquininhas", lista(f.maquinetas, f.maquinetaOutra)) +
-        linhaDado("Envio dos relatórios", forma ? forma.titulo : "") +
-        linhaDado("Observações", f.observacoes) +
-        (f.termo && f.termo.id
-          ? '<div class="row" style="margin-top:12px">' +
-            '<button type="button" class="btn btn--ghost btn--sm" data-abrir="' +
-              U.escAttr(f.termo.id) + '" data-nome="' + U.escAttr(f.termo.nome || "termo.pdf") + '">' +
-              ic("ic-download") + 'Abrir termo de compromisso</button></div>'
-          : '') +
-      '</div>' +
-    '</section>';
+    return bloco({
+      id: "financeiro", icone: "ic-card", titulo: "Bancos e maquininhas",
+      resumo: !f ? "O cliente ainda não respondeu esta etapa"
+        : f.concluidoEm ? "Concluído em " + U.dataCurta(f.concluidoEm) +
+            (f.protocolo ? " · " + f.protocolo : "")
+        : "Respondido em parte",
+      selo: !f ? "Não respondido" : f.concluidoEm ? "" : "Em aberto",
+      seloCls: "badge--pendente",
+      corpo: function () {
+        if (!f) {
+          return '<p class="text-sm text-muted">O cliente ainda não respondeu esta etapa.</p>';
+        }
+        var forma = (DATA.FORMAS_RELATORIO || []).filter(function (x) {
+          return x.id === f.formaRelatorio;
+        })[0];
+        var lista = function (arr, outro) {
+          var todos = (arr || []).slice();
+          if (outro) todos.push(outro);
+          return todos.length ? todos.join(", ") : "";
+        };
+        return linhaDado("Tem conta em banco",
+                         f.temBanco === "sim" ? "Sim" : f.temBanco === "nao" ? "Não" : "") +
+          linhaDado("Bancos", lista(f.bancos, f.bancoOutro)) +
+          linhaDado("Tem maquininha",
+                    f.temMaquineta === "sim" ? "Sim" : f.temMaquineta === "nao" ? "Não" : "") +
+          linhaDado("Maquininhas", lista(f.maquinetas, f.maquinetaOutra)) +
+          linhaDado("Envio dos relatórios", forma ? forma.titulo : "") +
+          linhaDado("Observações", f.observacoes) +
+          (f.termo && f.termo.id
+            ? '<div class="row" style="margin-top:12px">' +
+              '<button type="button" class="btn btn--ghost btn--sm" data-abrir="' +
+                U.escAttr(f.termo.id) + '" data-nome="' +
+                U.escAttr(f.termo.nome || "termo.pdf") + '">' +
+                ic("ic-download") + 'Abrir termo de compromisso</button></div>'
+            : '');
+      }
+    });
   }
 
   /* ---------- Credenciais ---------- */
@@ -634,14 +699,16 @@
       }).join("");
     }
 
-    return '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h3 class="section__title" style="font-size:16px">Acessos e senhas</h3>' +
-        '<p class="section__desc">Chegam cifrados. Abrir exige a chave privada, que fica só ' +
-          'na memória desta aba e some quando você fecha.</p>' +
-      '</div></div>' +
-      '<div class="card' + (chaves.length && souAdmin ? '' : ' card--pad') + '">' + corpo + '</div>' +
-    '</section>';
+    return bloco({
+      id: "credenciais", icone: "ic-lock", titulo: "Acessos e senhas",
+      resumo: chaves.length
+        ? "Abrir exige a chave privada, que fica só na memória desta aba"
+        : "Nenhum acesso enviado",
+      selo: chaves.length ? chaves.length + " " +
+        U.plural(chaves.length, "guardado", "guardados") : "",
+      seloCls: "badge--aprovado",
+      corpo: function () { return corpo; }
+    });
   }
 
   /* Nome legível de "fiscal/certificado-digital". */
@@ -657,13 +724,18 @@
   /* ---------- Mensagens ---------- */
   function mensagensHTML(c) {
     var msgs = c.mensagens;
-    return '<section class="section">' +
-      '<div class="section__head"><div>' +
-        '<h3 class="section__title" style="font-size:16px">Mensagens</h3>' +
-        '<p class="section__desc">O cliente lê no portal, na aba Mensagens.</p>' +
-      '</div></div>' +
-      '<div class="card card--pad">' +
-        (msgs.length
+    var naoLidas = msgs.filter(function (m) {
+      return m.autor === "cliente" && !m.lidaEm;
+    }).length;
+
+    return bloco({
+      id: "mensagens", icone: "ic-chat", titulo: "Mensagens",
+      resumo: msgs.length ? msgs.length + " " + U.plural(msgs.length, "mensagem", "mensagens") +
+        " · o cliente lê no portal" : "Nenhuma mensagem ainda",
+      selo: naoLidas ? naoLidas + " " + U.plural(naoLidas, "nova", "novas") : "",
+      seloCls: "badge--pendencia",
+      corpo: function () {
+        return (msgs.length
           ? '<div class="conversa">' + msgs.slice(-30).map(function (m) {
               return '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") + '">' +
                 '<div class="msg__autor">' +
@@ -687,9 +759,9 @@
             'placeholder="Escreva aqui…"></textarea>' +
         '</div>' +
         '<button type="button" class="btn btn--primary btn--sm" id="clEnviarMsg">' +
-          ic("ic-send") + 'Enviar</button>' +
-      '</div>' +
-    '</section>';
+          ic("ic-send") + 'Enviar</button>';
+      }
+    });
   }
 
   /* =========================================================
@@ -985,6 +1057,20 @@
       var cliente = alvo.closest("[data-cliente]");
       if (cliente) { abrirCliente(cliente.getAttribute("data-cliente")); return; }
 
+      /* Abrir e fechar bloco da ficha. Redesenhar a ficha inteira
+         embaralharia a rolagem, então depois do desenho a página
+         é reposicionada para o bloco continuar sob o dedo. */
+      var bl = alvo.closest("[data-bloco]");
+      if (bl) {
+        var idBloco = bl.getAttribute("data-bloco");
+        var antes = bl.getBoundingClientRect().top;
+        abertosFicha[idBloco] = !abertosFicha[idBloco];
+        desenharFicha();
+        var novo = document.querySelector('[data-bloco="' + idBloco + '"]');
+        if (novo) global.scrollBy(0, novo.getBoundingClientRect().top - antes);
+        return;
+      }
+
       var f = alvo.closest("[data-filtro]");
       if (f) {
         filtro.situacao = f.getAttribute("data-filtro");
@@ -1064,7 +1150,7 @@
   function iniciar() {
     FB = global.FB;
 
-    /* Sem servidor não há cliente para mostrar. Antes esta seção
+    /* Sem servidor não há cliente para mostrar. Antes esta parte
        simplesmente sumia, e quem abrisse a página achava que o
        painel não tinha mudado. Agora ela diz o motivo — o mais
        comum é abrir o arquivo direto do computador, com endereço
@@ -1083,8 +1169,6 @@
       }
       var topo = $("#clTopo");
       if (topo) topo.hidden = true;
-      var secao = $("#secClientes");
-      if (secao) secao.hidden = false;
       return;
     }
 
@@ -1092,10 +1176,12 @@
 
     FB.observarSessao(function (quem) {
       equipe = quem;
-      var secao = $("#secClientes");
-      if (secao) secao.hidden = !quem;
       if (quem) carregarLista();
-      else { empresas = []; aberto = null; }
+      else {
+        empresas = [];
+        aberto = null;
+        if (global.Painel) global.Painel.marcarAtencao(0);
+      }
     });
   }
 

@@ -135,26 +135,60 @@
   <symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
     <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/>
   </symbol>
-
+  <symbol id="ic-sair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 4.5H18A1.5 1.5 0 0 1 19.5 6v12a1.5 1.5 0 0 1-1.5 1.5h-3.5"/>
+    <path d="M11 8.5 14.5 12 11 15.5"/><path d="M14 12H4.5"/>
+  </symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20.5 12c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4 20.5l1.5-3.4A6.9 6.9 0 0 1 3.5 12c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/>
+    <path d="M8.7 11.9h.01M12 11.9h.01M15.3 11.9h.01"/>
+  </symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3 5 5.8v5.4c0 4.3 2.9 7.6 7 9.3 4.1-1.7 7-5 7-9.3V5.8z"/>
+    <path d="m9.2 12.2 2 2 3.6-3.8"/>
+  </symbol>
 </svg>
 
-<header class="app-header">
-  <span class="brand" style="cursor:default">
-    <img class="brand__logo" src="assets/totali-logo-branca.png" alt="Totali Soluções Contábeis" width="730" height="277">
+<!-- ============================================================
+     Cabeçalho — quem está usando o painel fica sempre visível.
+     Num sistema interno, saber em nome de quem você está agindo
+     não é enfeite: é o que evita aprovar documento na conta de
+     outra pessoa.
+     ============================================================ -->
+<header class="app-header dark-surface">
+  <button type="button" class="brand" data-aba="clientes" aria-label="Painel da equipe · ir para clientes">
+    <img class="brand__logo" src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis" width="200" height="209">
     <span class="brand__divider" aria-hidden="true"></span>
     <span class="brand__text">
       <span class="brand__title">Painel da equipe</span>
       <span class="brand__sub">Uso interno</span>
     </span>
-  </span>
+  </button>
+
+  <div class="header-actions" id="pnAcoes" hidden>
+    <span class="usuario" id="pnQuem">
+      <span class="usuario__avatar" id="pnIniciais" aria-hidden="true">—</span>
+      <span class="usuario__txt">
+        <span class="usuario__nome" id="pnNome">—</span>
+        <span class="usuario__papel" id="pnPapel">—</span>
+      </span>
+    </span>
+    <button type="button" class="hbtn" id="pnSair" aria-label="Sair do painel">
+      <svg class="ic" aria-hidden="true"><use href="#ic-sair"></use></svg>
+      <span class="hbtn__label">Sair</span>
+    </button>
+  </div>
 </header>
 
-<div class="shell" style="grid-template-columns:minmax(0,1fr);max-width:760px">
+<!-- ============================================================
+     Porta de entrada
+     ============================================================ -->
+<div class="shell" id="pnPorta" hidden style="grid-template-columns:minmax(0,1fr)">
   <main class="main">
-
-    <!-- Porta de entrada da equipe -->
     <section class="section" id="secLogin" hidden>
       <div class="card card--pad" style="max-width:420px;margin:40px auto">
+        <img src="assets/totali-portal-branca.png" alt="Totali · Portal do Cliente"
+             width="660" height="236" class="marca-porta">
         <div class="eyebrow">Uso interno</div>
         <h1 class="section__title" style="font-size:20px;margin:6px 0 6px">Entrar no painel</h1>
         <p class="section__desc" style="margin-bottom:18px">Acesso restrito à equipe da Totali.</p>
@@ -180,35 +214,56 @@
       </div>
     </section>
 
-    <!-- Aviso quando o servidor não responde -->
-    <section class="section" id="secSemConexao" hidden>
-      <div class="notice notice--warn">
-        <span class="notice__icon">
-          <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
-        </span>
-        <span><strong>Sem conexão com o servidor.</strong> <span id="scMotivo"></span>
-        As ferramentas abaixo continuam funcionando no modo local, mas o que você fizer
-        não chega ao cliente.</span>
-      </div>
-    </section>
+  </main>
+</div>
 
-    <div id="painel" hidden>
+<!-- ============================================================
+     Painel — menu à esquerda no computador, abas embaixo no
+     celular. Uma aba por assunto: nada de rolar a página inteira
+     para achar o que se procura.
+     ============================================================ -->
+<div class="shell" id="painel" hidden>
 
-    <section class="section">
-      <div class="notice notice--ok" style="margin-bottom:18px">
-        <span class="notice__icon">
-          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
-        </span>
-        <span><strong id="pnQuem">—</strong>
-        <button type="button" class="btn btn--quiet btn--sm" id="pnSair"
-                style="margin-left:8px">Sair</button></span>
-      </div>
-    </section>
+  <nav class="sidenav" aria-label="Navegação do painel">
+    <div class="sidenav__label">Painel</div>
 
-    <!-- ========================================================
-         Clientes — a mesa de trabalho do dia a dia
-         ======================================================== -->
-    <section class="section" id="secClientes" hidden>
+    <button type="button" class="sidenav__item" data-aba="clientes">
+      <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
+      <span class="sidenav__badge" data-badge-atencao hidden></span>
+    </button>
+    <button type="button" class="sidenav__item" data-aba="novo">
+      <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Novo cliente
+    </button>
+    <button type="button" class="sidenav__item" data-aba="conteudo">
+      <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo do portal
+    </button>
+    <button type="button" class="sidenav__item" data-aba="seguranca">
+      <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
+    </button>
+
+    <div class="sidenav__card">
+      <div class="t">Portal do cliente</div>
+      <div class="d">Abra numa aba nova para ver exatamente o que o cliente vê.</div>
+      <a class="btn btn--ghost btn--sm" style="margin-top:12px;width:100%"
+         href="index.html" target="_blank" rel="noopener">Abrir o portal</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- Faixa de estado: só aparece quando o painel está rodando
+         sem servidor, e diz o que isso significa na prática. -->
+    <div class="notice notice--warn" id="secSemConexao" hidden style="margin-bottom:18px">
+      <span class="notice__icon">
+        <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
+      </span>
+      <span><strong>Sem conexão com o servidor.</strong> <span id="scMotivo"></span>
+      As ferramentas continuam funcionando no modo local, mas o que você fizer
+      não chega ao cliente.</span>
+    </div>
+
+    <!-- ---------------- Aba: Clientes ---------------- -->
+    <section data-painel="clientes" hidden>
       <div id="clTopo">
         <div class="section__head"><div>
           <div class="eyebrow">Acompanhamento</div>
@@ -234,10 +289,11 @@
       <div id="clFicha" hidden></div>
     </section>
 
-    <section class="section">
+    <!-- ---------------- Aba: Novo cliente ---------------- -->
+    <section data-painel="novo" hidden>
       <div class="section__head"><div>
-        <div class="eyebrow">Passo 1</div>
-        <h1 class="section__title" style="font-size:20px;margin-top:4px">Cadastrar nova empresa</h1>
+        <div class="eyebrow">Cadastro</div>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">Novo cliente</h1>
         <p class="section__desc">Preencha o que já sabemos. O cliente recebe o portal com esses
           campos prontos e só completa o contato dele.</p>
       </div></div>
@@ -298,49 +354,86 @@
           Gerar link do cliente
         </button>
       </div>
+
+      <section class="section" id="cResultado" hidden>
+        <div class="section__head"><div>
+          <h2 class="section__title" style="font-size:18px">Link pronto</h2>
+          <p class="section__desc">Envie ao cliente. Ao abrir, o portal já mostra o nome da empresa
+            no cabeçalho e a documentação a enviar.</p>
+        </div></div>
+
+        <div class="card card--pad">
+          <div class="field">
+            <label class="field__label" for="cLink">Link</label>
+            <textarea class="textarea" id="cLink" rows="3" readonly
+                      style="font-size:13px;line-height:1.5"></textarea>
+          </div>
+          <div class="row">
+            <button type="button" class="btn btn--primary btn--sm" id="cCopiar">
+              <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Copiar link
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" id="cCopiarMsg">
+              Copiar mensagem pronta
+            </button>
+            <a class="btn btn--ghost btn--sm" id="cWhats" href="#" target="_blank" rel="noopener noreferrer">
+              <svg class="ic" aria-hidden="true"><use href="#ic-phone"></use></svg>Abrir no WhatsApp
+            </a>
+          </div>
+
+          <hr class="hr">
+          <div class="field" style="margin-bottom:0">
+            <label class="field__label" for="cMensagem">Mensagem sugerida</label>
+            <textarea class="textarea" id="cMensagem" rows="7" readonly
+                      style="font-size:13.5px"></textarea>
+          </div>
+        </div>
+      </section>
     </section>
 
-    <section class="section" id="cResultado" hidden>
+    <!-- ---------------- Aba: Conteúdo ---------------- -->
+    <section data-painel="conteudo" hidden>
       <div class="section__head"><div>
-        <div class="eyebrow">Passo 2</div>
-        <h2 class="section__title" style="font-size:18px;margin-top:4px">Link pronto</h2>
-        <p class="section__desc">Envie ao cliente. Ao abrir, o portal já mostra o nome da empresa
-          no cabeçalho e a documentação a enviar.</p>
+        <div class="eyebrow">Conteúdo</div>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">Conteúdo do portal</h1>
+        <p class="section__desc">Tudo que o cliente vê se altera aqui: vídeos, trilhas, documentos,
+          perguntas, textos do termo e os contatos. Nada por código.</p>
       </div></div>
 
-      <div class="card card--pad">
-        <div class="field">
-          <label class="field__label" for="cLink">Link</label>
-          <textarea class="textarea" id="cLink" rows="3" readonly
-                    style="font-size:13px;line-height:1.5"></textarea>
-        </div>
-        <div class="row">
-          <button type="button" class="btn btn--primary btn--sm" id="cCopiar">
-            <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Copiar link
-          </button>
-          <button type="button" class="btn btn--ghost btn--sm" id="cCopiarMsg">
-            Copiar mensagem pronta
-          </button>
-          <a class="btn btn--ghost btn--sm" id="cWhats" href="#" target="_blank" rel="noopener noreferrer">
-            <svg class="ic" aria-hidden="true"><use href="#ic-phone"></use></svg>Abrir no WhatsApp
-          </a>
-        </div>
+      <div class="notice" style="margin-bottom:16px">
+        <span class="notice__icon">
+          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+        </span>
+        <span>
+          <strong id="pcResumo">—</strong><br>
+          <span id="pcOrigem" style="color:var(--txt-3)"></span>
+        </span>
+      </div>
 
-        <hr class="hr">
-        <div class="field" style="margin-bottom:0">
-          <label class="field__label" for="cMensagem">Mensagem sugerida</label>
-          <textarea class="textarea" id="cMensagem" rows="7" readonly
-                    style="font-size:13.5px"></textarea>
+      <div id="pcLista"></div>
+
+      <div class="card card--pad" style="margin-top:18px">
+        <div class="row">
+          <button type="button" class="btn btn--primary btn--sm" id="pcBaixar">
+            <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>Baixar conteudo.js
+          </button>
+          <button type="button" class="btn btn--quiet btn--sm" id="pcRestaurar">
+            Descartar rascunho
+          </button>
         </div>
+        <p class="field__hint" style="margin-top:12px;margin-bottom:0">
+          O rascunho fica salvo neste navegador enquanto você trabalha. Ele só vai para o ar depois
+          que você baixar o arquivo, substituir em <code>js/conteudo.js</code> e publicar.
+        </p>
       </div>
     </section>
 
-    <section class="section">
+    <!-- ---------------- Aba: Segurança ---------------- -->
+    <section data-painel="seguranca" hidden>
       <div class="section__head"><div>
         <div class="eyebrow">Canal seguro</div>
-        <h2 class="section__title" style="font-size:18px;margin-top:4px">Par de chaves</h2>
-        <p class="section__desc">É o que permite o cliente enviar senhas pelo portal sem que elas
-          fiquem legíveis em lugar nenhum. Faça uma vez só.</p>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">Segurança</h1>
+        <p class="section__desc">O par de chaves é o que permite o cliente enviar senhas pelo portal
+          sem que elas fiquem legíveis em lugar nenhum. Faça uma vez só.</p>
       </div></div>
 
       <div class="card card--pad">
@@ -371,66 +464,6 @@
 
         <button type="button" class="btn btn--primary" id="kGerar">Gerar par de chaves</button>
 
-        <hr class="hr">
-
-        <h3 class="section__title" style="font-size:15px;margin-bottom:6px">
-          Como guardar a chave privada
-        </h3>
-        <p class="section__desc" style="margin-bottom:12px">
-          Leia antes de sair desta página. É a parte que não dá para consertar depois.
-        </p>
-
-        <div class="help-block">
-          <div class="help-block__t">Faça</div>
-          <ul class="help-list">
-            <li>Guarde a chave num <strong>cofre de senhas</strong> da empresa (Bitwarden, 1Password
-              ou equivalente), num item marcado como crítico.</li>
-            <li>Mantenha <strong>uma segunda cópia offline</strong> — pendrive guardado em gaveta
-              trancada ou cofre físico. Se o cofre de senhas ficar indisponível, é ela que salva.</li>
-            <li>Deixe registrado <strong>quem tem acesso</strong> a ela. Idealmente duas pessoas:
-              o responsável e um substituto.</li>
-            <li>Ative <strong>verificação em duas etapas</strong> na conta Google do projeto e no
-              cofre de senhas.</li>
-            <li>Ao desligar alguém que tinha acesso, <strong>gere um par novo</strong> e peça aos
-              clientes ativos que reenviem os acessos.</li>
-          </ul>
-        </div>
-
-        <div class="help-block">
-          <div class="help-block__t">Não faça</div>
-          <ul class="help-list">
-            <li>Não mande a chave por e-mail, WhatsApp ou qualquer mensageiro.</li>
-            <li>Não coloque no repositório do GitHub, nem em pasta sincronizada com nuvem pessoal.</li>
-            <li>Não deixe o arquivo solto em Downloads no computador de trabalho.</li>
-            <li>Não guarde a chave privada junto com a lista de clientes.</li>
-          </ul>
-        </div>
-
-        <div class="help-block">
-          <div class="help-block__t">O que acontece em cada cenário</div>
-          <ul class="help-list">
-            <li><strong>Perdeu a chave:</strong> as senhas já enviadas ficam ilegíveis para sempre.
-              Não há suporte, backdoor nem recuperação — é isso que garante que ninguém mais leia.
-              Você teria que gerar um par novo e pedir aos clientes que reenviem.</li>
-            <li><strong>A chave vazou:</strong> quem a obteve consegue ler todas as senhas já
-              enviadas. Gere um par novo, troque a pública no portal, publique, e oriente os
-              clientes a <strong>trocar as senhas nos sistemas</strong> — trocar a chave não
-              invalida o que já vazou.</li>
-            <li><strong>Trocou a chave:</strong> o que foi enviado antes só abre com a chave antiga.
-              Guarde as duas enquanto houver dado cifrado com a anterior.</li>
-          </ul>
-        </div>
-
-        <div class="notice notice--info">
-          <span class="notice__icon">
-            <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
-          </span>
-          <span><strong>Reduza o que precisa ser protegido.</strong> Onde a maquininha permitir
-          (Stone e Cielo, entre outras), peça ao cliente um <strong>usuário só de consulta</strong>.
-          Baixa relatório e não movimenta dinheiro — se um dia algo vazar, o estrago é muito menor.
-          O portal já sugere isso ao cliente.</span>
-        </div>
-
         <div id="kResultado" hidden>
           <hr class="hr">
           <div class="field">
@@ -451,47 +484,68 @@
           </div>
         </div>
       </div>
-    </section>
 
-    <section class="section">
-      <div class="section__head"><div>
-        <div class="eyebrow">Conteúdo</div>
-        <h2 class="section__title" style="font-size:18px;margin-top:4px">Conteúdo do portal</h2>
-        <p class="section__desc">Tudo que o cliente vê se altera aqui: contatos, vídeos, trilhas,
-          documentos, perguntas e os textos do termo. Nada por código.</p>
-      </div></div>
+      <section class="section">
+        <div class="section__head"><div>
+          <h2 class="section__title" style="font-size:17px">Como guardar a chave privada</h2>
+          <p class="section__desc">Leia antes de sair desta página. É a parte que não dá para
+            consertar depois.</p>
+        </div></div>
 
-      <div class="card card--pad">
-        <div class="notice" style="margin-bottom:16px">
-          <span class="notice__icon">
-            <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
-          </span>
-          <span>
-            <strong id="pcResumo">—</strong><br>
-            <span id="pcOrigem" style="color:var(--txt-3)"></span>
-          </span>
+        <div class="card card--pad">
+          <div class="help-block">
+            <div class="help-block__t">Faça</div>
+            <ul class="help-list">
+              <li>Guarde a chave num <strong>cofre de senhas</strong> da empresa (Bitwarden, 1Password
+                ou equivalente), num item marcado como crítico.</li>
+              <li>Mantenha <strong>uma segunda cópia offline</strong> — pendrive guardado em gaveta
+                trancada ou cofre físico. Se o cofre de senhas ficar indisponível, é ela que salva.</li>
+              <li>Deixe registrado <strong>quem tem acesso</strong> a ela. Idealmente duas pessoas:
+                o responsável e um substituto.</li>
+              <li>Ative <strong>verificação em duas etapas</strong> na conta Google do projeto e no
+                cofre de senhas.</li>
+              <li>Ao desligar alguém que tinha acesso, <strong>gere um par novo</strong> e peça aos
+                clientes ativos que reenviem os acessos.</li>
+            </ul>
+          </div>
+
+          <div class="help-block">
+            <div class="help-block__t">Não faça</div>
+            <ul class="help-list">
+              <li>Não mande a chave por e-mail, WhatsApp ou qualquer mensageiro.</li>
+              <li>Não coloque no repositório do GitHub, nem em pasta sincronizada com nuvem pessoal.</li>
+              <li>Não deixe o arquivo solto em Downloads no computador de trabalho.</li>
+              <li>Não guarde a chave privada junto com a lista de clientes.</li>
+            </ul>
+          </div>
+
+          <div class="help-block">
+            <div class="help-block__t">O que acontece em cada cenário</div>
+            <ul class="help-list">
+              <li><strong>Perdeu a chave:</strong> as senhas já enviadas ficam ilegíveis para sempre.
+                Não há suporte, backdoor nem recuperação — é isso que garante que ninguém mais leia.
+                Você teria que gerar um par novo e pedir aos clientes que reenviem.</li>
+              <li><strong>A chave vazou:</strong> quem a obteve consegue ler todas as senhas já
+                enviadas. Gere um par novo, troque a pública no portal, publique, e oriente os
+                clientes a <strong>trocar as senhas nos sistemas</strong> — trocar a chave não
+                invalida o que já vazou.</li>
+              <li><strong>Trocou a chave:</strong> o que foi enviado antes só abre com a chave antiga.
+                Guarde as duas enquanto houver dado cifrado com a anterior.</li>
+            </ul>
+          </div>
+
+          <div class="notice notice--info">
+            <span class="notice__icon">
+              <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+            </span>
+            <span><strong>Reduza o que precisa ser protegido.</strong> Onde a maquininha permitir
+            (Stone e Cielo, entre outras), peça ao cliente um <strong>usuário só de consulta</strong>.
+            Baixa relatório e não movimenta dinheiro — se um dia algo vazar, o estrago é muito menor.
+            O portal já sugere isso ao cliente.</span>
+          </div>
         </div>
-
-        <div id="pcLista"></div>
-
-        <div class="row" style="margin-top:18px">
-          <button type="button" class="btn btn--primary btn--sm" id="pcBaixar">
-            <svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Baixar conteudo.js
-          </button>
-          <button type="button" class="btn btn--quiet btn--sm" id="pcRestaurar">
-            Descartar rascunho
-          </button>
-        </div>
-
-        <p class="field__hint" style="margin-top:12px">
-          O rascunho fica salvo neste navegador enquanto você trabalha. Ele só vai para o ar depois
-          que você baixar o arquivo, substituir em <code>js/conteudo.js</code> e publicar. Quando o
-          Firebase entrar, esse passo some — a alteração vale na hora.
-        </p>
-      </div>
+      </section>
     </section>
-
-    </div><!-- /painel -->
 
     <footer class="foot">
       <strong>Totali Soluções Contábeis</strong><br>
@@ -499,6 +553,22 @@
     </footer>
   </main>
 </div>
+
+<nav class="tabbar" id="pnTabbar" aria-label="Navegação do painel" hidden>
+  <button type="button" class="tabbar__item" data-aba="clientes">
+    <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
+    <span class="tabbar__badge" data-badge-atencao hidden></span>
+  </button>
+  <button type="button" class="tabbar__item" data-aba="novo">
+    <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Novo
+  </button>
+  <button type="button" class="tabbar__item" data-aba="conteudo">
+    <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo
+  </button>
+  <button type="button" class="tabbar__item" data-aba="seguranca">
+    <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
+  </button>
+</nav>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
@@ -516,6 +586,7 @@
 <script src="js/data.js"></script>
 <script src="js/situacao.js"></script>
 <script src="js/nuvem.js"></script>
+<script src="js/painel.js"></script>
 <script src="js/equipe.js"></script>
 <script src="js/painel-conteudo.js"></script>
 <script src="js/painel-clientes.js"></script>

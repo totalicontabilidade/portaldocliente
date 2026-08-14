@@ -147,6 +147,10 @@
     var cadastro = porta.modo === "cadastro";
     return '<section class="section">' +
       '<div class="card card--pad" style="max-width:440px;margin:24px auto">' +
+        /* Porta de entrada: aqui cabe a marca inteira, e é onde
+           ela mais faz falta — é a primeira tela do sistema. */
+        '<img src="assets/totali-portal-branca.png" alt="Totali · Portal do Cliente" ' +
+          'width="660" height="236" class="marca-porta">' +
         '<div class="eyebrow">' + (cadastro ? "Bem-vindo" : "Portal do Cliente") + '</div>' +
         '<h1 class="section__title" style="font-size:21px;margin:8px 0 6px">' +
           (cadastro ? "Crie o seu acesso" : "Entrar") + '</h1>' +
@@ -2555,6 +2559,25 @@
     }
   }
 
+  /* Identidade da conta no cabeçalho. O nome da empresa já está
+     na marca; aqui aparece a PESSOA que entrou — é o que evita
+     alguém mexer no portal achando que está na própria conta,
+     num computador compartilhado. */
+  function atualizarConta(temSessao) {
+    var caixa = $("#ctQuem");
+    if (!caixa) return;
+    var FB = global.FB;
+    var u = FB && FB.auth && FB.auth.currentUser;
+    var email = (u && u.email) || "";
+    if (!temSessao || !email) { caixa.hidden = true; return; }
+
+    var apelido = email.split("@")[0];
+    caixa.hidden = false;
+    caixa.title = email;
+    $("#ctNome").textContent = apelido;
+    $("#ctIniciais").textContent = apelido.slice(0, 2).toUpperCase();
+  }
+
   function atualizarNav(rota) {
     var resumo = Store.resumoGeral();
     var gate = !Store.estado.aceiteLGPD;
@@ -2565,6 +2588,8 @@
     [$("#btnSair"), $("#btnSairMenu")].forEach(function (b) {
       if (b) b.hidden = !temSessao;
     });
+
+    atualizarConta(temSessao);
 
     $$("[data-nav]").forEach(function (b) {
       var id = b.getAttribute("data-nav");

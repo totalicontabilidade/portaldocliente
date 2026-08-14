@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v19";
+var VERSAO = "v21";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -46,7 +46,9 @@ var SHELL = [
   "./js/app.js",
   "./js/pwa.js",
   "./manifest.webmanifest",
-  "./assets/totali-logo-branca.png",
+  "./assets/totali-simbolo.png",
+  "./assets/totali-portal-branca.png",
+  "./assets/totali-portal-cor.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/favicon-32.png",

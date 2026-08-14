@@ -99,29 +99,28 @@
 
   function iniciarPorta() {
     var FB = global.FB;
+    var P = global.Painel;
 
     /* Sem servidor configurado, o painel abre em modo local —
        gera link e monta conteúdo, mas nada chega ao cliente. */
     if (!FB || !FB.ligado) {
       mostrar("#secSemConexao", true);
-      mostrar("#painel", true);
+      if (P) P.mostrarPainel(true);
       var motivo = {
         "biblioteca-ausente": "A biblioteca do Firebase não carregou.",
         "nao-configurado": "O projeto ainda não foi configurado.",
-        "falha-init": "Não foi possível iniciar a conexão."
-      }[FB && FB.erro] || "";
+        "falha-init": "Não foi possível iniciar a conexão.",
+        "": location.protocol === "file:"
+          ? "A página foi aberta direto do computador, e nesse modo o Firebase não funciona."
+          : ""
+      }[(FB && FB.erro) || ""] || "";
       if ($("#scMotivo")) $("#scMotivo").textContent = motivo;
       return;
     }
 
     FB.observarSessao(function (equipe) {
-      var dentro = !!equipe;
-      mostrar("#secLogin", !dentro);
-      mostrar("#painel", dentro);
-      if (dentro && $("#pnQuem")) {
-        $("#pnQuem").textContent = (equipe.nome || equipe.email) +
-          (equipe.papel === "admin" ? " · administrador" : " · equipe");
-      }
+      mostrar("#secLogin", !equipe);
+      if (P) P.sessao(equipe);
     });
 
     var btn = $("#lgEntrar");
@@ -148,7 +147,11 @@
     });
 
     $("#pnSair").addEventListener("click", function () {
-      FB.sair();
+      UI.confirmar({
+        titulo: "Sair do painel",
+        mensagem: "Você volta para a tela de entrar. Nada do que já foi gravado se perde.",
+        confirmar: "Sair"
+      }).then(function (ok) { if (ok) FB.sair(); });
     });
   }
 

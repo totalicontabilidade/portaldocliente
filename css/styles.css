@@ -211,7 +211,7 @@ html.motion .reveal.is-in{
 .brand:hover{background:var(--glass);border-color:var(--stroke)}
 .brand:active{transform:scale(.98)}
 .brand[aria-current="page"]{cursor:default}
-.brand__logo{height:26px;width:auto;flex:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
+.brand__logo{height:30px;width:auto;flex:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
 .brand__divider{width:1px;height:22px;background:var(--stroke-2);flex:none}
 .brand__text{min-width:0;display:block}
 .brand__title{display:block;
@@ -1683,4 +1683,52 @@ body.tour-aberto{overscroll-behavior:contain}
   .group__head--selo::after{content:"";flex-basis:100%;height:0;order:2}
   .group__head--selo .group__chev{order:1;margin-left:auto}
   .group__head--selo .badge{order:3;margin-left:55px}
+}
+
+/* ============================================================
+   Quem está usando o sistema
+
+   Fica no cabeçalho, sempre visível. Num sistema interno isso
+   não é enfeite: é o que evita alguém aprovar documento achando
+   que está na própria conta quando o colega esqueceu a sessão
+   aberta.
+   ============================================================ */
+.usuario{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:4px 12px 4px 4px;border-radius:20px;
+  border:1px solid var(--stroke);background:var(--glass);
+  max-width:220px;
+}
+.usuario__avatar{
+  width:29px;height:29px;flex:none;border-radius:50%;
+  display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--gold),var(--gold-2));
+  color:#0d1926;font-size:11.5px;font-weight:750;letter-spacing:.02em;
+}
+.usuario__txt{min-width:0;display:none;line-height:1.25}
+.usuario__nome{
+  display:block;font-size:12.5px;font-weight:640;color:var(--txt);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.usuario__papel{
+  display:block;font-size:10px;font-weight:650;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--gold-2);
+}
+@media (min-width:600px){
+  .usuario__txt{display:block}
+}
+
+/* Divisor de assunto dentro da ficha do cliente */
+.ficha__titulo{
+  font-size:11px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--txt-4);margin:26px 0 10px;
+}
+
+/* A marca completa na tela de entrada. É o único lugar com espaço
+   para ela inteira; no cabeçalho entra só o símbolo, que continua
+   legível a 30px de altura. */
+.marca-porta{
+  display:block;width:min(210px,62%);height:auto;
+  margin:0 auto 20px;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.45));
 }
