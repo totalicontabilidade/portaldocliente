@@ -150,7 +150,7 @@
         /* Porta de entrada: aqui cabe a marca inteira, e é onde
            ela mais faz falta — é a primeira tela do sistema. */
         '<img src="assets/totali-portal-branca.png" alt="Totali · Portal do Cliente" ' +
-          'width="660" height="236" class="marca-porta">' +
+          'width="660" height="235" class="marca-porta">' +
         '<div class="eyebrow">' + (cadastro ? "Bem-vindo" : "Portal do Cliente") + '</div>' +
         '<h1 class="section__title" style="font-size:21px;margin:8px 0 6px">' +
           (cadastro ? "Crie o seu acesso" : "Entrar") + '</h1>' +
