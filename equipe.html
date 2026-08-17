@@ -211,6 +211,9 @@
         </div>
 
         <button type="button" class="btn btn--primary btn--block" id="lgEntrar">Entrar</button>
+        <p class="text-xs text-muted" style="margin-top:14px;text-align:center">
+          <a href="#" id="lgEsqueci">Esqueci minha senha</a>
+        </p>
       </div>
     </section>
 
@@ -476,8 +479,29 @@
     <!-- ---------------- Aba: Segurança ---------------- -->
     <section data-painel="seguranca" hidden>
       <div class="section__head"><div>
+        <div class="eyebrow">Acesso ao painel</div>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">Equipe</h1>
+        <p class="section__desc">Quem entra neste painel. Só administrador altera esta lista.</p>
+      </div>
+      <button type="button" class="btn btn--primary btn--sm" id="eqAdicionar" hidden>
+        <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Adicionar membro
+      </button></div>
+
+      <div id="eqLista"></div>
+
+      <div class="notice notice--info" style="margin-top:14px">
+        <span class="notice__icon">
+          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+        </span>
+        <span><strong>Equipe</strong> vê clientes, confere documentos, conversa e cobra.
+        <strong>Administrador</strong> faz tudo isso, e ainda abre as senhas enviadas pelos
+        clientes e gerencia quem entra aqui. Ninguém pode alterar o próprio acesso — é o que
+        impede o painel de ficar sem administrador.</span>
+      </div>
+
+      <div class="section__head" style="margin-top:32px"><div>
         <div class="eyebrow">Canal seguro</div>
-        <h1 class="section__title" style="font-size:20px;margin-top:4px">Segurança</h1>
+        <h2 class="section__title" style="font-size:19px;margin-top:4px">Par de chaves</h2>
         <p class="section__desc">O par de chaves é o que permite o cliente enviar senhas pelo portal
           sem que elas fiquem legíveis em lugar nenhum. Faça uma vez só.</p>
       </div></div>
@@ -620,7 +644,7 @@
     <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo
   </button>
   <button type="button" class="tabbar__item" data-aba="seguranca">
-    <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Chaves
+    <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
   </button>
 </nav>
 
@@ -644,5 +668,6 @@
 <script src="js/equipe.js"></script>
 <script src="js/painel-conteudo.js"></script>
 <script src="js/painel-clientes.js"></script>
+<script src="js/painel-equipe.js"></script>
 </body>
 </html>

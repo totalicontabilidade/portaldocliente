@@ -200,6 +200,24 @@
       if (ev.key === "Enter") entrar();
     });
 
+    /* Membro novo entra com senha provisória e troca por aqui.
+       Sem isto, a senha combinada por mensagem ficaria valendo
+       para sempre. */
+    var esqueci = $("#lgEsqueci");
+    if (esqueci) esqueci.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      var email = ($("#lgEmail").value || "").trim();
+      if (!U.validaEmail(email)) {
+        erroLogin("Digite seu e-mail no campo acima para receber o link de troca de senha.");
+        $("#lgEmail").focus();
+        return;
+      }
+      FB.recuperarSenha(email).then(function () {
+        erroLogin("");
+        UI.toast("Enviamos um link para " + email + ". Confira também o lixo eletrônico.", "ok", 9000);
+      }, function (e) { erroLogin(FB.explicar(e)); });
+    });
+
     $("#pnSair").addEventListener("click", function () {
       UI.confirmar({
         titulo: "Sair do painel",

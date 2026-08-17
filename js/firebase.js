@@ -115,6 +115,36 @@
     return auth ? auth.signOut() : Promise.resolve();
   }
 
+  /* Cria a conta de um novo membro da equipe SEM derrubar a
+     sessão de quem está criando.
+
+     O SDK do Firebase entra automaticamente com a conta recém
+     criada — quem clicasse em "adicionar membro" seria expulso e
+     acordaria logado como a pessoa nova. Por isso a conta nasce
+     numa segunda conexão com o mesmo projeto, que tem sessão
+     própria e é encerrada em seguida.
+
+     Criar conta aqui não dá poder nenhum: qualquer pessoa na
+     internet pode criar conta neste projeto, porque o cadastro
+     por e-mail e senha está ligado. Quem manda é o documento em
+     /usuarios/{uid}, e esse só admin escreve. */
+  function criarContaEquipe(email, senha) {
+    if (!auth || !global.firebase) return Promise.reject(new Error("sem-conexao"));
+    var secundario;
+    try {
+      secundario = global.firebase.app("secundario");
+    } catch (e) {
+      secundario = global.firebase.initializeApp(global.FIREBASE_CONFIG, "secundario");
+    }
+    var authSec = secundario.auth();
+    return authSec.createUserWithEmailAndPassword(String(email).trim(), String(senha))
+      .then(function (cred) {
+        var uid = cred.user.uid;
+        return authSec.signOut().then(function () { return uid; },
+                                      function () { return uid; });
+      });
+  }
+
   /* ---------- Cliente ---------- */
 
   /* Código do convite: 22 caracteres sorteados, sem os que se
@@ -261,6 +291,9 @@
     "auth/network-request-failed": "Sem conexão com a internet.",
     "auth/user-disabled": "Esta conta foi desativada.",
     "sem-permissao": "Esta conta não tem acesso ao painel. Fale com o administrador.",
+    "so-admin": "Só quem é administrador pode gerenciar a equipe.",
+    "uid-invalido": "O identificador informado não parece válido. Copie o UID exato do Authentication.",
+    "ja-e-membro": "Esta pessoa já está na lista da equipe.",
     "sem-conexao": "Sem conexão com o servidor.",
     "convite-inexistente": "Este link não é válido. Peça um novo à Totali.",
     "convite-usado": "Este link já foi usado para criar um acesso. Entre com seu e-mail e senha, ou peça um novo link à Totali.",
@@ -295,6 +328,7 @@
     get empresaId() { return empresaAtual; },
     observarSessao: observarSessao,
     entrarComoEquipe: entrarComoEquipe,
+    criarContaEquipe: criarContaEquipe,
     lerConvite: lerConvite,
     cadastrarCliente: cadastrarCliente,
     entrarComoCliente: entrarComoCliente,
