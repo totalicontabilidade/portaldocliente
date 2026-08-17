@@ -10,9 +10,21 @@
      escuro é a combinação de fundo quase preto com halo em volta
      das letras, não o texto claro em si. Por isso o fundo sobe um
      pouco e o texto continua nítido. */
-  --bg-0:#0f1c2a;
-  --bg-1:#142334;
-  --bg-2:#182c40;
+  /* O piso desceu e os cartões subiram, de propósito.
+
+     Antes o cartão tinha contraste de 1,12 com o fundo — a mesma
+     cor, na prática. A tela virava um campo azul contínuo, sem
+     hierarquia: o olho não tinha onde pousar e o cliente não
+     sabia o que era para olhar. Não é questão de gosto, é de
+     leitura.
+
+     A correção mantém a identidade (azul-noite, escuro,
+     tecnológico) e mexe só na DISTÂNCIA entre as camadas:
+     fundo mais fundo, superfície mais clara, borda mais definida.
+     Medido depois: contraste de ~1,45 entre cartão e fundo. */
+  --bg-0:#091220;
+  --bg-1:#0e1a29;
+  --bg-2:#152538;
   --navy:#1a3149;
   --navy-2:#20405f;
   --navy-3:#2a4d70;
@@ -24,11 +36,13 @@
   --gold-glow:rgba(194,162,80,.32);
 
   /* Vidro */
-  --glass:rgba(255,255,255,.045);
-  --glass-2:rgba(255,255,255,.075);
-  --glass-3:rgba(255,255,255,.11);
-  --stroke:rgba(255,255,255,.105);
-  --stroke-2:rgba(255,255,255,.19);
+  --glass-fraco:rgba(255,255,255,.05);
+  --stroke-fraco:rgba(255,255,255,.09);
+  --glass:rgba(255,255,255,.115);
+  --glass-2:rgba(255,255,255,.155);
+  --glass-3:rgba(255,255,255,.20);
+  --stroke:rgba(255,255,255,.18);
+  --stroke-2:rgba(255,255,255,.28);
   --stroke-gold:rgba(194,162,80,.4);
 
   /* Texto — claro e nítido, sem chegar ao branco puro.
@@ -583,9 +597,19 @@ input[type=checkbox]{accent-color:var(--gold)}
   color:var(--gold-2);
 }
 .group__icon .ic{width:20px;height:20px}
+/* Título e contagem são <span>. Sem display:block eles ficavam
+   colados na mesma linha — "Societário1 de 1 documento". */
 .group__info{flex:1;min-width:0}
-.group__title{font-size:15px;font-weight:660;color:var(--txt)}
-.group__meta{font-size:12.5px;color:var(--txt-3);margin-top:2px}
+.group__title{display:block;font-size:15px;font-weight:660;color:var(--txt)}
+.group__meta{display:block;font-size:12.5px;color:var(--txt-3);margin-top:2px}
+/* Grupo concluído: fica mais discreto para não competir com o que
+   ainda falta. Volta ao normal ao passar o mouse ou ao abrir, para
+   continuar consultável. */
+.group--pronto{background:var(--glass-fraco);border-color:var(--stroke-fraco)}
+.group--pronto .group__icon,.group--pronto .group__title{opacity:.72}
+.group--pronto:hover,.group--pronto[data-open="true"]{background:var(--glass);border-color:var(--stroke)}
+.group--pronto:hover .group__icon,.group--pronto:hover .group__title,
+.group--pronto[data-open="true"] .group__icon,.group--pronto[data-open="true"] .group__title{opacity:1}
 .group__chev{color:var(--txt-4);transition:transform .3s var(--ease-out);flex:none}
 .group__chev .ic{width:20px;height:20px}
 .group[data-open="true"] .group__chev{transform:rotate(180deg);color:var(--gold-2)}
@@ -604,14 +628,26 @@ input[type=checkbox]{accent-color:var(--gold)}
   background:rgba(255,122,114,.06);
   box-shadow:inset 3px 0 0 var(--danger);
 }
-.item--pendencia .item__mark{border-color:var(--danger-br);background:rgba(255,122,114,.1)}
+.item--pendencia .item__mark::before{background:var(--danger);opacity:1}
 .item__top{display:flex;align-items:flex-start;gap:12px}
+/* Quadradinho de situação.
+
+   Enquanto o item está pendente ele fica só como um traço: antes era
+   um quadrado vazio com borda, igualzinho a uma caixa de marcar — e
+   quem não tem prática tocava ali esperando alguma coisa acontecer.
+   Ele não é clicável; quem resolve o item é o botão de enviar. Cheio
+   e verde, vira o sinal de concluído. */
 .item__mark{
   width:23px;height:23px;border-radius:8px;flex:none;margin-top:1px;
   display:grid;place-items:center;
-  border:1.5px solid var(--stroke-2);background:rgba(255,255,255,.03);color:transparent;
+  border:1.5px solid transparent;background:none;color:transparent;
   transition:background .25s var(--ease),border-color .25s var(--ease),color .25s var(--ease);
 }
+.item__mark::before{
+  content:"";width:9px;height:1.5px;border-radius:1px;
+  background:var(--txt-4);opacity:.55;
+}
+.item--done .item__mark::before{display:none}
 .item__mark .ic{width:13px;height:13px;stroke-width:3}
 .item--done .item__mark{
   background:linear-gradient(135deg,var(--ok),#3f9e79);border-color:transparent;color:#08281c;

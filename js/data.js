@@ -157,7 +157,7 @@
     {
       id: "acesso",
       titulo: "Informo o acesso, a Totali baixa sozinha",
-      desc: "Você informa login e senha de cada maquininha aqui mesmo. A senha é cifrada no seu " +
+      desc: "Você informa login e senha de cada maquininha aqui mesmo. A senha é embaralhada no seu " +
             "aparelho antes de sair, e só a Totali consegue abrir. Usamos apenas para baixar os " +
             "relatórios do mês — nunca para movimentar dinheiro.",
       recomendado: true
@@ -179,7 +179,7 @@
       escopo: "empresa",
       icone: "ic-scroll",
       titulo: "Societário",
-      desc: "Os atos de constituição da empresa. É por aqui que confirmamos quem são os sócios, o objeto e o capital.",
+      desc: "Os documentos que criaram a empresa. É por aqui que confirmamos quem são os sócios, o que a empresa faz e quanto foi investido nela.",
       itens: [
         {
           id: "contrato-social",
@@ -212,7 +212,7 @@
           kind: "arquivo",
           nome: "Balanços patrimoniais anteriores",
           obrigatorio: true,
-          resumo: "Preferencialmente dos 2 ou 3 últimos exercícios.",
+          resumo: "De preferência dos 2 ou 3 últimos anos já fechados.",
           ajuda: {
             oque: "O balanço mostra, no encerramento de cada ano, tudo que a empresa tem (bens e direitos) e tudo que ela deve (obrigações).",
             onde: ["Com o contador anterior. É ele quem elabora e assina o balanço."],
@@ -224,7 +224,7 @@
           kind: "arquivo",
           nome: "DRE de períodos anteriores",
           obrigatorio: true,
-          resumo: "Demonstração do Resultado do Exercício.",
+          resumo: "O resumo de quanto a empresa vendeu, gastou e lucrou em cada ano.",
           ajuda: {
             oque: "A DRE mostra o desempenho da empresa no período: quanto entrou de receita, quanto saiu de custos e despesas e qual foi o lucro ou prejuízo.",
             onde: ["Com o contador anterior, normalmente no mesmo arquivo do balanço."],
@@ -236,7 +236,7 @@
           kind: "arquivo",
           nome: "Relatório do patrimônio e depreciação",
           obrigatorio: false,
-          resumo: "Lista dos bens do ativo imobilizado com o cálculo de depreciação.",
+          resumo: "A lista dos bens da empresa — veículos, máquinas, móveis — e quanto já perderam de valor.",
           ajuda: {
             oque: "É a relação dos bens da empresa — veículos, máquinas, móveis, computadores — com data de compra, valor e quanto já foi depreciado.",
             onde: ["Com o contador anterior, no controle de ativo imobilizado."],
@@ -251,14 +251,14 @@
       escopo: "empresa",
       icone: "ic-receipt",
       titulo: "Fiscal",
-      desc: "Escrituração de notas, impostos sobre vendas e os acessos que usamos para apurar e declarar.",
+      desc: "O registro das suas notas, os impostos sobre as vendas e os acessos que usamos para calcular e entregar as declarações.",
       itens: [
         {
           id: "livros-fiscais",
           kind: "arquivo",
           nome: "Livros fiscais",
           obrigatorio: false,
-          resumo: "Entradas, saídas e apuração de ICMS.",
+          resumo: "O registro das notas de compra e de venda e do imposto do estado (ICMS).",
           ajuda: {
             oque: "São os registros de todas as notas de compra e venda e do cálculo do ICMS do período.",
             onde: [
@@ -278,7 +278,7 @@
           kind: "acesso",
           nome: "Certificado digital da empresa (e-CNPJ)",
           obrigatorio: true,
-          resumo: "A senha vai cifrada no seu aparelho — só a Totali consegue abrir.",
+          resumo: "A senha é embaralhada aqui no seu aparelho — só a Totali consegue abrir.",
           ajuda: {
             oque: "É a assinatura eletrônica da empresa. Sem ela não é possível transmitir declarações, emitir certidões nem acessar o e-CAC da Receita Federal.",
             onde: [
@@ -308,7 +308,7 @@
           kind: "acesso",
           nome: "Acesso ao Simples Nacional",
           obrigatorio: false,
-          resumo: "Código de acesso ou procuração eletrônica.",
+          resumo: "Serve o código de acesso ou a procuração pela internet — qualquer um dos dois resolve.",
           ajuda: {
             oque: "O portal do Simples Nacional é onde se apura o DAS mensal e se acompanha o enquadramento da empresa.",
             onde: [
@@ -322,7 +322,7 @@
               "Se preferir o código de acesso, entre no Portal do Simples Nacional e procure a opção de gerar código de acesso.",
               "Informe o CNPJ da empresa, o CPF do responsável no cadastro e o número do recibo da última declaração entregue.",
               "O portal mostra o código na tela. Guarde-o com você.",
-              "Volte aqui, escolha \"Informar o acesso agora\" e digite o código no campo protegido. Ele é cifrado no seu aparelho antes de sair."
+              "Volte aqui, escolha \"Informar o acesso agora\" e digite o código no campo protegido. Ele é embaralhado no seu aparelho antes de sair."
             ],
             passosNota: "O código de acesso pode ser gerado de novo a qualquer momento, o que invalida o anterior. Por isso ele é bem menos arriscado que uma senha comum."
           }
@@ -336,7 +336,7 @@
           kind: "acesso",
           nome: "Acesso à SEFAZ",
           obrigatorio: false,
-          resumo: "Portal da Secretaria da Fazenda do estado.",
+          resumo: "O site da Secretaria da Fazenda do estado, onde ficam as notas e o ICMS.",
           ajuda: {
             oque: "É onde se consulta a situação fiscal estadual, emitem-se certidões e se acompanha o ICMS da empresa.",
             onde: [
@@ -387,7 +387,7 @@
           kind: "arquivo",
           nome: "Relação de férias vencidas e a vencer",
           obrigatorio: true,
-          resumo: "Controle de período aquisitivo de cada empregado.",
+          resumo: "Quem já tem férias para tirar e a partir de quando.",
           ajuda: {
             oque: "Mostra quem já tem férias adquiridas, quem está com férias vencidas e quando cada período começa a contar.",
             onde: ["No sistema de folha do contador anterior, no relatório de controle de férias."],
@@ -444,7 +444,7 @@
           kind: "arquivo",
           nome: "Informe de rendimentos dos colaboradores",
           obrigatorio: false,
-          resumo: "Referente ao último ano-base.",
+          resumo: "Do último ano já fechado.",
           ajuda: {
             oque: "É o comprovante que a empresa entrega a cada empregado para ele declarar o Imposto de Renda.",
             onde: ["Gerado pelo sistema de folha do contador anterior."],
@@ -456,7 +456,7 @@
           kind: "arquivo",
           nome: "Extrato analítico da folha (2 últimos meses)",
           obrigatorio: true,
-          resumo: "Detalhamento por evento e por empregado.",
+          resumo: "O detalhe do que compõe cada salário, funcionário por funcionário.",
           ajuda: {
             oque: "É a folha aberta em detalhe: cada verba, cada desconto, empregado por empregado.",
             onde: ["Relatório analítico do sistema de folha."],
@@ -598,7 +598,7 @@
           kind: "dado",
           nome: "Grau de escolaridade",
           obrigatorio: false,
-          resumo: "Informação exigida em cadastros e no eSocial.",
+          resumo: "Pedida nos cadastros da empresa e nas declarações ao governo.",
           formato: "selecao",
           opcoes: [
             "Ensino fundamental incompleto",

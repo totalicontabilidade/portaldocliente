@@ -471,8 +471,8 @@
         '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
         '<span><strong>Seus dados ficam protegidos.</strong> O que você enviar fica guardado no ' +
         'servidor da ' + U.esc(DATA.ORG.curto) + ', ligado só à sua empresa, e volta para você em ' +
-        'qualquer aparelho onde entrar com sua senha. As senhas que você informar são cifradas ' +
-        'antes de sair do aparelho: só a Totali consegue abrir.</span>' +
+        'qualquer aparelho onde entrar com sua senha. As senhas que você informar são embaralhadas ' +
+        'ainda no seu aparelho: só a Totali consegue abrir.</span>' +
       '</div>' +
     '</section>' +
 
@@ -849,7 +849,12 @@
     else if (grupo.escopo === "socio" && !socios.length) meta = "Cadastre os sócios para liberar esta lista";
     else meta = resumo.ok + " de " + resumo.total + " " + U.plural(resumo.total, "documento", "documentos");
 
-    var html = '<section class="card group" data-open="' + (aberto ? "true" : "false") +
+    /* Grupo já resolvido recua um pouco: o olho vai direto para o
+       que ainda falta, em vez de varrer tudo com o mesmo peso. */
+    var pronto = (resumo.completo && !resumo.vazio) || grupoNA;
+
+    var html = '<section class="card group' + (pronto ? " group--pronto" : "") +
+               '" data-open="' + (aberto ? "true" : "false") +
                '" data-grupo="' + U.escAttr(grupo.id) + '">' +
       '<button type="button" class="group__head" data-toggle="1" aria-expanded="' + (aberto ? "true" : "false") + '">' +
         '<span class="group__icon">' + ic(grupo.icone) + '</span>' +
@@ -1046,7 +1051,7 @@
         '<span class="cofre__txt">' +
           '<span class="cofre__t">Acesso guardado com segurança</span>' +
           '<span class="cofre__d">' + U.esc(reg.campos.length) + ' ' +
-            U.plural(reg.campos.length, "campo cifrado", "campos cifrados") +
+            U.plural(reg.campos.length, "dado protegido", "dados protegidos") +
             (reg.atualizadoEm ? " · " + U.esc(U.dataCurta(reg.atualizadoEm)) : "") +
             '. Nem a senha nem o login ficam legíveis neste aparelho.</span>' +
         '</span>' +
@@ -2397,7 +2402,7 @@
           (Store.noServidor
             ? '<span><strong>Onde estão seus documentos.</strong> Tudo o que você envia vai para o ' +
               'servidor da ' + U.esc(org.curto) + ', ligado exclusivamente à sua empresa, por ' +
-              'conexão cifrada. Só quem tem o seu login, ou a nossa equipe, enxerga esses ' +
+              'conexão protegida. Só quem tem o seu login, ou a nossa equipe, enxerga esses ' +
               'arquivos. Uma cópia fica também neste aparelho, para o portal abrir rápido e ' +
               'funcionar sem sinal — sair da conta apaga essa cópia.</span>'
             : '<span><strong>Onde estão seus documentos agora.</strong> Esta sessão está sem ' +

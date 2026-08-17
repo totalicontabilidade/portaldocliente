@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v30";
+var VERSAO = "v31";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -85,6 +85,12 @@ function guardavel(resp) {
   return resp && resp.status === 200 && resp.type === "basic";
 }
 
+/* O que é código do aplicativo e precisa estar sempre atual. */
+function ehCodigo(url) {
+  try { return /\.(js|css|webmanifest)$/i.test(new URL(url).pathname); }
+  catch (e) { return false; }
+}
+
 self.addEventListener("fetch", function (ev) {
   var req = ev.request;
 
@@ -108,7 +114,38 @@ self.addEventListener("fetch", function (ev) {
     return;
   }
 
-  /* Demais recursos: cache primeiro, revalidando em segundo plano. */
+  /* CÓDIGO (js, css, manifesto): rede primeiro, cache como
+     reserva.
+
+     Antes era cache primeiro, e isso criava um problema chato de
+     enxergar: a página HTML vinha nova, mas o JavaScript e o CSS
+     vinham velhos, do cache. A correção só aparecia no segundo ou
+     terceiro acesso — ou depois de um Ctrl+Shift+R. Quem usa o
+     portal não tem como saber que precisa fazer isso.
+
+     O `no-cache` obriga a revalidar também no cache do navegador:
+     sem ele, o GitHub Pages manda guardar por 10 minutos e a
+     resposta continuaria velha mesmo buscando na rede. Quando há
+     versão nova o servidor manda o arquivo; quando não há, manda
+     um 304 curtinho. Sem internet, cai para o cache e o portal
+     abre normalmente. */
+  if (ehCodigo(req.url)) {
+    ev.respondWith(
+      fetch(new Request(req, { cache: "no-cache" })).then(function (resp) {
+        if (guardavel(resp)) {
+          var copia = resp.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copia); });
+        }
+        return resp;
+      }).catch(function () {
+        return caches.match(req).then(function (r) { return r || Response.error(); });
+      })
+    );
+    return;
+  }
+
+  /* Imagens e demais arquivos: cache primeiro, revalidando em
+     segundo plano. Mudam pouco e pesam mais. */
   ev.respondWith(
     caches.match(req).then(function (cacheado) {
       var busca = fetch(req).then(function (resp) {

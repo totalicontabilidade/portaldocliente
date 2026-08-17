@@ -72,12 +72,33 @@
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
     global.addEventListener("load", function () {
       navigator.serviceWorker.register("sw.js").then(function (reg) {
+        /* Procura versão nova sempre que a pessoa volta ao portal.
+           Sem isso, o navegador só verifica de tempos em tempos e
+           uma correção pode demorar horas para chegar. */
+        var conferir = function () {
+          if (document.visibilityState === "visible") reg.update().catch(function () {});
+        };
+        document.addEventListener("visibilitychange", conferir);
+
         reg.addEventListener("updatefound", function () {
           var novo = reg.installing;
           if (!novo) return;
           novo.addEventListener("statechange", function () {
-            if (novo.state === "installed" && navigator.serviceWorker.controller && global.UI) {
-              global.UI.toast("Há uma versão nova do portal. Feche e abra novamente para atualizar.", "info", 9000);
+            /* Só avisa quando JÁ existia uma versão rodando —
+               na primeira visita não há o que atualizar. */
+            if (novo.state !== "installed" || !navigator.serviceWorker.controller) return;
+            if (!global.UI) return;
+
+            /* "Feche e abra" não resolvia: o texto antigo mandava
+               fazer algo que muitas vezes não bastava. Agora o
+               aviso recarrega de verdade, com um toque. */
+            global.UI.toast("Nova versão do portal disponível. Toque aqui para atualizar.",
+                            "ok", 20000);
+            var avisos = document.querySelectorAll("#toasts .toast");
+            var ultimo = avisos[avisos.length - 1];
+            if (ultimo) {
+              ultimo.style.cursor = "pointer";
+              ultimo.addEventListener("click", function () { location.reload(); });
             }
           });
         });
