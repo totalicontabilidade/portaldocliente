@@ -430,7 +430,7 @@ E acesse `http://localhost:8099`.
 ### 1. Subir o código
 
 ```bash
-git remote add origin https://github.com/totalicontabilidade/portal-cliente.git
+git remote add origin https://github.com/totalicontabilidade/portaldocliente.git
 git push -u origin main
 ```
 
@@ -439,7 +439,7 @@ O `.nojekyll` já está no repositório, para o Pages servir os arquivos sem
 processar. Em um ou dois minutos o endereço responde:
 
 ```
-https://totalicontabilidade.github.io/portal-cliente/
+https://totalicontabilidade.github.io/portaldocliente/
 ```
 
 Todos os caminhos do sistema são relativos, e `start_url` e `scope` do manifesto
