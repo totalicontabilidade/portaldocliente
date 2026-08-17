@@ -103,6 +103,21 @@
         acessos.push({ uid: d.id, em: a.em, codigo: a.codigo || "" });
       });
 
+      /* O e-mail que interessa aqui é o do LOGIN, não o do
+         cadastro. São coisas diferentes e costumam divergir: o
+         cadastro guarda o contato do responsável, e o acesso pode
+         ter sido criado com outro endereço. Mandar redefinição de
+         senha para o e-mail do cadastro erra o alvo — não existe
+         conta naquele endereço.
+
+         Ele está em clientes/{uid}, gravado quando o cliente abriu
+         o convite. Uma leitura por acesso, e quase sempre há um só. */
+      var buscarLogins = Promise.all(acessos.map(function (a) {
+        return FB.db.collection("clientes").doc(a.uid).get().then(function (d) {
+          a.email = d.exists ? String((d.data() || {}).email || "") : "";
+        }, function () { a.email = ""; });
+      }));
+
       var convites = [];
       r[6].forEach(function (d) {
         var v = d.data() || {};
@@ -110,22 +125,24 @@
         convites.push({ codigo: d.id, criadoEm: v.criadoEm });
       });
 
-      return {
-        id: id,
-        acessos: acessos,
-        convites: convites,
-        empresa: r[0].exists ? (r[0].data() || {}) : {},
-        dados: {
-          itens: itens, socios: socios, gruposNA: gruposNA,
-          temCredencial: function (chave) {
-            var c = recibos[chave];
-            return !!(c && c.campos && c.campos.length);
-          }
-        },
-        recibos: recibos,
-        mensagens: mensagens,
-        financeiro: financeiro
-      };
+      return buscarLogins.then(function () {
+        return {
+          id: id,
+          acessos: acessos,
+          convites: convites,
+          empresa: r[0].exists ? (r[0].data() || {}) : {},
+          dados: {
+            itens: itens, socios: socios, gruposNA: gruposNA,
+            temCredencial: function (chave) {
+              var c = recibos[chave];
+              return !!(c && c.campos && c.campos.length);
+            }
+          },
+          recibos: recibos,
+          mensagens: mensagens,
+          financeiro: financeiro
+        };
+      });
     });
   }
 
@@ -1255,8 +1272,19 @@
       corpo: function () {
         return (acessos.length
           ? acessos.map(function (a) {
-              return linhaDado("Acesso criado em",
-                a.em && a.em.seconds ? U.dataHora(a.em.seconds * 1000) : "data não registrada");
+              return '<div class="ficha__linha">' +
+                  '<span class="ficha__rot">Entra com</span>' +
+                  '<span class="ficha__val">' +
+                    (a.email ? U.esc(a.email) : '<i>e-mail não registrado</i>') +
+                    (a.email
+                      ? ' <button type="button" class="btn btn--quiet btn--sm" ' +
+                        'data-redefinir-senha="' + U.escAttr(a.email) + '" ' +
+                        'style="margin-left:10px">Redefinir senha</button>'
+                      : '') +
+                  '</span>' +
+                '</div>' +
+                linhaDado("Acesso criado em",
+                  a.em && a.em.seconds ? U.dataHora(a.em.seconds * 1000) : "data não registrada");
             }).join("")
           : '<p class="text-sm text-muted">Este cliente ainda não criou o acesso dele. ' +
             'Gere um link e envie — ao abrir, ele define a senha e passa a entrar por ' +
@@ -1292,12 +1320,54 @@
           '<button type="button" class="btn btn--primary btn--sm" data-novo-link="' +
             U.escAttr(c.id) + '">' + ic("ic-send") +
             (acessos.length ? 'Gerar novo link de acesso' : 'Gerar link de acesso') + '</button>' +
+
         '</div>' +
+        (acessos.length
+          ? '<p class="field__hint" style="margin-top:10px">Senha esquecida não precisa de link ' +
+            'novo: use <strong>Redefinir senha</strong> acima. O cliente escolhe outra no ' +
+            'e-mail dele e continua com o mesmo acesso — a Totali nunca vê nem define a senha ' +
+            'de ninguém.</p>'
+          : '') +
         '<p class="field__hint" style="margin-top:10px;margin-bottom:0">' +
           'O link vale uma vez só e não apaga nada: o que o cliente já enviou continua no ' +
           'lugar. Serve quando ninguém abriu o primeiro link, quando muda a pessoa ' +
           'responsável na empresa, ou para refazer um acesso perdido.</p>';
       }
+    });
+  }
+
+  /* Redefinição de senha do cliente.
+
+     Quem troca a senha é ele, no e-mail — a equipe nunca vê nem
+     escolhe senha de ninguém. Isso não é limitação: é o desenho
+     certo. Trocar a senha de outra pessoa exigiria poder de
+     administrador do projeto dentro do navegador, e "a Totali
+     definiu sua senha" é exatamente o que não queremos poder
+     dizer.
+
+     O e-mail vai para o endereço do Authentication. Se o cadastro
+     do responsável tiver outro e-mail, é o do login que vale — por
+     isso o endereço aparece escrito na confirmação, para a equipe
+     conferir antes de enviar. */
+  function redefinirSenha(email) {
+    var alvo = String(email || "").trim();
+    if (!alvo) return;
+
+    UI.confirmar({
+      titulo: "Enviar redefinição de senha",
+      mensagem: "Vamos enviar para " + alvo + " um e-mail com o link para o cliente criar " +
+                "uma senha nova. O acesso atual continua valendo até ele trocar, e nenhum " +
+                "documento é afetado.",
+      confirmar: "Enviar e-mail"
+    }).then(function (ok) {
+      if (!ok) return;
+      UI.toast("Enviando…", "", 4000);
+      FB.recuperarSenha(alvo).then(function () {
+        UI.toast("E-mail enviado para " + alvo + ". Peça para o cliente conferir também a " +
+                 "caixa de spam.", "ok", 10000);
+      }, function (e) {
+        UI.toast("Não foi possível enviar: " + FB.explicar(e), "erro", 9000);
+      });
     });
   }
 
@@ -2519,6 +2589,9 @@
 
       var rv = alvo.closest("[data-revogar-convite]");
       if (rv) { revogarConvite(rv.getAttribute("data-revogar-convite")); return; }
+
+      var rs = alvo.closest("[data-redefinir-senha]");
+      if (rs) { redefinirSenha(rs.getAttribute("data-redefinir-senha")); return; }
 
       var nl = alvo.closest("[data-novo-link]");
       if (nl) {

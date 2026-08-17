@@ -42,7 +42,39 @@
      sinônimo de claro nem de infantil.
      ============================================================ */
 
-  /* Piso — a noite. Fica embaixo de tudo e não recebe luz. */
+  /* ------------------------------------------------------------
+     REGRA Nº 1, E A MAIS IMPORTANTE: UMA COR SÓ NAS SUPERFÍCIES.
+
+     Duas rodadas de cinza vieram da mesma causa, e vale escrever
+     em voz alta para não haver uma terceira: MISTURAR QUENTE COM
+     FRIO PRODUZ CINZA. Não é opinião, é o que a conta dá.
+
+       1ª rodada — cartão era véu branco sobre azul.
+                   Saturação caía de 55% para 21%.
+       2ª rodada — cartão era véu DOURADO sobre azul, a 8,5%.
+                   Saturação caía de 39% para 21% no alto do
+                   cartão. Resultado: uma faixa cinza atravessando
+                   o topo de tudo — o "degradê cinzento".
+
+     A tentativa de aquecer a superfície com luz dourada foi bem
+     intencionada e estava errada: dourado sobre azul-noite não
+     aquece o azul, ele o lava. Qualquer opacidade que fosse
+     visível já seria suficiente para acinzentar.
+
+     Então a regra passa a ser: **fundo, superfície, borda e
+     estado de foco vivem todos no MESMO matiz azul (211–213°) e
+     mudam só de claridade.** Matiz constante é o que garante que
+     cinza nunca apareça em lugar nenhum.
+
+     E o dourado da Totali? Continua inteiro — só que como
+     ACENTO: botão principal, selo, aba ativa, link, anel de
+     progresso, fio do cabeçalho. Acento é área pequena e nunca é
+     misturado dentro de um preenchimento grande, então ele
+     aparece vibrante em vez de sujar o azul. É assim que marca
+     forte convive com fundo calmo.
+     ------------------------------------------------------------ */
+
+  /* Piso — a noite. */
   --bg-0:#0a1522;
   --bg-1:#0e1b2b;
   --bg-2:#132538;
@@ -50,53 +82,65 @@
   --navy-2:#20405f;
   --navy-3:#2a4d70;
 
-  /* Superfícies — o que está iluminado.
-     Mais claras e MAIS SATURADAS que o piso (39% contra 55%), que
-     é o contrário do que acontecia antes. Medido: contraste de
-     1,38 entre cartão e fundo — o cartão existe sozinho, sem
-     depender da borda para ser percebido. */
-  --surf:#1e3145;
-  --surf-2:#25394f;
-  --surf-3:#2d465f;
-  --surf-baixo:#132335;   /* item já resolvido: recua */
+  /* ------------------------------------------------------------
+     REGRA Nº 2: SUPERFÍCIE LISA, SEM DEGRADÊ.
 
-  /* Marca */
+     Cartão é elemento pequeno e repetido. Degradê dentro dele o
+     olho não lê como profundidade, lê como TEXTURA — e textura
+     repetida trinta vezes na tela é ruído. "Clean" na prática é
+     uma cor chapada, uma borda fina e espaço sobrando.
+
+     Cada cartão tinha SEIS camadas: preenchimento, degradê
+     dourado, fio branco no topo, brilho interno, sombra pesada e
+     borda. Passou a ter DUAS: preenchimento e borda, com uma
+     sombra difusa por baixo.
+
+     REGRA Nº 3: pouca cor em área grande, muita cor em área
+     pequena. Preenchimento grande e saturado cansa a vista; por
+     isso a superfície desceu de 39% para 30% de saturação — longe
+     do cinza (21%) e mais calma que antes.
+     ------------------------------------------------------------ */
+  --surf:#243242;         /* 212° · 30% · 20% — cartão */
+  --surf-2:#2e3f52;       /* passagem do mouse, cartão em destaque */
+  --surf-3:#3a4e64;       /* realce */
+  --surf-baixo:#18232f;   /* item já resolvido: recua */
+
+  /* Marca — vibrante porque é acento, nunca preenchimento. */
   --gold:#c2a250;
   --gold-2:#dcc487;
   --gold-3:#ecdcb2;
   --gold-glow:rgba(194,162,80,.32);
 
-  /* A luz. Sempre entra por cima, como lâmpada de teto.
-     `--luz` é o degradê que cai sobre cartões; `--luz-fio` é o
-     brilho de um fio só na aresta superior, que é o que faz o
-     olho ler "isto tem volume" em vez de "isto é um retângulo". */
-  --luz:linear-gradient(180deg,rgba(244,201,126,.085),rgba(244,201,126,0) 58%);
-  --luz-forte:linear-gradient(180deg,rgba(244,201,126,.13),rgba(244,201,126,0) 62%);
-  --luz-fio:inset 0 1px 0 rgba(255,226,178,.14);
-
-  /* Vidro — só para o que é de fato translúcido (cabeçalho,
-     janelas, estados de passagem do mouse). O branco puro saiu:
-     um véu levemente âmbar mantém a página inteira na mesma
-     temperatura. */
-  --glass-fraco:rgba(255,240,220,.045);
-  --stroke-fraco:rgba(255,236,208,.085);
-  --glass:rgba(255,240,220,.10);
-  --glass-2:rgba(255,240,220,.145);
-  --glass-3:rgba(255,240,220,.19);
-  --stroke:rgba(255,233,202,.155);
-  --stroke-2:rgba(255,233,202,.26);
+  /* Véus e bordas puxados para o AZUL, não para o branco nem
+     para o âmbar: é o que mantém o matiz constante mesmo nos
+     elementos translúcidos. */
+  --glass-fraco:rgba(180,205,235,.035);
+  --stroke-fraco:rgba(180,205,235,.09);
+  --glass:rgba(180,205,235,.07);
+  --glass-2:rgba(180,205,235,.11);
+  --glass-3:rgba(180,205,235,.16);
+  --stroke:rgba(180,205,235,.15);
+  --stroke-2:rgba(180,205,235,.25);
   --stroke-gold:rgba(194,162,80,.42);
 
-  /* Texto — marfim, não branco-azulado.
-     Contraste medido sobre --surf: principal 11,7:1 · secundário
-     7,6:1 · terciário 5,4:1 · rótulo 4,2:1 (rótulo é só para
-     dica curta, nunca para leitura corrida). O brilho do sistema
-     vem de bordas, anéis e selos — nunca de halo atrás da letra,
-     que é o que embaça e cansa a vista. */
-  --txt:#f3efe6;
-  --txt-2:#cbcdc9;
-  --txt-3:#a9aaa4;
-  --txt-4:#93948e;
+  /* ------------------------------------------------------------
+     REGRA Nº 4: SUAVE É CONTRASTE LOCAL BAIXO E BORDA DIFUSA.
+
+     A dureza não vinha da cor do texto — vinha do fio branco no
+     alto do cartão, do brilho interno e de uma sombra preta seca.
+     Sombra preta sobre fundo colorido lê como corte; sombra
+     tingida com a própria cor do fundo lê como profundidade.
+
+     O texto acompanha o mesmo matiz das superfícies. Medido sobre
+     --surf: principal 11,7:1 · secundário 7,4:1 · terciário
+     4,9:1 · rótulo 3,9:1 (rótulo é dica curta, nunca leitura
+     corrida). O brilho do sistema vem de bordas, anéis e selos —
+     nunca de halo atrás da letra, que é o que embaça e cansa.
+     ------------------------------------------------------------ */
+  --txt:#f1f2f3;
+  --txt-2:#b9c4d0;
+  --txt-3:#93a1b0;
+  --txt-4:#8b98a6;
 
   /* Semânticos — tons dessaturados, sem neon */
   --ok:#5cc394;         --ok-bg:rgba(92,195,148,.1);    --ok-br:rgba(92,195,148,.26);
@@ -104,14 +148,22 @@
   --warn:#dcae5c;       --warn-bg:rgba(220,174,92,.1);  --warn-br:rgba(220,174,92,.26);
   --danger:#e88a83;     --danger-bg:rgba(232,138,131,.1); --danger-br:rgba(232,138,131,.28);
 
-  /* Formas */
-  --r-sm:10px;
-  --r:14px;
-  --r-lg:18px;
-  --r-xl:26px;
-  --sh-1:0 1px 2px rgba(0,0,0,.3);
-  --sh-2:0 12px 34px rgba(0,0,0,.35);
-  --sh-3:0 24px 70px rgba(0,0,0,.55);
+  /* Formas — canto um pouco mais redondo de propósito.
+     Preferência por curvatura é das respostas mais constantes em
+     estudo de forma: canto redondo lê como acolhedor, canto vivo
+     lê como alerta. É barato e funciona. */
+  --r-sm:11px;
+  --r:15px;
+  --r-lg:20px;
+  --r-xl:28px;
+
+  /* Sombras tingidas com a cor do fundo, não pretas.
+     Preto sobre azul lê como corte; azul escuro lê como
+     profundidade. E mais abertas, para a borda do cartão dissolver
+     em vez de terminar seca. */
+  --sh-1:0 1px 2px rgba(4,11,22,.28);
+  --sh-2:0 10px 30px rgba(4,11,22,.30);
+  --sh-3:0 20px 56px rgba(4,11,22,.44);
   --glow-gold:0 0 0 1px var(--stroke-gold), 0 10px 34px rgba(194,162,80,.16);
 
   /* Layout */
@@ -204,8 +256,11 @@ li{list-style:none}
   -webkit-mask-image:radial-gradient(75% 55% at 50% 0%,#000 0%,transparent 78%);
   mask-image:radial-gradient(75% 55% at 50% 0%,#000 0%,transparent 78%);
 }
+/* Grão bem mais discreto. Textura ajuda um fundo a não parecer
+   chapado morto, mas acima de certo ponto ela vira sujeira — e
+   "clean" e "granulado" puxam para lados opostos. */
 .bg__noise{
-  position:absolute;inset:0;opacity:.16;mix-blend-mode:overlay;
+  position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
 }
 @keyframes drift1{
@@ -381,23 +436,24 @@ body.porta-aberta .shell{
 }
 
 /* ---------- 7. Superfícies de vidro ---------- */
-/* O cartão é uma superfície com cor própria recebendo luz de cima.
+/* Cor chapada, uma borda, uma sombra difusa. Nada mais.
 
-   Deixou de ser um véu translúcido: além de virar cinza (ver o
-   bloco de tokens), o desfoque de fundo custava caro em celular
-   modesto — cada cartão da lista forçava o navegador a recompor
-   tudo o que estava atrás. Opaco, a rolagem fica lisa. */
+   O que saiu daqui e por quê:
+     • o degradê dourado — acinzentava o topo (39% → 21%);
+     • o fio branco no alto (`::before`) — era a aresta mais dura
+       da tela, e brilho de fio é justamente o que impede um
+       cartão de parecer calmo;
+     • o brilho interno `--luz-fio` — mesma coisa, por dentro;
+     • o desfoque de fundo — invisível sob cor opaca e caro em
+       celular modesto: cada cartão da lista obrigava o navegador
+       a recompor tudo o que estava atrás. */
 .card{
   position:relative;
-  background:var(--luz),var(--surf);
+  background:var(--surf);
   border:1px solid var(--stroke);
   border-radius:var(--r-lg);
-  box-shadow:var(--sh-2),var(--luz-fio);
+  box-shadow:var(--sh-2);
   overflow:hidden;
-}
-.card::before{
-  content:"";position:absolute;top:0;left:12%;right:12%;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,226,178,.3),transparent);
 }
 .card--pad{padding:20px}
 
@@ -536,11 +592,14 @@ input[type=checkbox]{accent-color:var(--gold)}
   position:relative;overflow:hidden;
   border-radius:var(--r-xl);
   padding:26px 22px 28px;
-  /* Base quase lisa: quem desenha o painel são as manchas de luz
-     do ::before. Um degradê forte aqui competiria com elas. */
-  background:linear-gradient(158deg,#20344a,#172840);
+  /* O hero é a ÚNICA superfície que ainda tem degradê e mancha
+     dourada, e isso é proposital: ele aparece uma vez por tela,
+     não trinta. Num painel grande e único, o degradê lê como
+     ambiente; repetido em cada cartão de lista, leria como ruído.
+     É onde a temperatura da marca cabe sem sujar nada. */
+  background:linear-gradient(158deg,#26374c,#1a2b3e);
   border:1px solid var(--stroke);
-  box-shadow:var(--sh-3),var(--luz-fio);
+  box-shadow:var(--sh-3);
 }
 /* Textura "aurora com grão": manchas difusas de luz, e granulado
    fino por cima. Sem nenhuma forma geométrica.
@@ -556,13 +615,13 @@ input[type=checkbox]{accent-color:var(--gold)}
     /* A lâmpada: mancha quente alta e à direita, como luz de
        abajur entrando no canto do ambiente. É o que faz o painel
        de boas-vindas parecer acolhedor em vez de institucional. */
-    radial-gradient(65% 95% at 76% 4%,rgba(226,178,104,.34),transparent 64%),
-    radial-gradient(75% 100% at 8% 96%,rgba(38,72,106,.6),transparent 66%),
-    radial-gradient(45% 70% at 96% 88%,rgba(29,54,80,.7),transparent 70%);
+    radial-gradient(65% 95% at 76% 4%,rgba(226,178,104,.2),transparent 66%),
+    radial-gradient(75% 100% at 8% 96%,rgba(38,72,106,.5),transparent 68%),
+    radial-gradient(45% 70% at 96% 88%,rgba(29,54,80,.6),transparent 72%);
 }
 .hero::after{
   content:"";position:absolute;inset:0;pointer-events:none;
-  opacity:.42;mix-blend-mode:overlay;
+  opacity:.22;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
 }
 .hero>*{position:relative;z-index:1}
@@ -597,11 +656,14 @@ input[type=checkbox]{accent-color:var(--gold)}
    O único bloco da tela inicial em que o cliente já fez a parte
    dele e ainda assim precisa voltar. Por isso tem cor própria:
    fica no topo, e não se confunde com o que ainda nem começou. */
+/* Também chapado. O vermelho aqui é sinal, não decoração: uma
+   cor só, sustentada pela borda. Degradê deixaria a metade de
+   baixo indistinguível de um cartão comum, e aí o aviso perderia
+   justamente a função de avisar. */
 .card--atencao{
-  background:linear-gradient(180deg,rgba(232,138,131,.13),rgba(232,138,131,.03) 60%),var(--surf);
+  background:#3e2a28;   /* mesmo matiz do --danger, bem dessaturado */
   border-color:var(--danger-br);
 }
-.card--atencao::before{background:linear-gradient(90deg,transparent,rgba(232,138,131,.45),transparent)}
 .atencao__cab{display:flex;gap:12px;padding:17px 18px 15px;align-items:flex-start}
 .atencao__icone{
   flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
@@ -726,12 +788,14 @@ input[type=checkbox]{accent-color:var(--gold)}
    ainda falta. Volta ao normal ao passar o mouse ou ao abrir, para
    continuar consultável. */
 .group--pronto{background:var(--surf-baixo);border-color:var(--stroke-fraco);box-shadow:var(--sh-1)}
-.group--pronto::before{opacity:0}
 .group--pronto .group__icon,.group--pronto .group__title{opacity:.72}
+/* A barra cheia e dourada era o objeto mais brilhante da lista
+   justamente no grupo já resolvido — puxava o olho para o único
+   lugar que não precisa de nada. */
+.group--pronto .pbar__fill{opacity:.4}
 .group--pronto:hover,.group--pronto[data-open="true"]{
-  background:var(--luz),var(--surf);border-color:var(--stroke);box-shadow:var(--sh-2),var(--luz-fio);
+  background:var(--surf);border-color:var(--stroke);box-shadow:var(--sh-2);
 }
-.group--pronto:hover::before,.group--pronto[data-open="true"]::before{opacity:1}
 .group--pronto:hover .group__icon,.group--pronto:hover .group__title,
 .group--pronto[data-open="true"] .group__icon,.group--pronto[data-open="true"] .group__title{opacity:1}
 .group__chev{color:var(--txt-4);transition:transform .3s var(--ease-out);flex:none}
