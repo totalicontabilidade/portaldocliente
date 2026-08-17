@@ -437,7 +437,34 @@
         'Leva poucos minutos para começar.</p>' +
     '</section>' +
 
-    trilhaHTML({ titulo: "Como vai funcionar", clicavel: false }) +
+    /* O aceite vem ANTES de tudo o que é explicação. Embaixo da
+       página, ele virava um detalhe no fim de um texto longo e o
+       cliente ficava parado sem saber o que fazer. Aqui é a
+       primeira coisa depois da saudação, e diz em voz alta o que
+       fazer. */
+    '<section class="section">' +
+      '<div class="card card--pad aceite">' +
+        '<div class="eyebrow">Só falta isto</div>' +
+        '<h2 class="aceite__titulo">Um passo para liberar seu portal</h2>' +
+
+        '<label class="aceite__caixa" for="aceiteLgpd">' +
+          '<input type="checkbox" id="aceiteLgpd" class="aceite__check">' +
+          '<span class="aceite__txt">' +
+            '<span class="aceite__chamada">' + ic("ic-check") +
+              'Clique aqui para concordar e prosseguir</span>' +
+            '<span class="aceite__lei">Li e concordo que a ' + U.esc(DATA.ORG.nome) +
+              ' trate os dados e documentos que eu enviar para a prestação dos serviços ' +
+              'contábeis, conforme a Lei Geral de Proteção de Dados. ' +
+              '<a href="#/privacidade" data-rota="privacidade">Ler a política completa</a>.</span>' +
+          '</span>' +
+        '</label>' +
+
+        '<button type="button" class="btn btn--gold btn--block aceite__btn" id="btnComecar" disabled>' +
+          'Começar' + ic("ic-arrow-right") +
+        '</button>' +
+        '<p class="aceite__dica" id="aceiteDica">Marque a caixa acima para liberar o botão.</p>' +
+      '</div>' +
+    '</section>' +
 
     '<section class="section">' +
       '<div class="notice notice--info">' +
@@ -449,26 +476,27 @@
       '</div>' +
     '</section>' +
 
-    '<section class="section">' +
-      '<div class="card card--pad">' +
-        '<label class="row" style="align-items:flex-start;gap:11px;cursor:pointer">' +
-          '<input type="checkbox" id="aceiteLgpd" style="width:20px;height:20px;margin-top:2px;flex:none">' +
-          '<span class="text-sm" style="color:var(--txt-2);line-height:1.6">Li e concordo que a ' +
-            U.esc(DATA.ORG.nome) + ' trate os dados e documentos que eu enviar para a prestação dos ' +
-            'serviços contábeis, conforme a Lei Geral de Proteção de Dados. ' +
-            '<a href="#/privacidade" data-rota="privacidade">Ler a política completa</a>.</span>' +
-        '</label>' +
-        '<button type="button" class="btn btn--primary btn--block" id="btnComecar" style="margin-top:16px" disabled>' +
-          'Começar' + ic("ic-arrow-right") +
-        '</button>' +
-      '</div>' +
-    '</section>';
+    trilhaHTML({ titulo: "Como vai funcionar", clicavel: false });
   }
 
   function bindBoasVindas() {
     var chk = $("#aceiteLgpd"), btn = $("#btnComecar");
     if (!chk || !btn) return;
-    chk.addEventListener("change", function () { btn.disabled = !chk.checked; });
+
+    var dica = $("#aceiteDica");
+    var caixa = chk.closest(".aceite__caixa");
+
+    var refletir = function () {
+      btn.disabled = !chk.checked;
+      if (caixa) caixa.classList.toggle("aceite__caixa--on", chk.checked);
+      if (dica) {
+        dica.textContent = chk.checked
+          ? "Pronto. Toque em Começar."
+          : "Marque a caixa acima para liberar o botão.";
+      }
+    };
+    chk.addEventListener("change", refletir);
+    refletir();
     btn.addEventListener("click", function () {
       if (!chk.checked) return;
       Store.commit(function (st) { st.aceiteLGPD = Date.now(); }, "aceite");

@@ -1803,3 +1803,58 @@ body.tour-aberto{overscroll-behavior:contain}
 .pend__setorCab .group__chev .ic{transition:transform .3s var(--ease-out)}
 .pend__setor[data-open="true"] .group__chev .ic{transform:rotate(180deg);color:var(--gold-2)}
 .pend__setor .item{padding-left:24px}
+
+/* ============================================================
+   Aceite da política — primeira decisão do cliente
+
+   Estava no fim da página, depois de toda a explicação, e virava
+   um detalhe fácil de não ver. Quem chega no portal precisa de
+   um alvo óbvio: "clique aqui e siga". Por isso o bloco tem
+   borda dourada, área de toque grande e uma frase que diz o que
+   fazer, não o que a lei diz.
+   ============================================================ */
+.aceite{
+  border-color:var(--stroke-gold);
+  background:linear-gradient(150deg,rgba(194,162,80,.12),rgba(26,49,73,.5));
+  box-shadow:var(--sh-2), 0 0 0 1px var(--stroke-gold);
+}
+.aceite__titulo{font-size:19px;font-weight:680;color:var(--txt);margin:8px 0 16px;line-height:1.3}
+
+.aceite__caixa{
+  display:flex;align-items:flex-start;gap:13px;cursor:pointer;
+  padding:15px;border-radius:var(--r);
+  border:1px solid var(--stroke-2);background:rgba(255,255,255,.05);
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.aceite__caixa:hover{border-color:var(--stroke-gold);background:rgba(255,255,255,.08)}
+.aceite__caixa--on{
+  border-color:var(--gold);
+  background:linear-gradient(140deg,rgba(92,195,148,.12),rgba(194,162,80,.08));
+}
+.aceite__check{
+  width:26px;height:26px;flex:none;margin-top:1px;cursor:pointer;
+  accent-color:var(--gold);
+}
+.aceite__txt{flex:1;min-width:0}
+.aceite__chamada{
+  display:flex;align-items:center;gap:8px;
+  font-size:15.5px;font-weight:700;color:var(--gold-2);line-height:1.35;
+}
+.aceite__chamada .ic{
+  width:18px;height:18px;flex:none;
+  opacity:.55;transition:opacity .2s var(--ease),color .2s var(--ease);
+}
+.aceite__caixa--on .aceite__chamada{color:var(--ok)}
+.aceite__caixa--on .aceite__chamada .ic{opacity:1;color:var(--ok)}
+.aceite__lei{
+  display:block;font-size:12.5px;color:var(--txt-3);line-height:1.6;margin-top:7px;
+}
+.aceite__btn{margin-top:16px;height:50px;font-size:15.5px}
+.aceite__dica{
+  font-size:12.5px;color:var(--txt-4);text-align:center;margin-top:10px;
+}
+
+@media (max-width:400px){
+  .aceite__chamada{font-size:14.5px}
+  .aceite__caixa{padding:13px}
+}
