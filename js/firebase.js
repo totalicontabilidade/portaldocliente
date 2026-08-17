@@ -215,11 +215,17 @@
          de gravar, em vez de esbarrar num "sem permissão". */
       .then(function (usuario) {
         uid = usuario.uid;
-        var ref = db.collection("empresas").doc(convite.empresaId)
-                    .collection("acessos").doc(uid);
-        return ref.get().then(function (doc) {
-          if (doc.exists) return null;
-          return ref.set({ codigo: convite.codigo, em: agora() });
+        /* Mesma armadilha do login: sem esperar a credencial
+           chegar ao Firestore, a primeira gravação do cadastro
+           volta negada e o cliente recém-criado não consegue
+           entrar na própria empresa. */
+        return aguardarCredencial().then(function () {
+          var ref = db.collection("empresas").doc(convite.empresaId)
+                      .collection("acessos").doc(uid);
+          return ref.get().then(function (doc) {
+            if (doc.exists) return null;
+            return ref.set({ codigo: convite.codigo, em: agora() });
+          });
         });
       })
       .then(function () {
@@ -258,10 +264,39 @@
       });
   }
 
+  /* ============================================================
+     Esperar a credencial chegar ao Firestore
+
+     Entrar na conta e ler o banco são duas coisas diferentes, e a
+     segunda não acontece só porque a primeira deu certo. O
+     Authentication devolve o login pronto, mas o cliente do
+     Firestore continua usando a credencial que tinha antes — e
+     todas as leituras voltam NEGADAS. Medido em teste: mais de
+     dez segundos seguidos de `permission-denied` logo depois de um
+     login bem-sucedido, com o uid certo e a regra certa.
+
+     Pedir o token com `true` força a renovação e, de quebra, faz o
+     Firestore adotar a credencial nova. Na medição, a leitura que
+     vinha falhando havia dez segundos passou na tentativa
+     seguinte.
+
+     Custa uma ida à rede, uma vez por login. É barato perto de
+     dizer ao cliente que a empresa dele não existe.
+     ============================================================ */
+  function aguardarCredencial() {
+    var u = auth && auth.currentUser;
+    if (!u) return Promise.resolve();
+    return u.getIdToken(true).then(function () {}, function () { /* segue mesmo assim */ });
+  }
+
   function entrarComoCliente(email, senha) {
     if (!auth || !db) return Promise.reject(new Error("sem-conexao"));
     return auth.signInWithEmailAndPassword(String(email).trim(), String(senha))
-      .then(function (cred) { return descobrirEmpresa(cred.user.uid); });
+      .then(function (cred) {
+        return aguardarCredencial().then(function () {
+          return descobrirEmpresa(cred.user.uid);
+        });
+      });
   }
 
   /* ============================================================
@@ -280,34 +315,88 @@
      para o campo único de sempre e segue funcionando. Quando der
      certo, ela se conserta sozinha no login seguinte.
      ============================================================ */
-  function empresaDoCampoUnico(ref) {
-    return ref.get().then(function (doc) {
-      if (!doc.exists) return [];
-      var id = String((doc.data() || {}).empresaId || "");
-      return id ? [id] : [];
-    }, function () { return []; });
+  /* NÃO CONFUNDIR "não achei" COM "não consegui ler".
+
+     Este era um bug de verdade, reproduzido em teste: quem saía da
+     conta e entrava de novo às vezes recebia "esta conta ainda não
+     está ligada a nenhuma empresa" — a mensagem mais assustadora
+     possível, e falsa: a empresa estava lá, intacta.
+
+     A causa é uma corrida. O login resolve, o portal lê o índice no
+     instante seguinte, e o Firestore ainda pode estar operando com
+     a sessão ANTERIOR (a que acabou de sair). A leitura volta
+     negada. Como o código antigo transformava qualquer falha em
+     lista vazia, "negado" virava "não tem empresa".
+
+     Agora as duas leituras dizem se FALHARAM, e falha ganha nova
+     tentativa. Lista vazia só é aceita quando as duas leituras
+     deram certo e realmente não acharam nada. Se insistir e
+     continuar falhando, o erro é outro — e o texto na tela também.
+
+     Cada função devolve {ids, falhou}. */
+  function esperar(ms) {
+    return new Promise(function (r) { setTimeout(r, ms); });
   }
+
+  function lerIndiceDeEmpresas(ref) {
+    return ref.collection("empresas").get().then(function (snap) {
+      var ids = [];
+      snap.forEach(function (d) { ids.push(d.id); });
+      return { ids: ids, falhou: false };
+    }, function () {
+      return { ids: [], falhou: true };
+    });
+  }
+
+  /* Cliente de antes do multiempresa: um campo só, na raiz. */
+  function lerCampoUnico(ref) {
+    return ref.get().then(function (doc) {
+      if (!doc.exists) return { ids: [], falhou: false };
+      var id = String((doc.data() || {}).empresaId || "");
+      return { ids: id ? [id] : [], falhou: false };
+    }, function () {
+      return { ids: [], falhou: true };
+    });
+  }
+
+  var TENTATIVAS_INDICE = 3;
+  var ESPERA_ENTRE_TENTATIVAS = 350;
 
   function empresasDoCliente(uid) {
     if (!db) return Promise.reject(new Error("sem-conexao"));
     var ref = db.collection("clientes").doc(uid);
 
-    return ref.collection("empresas").get().then(function (snap) {
-      var ids = [];
-      snap.forEach(function (d) { ids.push(d.id); });
-      if (ids.length) return ids;
+    function tentar(restam) {
+      return lerIndiceDeEmpresas(ref).then(function (novo) {
+        if (novo.ids.length) return novo.ids;
 
-      /* Cliente de antes do multiempresa: traz para o formato
-         novo sem pedir nada a ele. */
-      return empresaDoCampoUnico(ref).then(function (antigas) {
-        antigas.forEach(function (id) {
-          ref.collection("empresas").doc(id).set({ em: agora() }).catch(function () {});
+        return lerCampoUnico(ref).then(function (antigo) {
+          if (antigo.ids.length) {
+            /* Achou no formato velho: traz para o novo sem pedir
+               nada ao cliente. Se a gravação falhar, tudo bem —
+               ele entra do mesmo jeito e tenta de novo depois. */
+            antigo.ids.forEach(function (id) {
+              ref.collection("empresas").doc(id).set({ em: agora() }).catch(function () {});
+            });
+            return antigo.ids;
+          }
+
+          if (!novo.falhou && !antigo.falhou) return [];   /* vazio de verdade */
+          if (restam > 0) {
+            /* Renova a credencial antes de insistir: tentar de
+               novo com o mesmo token velho daria o mesmo "negado"
+               três vezes seguidas — foi o que aconteceu na
+               primeira versão desta correção. */
+            return aguardarCredencial()
+              .then(function () { return esperar(ESPERA_ENTRE_TENTATIVAS); })
+              .then(function () { return tentar(restam - 1); });
+          }
+          throw new Error("leitura-falhou");
         });
-        return antigas;
       });
-    }, function () {
-      return empresaDoCampoUnico(ref);
-    });
+    }
+
+    return tentar(TENTATIVAS_INDICE);
   }
 
   /* Em que empresa este usuário entra. Continua devolvendo uma
@@ -354,6 +443,8 @@
     "convite-inexistente": "Este link não é válido. Peça um novo à Totali.",
     "convite-usado": "Este link já foi usado para criar um acesso. Entre com seu e-mail e senha, ou peça um novo link à Totali.",
     "sem-empresa": "Esta conta ainda não está ligada a nenhuma empresa. Abra o link de convite que a Totali enviou.",
+    "leitura-falhou": "Entramos na sua conta, mas não conseguimos consultar a sua empresa agora. " +
+                      "Toque em Entrar de novo — seus documentos estão guardados e não se perderam.",
     "auth/email-already-in-use": "Já existe uma conta com este e-mail. Entre com sua senha ou use \"Esqueci minha senha\".",
     "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
     "auth/missing-password": "Digite uma senha.",

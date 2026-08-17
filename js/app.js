@@ -2584,10 +2584,25 @@
   /* Enquanto o cliente não aceitou os termos, as telas livres
      precisam de um caminho de volta — o menu está bloqueado. */
   function voltarBoasVindas() {
+    /* Na tela de entrada quem desenha o botão de volta é o
+       render, com o texto certo para aquele contexto. Aqui sairia
+       um segundo botão dizendo só "Voltar". */
+    if (porta.modo) return "";
     if (Store.estado.aceiteLGPD) return "";
     return '<div style="margin-bottom:14px">' +
       '<button type="button" class="btn btn--ghost btn--sm" data-rota="boas-vindas">' +
         ic("ic-chevron-right", "gira180") + 'Voltar</button></div>';
+  }
+
+  /* Volta da política ou da ajuda para a tela de login.
+
+     Serve qualquer rota que NÃO esteja liberada durante a porta:
+     o render vê o modo porta ligado e desenha o formulário de
+     entrada de novo. "inicio" é a mais óbvia de ler no código. */
+  function voltarParaEntradaHTML() {
+    return '<div style="margin-bottom:14px">' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-rota="inicio">' +
+        ic("ic-chevron-right", "gira180") + 'Voltar para a entrada</button></div>';
   }
 
   /* ---------- Rodapé ---------- */
@@ -2752,19 +2767,52 @@
     var alvo = $("#view");
     var html;
 
-    /* Cadastro ou login pendente vence qualquer rota. */
+    /* Cadastro ou login pendente vence qualquer rota — com duas
+       exceções.
+
+       Antes não havia exceção nenhuma, e isso quebrava o link
+       "Privacidade e segurança" do rodapé da tela de entrada: o
+       clique trocava o endereço, o desenho recomeçava, o modo
+       porta continuava ligado e a mesma tela de login aparecia de
+       novo. Para quem clicava, o link simplesmente não fazia
+       nada.
+
+       Política de privacidade e ajuda são justamente o que
+       alguém precisa ler ANTES de entrar, ou quando não consegue
+       entrar. Elas abrem, com um botão de voltar para a entrada.
+       Qualquer outra rota continua caindo na porta. */
     if (porta.modo) {
+      document.body.classList.add("porta-aberta");
+
+      var livreNaPorta = rota === "privacidade" || rota === "ajuda";
       alvo.className = "view";
-      alvo.innerHTML = portaHTML();
+
+      if (livreNaPorta) {
+        alvo.innerHTML = voltarParaEntradaHTML() +
+                         (rota === "privacidade" ? viewPrivacidade() : viewAjuda());
+      } else {
+        alvo.innerHTML = portaHTML();
+      }
+
       $$("#view > *").forEach(function (n) { n.classList.add("reveal"); });
       if (global.Motion) global.Motion.aplicar(alvo);
-      document.title = (porta.modo === "cadastro" ? "Criar acesso" : "Entrar") +
-                       " · Portal do Cliente · " + DATA.ORG.curto;
+
+      document.title = (livreNaPorta
+        ? (rota === "privacidade" ? "Privacidade e segurança" : "Ajuda")
+        : (porta.modo === "cadastro" ? "Criar acesso" : "Entrar")) +
+        " · Portal do Cliente · " + DATA.ORG.curto;
+
       atualizarCabecalho();
       atualizarNav("");
-      bindPorta();
+      if (livreNaPorta) {
+        if (rota === "ajuda") bindAjuda();
+        if (rota === "privacidade") bindPrivacidade();
+      } else {
+        bindPorta();
+      }
       return;
     }
+    document.body.classList.remove("porta-aberta");
 
     switch (rota) {
       case "boas-vindas": html = viewBoasVindas(); break;

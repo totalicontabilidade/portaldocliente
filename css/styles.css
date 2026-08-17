@@ -327,6 +327,23 @@ html.motion .reveal.is-in{
 .view{animation:viewIn .4s var(--ease-out)}
 .sidenav{display:none}
 
+/* ---------- Tela de entrada ----------
+   Sem sessão não há para onde o menu levar: todo item cairia de
+   volta no formulário de login. Mostrar sete atalhos mortos ao
+   lado da caixa de senha só dá o que ignorar. Na entrada fica a
+   marca, o formulário e o rodapé — nada mais.
+
+   O `!important` é o jeito de vencer o `display:block` que a
+   consulta de largura devolve à barra lateral no desktop, sem
+   duplicar esta regra dentro de cada media query. */
+body.porta-aberta .sidenav,
+body.porta-aberta .tabbar{display:none !important}
+body.porta-aberta .shell{
+  display:block;
+  grid-template-columns:none;
+  padding-bottom:34px;
+}
+
 /* Barra inferior (celular) */
 .tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:60;
