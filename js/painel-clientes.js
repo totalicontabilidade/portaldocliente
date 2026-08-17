@@ -57,7 +57,13 @@
       raiz.collection("socios").get(),
       raiz.collection("mensagens").get(),
       raiz.collection("financeiro").get(),
-      raiz.collection("acessos").get()
+      raiz.collection("acessos").get(),
+      /* Convites em aberto desta empresa. Cada um é uma chave que
+         ainda abre a porta — precisa estar visível e poder ser
+         revogado, senão um link vazado só morre apagando a
+         empresa inteira. */
+      FB.db.collection("convites").where("empresaId", "==", id).get()
+        .catch(function () { return { forEach: function () {} }; })
     ]).then(function (r) {
       var itens = {};
       r[1].forEach(function (d) { itens[global.Nuvem.decodificar(d.id)] = d.data() || {}; });
@@ -97,9 +103,17 @@
         acessos.push({ uid: d.id, em: a.em, codigo: a.codigo || "" });
       });
 
+      var convites = [];
+      r[6].forEach(function (d) {
+        var v = d.data() || {};
+        if (v.ativo !== true) return;   /* usado já não abre nada */
+        convites.push({ codigo: d.id, criadoEm: v.criadoEm });
+      });
+
       return {
         id: id,
         acessos: acessos,
+        convites: convites,
         empresa: r[0].exists ? (r[0].data() || {}) : {},
         dados: {
           itens: itens, socios: socios, gruposNA: gruposNA,
@@ -1103,14 +1117,19 @@
      abrindo um convite. */
   function acessoHTML(c) {
     var acessos = c.acessos || [];
+    var convites = c.convites || [];
 
     return bloco({
       id: "acesso", icone: "ic-lock", titulo: "Acesso ao portal",
-      resumo: acessos.length
+      resumo: (acessos.length
         ? acessos.length + " " + U.plural(acessos.length, "acesso criado", "acessos criados")
-        : "Ninguém abriu o link de convite ainda",
-      selo: acessos.length ? "" : "Sem acesso",
-      seloCls: "badge--pendente",
+        : "Ninguém abriu o link de convite ainda") +
+        (convites.length ? " · " + convites.length + " " +
+          U.plural(convites.length, "link em aberto", "links em aberto") : ""),
+      selo: convites.length
+        ? convites.length + " " + U.plural(convites.length, "link ativo", "links ativos")
+        : (acessos.length ? "" : "Sem acesso"),
+      seloCls: convites.length ? "badge--analise" : "badge--pendente",
       corpo: function () {
         return (acessos.length
           ? acessos.map(function (a) {
@@ -1120,6 +1139,33 @@
           : '<p class="text-sm text-muted">Este cliente ainda não criou o acesso dele. ' +
             'Gere um link e envie — ao abrir, ele define a senha e passa a entrar por ' +
             'e-mail e senha.</p>') +
+
+        /* Link em aberto é porta destrancada: enquanto não for
+           usado, quem tiver o endereço entra. Por isso ele fica
+           listado, com data e botão de revogar. */
+        (convites.length
+          ? '<hr class="hr">' +
+            '<div class="notice notice--warn" style="margin-bottom:12px">' +
+              '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+              '<span><strong>' + convites.length + ' ' +
+              U.plural(convites.length, "link ainda não foi usado", "links ainda não foram usados") +
+              '.</strong> Enquanto isso, quem tiver o endereço consegue criar o acesso desta ' +
+              'empresa. Revogue os que você não enviou ou que já se perderam.</span>' +
+            '</div>' +
+            convites.map(function (v) {
+              return '<div class="ficha__linha">' +
+                '<span class="ficha__rot">Link gerado em</span>' +
+                '<span class="ficha__val">' +
+                  U.esc(v.criadoEm && v.criadoEm.seconds
+                    ? U.dataHora(v.criadoEm.seconds * 1000) : "data não registrada") +
+                  ' <button type="button" class="btn btn--quiet btn--sm" ' +
+                    'data-revogar-convite="' + U.escAttr(v.codigo) + '" ' +
+                    'style="margin-left:10px">Revogar</button>' +
+                '</span>' +
+              '</div>';
+            }).join("")
+          : '') +
+
         '<div class="row" style="margin-top:14px">' +
           '<button type="button" class="btn btn--primary btn--sm" data-novo-link="' +
             U.escAttr(c.id) + '">' + ic("ic-send") +
@@ -1130,6 +1176,26 @@
           'lugar. Serve quando ninguém abriu o primeiro link, quando muda a pessoa ' +
           'responsável na empresa, ou para refazer um acesso perdido.</p>';
       }
+    });
+  }
+
+  function revogarConvite(codigo) {
+    var c = aberto;
+    if (!c) return;
+    UI.confirmar({
+      titulo: "Revogar link",
+      mensagem: "O link para de funcionar na hora. Quem já criou o acesso continua entrando " +
+                "normalmente — isso só cancela o convite que ainda não foi usado.",
+      confirmar: "Revogar", perigo: true
+    }).then(function (ok) {
+      if (!ok) return;
+      FB.db.collection("convites").doc(codigo).delete().then(function () {
+        c.convites = (c.convites || []).filter(function (v) { return v.codigo !== codigo; });
+        desenharFicha();
+        UI.toast("Link revogado.", "ok");
+      }, function (e) {
+        UI.toast("Não foi possível revogar: " + FB.explicar(e), "erro", 9000);
+      });
     });
   }
 
@@ -1165,9 +1231,12 @@
 
       /* Recarrega o cliente: o convite novo ainda não virou
          acesso, mas a equipe deve ver o estado real ao voltar. */
+      /* O link novo entra na lista de convites em aberto na
+         hora — senão a equipe não veria a porta que acabou de
+         destrancar. */
       carregarCliente(c.id).then(function (novo) {
         empresas = empresas.map(function (x) { return x.id === c.id ? novo : x; });
-        if (aberto && aberto.id === c.id) { aberto = novo; }
+        if (aberto && aberto.id === c.id) { aberto = novo; desenharFicha(); }
       }, function () {});
     }, function (e) {
       var msg = e && e.message === "endereco-invalido"
@@ -1848,6 +1917,9 @@
 
       var exc = alvo.closest("[data-excluir]");
       if (exc) { var ex = acharEmpresa("data-excluir", exc); if (ex) pedirExclusao(ex); return; }
+
+      var rv = alvo.closest("[data-revogar-convite]");
+      if (rv) { revogarConvite(rv.getAttribute("data-revogar-convite")); return; }
 
       var nl = alvo.closest("[data-novo-link]");
       if (nl) {
