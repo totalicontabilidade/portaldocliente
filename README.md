@@ -17,27 +17,35 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Checklist por departamento (5 áreas) | pronto |
 | Envio de arquivos com validação | pronto |
 | Cadastro da empresa e dos sócios | pronto |
-| Cadastro criado pela Totali (link de convite) | pronto (`equipe.html`) |
+| Cadastro criado pela Totali (link de convite) | pronto |
+| Login do cliente com e-mail e senha | pronto |
+| Banco de dados e arquivos no servidor | pronto (Firestore + Storage) |
 | PWA instalável e funcionamento offline | pronto |
 | Modelo de dados multiempresa (`empresaId`) | pronto |
-| Ciclo de revisão (análise / aprovado / pendência) | modelo e tela do cliente prontos |
-| Mensagens cliente ↔ equipe | tela do cliente pronta |
+| Ciclo de revisão (análise / aprovado / pendência) | pronto nos dois lados |
+| Mensagens cliente ↔ equipe | pronto nos dois lados |
+| Senhas cifradas ponta a ponta | pronto |
+| Tutorial guiado no portal do cliente | pronto |
+| Painel da equipe em abas | pronto (`equipe.html`) |
+| Painel: clientes, pendências, mensagens, conteúdo, chaves | pronto |
+| Cobrança do que falta, pelo painel | pronto (envio manual) |
+| Etapas clicáveis com liberação progressiva | pronto |
+| Checklist financeiro trazido para dentro | pronto, com termo em PDF |
+| Academy em destaque após o envio | pronto |
+| Trilhas da Academy | telas prontas, vídeos pendentes |
 | Avisos no aparelho (portal aberto ou em 2º plano) | pronto |
 | Push com o aplicativo fechado | pendente (Firebase Cloud Messaging) |
-| Trilha de auditoria | modelo pronto (ver ressalva abaixo) |
-| Trilhas da Academy | telas prontas, vídeos pendentes |
-| Painel interno da equipe | pendente (`equipe.html`) |
-| Login por empresa | pendente (Firebase Authentication) |
-| Banco de dados e armazenamento na nuvem | pendente (Firebase) |
-| Etapas clicáveis com liberação progressiva | pronto |
-| Checklist financeiro trazido para dentro | tela pronta; PDF do termo pendente |
-| Academy em destaque após o envio | pronto |
+| Trilha de auditoria | grava, mas sem valor probatório (ver ressalva) |
+| Cobrança automática por prazo | pendente (exige Cloud Functions) |
 | Dossiê de entrada em PDF | pendente |
-| Cobrança automática de pendências | pendente (Cloud Functions) |
 | Backup em pasta do computador da equipe | pendente |
 
-Enquanto o Firebase não entra, **tudo fica no aparelho do cliente**: o cadastro
-no `localStorage` e os arquivos no `IndexedDB`. Nada trafega pela internet.
+O que o cliente envia vai para o **servidor da Totali**, ligado à empresa dele:
+cadastro, sócios, mensagens e situação dos documentos no Firestore; arquivos no
+Storage. Uma cópia fica no aparelho (`localStorage` e `IndexedDB`) para o portal
+abrir rápido e continuar funcionando sem sinal — e **sair da conta apaga essa
+cópia**, para que o próximo a usar o computador não veja nada da empresa
+anterior.
 
 ---
 
@@ -45,20 +53,38 @@ no `localStorage` e os arquivos no `IndexedDB`. Nada trafega pela internet.
 
 ```
 index.html                 Portal do cliente
-equipe.html                Uso interno: gera o link de convite do cliente
+equipe.html                Painel da equipe (uso interno, com login)
 manifest.webmanifest       Metadados do aplicativo instalável
 sw.js                      Service worker (offline). Suba a VERSAO a cada release
+firestore.rules            Regras do banco — a proteção de verdade
+storage.rules              Regras dos arquivos
+
 css/styles.css             Design system completo (tema escuro)
+
 js/util.js                 Funções puras: escape, máscaras, validações, arquivos
-js/data.js                 CONTEÚDO: checklist, etapas, trilhas, FAQ
-js/store.js                Estado, persistência e cálculo de progresso
+js/data.js                 CONTEÚDO padrão: checklist, etapas, trilhas, FAQ
+js/conteudo.js             Conteúdo publicado pelo painel (sobrepõe o padrão)
+js/situacao.js             Situação e progresso — usado pelo cliente E pelo painel
+js/store.js                Estado e persistência
+js/nuvem.js                Gravação no servidor (Firestore + Storage)
+js/firebase.js             Conexão, login do cliente e da equipe
+js/cripto.js               Criptografia ponta a ponta das senhas
+js/chave-publica.js        Chave pública da Totali (a privada nunca entra aqui)
 js/ui.js                   Modal, toasts, ícones
+js/tour.js                 Tutorial guiado
 js/motion.js               Animações de entrada, contadores e anel de progresso
 js/notificacoes.js         Avisos no aparelho e ganchos para o push do Firebase
-js/app.js                  Rotas, telas e eventos
-js/equipe.js               Lógica do gerador de link (uso interno)
+js/termo.js                Termo de compromisso em PDF
+js/app.js                  Portal do cliente: rotas, telas e eventos
 js/pwa.js                  Instalação, service worker e proteções de contexto
-assets/                    Logo e ícones do aplicativo
+
+js/painel.js               Painel: abas, sessão e identidade de quem está usando
+js/painel-clientes.js      Painel: clientes, pendências e mensagens
+js/painel-conteudo.js      Painel: editor do conteúdo do portal
+js/equipe.js               Painel: cadastro de empresa, link de convite e chaves
+
+lib/                       Bibliotecas vendorizadas (Firebase e jsPDF)
+assets/                    Marca e ícones do aplicativo
 ```
 
 ### Onde mexer para cada coisa
@@ -183,9 +209,25 @@ o encaminhamento. Assim que é lido, o parâmetro é removido da barra de endere
 (`history.replaceState`). Se o link for de outra empresa e já houver dados no
 aparelho, nada é sobrescrito.
 
-`equipe.html` hoje **não tem login** e só monta o link — não acessa documento
-nem dado de cliente. Quando o Firebase entrar, ela vira o painel interno
-autenticado e o link passa a levar somente um código de convite.
+O link leva **apenas um código de convite**, que vale uma vez só: ao abri-lo, o
+cliente cria a própria senha, o portal registra o acesso e **queima o convite**.
+Link encaminhado ou vazado depois não dá acesso a ninguém. Daí em diante o
+cliente entra por e-mail e senha, de qualquer aparelho.
+
+`equipe.html` é o painel da equipe, com login próprio e organizado em abas:
+
+| Aba | Para quê |
+|---|---|
+| Clientes | Situação de cada um; ficha com documentos, sócios, financeiro e senhas |
+| Pendências | Só o que falta chegar, por empresa e por setor, com botão de cobrar |
+| Mensagens | Caixa de entrada de todas as conversas, com as não lidas em destaque |
+| Novo cliente | Cadastro da empresa e geração do link de convite |
+| Conteúdo do portal | Vídeos, trilhas, documentos, perguntas e textos — nada por código |
+| Chaves | Par de chaves do canal seguro e como guardar a chave privada |
+
+Na ficha, a equipe **aprova**, **pede correção com motivo** (o texto aparece
+para o cliente) ou tira a marcação. As senhas cifradas só abrem com a chave
+privada, carregada na hora e mantida apenas na memória da aba.
 
 ### Integração dos outros sistemas
 
@@ -205,9 +247,10 @@ Duas diferenças em relação ao original:
    segurança: saem embaralhadas do aparelho do cliente e só abrem com a chave
    privada da Totali. Recomende ao cliente um **perfil de consulta** na
    maquininha — baixa relatório sem permitir movimentar dinheiro.
-2. **O termo em PDF ainda não é gerado.** O original usa jsPDF via CDN, o que a
-   CSP daqui bloqueia de propósito. Ao portar, a biblioteca precisa ser
-   vendorizada em `lib/`, como já se faz no projeto Tina.
+2. **O termo em PDF é gerado aqui mesmo** (`js/termo.js`), com o jsPDF
+   vendorizado em `lib/` — a CSP bloqueia CDN de propósito. Os três relatórios
+   do compromisso aparecem na tela e no PDF, para o cliente não depender de ler
+   o documento inteiro.
 
 **Para integrar um sistema novo**, o caminho é sempre o mesmo: o conteúdo entra
 em `js/data.js`, o estado ganha um ramo em `estadoInicial()` com validação
@@ -331,18 +374,41 @@ dentro do iframe de outro site.
 **Estado adulterado é higienizado ao carregar** (`sanear()`, em `js/store.js`).
 O conteúdo do `localStorage` é sempre tratado como não confiável.
 
-**O cliente pode apagar tudo** pela tela de Privacidade — cadastro, sócios e
-arquivos, do `localStorage` e do `IndexedDB`.
+**Apagar dado de cliente é decisão da Totali, não do cliente.** O botão de
+apagar tudo saiu do portal por pedido da contabilidade: documento entregue faz
+parte do processo contábil e some por decisão da equipe. Sair da conta apaga a
+cópia local, nunca o que está no servidor.
 
-### Ao conectar o Firebase, ainda será preciso
+### O que protege de verdade: as regras
 
-1. Regras do Firestore e do Storage restringindo cada documento ao `uid` da
-   empresa dona (`request.auth.uid`). Sem isso, autenticar não protege nada.
-2. Limite de tamanho e de tipo **também** nas regras do Storage — a validação do
-   navegador é conveniência, não barreira.
-3. App Check, para impedir uso das credenciais fora do portal.
-4. Domínio próprio com HTTPS e o domínio autorizado no Firebase Authentication.
-5. Registro de quem acessou cada documento, para atender à LGPD.
+`firestore.rules` e `storage.rules` são a barreira real — a tela apenas esconde.
+O desenho não usa Cloud Functions, e o vínculo entre cliente e empresa nasce do
+convite:
+
+1. A equipe cadastra a empresa e gera um convite com código longo e sorteado.
+2. O cliente abre o link **uma vez**, cria a senha, e o portal registra
+   `empresas/{id}/acessos/{uid}` e `clientes/{uid}`, queimando o convite.
+3. Daí em diante, é a existência do documento de acesso que autoriza tudo.
+   Apagar esse documento corta o acesso na hora.
+
+Consequências assumidas, que precisam estar escritas:
+
+- **A trilha de auditoria é gravada pelo navegador**, então o cliente pode
+  inventar um evento. Serve para acompanhar e depurar; **não tem valor
+  probatório**. Vira prova quando for escrita pelo servidor.
+- **A cobrança automática por prazo não existe** — sem Cloud Functions não há
+  disparo agendado. A cobrança é montada pelo painel e enviada pela equipe.
+- **Apagar documento é só de administrador.** O cliente que remove um arquivo
+  deixa o registro vazio, e o histórico de conferência da equipe permanece.
+- **Credencial cifrada só admin lê.** Para o portal continuar sabendo que a
+  senha já foi enviada, guarda-se um recibo (quais campos, quando) sem nada do
+  conteúdo.
+
+### Ainda pendente na segurança
+
+1. **App Check**, para impedir uso das credenciais fora do portal.
+2. **Registro de acesso a documento** gravado pelo servidor, para a LGPD.
+3. **Domínio próprio com HTTPS** (o GitHub Pages já serve em HTTPS).
 
 ---
 
@@ -361,18 +427,63 @@ E acesse `http://localhost:8099`.
 
 ## Publicando no GitHub Pages
 
+### 1. Subir o código
+
 ```bash
-git remote add origin https://github.com/SEU-USUARIO/totali-onboarding.git
+git remote add origin https://github.com/totalicontabilidade/portal-cliente.git
 git push -u origin main
 ```
 
-Depois, no GitHub: **Settings → Pages → Source: Deploy from a branch → main /
-(root)**. O arquivo `.nojekyll` já está no repositório para que o Pages sirva os
-arquivos sem processamento.
+No GitHub: **Settings → Pages → Source: Deploy from a branch → main / (root)**.
+O `.nojekyll` já está no repositório, para o Pages servir os arquivos sem
+processar. Em um ou dois minutos o endereço responde:
 
-O endereço fica `https://SEU-USUARIO.github.io/totali-onboarding/`. Como
-`start_url` e `scope` do manifesto são relativos, o PWA funciona nesse subcaminho
-sem ajuste.
+```
+https://totalicontabilidade.github.io/portal-cliente/
+```
 
-**A cada alteração**, suba o número em `VERSAO` no `sw.js`. É o que faz o
-navegador do cliente buscar a versão nova em vez de servir a antiga do cache.
+Todos os caminhos do sistema são relativos, e `start_url` e `scope` do manifesto
+também — o PWA funciona nesse subcaminho sem ajuste nenhum.
+
+### 2. Liberar o domínio no Firebase — sem isto, ninguém entra
+
+**Authentication → Settings → Authorized domains → Add domain:**
+
+```
+totalicontabilidade.github.io
+```
+
+Sem esse passo o login falha com `auth/unauthorized-domain`, e o erro não diz o
+que fazer.
+
+### 3. Liberar o domínio no Storage (CORS)
+
+O CORS do bucket é uma **lista fechada**. Domínio de fora dela ainda abre o
+documento em outra aba, mas para de baixar os bytes: some a prévia de imagem no
+anexo e a cópia para uso sem internet.
+
+No Cloud Shell do Google, projeto `portaldocliente-8cc7d`:
+
+```bash
+printf '[{"origin":["https://totalicontabilidade.github.io"],"method":["GET"],"responseHeader":["Content-Type","Content-Disposition"],"maxAgeSeconds":3600}]' > cors.json && gcloud storage buckets update gs://portaldocliente-8cc7d.firebasestorage.app --cors-file=cors.json
+```
+
+**Refaça este passo a cada mudança de endereço do portal** — inclusive ao trocar
+para domínio próprio.
+
+### 4. Conferir, nesta ordem
+
+1. Abrir `https://.../portal-cliente/equipe.html` e entrar no painel.
+2. Conferir que o campo **Endereço do portal** já veio com o endereço
+   publicado. Ele ignora endereço salvo de outro servidor justamente para não
+   gerar link de `localhost` depois da publicação.
+3. Cadastrar uma empresa de teste e abrir o link em janela anônima.
+4. Criar o acesso, enviar um documento e sair da conta.
+5. Entrar de novo: tudo tem que estar lá.
+6. No celular, tocar em "Instalar" e conferir o ícone na tela de início.
+
+### A cada release
+
+Suba o número em `VERSAO` no `sw.js`. É o que faz o navegador do cliente buscar
+a versão nova em vez de servir a antiga do cache — sem isso, a correção não
+chega a quem já usou o portal.

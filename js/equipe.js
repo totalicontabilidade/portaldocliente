@@ -24,13 +24,27 @@
     return /^https?:\/\/[^\s]+$/i.test(String(url || "").trim());
   }
 
+  /* Mesma pasta desta página, trocando equipe.html por index.html */
+  function enderecoDaPagina() {
+    var daPagina = location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
+    return enderecoValido(daPagina) ? daPagina : "";
+  }
+
+  function mesmaOrigem(url) {
+    try { return new URL(url).origin === location.origin; } catch (e) { return false; }
+  }
+
   function enderecoPadrao() {
     var salvo = null;
     try { salvo = localStorage.getItem(CHAVE_BASE); } catch (e) { salvo = null; }
-    if (enderecoValido(salvo)) return salvo;
-    /* Mesma pasta desta página, trocando equipe.html por index.html */
-    var daPagina = location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
-    return enderecoValido(daPagina) ? daPagina : "";
+
+    /* O endereço salvo só vale se for do MESMO servidor em que o
+       painel está rodando agora. Sem isso, quem testou em
+       localhost e depois abriu o painel publicado continuaria
+       gerando links de localhost — que só abrem na máquina dele,
+       e o cliente receberia um link morto. */
+    if (enderecoValido(salvo) && mesmaOrigem(salvo)) return salvo;
+    return enderecoDaPagina();
   }
 
   function baseLimpa(base) {
