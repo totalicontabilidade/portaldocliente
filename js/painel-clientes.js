@@ -1829,28 +1829,88 @@
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
   }
 
+  /* Número no formato que o WhatsApp entende: só dígitos, com o
+     55 na frente. O campo do cliente vem mascarado. */
+  function numeroWhatsApp(telefone) {
+    var d = U.soDigitos(telefone);
+    if (d.length < 10) return "";
+    if (d.length <= 11) d = "55" + d;
+    return d;
+  }
+
+  function abrirNoWhatsApp(telefone, texto) {
+    var num = numeroWhatsApp(telefone);
+    if (!num) return false;
+    var a = document.createElement("a");
+    a.href = "https://wa.me/" + num + "?text=" + encodeURIComponent(texto);
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  }
+
   /* A cobrança serve tanto da ficha quanto da lista de
-     pendências, então mora fora das duas. */
+     pendências, então mora fora das duas.
+
+     Dois caminhos, porque servem a momentos diferentes: pelo
+     portal fica registrado na conversa e o cliente encontra
+     junto do checklist; pelo WhatsApp chega onde ele já olha.
+     O texto é o mesmo, e a equipe pode ajustar antes. */
   function abrirCobranca(c) {
     var texto = montarCobranca(c);
     if (!texto) { UI.toast("Este cliente não tem pendência para cobrar.", "ok"); return; }
+
+    var tel = c.empresa.responsavelTelefone || "";
+    var temZap = !!numeroWhatsApp(tel);
+
+    var acoes = [{ rotulo: "Cancelar", classe: "btn--ghost" }];
+    if (temZap) {
+      acoes.push({
+        rotulo: "Abrir no WhatsApp", classe: "btn--gold", fecharAntes: false,
+        onClick: function () {
+          var t = $("#cbTexto", m.caixa).value;
+          if (!abrirNoWhatsApp(tel, t)) {
+            UI.toast("Telefone do responsável inválido.", "erro");
+            return;
+          }
+          UI.fecharModal();
+          UI.toast("WhatsApp aberto. A mensagem não fica registrada no portal — se quiser " +
+                   "o registro, use também \"Enviar pelo portal\".", "", 11000);
+        }
+      });
+    }
+    acoes.push({
+      rotulo: "Enviar pelo portal", classe: "btn--primary",
+      onClick: function () { enviarMensagem($("#cbTexto", m.caixa).value, "", c); }
+    });
+
     var m = UI.modal({
       titulo: "Cobrar " + nomeDe(c),
       corpoHTML:
         '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
-          'A mensagem vai para a aba Mensagens do portal do cliente. Ajuste o texto se quiser.</p>' +
-        '<div class="field" style="margin-bottom:0">' +
+          'Ajuste o texto se quiser e escolha por onde enviar.</p>' +
+        '<div class="cobranca__vias">' +
+          '<div class="cobranca__via">' +
+            '<span class="cobranca__t">' + ic("ic-chat") + 'Pelo portal</span>' +
+            '<span class="cobranca__d">Fica registrado na conversa, junto do checklist.</span>' +
+          '</div>' +
+          '<div class="cobranca__via">' +
+            '<span class="cobranca__t">' + ic("ic-phone") + 'Pelo WhatsApp</span>' +
+            '<span class="cobranca__d">' +
+              (temZap
+                ? 'Vai para ' + U.esc(tel) + '. Abre o WhatsApp com o texto pronto — ' +
+                  'você confere e envia.'
+                : 'Indisponível: o cliente ainda não informou o telefone do responsável.') +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field" style="margin-bottom:0;margin-top:14px">' +
+          '<label class="field__label" for="cbTexto">Mensagem</label>' +
           '<textarea class="textarea" id="cbTexto" rows="10" style="font-size:13px"></textarea>' +
         '</div>',
-      acoes: [
-        { rotulo: "Cancelar", classe: "btn--ghost" },
-        {
-          rotulo: "Enviar cobrança", classe: "btn--primary",
-          onClick: function () {
-            enviarMensagem($("#cbTexto", m.caixa).value, "", c);
-          }
-        }
-      ]
+      acoes: acoes
     });
     $("#cbTexto", m.caixa).value = texto;
   }

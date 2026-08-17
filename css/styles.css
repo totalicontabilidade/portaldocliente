@@ -1858,3 +1858,20 @@ body.tour-aberto{overscroll-behavior:contain}
   .aceite__chamada{font-size:14.5px}
   .aceite__caixa{padding:13px}
 }
+
+/* As duas vias da cobrança, lado a lado — para a equipe escolher
+   sabendo o que muda em cada uma, não pelo nome do botão. */
+.cobranca__vias{display:grid;gap:10px}
+.cobranca__via{
+  padding:11px 13px;border-radius:12px;
+  border:1px solid var(--stroke);background:var(--glass);
+}
+.cobranca__t{
+  display:flex;align-items:center;gap:8px;
+  font-size:13.5px;font-weight:650;color:var(--txt);
+}
+.cobranca__t .ic{width:16px;height:16px;color:var(--gold-2);flex:none}
+.cobranca__d{
+  display:block;font-size:12.5px;color:var(--txt-3);line-height:1.55;margin-top:5px;
+}
+@media (min-width:520px){ .cobranca__vias{grid-template-columns:1fr 1fr} }
