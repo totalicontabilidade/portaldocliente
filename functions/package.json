@@ -1,0 +1,13 @@
+{
+  "name": "totali-portal-funcoes",
+  "description": "Funções do Portal do Cliente da Totali",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

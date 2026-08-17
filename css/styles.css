@@ -5,29 +5,60 @@
 
 /* ---------- 1. Tokens ---------- */
 :root{
-  /* Fundos — azul-noite da Totali em camadas.
-     O piso não é preto de propósito: quem cria desconforto em tema
-     escuro é a combinação de fundo quase preto com halo em volta
-     das letras, não o texto claro em si. Por isso o fundo sobe um
-     pouco e o texto continua nítido. */
-  /* O piso desceu e os cartões subiram, de propósito.
+  /* ============================================================
+     A NOITE LÁ FORA, A LUZ AQUI DENTRO
 
-     Antes o cartão tinha contraste de 1,12 com o fundo — a mesma
-     cor, na prática. A tela virava um campo azul contínuo, sem
-     hierarquia: o olho não tinha onde pousar e o cliente não
-     sabia o que era para olhar. Não é questão de gosto, é de
-     leitura.
+     O pedido foi um sistema que acolha — que passe paz, que dê
+     vontade de ficar. Três coisas ficaram no caminho, e cada
+     token abaixo responde a uma delas.
 
-     A correção mantém a identidade (azul-noite, escuro,
-     tecnológico) e mexe só na DISTÂNCIA entre as camadas:
-     fundo mais fundo, superfície mais clara, borda mais definida.
-     Medido depois: contraste de ~1,45 entre cartão e fundo. */
-  --bg-0:#091220;
-  --bg-1:#0e1a29;
-  --bg-2:#152538;
+     1. O cinza vinha de lavar azul com branco.
+        O cartão era um véu branco translúcido sobre o fundo azul.
+        Branco sobre azul não clareia o azul: ele DESSATURA. O
+        resultado media 21% de saturação contra 56% do fundo — quer
+        dizer, o cartão era literalmente mais cinza que a página.
+        Por isso agora cada camada tem cor PRÓPRIA e opaca, mais
+        clara E mais saturada que o piso. O cinza some pela raiz.
+
+     2. Acolhimento é temperatura, e temperatura é luz.
+        Azul puro lê como "clínico, corporativo, à distância" — é
+        o efeito que qualquer paleta fria carrega. Mas trocar o
+        azul por marrom mataria a identidade da Totali. A saída é
+        a mesma da vida real: à noite, o que aquece um ambiente
+        não é a cor da parede, é a lâmpada. Então o fundo continua
+        azul-noite (a rua lá fora) e cada superfície recebe uma
+        luz DOURADA vindo de cima (a lâmpada da sala). É o mesmo
+        dourado da marca, agora fazendo trabalho de iluminação em
+        vez de só enfeitar borda.
+
+     3. Texto branco-azulado esfria tudo.
+        Depois do fundo, o texto é a maior área de cor da tela.
+        Ele era #eaf1f8 — branco puxado para o azul. Passou a ser
+        um marfim quente. É a mudança que mais aquece a página e a
+        que menos mexe na identidade.
+
+     O que NÃO mudou, de propósito: continua escuro, continua
+     azul-noite, continua com grão e linha fina. Acolhedor não é
+     sinônimo de claro nem de infantil.
+     ============================================================ */
+
+  /* Piso — a noite. Fica embaixo de tudo e não recebe luz. */
+  --bg-0:#0a1522;
+  --bg-1:#0e1b2b;
+  --bg-2:#132538;
   --navy:#1a3149;
   --navy-2:#20405f;
   --navy-3:#2a4d70;
+
+  /* Superfícies — o que está iluminado.
+     Mais claras e MAIS SATURADAS que o piso (39% contra 55%), que
+     é o contrário do que acontecia antes. Medido: contraste de
+     1,38 entre cartão e fundo — o cartão existe sozinho, sem
+     depender da borda para ser percebido. */
+  --surf:#1e3145;
+  --surf-2:#25394f;
+  --surf-3:#2d465f;
+  --surf-baixo:#132335;   /* item já resolvido: recua */
 
   /* Marca */
   --gold:#c2a250;
@@ -35,25 +66,37 @@
   --gold-3:#ecdcb2;
   --gold-glow:rgba(194,162,80,.32);
 
-  /* Vidro */
-  --glass-fraco:rgba(255,255,255,.05);
-  --stroke-fraco:rgba(255,255,255,.09);
-  --glass:rgba(255,255,255,.115);
-  --glass-2:rgba(255,255,255,.155);
-  --glass-3:rgba(255,255,255,.20);
-  --stroke:rgba(255,255,255,.18);
-  --stroke-2:rgba(255,255,255,.28);
-  --stroke-gold:rgba(194,162,80,.4);
+  /* A luz. Sempre entra por cima, como lâmpada de teto.
+     `--luz` é o degradê que cai sobre cartões; `--luz-fio` é o
+     brilho de um fio só na aresta superior, que é o que faz o
+     olho ler "isto tem volume" em vez de "isto é um retângulo". */
+  --luz:linear-gradient(180deg,rgba(244,201,126,.085),rgba(244,201,126,0) 58%);
+  --luz-forte:linear-gradient(180deg,rgba(244,201,126,.13),rgba(244,201,126,0) 62%);
+  --luz-fio:inset 0 1px 0 rgba(255,226,178,.14);
 
-  /* Texto — claro e nítido, sem chegar ao branco puro.
-     Contraste medido sobre --bg-0: principal 15:1 · secundário 9,3:1 ·
-     terciário 6,6:1 · rótulo 5,1:1. O brilho do sistema vem dos
-     elementos (bordas, anéis, selos), nunca de halo atrás da letra —
-     halo em texto é o que embaça e cansa a vista. */
-  --txt:#eaf1f8;
-  --txt-2:#b6c6d6;
-  --txt-3:#95a9bc;
-  --txt-4:#7f94a8;
+  /* Vidro — só para o que é de fato translúcido (cabeçalho,
+     janelas, estados de passagem do mouse). O branco puro saiu:
+     um véu levemente âmbar mantém a página inteira na mesma
+     temperatura. */
+  --glass-fraco:rgba(255,240,220,.045);
+  --stroke-fraco:rgba(255,236,208,.085);
+  --glass:rgba(255,240,220,.10);
+  --glass-2:rgba(255,240,220,.145);
+  --glass-3:rgba(255,240,220,.19);
+  --stroke:rgba(255,233,202,.155);
+  --stroke-2:rgba(255,233,202,.26);
+  --stroke-gold:rgba(194,162,80,.42);
+
+  /* Texto — marfim, não branco-azulado.
+     Contraste medido sobre --surf: principal 11,7:1 · secundário
+     7,6:1 · terciário 5,4:1 · rótulo 4,2:1 (rótulo é só para
+     dica curta, nunca para leitura corrida). O brilho do sistema
+     vem de bordas, anéis e selos — nunca de halo atrás da letra,
+     que é o que embaça e cansa a vista. */
+  --txt:#f3efe6;
+  --txt-2:#cbcdc9;
+  --txt-3:#a9aaa4;
+  --txt-4:#93948e;
 
   /* Semânticos — tons dessaturados, sem neon */
   --ok:#5cc394;         --ok-bg:rgba(92,195,148,.1);    --ok-br:rgba(92,195,148,.26);
@@ -134,18 +177,22 @@ li{list-style:none}
 }
 .bg__aurora::before{
   width:70vmax;height:70vmax;left:-18vmax;top:-24vmax;
-  background:radial-gradient(circle at 40% 40%,rgba(34,69,108,.72),rgba(20,41,63,0) 68%);
+  background:radial-gradient(circle at 40% 40%,rgba(36,72,112,.68),rgba(20,41,63,0) 68%);
   animation:drift1 30s var(--ease) infinite alternate;
 }
+/* A luz quente do ambiente.
+   Antes ela vagava pela tela junto com a mancha azul, e movimento
+   contínuo no canto do olho é justamente o oposto de repouso.
+   Agora fica parada no alto, como uma janela ou um abajur: a
+   página inteira ganha temperatura sem nada se mexendo. */
 .bg__aurora::after{
-  width:58vmax;height:58vmax;right:-16vmax;top:-10vmax;
-  background:radial-gradient(circle at 50% 50%,rgba(194,162,80,.26),rgba(194,162,80,0) 66%);
-  animation:drift2 38s var(--ease) infinite alternate;
+  width:64vmax;height:64vmax;right:-14vmax;top:-20vmax;
+  background:radial-gradient(circle at 50% 50%,rgba(216,170,96,.3),rgba(194,162,80,0) 64%);
 }
 .bg__glow{
   position:absolute;left:50%;bottom:-30vmax;transform:translateX(-50%);
   width:90vmax;height:60vmax;border-radius:50%;filter:blur(100px);
-  background:radial-gradient(circle at 50% 50%,rgba(27,58,90,.6),transparent 65%);
+  background:radial-gradient(circle at 50% 50%,rgba(30,62,95,.55),transparent 65%);
   animation:pulse 22s ease-in-out infinite;
 }
 .bg__grid{
@@ -317,19 +364,23 @@ html.motion .reveal.is-in{
 }
 
 /* ---------- 7. Superfícies de vidro ---------- */
+/* O cartão é uma superfície com cor própria recebendo luz de cima.
+
+   Deixou de ser um véu translúcido: além de virar cinza (ver o
+   bloco de tokens), o desfoque de fundo custava caro em celular
+   modesto — cada cartão da lista forçava o navegador a recompor
+   tudo o que estava atrás. Opaco, a rolagem fica lisa. */
 .card{
   position:relative;
-  background:var(--glass);
+  background:var(--luz),var(--surf);
   border:1px solid var(--stroke);
   border-radius:var(--r-lg);
-  backdrop-filter:blur(16px) saturate(1.3);
-  -webkit-backdrop-filter:blur(16px) saturate(1.3);
-  box-shadow:var(--sh-2);
+  box-shadow:var(--sh-2),var(--luz-fio);
   overflow:hidden;
 }
 .card::before{
   content:"";position:absolute;top:0;left:12%;right:12%;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);
+  background:linear-gradient(90deg,transparent,rgba(255,226,178,.3),transparent);
 }
 .card--pad{padding:20px}
 
@@ -470,13 +521,9 @@ input[type=checkbox]{accent-color:var(--gold)}
   padding:26px 22px 28px;
   /* Base quase lisa: quem desenha o painel são as manchas de luz
      do ::before. Um degradê forte aqui competiria com elas. */
-  background:
-    linear-gradient(150deg,rgba(15,28,42,.86),rgba(15,28,42,.93)),
-    var(--glass);
+  background:linear-gradient(158deg,#20344a,#172840);
   border:1px solid var(--stroke);
-  backdrop-filter:blur(22px) saturate(1.4);
-  -webkit-backdrop-filter:blur(22px) saturate(1.4);
-  box-shadow:var(--sh-3);
+  box-shadow:var(--sh-3),var(--luz-fio);
 }
 /* Textura "aurora com grão": manchas difusas de luz, e granulado
    fino por cima. Sem nenhuma forma geométrica.
@@ -487,11 +534,14 @@ input[type=checkbox]{accent-color:var(--gold)}
 .hero::before{
   content:"";position:absolute;inset:0;pointer-events:none;
   background:
-    linear-gradient(90deg,transparent,rgba(220,196,135,.7),transparent)
+    linear-gradient(90deg,transparent,rgba(233,205,148,.8),transparent)
       top center / 84% 1px no-repeat,
-    radial-gradient(60% 90% at 78% 8%,rgba(194,162,80,.28),transparent 62%),
-    radial-gradient(75% 100% at 8% 96%,rgba(42,77,112,.72),transparent 66%),
-    radial-gradient(45% 70% at 96% 88%,rgba(26,49,73,.85),transparent 70%);
+    /* A lâmpada: mancha quente alta e à direita, como luz de
+       abajur entrando no canto do ambiente. É o que faz o painel
+       de boas-vindas parecer acolhedor em vez de institucional. */
+    radial-gradient(65% 95% at 76% 4%,rgba(226,178,104,.34),transparent 64%),
+    radial-gradient(75% 100% at 8% 96%,rgba(38,72,106,.6),transparent 66%),
+    radial-gradient(45% 70% at 96% 88%,rgba(29,54,80,.7),transparent 70%);
 }
 .hero::after{
   content:"";position:absolute;inset:0;pointer-events:none;
@@ -514,6 +564,55 @@ input[type=checkbox]{accent-color:var(--gold)}
 .hero__desc{font-size:13.5px;color:var(--txt-2);margin-top:10px;max-width:46ch;line-height:1.6}
 .hero__row{display:flex;align-items:center;gap:20px;margin-top:22px;flex-wrap:wrap}
 .hero__actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+/* Diz qual é o próximo documento. Sem isto, "Continuar de onde
+   parei" é uma promessa que só se confere depois de clicar. */
+.hero__proximo{
+  margin-top:12px;font-size:12.5px;color:var(--txt-3);line-height:1.5;
+}
+.hero__proximo strong{color:var(--txt-2);font-weight:640}
+.hero__proximo-tag{
+  display:inline-block;margin-left:4px;padding:1px 8px;border-radius:20px;
+  font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-br);
+}
+
+/* ---------- Devoluções da equipe ----------
+   O único bloco da tela inicial em que o cliente já fez a parte
+   dele e ainda assim precisa voltar. Por isso tem cor própria:
+   fica no topo, e não se confunde com o que ainda nem começou. */
+.card--atencao{
+  background:linear-gradient(180deg,rgba(232,138,131,.13),rgba(232,138,131,.03) 60%),var(--surf);
+  border-color:var(--danger-br);
+}
+.card--atencao::before{background:linear-gradient(90deg,transparent,rgba(232,138,131,.45),transparent)}
+.atencao__cab{display:flex;gap:12px;padding:17px 18px 15px;align-items:flex-start}
+.atencao__icone{
+  flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-br);
+}
+.atencao__icone .ic{width:18px;height:18px}
+.atencao__txt{min-width:0}
+.atencao__titulo{display:block;font-size:15.5px;font-weight:680;color:var(--txt);letter-spacing:-.015em}
+.atencao__desc{display:block;font-size:12.5px;color:var(--txt-2);margin-top:4px;line-height:1.55}
+
+.corr{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:13px 18px;border-top:1px solid var(--stroke);
+  transition:background .2s var(--ease);
+}
+.corr:hover{background:var(--glass)}
+.corr__info{flex:1;min-width:0}
+.corr__nome{display:block;font-size:14px;font-weight:640;color:var(--txt)}
+.corr__motivo{display:block;font-size:12.5px;color:var(--txt-2);margin-top:3px;line-height:1.5}
+.corr__acao{
+  flex:none;display:inline-flex;align-items:center;gap:3px;
+  font-size:12.5px;font-weight:680;color:var(--gold-2);
+}
+.corr__acao .ic{width:16px;height:16px}
+@media (max-width:520px){
+  .corr{align-items:flex-start}
+  .corr__acao{align-self:center}
+}
 
 /* Anel de progresso */
 .ring{position:relative;width:92px;height:92px;flex:none}
@@ -524,10 +623,11 @@ input[type=checkbox]{accent-color:var(--gold)}
   transition:stroke-dashoffset 1.15s var(--ease-out);
 }
 .ring__value{
-  position:absolute;inset:0;display:grid;place-items:center;
-  font-size:21px;font-weight:720;letter-spacing:-.03em;color:var(--txt);
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;
+  font-size:23px;font-weight:720;letter-spacing:-.03em;color:var(--txt);
 }
-.ring__value small{font-size:11px;font-weight:640;color:var(--txt-3);margin-left:1px}
+.ring__value small{font-size:11px;font-weight:600;color:var(--txt-3);margin-top:3px;letter-spacing:0}
 
 .hero__stats{display:flex;gap:22px;flex-wrap:wrap}
 .stat__num{font-size:21px;font-weight:720;letter-spacing:-.03em;color:var(--txt)}
@@ -577,9 +677,12 @@ input[type=checkbox]{accent-color:var(--gold)}
   border-top-color:var(--gold-2);
 }
 .rail__dot .ic{width:14px;height:14px;stroke-width:2.8}
-.rail__title{font-size:14.5px;font-weight:660;color:var(--txt)}
+/* display:block aqui, e não só nas etapas clicáveis: são <span>, e
+   sem isso o nome da etapa gruda na descrição — "Análise da
+   TotaliNossa equipe confere tudo". */
+.rail__title{display:block;font-size:14.5px;font-weight:660;color:var(--txt)}
 .rail__step--todo .rail__title{color:var(--txt-3)}
-.rail__desc{font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5}
+.rail__desc{display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5}
 
 /* ---------- 13. Grupos de documentos ---------- */
 .group{margin-bottom:14px}
@@ -605,9 +708,13 @@ input[type=checkbox]{accent-color:var(--gold)}
 /* Grupo concluído: fica mais discreto para não competir com o que
    ainda falta. Volta ao normal ao passar o mouse ou ao abrir, para
    continuar consultável. */
-.group--pronto{background:var(--glass-fraco);border-color:var(--stroke-fraco)}
+.group--pronto{background:var(--surf-baixo);border-color:var(--stroke-fraco);box-shadow:var(--sh-1)}
+.group--pronto::before{opacity:0}
 .group--pronto .group__icon,.group--pronto .group__title{opacity:.72}
-.group--pronto:hover,.group--pronto[data-open="true"]{background:var(--glass);border-color:var(--stroke)}
+.group--pronto:hover,.group--pronto[data-open="true"]{
+  background:var(--luz),var(--surf);border-color:var(--stroke);box-shadow:var(--sh-2),var(--luz-fio);
+}
+.group--pronto:hover::before,.group--pronto[data-open="true"]::before{opacity:1}
 .group--pronto:hover .group__icon,.group--pronto:hover .group__title,
 .group--pronto[data-open="true"] .group__icon,.group--pronto[data-open="true"] .group__title{opacity:1}
 .group__chev{color:var(--txt-4);transition:transform .3s var(--ease-out);flex:none}
@@ -629,6 +736,16 @@ input[type=checkbox]{accent-color:var(--gold)}
   box-shadow:inset 3px 0 0 var(--danger);
 }
 .item--pendencia .item__mark::before{background:var(--danger);opacity:1}
+/* Piscada única ao chegar vindo de "Continuar de onde parei". */
+.item--alvo{
+  background:rgba(220,196,135,.1);
+  box-shadow:inset 3px 0 0 var(--gold-2);
+  animation:chegou 2.8s var(--ease-out);
+}
+@keyframes chegou{
+  0%{background:rgba(220,196,135,.26)}
+  100%{background:rgba(220,196,135,.1)}
+}
 .item__top{display:flex;align-items:flex-start;gap:12px}
 /* Quadradinho de situação.
 
@@ -683,8 +800,8 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .file__icon .ic{width:16px;height:16px}
 .file__info{flex:1;min-width:0}
-.file__name{font-size:13px;font-weight:620;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file__meta{font-size:11.5px;color:var(--txt-3);margin-top:1px}
+.file__name{display:block;font-size:13px;font-weight:620;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file__meta{display:block;font-size:11.5px;color:var(--txt-3);margin-top:1px}
 .file__del{
   width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;
   color:var(--txt-3);transition:background .2s var(--ease),color .2s var(--ease);
@@ -1148,8 +1265,6 @@ input[type=checkbox]{accent-color:var(--gold)}
   transition:background .2s var(--ease);
 }
 .rail__step--link:hover{background:var(--glass)}
-.rail__step--link .rail__title,
-.rail__step--link .rail__desc{display:block}
 .rail__chev{
   position:absolute;right:8px;top:2px;color:var(--txt-4);
   transition:transform .2s var(--ease),color .2s var(--ease);
@@ -1666,6 +1781,38 @@ body.tour-aberto{overscroll-behavior:contain}
   display:block;font-size:14.5px;font-weight:640;color:var(--txt);
   overflow-wrap:anywhere;
 }
+/* ---------- Aprovação em lote ---------- */
+.lote{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:11px 13px;margin-bottom:14px;
+  border:1px solid var(--info-br);border-radius:var(--r);
+  background:var(--info-bg);
+}
+.lote--topo{margin-top:16px;margin-bottom:0}
+.lote__txt{flex:1;min-width:180px;font-size:12.5px;color:var(--txt-2);line-height:1.5}
+
+/* ---------- Modelos de mensagem ---------- */
+.modelos{display:flex;flex-direction:column;gap:7px}
+.modelos__rot{
+  font-size:10.5px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--txt-4);
+}
+.modelos__chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip-modelo{
+  padding:6px 12px;min-height:34px;border-radius:20px;
+  font-size:12.5px;font-weight:600;color:var(--txt-2);
+  border:1px solid var(--stroke);background:var(--glass);
+  transition:background .18s var(--ease),color .18s var(--ease),border-color .18s var(--ease);
+}
+.chip-modelo:hover{background:var(--glass-2);color:var(--txt);border-color:var(--stroke-2)}
+.chip-modelo--edit{color:var(--gold-2);border-style:dashed}
+.modelo-edit{
+  padding:12px;margin-bottom:10px;
+  border:1px solid var(--stroke);border-radius:var(--r);background:var(--glass-fraco);
+}
+
+.cliente__parado{color:var(--txt-4)}
+.cliente__parado--alerta{color:var(--warn);font-weight:640}
 .cliente__meta{
   display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5;
   overflow-wrap:anywhere;

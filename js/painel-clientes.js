@@ -153,9 +153,7 @@
         });
       }, Promise.resolve([]));
     }).then(function (lista) {
-      empresas = lista.sort(function (a, b) {
-        return nomeDe(a).localeCompare(nomeDe(b), "pt-BR");
-      });
+      empresas = lista;
       carregando = false;
       desenharTudo();
     }, function (e) {
@@ -177,6 +175,88 @@
 
   function nomeDe(c) {
     return (c.empresa.nomeFantasia || c.empresa.razaoSocial || "Sem nome").trim();
+  }
+
+  /* =========================================================
+     Há quanto tempo o cliente não mexe
+
+     A lista era alfabética, e ordem alfabética não diz nada sobre
+     quem precisa de atenção: o cliente que travou há três semanas
+     ficava no meio, entre dois que estão em dia. Aqui a conta
+     olha só para sinais do CLIENTE — documento que ele enviou,
+     mensagem que ele escreveu, o aceite dele. Aprovação e recado
+     da equipe de propósito não contam: se contassem, cobrar o
+     cliente "zeraria" o tempo parado dele, que é o contrário do
+     que a lista precisa mostrar.
+     ========================================================= */
+  /* Data em milissegundos, venha de onde vier.
+
+     O portal do cliente grava número (Date.now no aparelho dele);
+     o painel grava carimbo do servidor, que volta como objeto
+     Timestamp. Comparar os dois sem converter dá sempre falso, e
+     a empresa recém-criada apareceria como "sem atividade". */
+  function emMs(v) {
+    if (!v) return 0;
+    if (typeof v === "number") return v;
+    if (typeof v.toMillis === "function") return v.toMillis();
+    if (typeof v.seconds === "number") return v.seconds * 1000;
+    return 0;
+  }
+
+  function ultimaAtividade(c) {
+    var t = 0;
+    var e = c.empresa || {};
+
+    Object.keys(c.dados.itens || {}).forEach(function (k) {
+      var em = emMs((c.dados.itens[k] || {}).atualizadoEm);
+      if (em > t) t = em;
+    });
+    (c.mensagens || []).forEach(function (m) {
+      if (m.autor === "cliente" && emMs(m.em) > t) t = emMs(m.em);
+    });
+    if (emMs(e.aceiteLGPD) > t) t = emMs(e.aceiteLGPD);
+    if (c.financeiro && emMs(c.financeiro.concluidoEm) > t) t = emMs(c.financeiro.concluidoEm);
+
+    /* Nunca deu sinal de vida: conta a partir do cadastro. Sem
+       isso, quem nunca entrou ficaria sem tempo nenhum e cairia
+       no fim da fila — justamente quem mais precisa de um
+       telefonema. `criadaEm` é do painel, `criadoEm` do portal. */
+    if (!t) t = emMs(e.criadaEm) || emMs(e.criadoEm) || 0;
+    return t;
+  }
+
+  var DIA = 86400000;
+
+  function diasParado(c) {
+    var t = ultimaAtividade(c);
+    if (!t) return null;
+    return Math.floor((Date.now() - t) / DIA);
+  }
+
+  function textoParado(c) {
+    var d = diasParado(c);
+    if (d === null) return "";
+    if (d <= 0) return "mexeu hoje";
+    if (d === 1) return "parado há 1 dia";
+    return "parado há " + d + " dias";
+  }
+
+  /* Ordem de trabalho, não ordem de catálogo:
+       1. arquivadas por último, sempre;
+       2. quem ainda deve alguma coisa antes de quem já entregou;
+       3. dentro de cada faixa, o mais parado no topo.
+     É a fila de quem ligar primeiro. */
+  function ordemDeTrabalho(a, b) {
+    var arqA = arquivada(a) ? 1 : 0, arqB = arquivada(b) ? 1 : 0;
+    if (arqA !== arqB) return arqA - arqB;
+
+    var abertoA = estadoDoCliente(a).chave === "emdia" ? 1 : 0;
+    var abertoB = estadoDoCliente(b).chave === "emdia" ? 1 : 0;
+    if (abertoA !== abertoB) return abertoA - abertoB;
+
+    var ta = ultimaAtividade(a) || 0, tb = ultimaAtividade(b) || 0;
+    if (ta !== tb) return ta - tb;          /* mais antigo primeiro */
+    return nomeDe(a).localeCompare(nomeDe(b), "pt-BR");
   }
 
   /* =========================================================
@@ -269,7 +349,7 @@
         c.empresa.responsavelNome, c.empresa.responsavelEmail
       ].join(" ").toLowerCase();
       return alvo.indexOf(t) > -1;
-    });
+    }).sort(ordemDeTrabalho);
   }
 
   function desenharLista() {
@@ -302,7 +382,10 @@
       return;
     }
 
-    caixa.innerHTML = '<div class="card">' + lista.map(function (c) {
+    caixa.innerHTML =
+      '<p class="text-xs text-muted" style="margin:0 0 8px 2px">Quem está parado há mais ' +
+        'tempo aparece primeiro.</p>' +
+      '<div class="card">' + lista.map(function (c) {
       var est = estadoDoCliente(c);
       var falta = est.resumo.pendentesObrigatorios;
       var conferir = naoConferidos(c).length;
@@ -310,16 +393,27 @@
         return m.autor === "cliente" && !m.lidaEm;
       }).length;
 
+      /* O tempo parado é o motivo da ordem da lista. Se não
+         estivesse escrito em cada linha, a ordem pareceria
+         aleatória. Acima de 7 dias ganha destaque: é quando
+         deixa de ser "está fazendo" e vira "travou". */
+      var dias = diasParado(c);
+      var alerta = est.chave !== "emdia" && !arquivada(c) && dias !== null && dias >= 7;
+
       return '<button type="button" class="cliente" data-cliente="' + U.escAttr(c.id) + '" ' +
         'style="border-bottom:1px solid var(--stroke)">' +
         '<span class="group__icon">' + ic("ic-building") + '</span>' +
         '<span class="cliente__info">' +
           '<span class="cliente__nome">' + U.esc(nomeDe(c)) + '</span>' +
           '<span class="cliente__meta">' + U.esc(c.empresa.cnpj || "sem CNPJ") + ' · ' +
-            est.resumo.pct + '% entregue' +
+            est.resumo.ok + ' de ' + est.resumo.total +
             (falta ? ' · faltam ' + falta : '') +
             (conferir ? ' · ' + conferir + ' para conferir' : '') +
             (naoLidas ? ' · ' + naoLidas + ' ' + U.plural(naoLidas, "mensagem nova", "mensagens novas") : '') +
+            (textoParado(c)
+              ? ' · <span class="cliente__parado' + (alerta ? " cliente__parado--alerta" : "") + '">' +
+                U.esc(textoParado(c)) + '</span>'
+              : '') +
           '</span>' +
         '</span>' +
         badge(ROTULO_ESTADO, est.chave) +
@@ -834,6 +928,7 @@
     var e = c.empresa;
     var est = estadoDoCliente(c);
     var pendentes = global.Situacao.pendencias(c.dados, DATA.GRUPOS);
+    var filaToda = paraConferir(c);
 
     var html =
       '<div class="row" style="margin-bottom:14px">' +
@@ -853,11 +948,26 @@
         '<div class="card card--pad">' +
           '<div class="pbar"><div class="pbar__fill" style="width:' + est.resumo.pct + '%"></div></div>' +
           '<div class="ficha__nums">' +
-            '<span><b>' + est.resumo.pct + '%</b> entregue</span>' +
             '<span><b>' + est.resumo.ok + '</b> de ' + est.resumo.total + ' documentos</span>' +
-            '<span><b>' + est.resumo.pendentesObrigatorios + '</b> obrigatórios faltando</span>' +
-            '<span><b>' + est.resumo.aprovados + '</b> aprovados</span>' +
+            '<span><b>' + est.resumo.pendentesObrigatorios + '</b> ' +
+              U.plural(est.resumo.pendentesObrigatorios,
+                       "obrigatório faltando", "obrigatórios faltando") + '</span>' +
+            '<span><b>' + est.resumo.aprovados + '</b> ' +
+              U.plural(est.resumo.aprovados, "aprovado", "aprovados") + '</span>' +
+            (textoParado(c) ? '<span>' + U.esc(textoParado(c)) + '</span>' : '') +
           '</div>' +
+          /* A fila de conferência inteira, num botão só. Fica no
+             topo porque é o motivo mais comum de abrir a ficha. */
+          (filaToda.length
+            ? '<div class="lote lote--topo">' +
+                '<span class="lote__txt">' + filaToda.length + ' ' +
+                  U.plural(filaToda.length, "documento chegou", "documentos chegaram") +
+                  ' e ainda não ' + U.plural(filaToda.length, "foi conferido", "foram conferidos") +
+                  '.</span>' +
+                '<button type="button" class="btn btn--primary btn--sm" id="clAprovarTudo">' +
+                  ic("ic-check") + 'Aprovar ' + filaToda.length + '</button>' +
+              '</div>'
+            : '') +
         '</div>' +
       '</section>' +
 
@@ -996,7 +1106,19 @@
             linhas += itemHTML(c, g, item, socio);
           });
         });
-        return linhas;
+
+        var fila = paraConferir(c, g);
+        var topo = fila.length
+          ? '<div class="lote">' +
+              '<span class="lote__txt">' + fila.length + ' ' +
+                U.plural(fila.length, "documento chegou", "documentos chegaram") +
+                ' e ' + U.plural(fila.length, "espera", "esperam") + ' conferência.</span>' +
+              '<button type="button" class="btn btn--primary btn--sm" data-aprovar-grupo="' +
+                U.escAttr(g.id) + '">Aprovar ' + fila.length + '</button>' +
+            '</div>'
+          : '';
+
+        return topo + linhas;
       }
     });
   }
@@ -1378,10 +1500,119 @@
       });
   }
 
+  /* =========================================================
+     Apagar a conta de login junto com a empresa
+
+     Tudo o que é do Firestore e do Storage o painel apaga
+     sozinho. A conta de acesso, não: apagar a conta de outra
+     pessoa exige poder de administrador do projeto, e esse poder
+     não pode estar dentro de uma página web — quem abrisse o
+     código-fonte teria a chave do projeto na mão.
+
+     Por isso quem apaga é a função em functions/index.js, do lado
+     do servidor. Aqui só a chamamos, mandando o crachá de quem
+     está logado; ela confere no Firestore se é admin de verdade.
+
+     A função é chamada por fetch, no protocolo das callable, em
+     vez de carregar mais uma biblioteca do Firebase só para isso:
+     é uma requisição, e uma requisição não justifica outro
+     arquivo no cache de todo mundo.
+
+     ENQUANTO ELA NÃO ESTIVER PUBLICADA nada quebra — a empresa é
+     excluída igual, e o painel avisa quais contas ficaram e onde
+     apagá-las à mão. É por isso que a promessa nunca rejeita.
+     ========================================================= */
+  var URL_FUNCOES = "https://southamerica-east1-" +
+                    (global.FIREBASE_CONFIG && global.FIREBASE_CONFIG.projectId) +
+                    ".cloudfunctions.net/";
+
+  function excluirContasDeAcesso(uids) {
+    if (!uids || !uids.length) return Promise.resolve({ disponivel: true, apagadas: [] });
+
+    var u = FB.auth && FB.auth.currentUser;
+    if (!u) return Promise.resolve({ disponivel: false, apagadas: [] });
+
+    return u.getIdToken().then(function (token) {
+      return fetch(URL_FUNCOES + "excluirAcessoDoCliente", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ data: { uids: uids } })
+      });
+    }).then(function (resp) {
+      if (!resp.ok) return { disponivel: false, apagadas: [] };
+      return resp.json().then(function (corpo) {
+        var r = (corpo && corpo.result) || {};
+        return {
+          disponivel: true,
+          apagadas: r.apagadas || [],
+          recusadas: r.recusadas || []
+        };
+      });
+    }).catch(function () {
+      /* Função não publicada, sem rede, CORS: dá tudo no mesmo —
+         a conta continua lá e quem resolve é a equipe. */
+      return { disponivel: false, apagadas: [] };
+    });
+  }
+
+  /* O que dizer depois de excluir, sem enfeitar: se a conta ficou,
+     a pessoa precisa saber disso e saber onde apagar. */
+  function avisarContasRestantes(nome, uids, resultado) {
+    if (!uids.length) return;
+
+    if (resultado.disponivel) {
+      var sobraram = uids.filter(function (uid) {
+        return (resultado.apagadas || []).indexOf(uid) === -1;
+      });
+      if (!sobraram.length) {
+        UI.toast("A conta de acesso do cliente também foi apagada.", "ok", 8000);
+        return;
+      }
+    }
+
+    UI.modal({
+      titulo: "A conta de login continua existindo",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+          U.esc(nome) + ' foi excluída, com todos os documentos e vínculos. ' +
+          (resultado.disponivel
+            ? 'Mas ' + U.plural(uids.length, "esta conta de acesso não pôde ser apagada",
+                                             "estas contas de acesso não puderam ser apagadas") + ':'
+            : 'A conta de acesso do cliente, porém, fica no Firebase Authentication — ' +
+              'apagá-la depende de uma função no servidor que ainda não foi publicada ' +
+              '(<code>functions/index.js</code>).') +
+        '</p>' +
+        '<div class="cred__par" style="flex-direction:column;align-items:stretch;gap:6px">' +
+          uids.map(function (uid) {
+            return '<code class="cred__v" style="word-break:break-all">' + U.esc(uid) + '</code>';
+          }).join("") +
+        '</div>' +
+        '<p style="font-size:12.5px;line-height:1.6;color:var(--txt-3);margin-top:12px">' +
+          'Sem vínculo em <code>acessos</code>, essa conta não abre mais nada — as regras do ' +
+          'Firestore negam tudo. Ela só ocupa espaço na lista. Para apagar: console do ' +
+          'Firebase → Authentication → Users → procure pelo identificador acima.</p>',
+      acoes: [
+        { rotulo: "Copiar identificadores", classe: "btn--ghost", fecharAntes: false,
+          onClick: function () {
+            if (!navigator.clipboard) { UI.toast("Copie à mão pela tela.", "erro"); return; }
+            navigator.clipboard.writeText(uids.join("\n")).then(function () {
+              UI.toast("Copiado.", "ok");
+            }, function () { UI.toast("Não foi possível copiar.", "erro"); });
+          } },
+        { rotulo: "Entendi", classe: "btn--primary" }
+      ]
+    });
+  }
+
   /* Apaga tudo, na ordem que não deixa buraco. */
   function excluirDeVez(c) {
     var raiz = FB.db.collection("empresas").doc(c.id);
     var subcolecoes = ["itens", "socios", "mensagens", "credenciais", "financeiro", "eventos"];
+
+    /* Guardar os uids ANTES de cortar o acesso: depois disso o
+       vínculo já não existe e não há como descobrir de quem era
+       a conta. */
+    var contas = (c.acessos || []).map(function (a) { return a.uid; });
 
     /* 1. O acesso morre primeiro. */
     return cortarAcesso(c).then(function () {
@@ -1418,8 +1649,15 @@
       });
       return fila;
     }).then(function () {
-      /* 4. Por último, a empresa. */
+      /* 4. A empresa. */
       return raiz.delete();
+    }).then(function () {
+      /* 5. E, por último, a conta de login — a única parte que
+         depende do servidor. Falhar aqui não desfaz nada do que
+         já foi apagado; só muda o aviso que a equipe recebe. */
+      return excluirContasDeAcesso(contas).then(function (r) {
+        return { contas: contas, resultado: r };
+      });
     });
   }
 
@@ -1453,11 +1691,16 @@
             }
             var b = $('[data-acao="1"]', m.caixa);
             if (b) { b.disabled = true; b.textContent = "Excluindo…"; }
-            excluirDeVez(c).then(function () {
+            excluirDeVez(c).then(function (saida) {
               UI.fecharModal();
               UI.toast(nome + " foi excluída.", "ok", 8000);
               fecharCliente();
               carregarLista();
+              /* Uma janela por vez: a de confirmação precisa
+                 terminar de fechar antes da próxima abrir. */
+              setTimeout(function () {
+                avisarContasRestantes(nome, saida.contas, saida.resultado);
+              }, 350);
             }, function (e) {
               if (b) { b.disabled = false; b.textContent = "Excluir definitivamente"; }
               UI.toast("Não foi possível excluir por completo: " + FB.explicar(e) +
@@ -1552,13 +1795,14 @@
             }).join("") + '</div>'
           : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
 
-        '<div class="field" style="margin-top:14px">' +
+        '<div class="field" style="margin-top:14px;margin-bottom:8px">' +
           '<label class="field__label" for="clMsg">Escrever para o cliente</label>' +
-          '<textarea class="textarea" id="clMsg" rows="3" maxlength="4000" ' +
-            'placeholder="Escreva aqui…"></textarea>' +
+          '<textarea class="textarea" id="clMsg" rows="4" maxlength="4000" ' +
+            'placeholder="Escreva aqui, ou toque em um modelo abaixo…"></textarea>' +
         '</div>' +
-        '<button type="button" class="btn btn--primary btn--sm" id="clEnviarMsg">' +
-          ic("ic-send") + 'Enviar</button>';
+        modelosHTML() +
+        '<button type="button" class="btn btn--primary btn--sm" id="clEnviarMsg" ' +
+          'style="margin-top:12px">' + ic("ic-send") + 'Enviar</button>';
       }
     });
   }
@@ -1589,6 +1833,292 @@
     }, function (e) {
       UI.toast("Não foi possível gravar: " + FB.explicar(e), "erro", 9000);
       return false;
+    });
+  }
+
+  /* =========================================================
+     Modelos de mensagem
+
+     A equipe escreve o mesmo recado várias vezes por semana —
+     "faltam os balanços", "a foto ficou ilegível". Reescrever é
+     lento e, pior, sai diferente a cada vez: um cliente recebe
+     uma explicação completa e o outro recebe três palavras.
+
+     Os modelos ficam no Firestore, em conteudo/modelosMensagem,
+     e são editados aqui mesmo — nada de mexer em arquivo e
+     publicar. Se o documento não existir ou vier quebrado, valem
+     os padrões abaixo, então o recurso nunca fica sem conteúdo.
+
+     Os campos entre chaves são trocados na hora de usar: quem
+     escreve o modelo não precisa saber programar, só escrever
+     {cliente} onde vai o nome.
+     ========================================================= */
+  var MODELOS_PADRAO = [
+    {
+      id: "faltantes",
+      titulo: "Cobrar o que falta",
+      texto: "Olá, {cliente}! Passando para lembrar do que ainda falta para concluirmos a " +
+             "entrada da {empresa} aqui na Totali:\n\n{faltantes}\n\nÉ só enviar pelo portal, " +
+             "na aba Documentos — dá para tirar foto pelo celular. Qualquer dúvida, responda " +
+             "por aqui mesmo."
+    },
+    {
+      id: "ilegivel",
+      titulo: "Documento ilegível",
+      texto: "Olá, {cliente}! Recebemos o documento, mas a imagem ficou difícil de ler.\n\n" +
+             "Pode reenviar? Duas coisas ajudam bastante: apoiar o papel numa superfície plana " +
+             "e conferir se as quatro bordas aparecem inteiras na foto."
+    },
+    {
+      id: "recebido",
+      titulo: "Confirmar recebimento",
+      texto: "Olá, {cliente}! Recebemos os documentos e já estamos conferindo. Se faltar " +
+             "alguma coisa, aviso por aqui. Obrigado!"
+    },
+    {
+      id: "contador",
+      titulo: "Pedir ao contador anterior",
+      texto: "Olá, {cliente}! Boa parte do que falta fica com o contador anterior — ele já tem " +
+             "esses arquivos prontos.\n\nSe preferir, encaminhe esta lista para ele:\n\n" +
+             "{faltantes}\n\nQualquer dificuldade, a gente fala com ele direto. É só avisar."
+    },
+    {
+      id: "concluido",
+      titulo: "Migração concluída",
+      texto: "Olá, {cliente}! Está tudo certo: recebemos e conferimos toda a documentação da " +
+             "{empresa}.\n\nA partir de agora o portal vira o seu ponto de apoio — na aba " +
+             "Academy tem vídeos curtos sobre a rotina do mês. Seja bem-vindo!"
+    }
+  ];
+
+  var modelos = MODELOS_PADRAO.slice();
+
+  function limparModelos(bruto) {
+    if (!bruto || !bruto.length) return null;
+    var saida = [];
+    bruto.slice(0, 30).forEach(function (m, i) {
+      var titulo = String((m && m.titulo) || "").trim().slice(0, 60);
+      var texto = String((m && m.texto) || "").trim().slice(0, 4000);
+      if (!titulo || !texto) return;
+      saida.push({ id: String((m && m.id) || ("m" + i)).slice(0, 40), titulo: titulo, texto: texto });
+    });
+    return saida.length ? saida : null;
+  }
+
+  function carregarModelos() {
+    return FB.db.collection("conteudo").doc("modelosMensagem").get().then(function (d) {
+      var lista = d.exists ? limparModelos((d.data() || {}).lista) : null;
+      if (lista) modelos = lista;
+    }, function () { /* sem rede, seguem os padrões */ });
+  }
+
+  function salvarModelos(lista) {
+    return FB.db.collection("conteudo").doc("modelosMensagem")
+      .set({ lista: lista, atualizadoEm: Date.now() }, { merge: true })
+      .then(function () {
+        modelos = lista;
+        return true;
+      }, function (e) {
+        UI.toast("Não foi possível salvar os modelos: " + FB.explicar(e), "erro", 9000);
+        return false;
+      });
+  }
+
+  /* Troca os campos entre chaves pelos dados deste cliente. O que
+     não existir vira texto vazio — nunca deixa "{cliente}" cru
+     chegar ao cliente. */
+  function preencherModelo(texto, c) {
+    var e = c.empresa || {};
+    var faltantes = global.Situacao.pendencias(c.dados, DATA.GRUPOS).map(function (p) {
+      return "• " + p.item.nome +
+        (p.socio ? " (" + (p.socio.nome || "sócio") + ")" : "") +
+        (p.sit === "pendencia" ? " — precisa corrigir e reenviar" : "");
+    }).join("\n");
+
+    var valores = {
+      cliente: U.primeiroNome ? (U.primeiroNome(e.responsavelNome) || "tudo bem") : (e.responsavelNome || ""),
+      empresa: nomeDe(c),
+      faltantes: faltantes || "(nada pendente)",
+      eu: (equipe && (equipe.nome || equipe.email)) || "Totali"
+    };
+
+    return String(texto || "").replace(/\{(cliente|empresa|faltantes|eu)\}/g, function (todo, chave) {
+      return valores[chave] == null ? "" : valores[chave];
+    });
+  }
+
+  function modelosHTML() {
+    if (!modelos.length) return "";
+    return '<div class="modelos">' +
+      '<span class="modelos__rot">Modelos prontos</span>' +
+      '<span class="modelos__chips">' +
+        modelos.map(function (m, i) {
+          return '<button type="button" class="chip-modelo" data-modelo="' + i + '">' +
+            U.esc(m.titulo) + '</button>';
+        }).join("") +
+        '<button type="button" class="chip-modelo chip-modelo--edit" id="clModelos">' +
+          'Editar modelos</button>' +
+      '</span>' +
+    '</div>';
+  }
+
+  function abrirGerenciadorModelos() {
+    var rascunho = modelos.map(function (m) { return { id: m.id, titulo: m.titulo, texto: m.texto }; });
+
+    var linhas = function () {
+      return rascunho.map(function (m, i) {
+        return '<div class="modelo-edit" data-i="' + i + '">' +
+          '<div class="row" style="gap:8px;margin-bottom:6px">' +
+            '<input type="text" class="input" data-mtitulo="' + i + '" maxlength="60" ' +
+              'placeholder="Nome do modelo" value="' + U.escAttr(m.titulo) + '" style="flex:1">' +
+            '<button type="button" class="btn btn--quiet btn--sm" data-mremover="' + i + '">' +
+              'Remover</button>' +
+          '</div>' +
+          '<textarea class="textarea" data-mtexto="' + i + '" rows="4" maxlength="4000">' +
+            U.esc(m.texto) + '</textarea>' +
+        '</div>';
+      }).join("");
+    };
+
+    var m = UI.modal({
+      titulo: "Modelos de mensagem",
+      corpoHTML:
+        '<p style="font-size:13px;line-height:1.6;color:var(--txt-2);margin-bottom:12px">' +
+          'Escreva <code>{cliente}</code> onde deve entrar o nome do responsável, ' +
+          '<code>{empresa}</code> para o nome da empresa e <code>{faltantes}</code> para a ' +
+          'lista do que está pendente. O portal troca na hora de usar.</p>' +
+        '<div id="mdLista">' + linhas() + '</div>' +
+        '<button type="button" class="btn btn--ghost btn--sm" id="mdAdicionar" ' +
+          'style="margin-top:6px">Adicionar modelo</button>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar modelos", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            recolher();
+            var limpos = limparModelos(rascunho);
+            if (!limpos) {
+              UI.toast("Cada modelo precisa de nome e texto.", "erro");
+              return;
+            }
+            var b = $('[data-acao="1"]', m.caixa);
+            if (b) { b.disabled = true; b.textContent = "Salvando…"; }
+            salvarModelos(limpos).then(function (ok) {
+              if (!ok) { if (b) { b.disabled = false; b.textContent = "Salvar modelos"; } return; }
+              UI.fecharModal();
+              UI.toast("Modelos salvos. Valem para toda a equipe.", "ok");
+              desenharFicha();
+            });
+          }
+        }
+      ]
+    });
+
+    /* Lê o que está na tela de volta para o rascunho antes de
+       redesenhar ou salvar — senão o que a pessoa digitou some
+       ao adicionar ou remover uma linha. */
+    function recolher() {
+      rascunho.forEach(function (mm, i) {
+        var t = $('[data-mtitulo="' + i + '"]', m.caixa);
+        var x = $('[data-mtexto="' + i + '"]', m.caixa);
+        if (t) mm.titulo = t.value;
+        if (x) mm.texto = x.value;
+      });
+    }
+
+    function redesenhar() {
+      $("#mdLista", m.caixa).innerHTML = linhas();
+    }
+
+    m.caixa.addEventListener("click", function (ev) {
+      var rem = ev.target.closest("[data-mremover]");
+      if (rem) {
+        recolher();
+        rascunho.splice(Number(rem.getAttribute("data-mremover")), 1);
+        redesenhar();
+        return;
+      }
+      if (ev.target.closest("#mdAdicionar")) {
+        recolher();
+        rascunho.push({ id: "m" + Date.now(), titulo: "", texto: "" });
+        redesenhar();
+        var campos = $$("[data-mtitulo]", m.caixa);
+        if (campos.length) campos[campos.length - 1].focus();
+      }
+    });
+  }
+
+  /* Aprovar em lote.
+
+     Uma empresa tem 26 documentos. Conferir é um a um mesmo — não
+     dá para automatizar o olho de quem confere —, mas REGISTRAR a
+     aprovação um a um são 26 cliques e 26 idas ao servidor para um
+     trabalho que já foi feito. O batch grava tudo de uma vez: ou
+     entra inteiro, ou não entra nada, e a ficha não fica meio
+     aprovada se a conexão cair no meio.
+
+     Só entra aqui o que está em "enviado" — documento que a equipe
+     ainda não olhou. Aprovado continua aprovado e correção pedida
+     não é desfeita por um botão de atalho. */
+  function aprovarLote(chaves) {
+    var c = aberto;
+    if (!c || !chaves.length) return Promise.resolve(0);
+
+    var revisao = {
+      status: "aprovado",
+      motivo: "",
+      por: (equipe && (equipe.nome || equipe.email)) || "equipe",
+      em: Date.now()
+    };
+
+    var lote = FB.db.batch();
+    chaves.forEach(function (chave) {
+      lote.set(FB.db.collection("empresas").doc(c.id)
+                 .collection("itens").doc(global.Nuvem.codificar(chave)),
+               { revisao: revisao }, { merge: true });
+    });
+
+    return lote.commit().then(function () {
+      chaves.forEach(function (chave) {
+        if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
+        c.dados.itens[chave].revisao = revisao;
+      });
+      desenharFicha();
+      atualizarContadores();
+      return chaves.length;
+    }, function (e) {
+      UI.toast("Não foi possível aprovar: " + FB.explicar(e), "erro", 9000);
+      return 0;
+    });
+  }
+
+  /* Tudo o que chegou e ainda não foi conferido — na ficha
+     inteira ou dentro de um departamento só. */
+  function paraConferir(c, grupo) {
+    return naoConferidos(c)
+      .filter(function (x) { return !grupo || x.grupo.id === grupo.id; })
+      .map(function (x) { return x.chave; });
+  }
+
+  function pedirAprovacaoEmLote(chaves, ondeTexto) {
+    if (!chaves.length) return;
+    UI.confirmar({
+      titulo: "Aprovar " + chaves.length + " " +
+              U.plural(chaves.length, "documento", "documentos"),
+      mensagem: chaves.length === 1
+        ? "Você está aprovando o documento que chegou " + ondeTexto + ". Confirme que já " +
+          "conferiu — o cliente passa a vê-lo como aprovado."
+        : "Você está aprovando os " + chaves.length + " documentos que chegaram " + ondeTexto +
+          ". Confirme que já conferiu cada um — o cliente passa a ver todos como aprovados.",
+      confirmar: "Aprovar " + chaves.length
+    }).then(function (ok) {
+      if (!ok) return;
+      UI.toast("Aprovando…", "", 4000);
+      aprovarLote(chaves).then(function (n) {
+        if (n) {
+          UI.toast(n + " " + U.plural(n, "documento aprovado", "documentos aprovados") + ".", "ok");
+        }
+      });
     });
   }
 
@@ -1827,6 +2357,15 @@
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+
+    var aprovarTudo = $("#clAprovarTudo");
+    if (aprovarTudo) aprovarTudo.addEventListener("click", function () {
+      if (!aberto) return;
+      pedirAprovacaoEmLote(paraConferir(aberto), "nesta empresa");
+    });
+
+    var gerenciar = $("#clModelos");
+    if (gerenciar) gerenciar.addEventListener("click", abrirGerenciadorModelos);
   }
 
   /* Número no formato que o WhatsApp entende: só dígitos, com o
@@ -2027,6 +2566,31 @@
         return;
       }
 
+      /* Modelo escolhido: o texto entra no campo, e a pessoa
+         ainda revisa antes de enviar. Nada sai sozinho. */
+      var mod = alvo.closest("[data-modelo]");
+      if (mod && aberto) {
+        var escolhido = modelos[Number(mod.getAttribute("data-modelo"))];
+        var campoMsg = $("#clMsg");
+        if (escolhido && campoMsg) {
+          campoMsg.value = preencherModelo(escolhido.texto, aberto);
+          campoMsg.focus();
+          campoMsg.setSelectionRange(campoMsg.value.length, campoMsg.value.length);
+        }
+        return;
+      }
+
+      var aprovarGrupo = alvo.closest("[data-aprovar-grupo]");
+      if (aprovarGrupo && aberto) {
+        var gid = aprovarGrupo.getAttribute("data-aprovar-grupo");
+        var grupoAlvo = DATA.GRUPOS.filter(function (x) { return x.id === gid; })[0];
+        if (grupoAlvo) {
+          pedirAprovacaoEmLote(paraConferir(aberto, grupoAlvo),
+                               "em " + grupoAlvo.titulo);
+        }
+        return;
+      }
+
       var aprovar = alvo.closest("[data-aprovar]");
       if (aprovar) { revisar(aprovar.getAttribute("data-aprovar"), "aprovado"); return; }
 
@@ -2130,8 +2694,10 @@
 
     FB.observarSessao(function (quem) {
       equipe = quem;
-      if (quem) carregarLista();
-      else {
+      if (quem) {
+        carregarModelos();
+        carregarLista();
+      } else {
         empresas = [];
         aberto = null;
         conversaAberta = null;

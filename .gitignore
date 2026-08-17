@@ -21,6 +21,11 @@ serviceAccount*.json
 .firebaserc
 firebase-debug.log
 
+# Dependências das Cloud Functions: são baixadas com `npm install`
+# dentro de functions/, nunca versionadas.
+functions/node_modules/
+functions/package-lock.json
+
 # Documentos de cliente não entram no repositório em hipótese alguma
 documentos/
 uploads/

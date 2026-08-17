@@ -412,6 +412,37 @@ Consequências assumidas, que precisam estar escritas:
 
 ---
 
+## Cloud Function — apagar a conta de login do cliente
+
+Está em `functions/index.js` e **ainda não foi publicada**. Sem ela, excluir uma
+empresa apaga tudo do Firestore e do Storage, mas a conta do cliente continua no
+Firebase Authentication. Nada quebra: o painel detecta a ausência da função,
+avisa quais contas ficaram e mostra onde apagá-las à mão.
+
+Ela não pode virar código de navegador. Apagar a conta de outra pessoa exige
+poder de administrador do projeto, e esse poder dentro de uma página web ficaria
+visível para qualquer um que abrisse o código-fonte.
+
+Para publicar é preciso **Node.js**, que não está instalado nesta máquina:
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use portaldocliente-8cc7d
+cd functions && npm install && cd ..
+firebase deploy --only functions
+```
+
+Depois é só usar o painel normalmente — ele passa a apagar a conta junto com a
+empresa, sem mudar mais nada. Confira uma vez excluindo uma empresa de teste: o
+aviso deve dizer que a conta também foi apagada.
+
+A função recusa, de propósito, dois casos: conta que tem documento em `usuarios`
+(é da equipe) e conta que ainda tem acesso a outra empresa (o mesmo login pode
+cuidar de vários CNPJs).
+
+---
+
 ## Rodando localmente
 
 Abrir o `index.html` direto pelo Explorer funciona parcialmente: o service worker

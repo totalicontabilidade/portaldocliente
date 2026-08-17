@@ -28,7 +28,10 @@
     gruposAbertos: {},
     trilhaAberta: "",
     faqAberta: {},
-    rota: "inicio"
+    rota: "inicio",
+    /* Documento para onde a próxima tela deve rolar. Vive um
+       desenho só e some — é um destino de viagem, não um estado. */
+    destacar: ""
   };
 
   function rotaValida(id) {
@@ -53,7 +56,15 @@
 
   /* O anel nasce vazio (dashoffset = circunferência) e o motion.js
      solta o valor final no quadro seguinte, para que ele "desenhe". */
-  function anelHTML(pct) {
+  /* O anel mostra CONTAGEM, não porcentagem.
+
+     "4%" é uma nota, e nota baixa desanima logo na primeira tela —
+     ainda por cima sem dizer o que fazer. "1 de 26" é a mesma
+     informação lida como progresso: dá para ver quanto já andou e
+     quanto falta, e cada documento enviado muda o número de um
+     jeito visível. O arco continua desenhando a proporção. */
+  function anelHTML(resumo) {
+    var pct = resumo.pct;
     var r = 39, c = 2 * Math.PI * r;
     var off = c - (U.clamp(pct, 0, 100) / 100) * c;
     return '' +
@@ -69,7 +80,12 @@
                   'stroke-dasharray="' + c.toFixed(1) + '" ' +
                   'stroke-dashoffset="' + c.toFixed(1) + '" data-off="' + off.toFixed(1) + '"/>' +
         '</svg>' +
-        '<div class="ring__value"><span data-count="' + pct + '">0</span><small>%</small></div>' +
+        '<div class="ring__value">' +
+          '<span class="ring__num" data-count="' + resumo.ok + '">0</span>' +
+          '<small>de ' + resumo.total + '</small>' +
+        '</div>' +
+        '<span class="sr-only">' + resumo.ok + ' de ' + resumo.total +
+          ' documentos enviados</span>' +
       '</div>';
   }
 
@@ -513,13 +529,73 @@
   /* Correções pedidas pela Totali vêm primeiro: são o que trava a
      migração. Depois, os obrigatórios que ainda não chegaram. */
   function proximosPendentes(limite) {
-    return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS, { limite: limite })
+    return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS)
+      /* As correções saem daqui: elas ganharam bloco próprio, no
+         alto da tela. Repetidas nos dois lugares, viravam ruído. */
+      .filter(function (p) { return p.sit !== "pendencia"; })
+      .slice(0, limite || 4)
       .map(function (p) {
         return {
-          grupo: p.grupo, item: p.item, sit: p.sit,
+          grupo: p.grupo, item: p.item, sit: p.sit, chave: p.chave,
           sufixo: p.socio ? (U.primeiroNome(p.socio.nome) || "sócio") : ""
         };
       });
+  }
+
+  /* O próximo passo concreto, com endereço.
+
+     Sem isto, "Enviar documentos" larga o cliente na lista inteira
+     e ele tem que descobrir sozinho onde parou — que é exatamente
+     o momento em que as pessoas desistem. Correção pedida vem na
+     frente, porque é o que está travando a migração. */
+  function proximoPasso() {
+    var l = global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS, { limite: 1 });
+    return l.length ? l[0] : null;
+  }
+
+  /* Documentos que a equipe devolveu, já com o motivo que ela
+     escreveu. O motivo é a parte útil: "voltou" sem "por quê" só
+     gera uma mensagem perguntando o porquê. */
+  function correcoesPedidas() {
+    return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS)
+      .filter(function (p) { return p.sit === "pendencia"; })
+      .map(function (p) {
+        var rev = (Store.estado.itens[p.chave] || {}).revisao || {};
+        p.motivo = rev.motivo || "";
+        p.em = rev.em || 0;
+        return p;
+      });
+  }
+
+  function nomeComSocio(p) {
+    return U.esc(p.item.nome) +
+      (p.socio ? ' <span class="text-xs text-muted">· ' +
+        U.esc(U.primeiroNome(p.socio.nome) || "sócio") + '</span>' : '');
+  }
+
+  /* O botão principal da tela inicial.
+
+     Ele leva ao documento exato, não à lista. E diz qual é, logo
+     abaixo: prometer "continuar" sem mostrar o quê obriga a pessoa
+     a clicar para descobrir se vale o esforço. */
+  function acoesDoHero(passo) {
+    var principal = passo
+      ? '<button type="button" class="btn btn--gold" data-rota="documentos" data-grupo="' +
+          U.escAttr(passo.grupo.id) + '" data-alvo="' + U.escAttr(passo.chave) + '">' +
+          ic("ic-chevron-right") + 'Continuar de onde parei</button>'
+      : '<button type="button" class="btn btn--gold" data-rota="documentos">' +
+          ic("ic-upload") + 'Enviar documentos</button>';
+
+    return '<div class="hero__actions">' + principal +
+        '<button type="button" class="btn btn--ghost" data-rota="ajuda">' +
+          ic("ic-help") + 'Preciso de ajuda</button>' +
+      '</div>' +
+      (passo
+        ? '<p class="hero__proximo">Próximo: <strong>' + U.esc(passo.item.nome) + '</strong>' +
+          (passo.socio ? ' — ' + U.esc(U.primeiroNome(passo.socio.nome) || "sócio") : '') +
+          (passo.sit === "pendencia" ? ' <span class="hero__proximo-tag">para corrigir</span>' : '') +
+          '</p>'
+        : '');
   }
 
   function viewInicio() {
@@ -529,6 +605,7 @@
     var idxEtapa = DATA.ETAPAS.findIndex(function (e) { return e.id === etapaId; });
     var nome = U.primeiroNome(st.empresa.responsavelNome);
     var empresaNome = st.empresa.nomeFantasia || st.empresa.razaoSocial;
+    var passo = proximoPasso();
 
     var html = '' +
     '<section class="hero">' +
@@ -543,23 +620,59 @@
               " para concluirmos sua migração. Você pode enviar aos poucos.") +
       '</p>' +
       '<div class="hero__row" id="blocoResumo">' +
-        anelHTML(resumo.pct) +
+        anelHTML(resumo) +
         '<div class="hero__stats">' +
           '<div><div class="stat__num" data-count="' + resumo.ok + '">0</div>' +
-            '<div class="stat__lbl">Enviados</div></div>' +
+            '<div class="stat__lbl">Já enviados</div></div>' +
           '<div><div class="stat__num" data-count="' + resumo.pendentes + '">0</div>' +
-            '<div class="stat__lbl">Pendentes</div></div>' +
+            '<div class="stat__lbl">Ainda faltam</div></div>' +
           '<div><div class="stat__num" data-count="' + resumo.pendentesObrigatorios + '">0</div>' +
-            '<div class="stat__lbl">Obrigatórios</div></div>' +
+            '<div class="stat__lbl">Obrigatórios a enviar</div></div>' +
         '</div>' +
       '</div>' +
-      '<div class="hero__actions">' +
-        '<button type="button" class="btn btn--gold" data-rota="documentos">' +
-          ic("ic-upload") + 'Enviar documentos</button>' +
-        '<button type="button" class="btn btn--ghost" data-rota="ajuda">' +
-          ic("ic-help") + 'Preciso de ajuda</button>' +
-      '</div>' +
+      acoesDoHero(passo) +
     '</section>';
+
+    /* ---- Devoluções da equipe ----
+
+       Vem antes de tudo, inclusive do vídeo: é a única coisa da
+       tela em que o cliente já fez a parte dele e mesmo assim
+       precisa agir de novo. Antes ficava só no meio da lista de
+       "próximos passos", sem o motivo, e o cliente descobria que
+       algo tinha voltado só se abrisse o documento certo. */
+    var correcoes = correcoesPedidas();
+    if (correcoes.length) {
+      html +=
+      '<section class="section" id="blocoCorrecoes">' +
+        '<div class="card card--atencao">' +
+          '<div class="atencao__cab">' +
+            '<span class="atencao__icone">' + ic("ic-alert") + '</span>' +
+            '<span class="atencao__txt">' +
+              '<span class="atencao__titulo">' +
+                (correcoes.length === 1
+                  ? "Um documento voltou para você"
+                  : correcoes.length + " documentos voltaram para você") + '</span>' +
+              '<span class="atencao__desc">Nossa equipe conferiu e precisa que você envie de ' +
+                'novo. É o que está segurando a sua migração.</span>' +
+            '</span>' +
+          '</div>' +
+          correcoes.map(function (p) {
+            return '<button type="button" class="corr" data-rota="documentos" data-grupo="' +
+                U.escAttr(p.grupo.id) + '" data-alvo="' + U.escAttr(p.chave) + '">' +
+              '<span class="corr__info">' +
+                '<span class="corr__nome">' + nomeComSocio(p) + '</span>' +
+                '<span class="corr__motivo">' +
+                  (p.motivo
+                    ? U.esc(p.motivo)
+                    : "A equipe não escreveu o motivo. Se ficar em dúvida, pergunte pelas Mensagens.") +
+                '</span>' +
+              '</span>' +
+              '<span class="corr__acao">Reenviar' + ic("ic-chevron-right") + '</span>' +
+            '</button>';
+          }).join("") +
+        '</div>' +
+      '</section>';
+    }
 
     var passos = Store.trilha();
     var enviouTudo = passos.filter(function (p) {
@@ -591,32 +704,25 @@
     /* Próximos passos */
     var pendentes = proximosPendentes(4);
     if (pendentes.length) {
-      var temCorrecao = resumo.pendencias > 0;
       html +=
       '<section class="section" id="blocoPendentes">' +
         '<div class="section__head"><div>' +
-          '<h2 class="section__title">' + (temCorrecao ? "Precisa da sua atenção" : "Próximos passos") + '</h2>' +
-          '<p class="section__desc">' +
-            (temCorrecao
-              ? "Há " + resumo.pendencias + " " +
-                U.plural(resumo.pendencias, "documento que a Totali pediu para corrigir",
-                                            "documentos que a Totali pediu para corrigir") + "."
-              : "Comece por aqui. São os documentos que mais travam a migração.") +
-          '</p>' +
+          '<h2 class="section__title">Próximos passos</h2>' +
+          '<p class="section__desc">Comece por aqui. São os documentos que mais travam a ' +
+            'migração — toque em um para ir direto a ele.</p>' +
         '</div></div>' +
         '<div class="card">' +
           pendentes.map(function (p) {
             return '<button type="button" class="group__head group__head--selo" ' +
-                     'data-rota="documentos" data-grupo="' +
-                     U.escAttr(p.grupo.id) + '" style="border-bottom:1px solid var(--stroke)">' +
+                     'data-rota="documentos" data-grupo="' + U.escAttr(p.grupo.id) + '" ' +
+                     'data-alvo="' + U.escAttr(p.chave) + '" ' +
+                     'style="border-bottom:1px solid var(--stroke)">' +
               '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
               '<span class="group__info">' +
                 '<span class="group__title" style="display:block;font-size:14px">' + U.esc(p.item.nome) +
                   (p.sufixo ? ' <span class="text-xs text-muted">· ' + U.esc(p.sufixo) + '</span>' : '') + '</span>' +
-                '<span class="group__meta">' +
-                  (p.sit === "pendencia" ? "Corrigir e reenviar" : U.esc(p.item.resumo || "")) + '</span>' +
+                '<span class="group__meta">' + U.esc(p.item.resumo || "") + '</span>' +
               '</span>' +
-              (p.sit === "pendencia" ? badgeSituacao("pendencia") : '') +
               '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
             '</button>';
           }).join("") +
@@ -766,6 +872,10 @@
           }).join("") + '</div>';
         }
         html += '<div class="item__actions">' +
+          (temCamera()
+            ? '<button type="button" class="btn btn--ghost btn--sm" data-foto="1">' +
+              ic("ic-camera") + 'Tirar foto</button>'
+            : '') +
           '<button type="button" class="btn btn--ghost btn--sm" data-enviar="1">' +
             ic("ic-upload") + (reg.arquivos.length ? "Adicionar outro" : "Enviar arquivo") + '</button>' +
           (item.obrigatorio && !reg.arquivos.length
@@ -2682,6 +2792,7 @@
     atualizarCabecalho();
     atualizarNav(rota);
     ligarCredenciais();
+    if (rota === "documentos") irAteODocumento();
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
     if (rota === "financeiro") bindFinanceiro();
@@ -2689,6 +2800,38 @@
     if (rota === "ajuda") bindAjuda();
     if (rota === "privacidade") bindPrivacidade();
     talvezTutorial(rota);
+  }
+
+  /* Rola até o documento pedido e o pisca uma vez.
+
+     A lista tem 26 itens em cinco grupos; abrir o grupo certo não
+     basta, porque o item pode estar fora da tela. O destaque some
+     sozinho: serve para o olho encontrar, não para virar mais uma
+     marcação permanente na tela. */
+  function irAteODocumento() {
+    var chave = estadoUI.destacar;
+    estadoUI.destacar = "";
+    if (!chave) return;
+
+    /* Procura comparando o atributo em vez de montar um seletor
+       com a chave dentro: chave é dado, e dado dentro de seletor
+       é a mesma classe de erro que dado dentro de HTML. */
+    var no = null;
+    $$("[data-chave]").some(function (n) {
+      if (n.getAttribute("data-chave") !== chave) return false;
+      no = n;
+      return true;
+    });
+    if (!no) return;
+
+    /* Espera o desenho assentar; senão a posição calculada é a de
+       antes das animações de entrada. */
+    setTimeout(function () {
+      try { no.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      catch (e) { no.scrollIntoView(); }
+      no.classList.add("item--alvo");
+      setTimeout(function () { no.classList.remove("item--alvo"); }, 2800);
+    }, 60);
   }
 
   /* O cabeçalho mostra a empresa do cliente assim que ela é
@@ -2774,12 +2917,37 @@
      Eventos
      ============================================================ */
   var inputArquivo = null;
+  var inputFoto = null;
   var chaveDestino = null;
 
   function iniciarUploadInput(chave) {
     chaveDestino = chave;
     inputArquivo.value = "";
     inputArquivo.click();
+  }
+
+  /* Caminho da câmera.
+
+     RG, CNH e comprovante de endereço quase nunca existem em
+     arquivo — existem em papel, na mão da pessoa. Mandando pelo
+     seletor de arquivos, ela precisa sair do portal, abrir a
+     câmera, tirar a foto, voltar e procurar a imagem na galeria.
+     Com `capture`, o celular abre a câmera direto e volta com a
+     foto. É um toque em vez de cinco. */
+  function iniciarFotoInput(chave) {
+    chaveDestino = chave;
+    inputFoto.value = "";
+    inputFoto.click();
+  }
+
+  /* Só oferece a câmera onde existe câmera de verdade. Num
+     computador de mesa o botão abriria o mesmo seletor de
+     arquivos e só duplicaria a escolha. */
+  function temCamera() {
+    try {
+      return (navigator.maxTouchPoints || 0) > 0 &&
+             global.matchMedia("(pointer: coarse)").matches;
+    } catch (e) { return false; }
   }
 
   function receberArquivos(chave, lista) {
@@ -2911,6 +3079,7 @@
         ev.preventDefault();
         var grupoAlvo = rotaBtn.getAttribute("data-grupo");
         if (grupoAlvo) estadoUI.gruposAbertos[grupoAlvo] = true;
+        estadoUI.destacar = rotaBtn.getAttribute("data-alvo") || "";
         navegar(rotaBtn.getAttribute("data-rota"));
         return;
       }
@@ -2928,6 +3097,13 @@
       if (ajuda) {
         var p = ajuda.getAttribute("data-ajuda").split("|");
         abrirAjudaItem(p[0], p[1]);
+        return;
+      }
+
+      var foto = ev.target.closest("[data-foto]");
+      if (foto) {
+        var cxf = contextoItem(foto);
+        if (cxf) iniciarFotoInput(cxf.chave);
         return;
       }
 
@@ -3378,6 +3554,21 @@
       chaveDestino = null;
     });
     document.body.appendChild(inputArquivo);
+
+    /* Entrada separada para a câmera: `capture` e `multiple` não
+       convivem — com os dois, o celular ignora a câmera e abre a
+       galeria. Por isso são dois inputs, não um com atributo
+       trocado na hora. */
+    inputFoto = document.createElement("input");
+    inputFoto.type = "file";
+    inputFoto.accept = "image/*";
+    inputFoto.capture = "environment";
+    inputFoto.style.display = "none";
+    inputFoto.addEventListener("change", function () {
+      if (chaveDestino) receberArquivos(chaveDestino, inputFoto.files);
+      chaveDestino = null;
+    });
+    document.body.appendChild(inputFoto);
 
     ligarEventosGlobais();
 
