@@ -64,16 +64,44 @@
       .then(function () { return true; });
   })();
 
-  /* ---------- Estado da sessão ---------- */
+  /* ---------- Estado da sessão ----------
+
+     ATENÇÃO AO QUE ESTA FUNÇÃO NÃO FAZ MAIS: ela não desloga
+     ninguém.
+
+     Antes, ao ver uma conta sem documento em /usuarios, ela
+     chamava `auth.signOut()` — "não é da equipe, derruba". Parecia
+     defesa e era um tiro no próprio pé, porque **a sessão do
+     Firebase é compartilhada entre todas as abas do mesmo
+     endereço**. Ou seja: com o painel aberto numa aba, todo
+     cliente que entrasse no portal na outra aba era deslogado
+     pelo painel, no meio do login. O sintoma que aparecia era
+     "não conseguimos consultar a sua empresa agora" — porque as
+     leituras seguintes chegavam ao servidor sem credencial
+     nenhuma.
+
+     E é exatamente assim que a equipe trabalha: painel numa aba,
+     portal do cliente na outra, para conferir o que o cliente vê.
+
+     Deslogar aqui também nunca foi a barreira de segurança. Quem
+     impede um não-membro de ler o painel são as regras do
+     Firestore (`ehEquipe()`), não esta linha. O observador só
+     precisa RELATAR que não é da equipe — o painel, ao receber
+     null, já mostra a tela de login.
+
+     A recusa com signOut continua onde faz sentido: em
+     `entrarComoEquipe`, onde foi o próprio painel que iniciou o
+     login e portanto é dono daquela sessão. */
   function observarSessao(aoMudar) {
     if (!auth) return function () {};
     return auth.onAuthStateChanged(function (u) {
       if (!u || u.isAnonymous) { equipeAtual = null; aoMudar(null); return; }
       db.collection("usuarios").doc(u.uid).get().then(function (doc) {
         if (!doc.exists) {
-          /* Conta existe mas não é da equipe: derruba. */
+          /* Conta logada que não é da equipe — provavelmente um
+             cliente com o portal aberto noutra aba. Não é da
+             conta do painel mexer nessa sessão. */
           equipeAtual = null;
-          auth.signOut();
           aoMudar(null);
           return;
         }
