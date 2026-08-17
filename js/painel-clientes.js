@@ -56,7 +56,8 @@
       raiz.collection("itens").get(),
       raiz.collection("socios").get(),
       raiz.collection("mensagens").get(),
-      raiz.collection("financeiro").get()
+      raiz.collection("financeiro").get(),
+      raiz.collection("acessos").get()
     ]).then(function (r) {
       var itens = {};
       r[1].forEach(function (d) { itens[global.Nuvem.decodificar(d.id)] = d.data() || {}; });
@@ -87,8 +88,18 @@
         }
       });
 
+      /* Quem tem acesso ao portal desta empresa. Vazio significa
+         que ninguém abriu o convite ainda — ou que o vínculo se
+         perdeu e precisa de link novo. */
+      var acessos = [];
+      r[5].forEach(function (d) {
+        var a = d.data() || {};
+        acessos.push({ uid: d.id, em: a.em, codigo: a.codigo || "" });
+      });
+
       return {
         id: id,
+        acessos: acessos,
         empresa: r[0].exists ? (r[0].data() || {}) : {},
         dados: {
           itens: itens, socios: socios, gruposNA: gruposNA,
@@ -903,6 +914,8 @@
         }
       });
 
+    html += acessoHTML(c);
+
     /* ---- Documentos, um bloco por departamento ---- */
     html += '<div class="ficha__titulo">Documentos</div>' +
       DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
@@ -1063,6 +1076,91 @@
                 ic("ic-download") + 'Abrir termo de compromisso</button></div>'
             : '');
       }
+    });
+  }
+
+  /* ---------- Acesso ao portal ----------
+
+     O convite serve uma vez só e some depois de usado. Reemitir
+     é o conserto para três casos que acontecem de verdade: o
+     cliente nunca abriu o primeiro link, a pessoa responsável na
+     empresa mudou, ou o vínculo se perdeu no banco. Sem isto,
+     vínculo perdido não tinha conserto — a regra do servidor não
+     deixa a equipe criar o vínculo, só o próprio cliente, e só
+     abrindo um convite. */
+  function acessoHTML(c) {
+    var acessos = c.acessos || [];
+
+    return bloco({
+      id: "acesso", icone: "ic-lock", titulo: "Acesso ao portal",
+      resumo: acessos.length
+        ? acessos.length + " " + U.plural(acessos.length, "acesso criado", "acessos criados")
+        : "Ninguém abriu o link de convite ainda",
+      selo: acessos.length ? "" : "Sem acesso",
+      seloCls: "badge--pendente",
+      corpo: function () {
+        return (acessos.length
+          ? acessos.map(function (a) {
+              return linhaDado("Acesso criado em",
+                a.em && a.em.seconds ? U.dataHora(a.em.seconds * 1000) : "data não registrada");
+            }).join("")
+          : '<p class="text-sm text-muted">Este cliente ainda não criou o acesso dele. ' +
+            'Gere um link e envie — ao abrir, ele define a senha e passa a entrar por ' +
+            'e-mail e senha.</p>') +
+        '<div class="row" style="margin-top:14px">' +
+          '<button type="button" class="btn btn--primary btn--sm" data-novo-link="' +
+            U.escAttr(c.id) + '">' + ic("ic-send") +
+            (acessos.length ? 'Gerar novo link de acesso' : 'Gerar link de acesso') + '</button>' +
+        '</div>' +
+        '<p class="field__hint" style="margin-top:10px;margin-bottom:0">' +
+          'O link vale uma vez só e não apaga nada: o que o cliente já enviou continua no ' +
+          'lugar. Serve quando ninguém abriu o primeiro link, quando muda a pessoa ' +
+          'responsável na empresa, ou para refazer um acesso perdido.</p>';
+      }
+    });
+  }
+
+  function abrirNovoLink(c) {
+    if (!global.Convite) return;
+    global.Convite.gerar(c.id, nomeDe(c)).then(function (r) {
+      var m = UI.modal({
+        titulo: "Link de acesso · " + nomeDe(c),
+        corpoHTML:
+          '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+            'Envie este link ao cliente. Ele vale <strong>uma vez só</strong>: ao abrir, o ' +
+            'cliente define a senha e o acesso passa a valer daí em diante.</p>' +
+          '<div class="field">' +
+            '<label class="field__label" for="nlLink">Link</label>' +
+            '<textarea class="textarea" id="nlLink" rows="3" readonly ' +
+              'style="font-size:13px;line-height:1.5"></textarea>' +
+          '</div>' +
+          '<div class="field" style="margin-bottom:0">' +
+            '<label class="field__label" for="nlMsg">Mensagem sugerida</label>' +
+            '<textarea class="textarea" id="nlMsg" rows="7" readonly ' +
+              'style="font-size:13px"></textarea>' +
+          '</div>',
+        acoes: [
+          { rotulo: "Fechar", classe: "btn--ghost" },
+          {
+            rotulo: "Copiar mensagem", classe: "btn--primary", fecharAntes: false,
+            onClick: function () { global.Convite.copiar(r.mensagem, "Mensagem"); }
+          }
+        ]
+      });
+      $("#nlLink", m.caixa).value = r.link;
+      $("#nlMsg", m.caixa).value = r.mensagem;
+
+      /* Recarrega o cliente: o convite novo ainda não virou
+         acesso, mas a equipe deve ver o estado real ao voltar. */
+      carregarCliente(c.id).then(function (novo) {
+        empresas = empresas.map(function (x) { return x.id === c.id ? novo : x; });
+        if (aberto && aberto.id === c.id) { aberto = novo; }
+      }, function () {});
+    }, function (e) {
+      var msg = e && e.message === "endereco-invalido"
+        ? "Preencha o \"Endereço do portal\" na aba Novo cliente antes de gerar o link."
+        : "Não foi possível gerar o link: " + FB.explicar(e);
+      UI.toast(msg, "erro", 9000);
     });
   }
 
@@ -1501,6 +1599,15 @@
 
       var fm = alvo.closest("[data-fmsg]");
       if (fm) { filtroMensagem = fm.getAttribute("data-fmsg"); desenharMensagens(); return; }
+
+      var nl = alvo.closest("[data-novo-link]");
+      if (nl) {
+        var alvoLink = empresas.filter(function (x) {
+          return x.id === nl.getAttribute("data-novo-link");
+        })[0];
+        if (alvoLink) abrirNovoLink(alvoLink);
+        return;
+      }
 
       var cob = alvo.closest("[data-cobrar]");
       if (cob) {

@@ -75,6 +75,46 @@
       "Qualquer dúvida, fale com a gente por lá mesmo, na aba Mensagens.";
   }
 
+  function mensagemNovoAcesso(nomeEmpresa, link) {
+    return "Olá! Aqui é a Totali Soluções Contábeis.\n\n" +
+      "Segue um link novo para o acesso de " + nomeEmpresa + " ao Portal do Cliente. " +
+      "Ele serve uma vez só: ao abrir, você define a senha e o acesso fica valendo daí em " +
+      "diante, de qualquer aparelho.\n\n" +
+      link + "\n\n" +
+      "Se você já tinha acesso, tudo o que enviou continua lá — nada se perde.";
+  }
+
+  /* ============================================================
+     Gerar convite para uma empresa QUE JÁ EXISTE
+
+     Serve quando o vínculo do cliente se perde, quando muda a
+     pessoa responsável na empresa, ou quando o link antigo se
+     perdeu antes de ser usado. Sem isto, um vínculo desfeito não
+     tinha conserto: a regra do servidor não deixa a equipe criar
+     `clientes/{uid}` — só o próprio cliente cria, e só abrindo um
+     convite.
+     ============================================================ */
+  function gerarConvite(empresaId, nomeEmpresa) {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.equipe) return Promise.reject(new Error("sem-conexao"));
+
+    var base = enderecoPadrao();
+    var campo = $("#cBase");
+    if (campo && enderecoValido(campo.value)) base = campo.value;
+    if (!enderecoValido(base)) return Promise.reject(new Error("endereco-invalido"));
+
+    var codigo = FB.novoCodigo();
+    return FB.db.collection("convites").doc(codigo).set({
+      empresaId: empresaId,
+      ativo: true,
+      criadoPor: FB.equipe.uid,
+      criadoEm: FB.agora()
+    }).then(function () {
+      var link = montarLinkCodigo(base, codigo);
+      return { codigo: codigo, link: link, mensagem: mensagemNovoAcesso(nomeEmpresa || "sua empresa", link) };
+    });
+  }
+
   function copiar(texto, rotulo) {
     var terminar = function (ok) {
       UI.toast(ok ? rotulo + " copiado." : "Não foi possível copiar. Selecione e copie à mão.",
@@ -359,4 +399,11 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();
+
+  /* O que a ficha do cliente precisa para reemitir um acesso. */
+  global.Convite = {
+    gerar: gerarConvite,
+    copiar: copiar,
+    enderecoPadrao: enderecoPadrao
+  };
 })(window);
