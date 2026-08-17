@@ -234,6 +234,17 @@
         });
       })
       .then(function () {
+        /* Índice das empresas deste login. É o que permite a
+           mesma pessoa cuidar de mais de um CNPJ: o campo acima
+           guarda só o primeiro e não pode ser alterado.
+           Se a regra ainda não tiver sido republicada, segue sem
+           ela — o portal cai para uma empresa só. */
+        return db.collection("clientes").doc(uid)
+                 .collection("empresas").doc(convite.empresaId)
+                 .set({ em: agora() })
+                 .catch(function () { /* segue com o modo antigo */ });
+      })
+      .then(function () {
         /* Convite queimado: link encaminhado ou vazado depois
            não serve para mais ninguém. Se falhar, o cadastro já
            está feito — não desfaz nada por causa disso. */
@@ -253,14 +264,59 @@
       .then(function (cred) { return descobrirEmpresa(cred.user.uid); });
   }
 
-  /* Em que empresa este usuário entra. */
-  function descobrirEmpresa(uid) {
-    return db.collection("clientes").doc(uid).get().then(function (doc) {
-      if (!doc.exists) throw new Error("sem-empresa");
+  /* ============================================================
+     De quais empresas este login cuida
+
+     Quase sempre é uma. Mas o mesmo dono costuma ter dois ou três
+     CNPJs, e faz pouco sentido obrigá-lo a um e-mail por empresa.
+
+     A lista vive em `clientes/{uid}/empresas`. Quem autoriza
+     continua sendo o documento de acesso dentro de cada empresa —
+     esta lista é só o índice que permite ao portal DESCOBRIR as
+     empresas, já que não dá para varrer o banco.
+
+     Tolera o mundo antigo de propósito: se a subcoleção não
+     existir (ou a regra ainda não tiver sido republicada), cai
+     para o campo único de sempre e segue funcionando. Quando der
+     certo, ela se conserta sozinha no login seguinte.
+     ============================================================ */
+  function empresaDoCampoUnico(ref) {
+    return ref.get().then(function (doc) {
+      if (!doc.exists) return [];
       var id = String((doc.data() || {}).empresaId || "");
-      if (!id) throw new Error("sem-empresa");
-      empresaAtual = id;
-      return id;
+      return id ? [id] : [];
+    }, function () { return []; });
+  }
+
+  function empresasDoCliente(uid) {
+    if (!db) return Promise.reject(new Error("sem-conexao"));
+    var ref = db.collection("clientes").doc(uid);
+
+    return ref.collection("empresas").get().then(function (snap) {
+      var ids = [];
+      snap.forEach(function (d) { ids.push(d.id); });
+      if (ids.length) return ids;
+
+      /* Cliente de antes do multiempresa: traz para o formato
+         novo sem pedir nada a ele. */
+      return empresaDoCampoUnico(ref).then(function (antigas) {
+        antigas.forEach(function (id) {
+          ref.collection("empresas").doc(id).set({ em: agora() }).catch(function () {});
+        });
+        return antigas;
+      });
+    }, function () {
+      return empresaDoCampoUnico(ref);
+    });
+  }
+
+  /* Em que empresa este usuário entra. Continua devolvendo uma
+     só — quem lida com a lista inteira é o portal. */
+  function descobrirEmpresa(uid) {
+    return empresasDoCliente(uid).then(function (ids) {
+      if (!ids.length) throw new Error("sem-empresa");
+      empresaAtual = ids[0];
+      return ids[0];
     });
   }
 
@@ -334,6 +390,7 @@
     entrarComoCliente: entrarComoCliente,
     recuperarSenha: recuperarSenha,
     retomarCliente: retomarCliente,
+    empresasDoCliente: empresasDoCliente,
     novoCodigo: novoCodigo,
     sair: sair,
     explicar: explicar,

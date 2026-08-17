@@ -185,6 +185,38 @@
     });
   }
 
+  /* O botão nunca pode ficar preso em "Criando…".
+
+     Gravação no Firestore só resolve quando o servidor confirma:
+     com a rede ruim, a promessa fica pendurada sem erro e sem
+     sucesso, e a tela morre com o botão desabilitado. Aconteceu
+     de verdade. Este relógio devolve o controle e diz o que
+     conferir — porque a conta pode ter sido criada mesmo assim. */
+  var LIMITE_MS = 20000;
+
+  function ocupar(m, ocupado, rotulo) {
+    var b = $('[data-acao="1"]', m.caixa);
+    if (!b) return;
+    b.disabled = ocupado;
+    b.textContent = rotulo || (ocupado ? "Criando…" : "Adicionar");
+  }
+
+  function comLimite(promessa, m) {
+    var terminou = false;
+    var relogio = setTimeout(function () {
+      if (terminou) return;
+      ocupar(m, false);
+      UI.toast("A gravação está demorando demais. Verifique a internet. Se a conta chegou a ser " +
+               "criada, ela aparece em Authentication — nesse caso use o campo de UID no fim do " +
+               "formulário para concluir.", "erro", 14000);
+    }, LIMITE_MS);
+    return promessa.then(function (v) {
+      terminou = true; clearTimeout(relogio); return v;
+    }, function (e) {
+      terminou = true; clearTimeout(relogio); throw e;
+    });
+  }
+
   function salvarNovo(m) {
     var nome = $("#mbNome", m.caixa).value.trim();
     var email = $("#mbEmail", m.caixa).value.trim();
@@ -216,13 +248,12 @@
       return;
     }
 
-    var botao = $('[data-acao="1"]', m.caixa);
-    if (botao) { botao.disabled = true; botao.textContent = "Criando…"; }
+    ocupar(m, true);
 
-    FB.criarContaEquipe(email, senha).then(function (uid) {
+    comLimite(FB.criarContaEquipe(email, senha), m).then(function (uid) {
       gravarMembro(uid, nome, email, papel, m);
     }, function (e) {
-      if (botao) { botao.disabled = false; botao.textContent = "Adicionar"; }
+      ocupar(m, false);
       var msg = (e && e.code === "auth/email-already-in-use")
         ? "Já existe uma conta com este e-mail. Copie o UID dela em Authentication e cole no " +
           "campo do fim do formulário."
@@ -236,16 +267,18 @@
       UI.toast(FB.explicar(new Error("ja-e-membro")), "erro");
       return;
     }
-    FB.db.collection("usuarios").doc(uid).set({
+    ocupar(m, true, "Gravando…");
+
+    comLimite(FB.db.collection("usuarios").doc(uid).set({
       nome: nome, email: email, papel: papel
-    }).then(function () {
+    }), m).then(function () {
       UI.fecharModal();
       UI.toast(nome + " agora tem acesso ao painel.", "ok", 7000);
       carregar();
     }, function (e) {
-      var botao = $('[data-acao="1"]', m.caixa);
-      if (botao) { botao.disabled = false; botao.textContent = "Adicionar"; }
-      UI.toast("Conta criada, mas não foi possível dar o acesso: " + FB.explicar(e), "erro", 11000);
+      ocupar(m, false);
+      UI.toast("A conta existe, mas não foi possível dar o acesso: " + FB.explicar(e) +
+               " Tente de novo usando o campo de UID.", "erro", 12000);
     });
   }
 

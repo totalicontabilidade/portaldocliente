@@ -179,7 +179,8 @@
                         c.dados.socios.length);
 
     var chave;
-    if (!e.aceiteLGPD) chave = "naoentrou";
+    if (e.arquivadaEm) chave = "arquivada";
+    else if (!e.aceiteLGPD) chave = "naoentrou";
     else if (!cadastroOk) chave = "cadastro";
     else if (resumo.pendencias > 0) chave = "correcao";
     else if (resumo.pendentesObrigatorios > 0) chave = "faltando";
@@ -217,7 +218,8 @@
     correcao:  { texto: "Aguardando correção", cls: "badge--pendencia" },
     faltando:  { texto: "Faltam documentos", cls: "badge--pendente" },
     conferir:  { texto: "Para conferir", cls: "badge--analise" },
-    emdia:     { texto: "Em dia", cls: "badge--aprovado" }
+    emdia:     { texto: "Em dia", cls: "badge--aprovado" },
+    arquivada: { texto: "Arquivada", cls: "badge--na" }
   };
 
   var ROTULO_SITUACAO = {
@@ -238,9 +240,14 @@
   /* =========================================================
      Tela 1 — lista de clientes
      ========================================================= */
+  function arquivada(c) { return !!c.empresa.arquivadaEm; }
+
   function clientesFiltrados() {
     var t = filtro.texto.trim().toLowerCase();
     return empresas.filter(function (c) {
+      /* Arquivada sai da lista de trabalho. Só aparece quando a
+         pessoa pede — senão o encerramento não encerraria nada. */
+      if (arquivada(c) && filtro.situacao !== "arquivada") return false;
       if (filtro.situacao !== "todos" && estadoDoCliente(c).chave !== filtro.situacao) return false;
       if (!t) return true;
       var alvo = [
@@ -316,7 +323,9 @@
     if (!global.Painel) return;
     var conferir = 0, correcao = 0, pendencias = 0, naoLidas = 0;
 
-    empresas.forEach(function (c) {
+    /* Empresa arquivada não gera trabalho: contá-la faria o menu
+       cobrar por cliente que já foi encerrado. */
+    empresas.filter(function (c) { return !arquivada(c); }).forEach(function (c) {
       var est = estadoDoCliente(c);
       if (est.chave === "correcao") correcao++;
       else if (est.chave === "conferir") conferir++;
@@ -341,11 +350,12 @@
       var k = estadoDoCliente(c).chave;
       conta[k] = (conta[k] || 0) + 1;
     });
+    var ativas = empresas.filter(function (c) { return !arquivada(c); }).length;
 
-    var ordem = ["correcao", "conferir", "faltando", "cadastro", "naoentrou", "emdia"];
+    var ordem = ["correcao", "conferir", "faltando", "cadastro", "naoentrou", "emdia", "arquivada"];
     placar.innerHTML =
       '<button type="button" class="filtro' + (filtro.situacao === "todos" ? " filtro--on" : "") +
-        '" data-filtro="todos">Todos <b>' + empresas.length + '</b></button>' +
+        '" data-filtro="todos">Todos <b>' + ativas + '</b></button>' +
       ordem.filter(function (k) { return conta[k]; }).map(function (k) {
         return '<button type="button" class="filtro' +
           (filtro.situacao === k ? " filtro--on" : "") + '" data-filtro="' + U.escAttr(k) + '">' +
@@ -366,7 +376,7 @@
   var fechadosSetor = {};   /* setores fechados   */
 
   function pendenciasPorEmpresa() {
-    return empresas.map(function (c) {
+    return empresas.filter(function (c) { return !arquivada(c); }).map(function (c) {
       var lista = global.Situacao.pendencias(c.dados, DATA.GRUPOS);
       if (filtroPendencia === "correcao") {
         lista = lista.filter(function (p) { return p.sit === "pendencia"; });
@@ -541,7 +551,9 @@
   }
 
   function conversas() {
-    var lista = empresas.filter(function (c) { return c.mensagens.length; });
+    var lista = empresas.filter(function (c) {
+      return c.mensagens.length && !arquivada(c);
+    });
     if (filtroMensagem === "naolidas") {
       lista = lista.filter(function (c) { return naoLidasDe(c) > 0; });
     }
@@ -915,6 +927,7 @@
       });
 
     html += acessoHTML(c);
+    html += zonaDeRiscoHTML(c);
 
     /* ---- Documentos, um bloco por departamento ---- */
     html += '<div class="ficha__titulo">Documentos</div>' +
@@ -1161,6 +1174,229 @@
         ? "Preencha o \"Endereço do portal\" na aba Novo cliente antes de gerar o link."
         : "Não foi possível gerar o link: " + FB.explicar(e);
       UI.toast(msg, "erro", 9000);
+    });
+  }
+
+  /* ============================================================
+     Encerrar um cliente
+
+     ARQUIVAR é o caminho normal: corta o acesso do cliente na
+     hora e tira a empresa da lista de trabalho, mas guarda tudo.
+     Documento entregue a um escritório de contabilidade tem
+     prazo de guarda — apagar por padrão seria irresponsável.
+
+     EXCLUIR apaga mesmo, e a ordem importa mais do que parece:
+     o que autoriza o cliente é o documento em `acessos`, não o
+     documento da empresa. Apagar a empresa primeiro deixaria o
+     cliente COM acesso a dados órfãos, que o console nem mostra.
+     Por isso o acesso morre antes de tudo.
+     ============================================================ */
+  function zonaDeRiscoHTML(c) {
+    var arquivada = !!c.empresa.arquivadaEm;
+    var souAdmin = equipe && equipe.papel === "admin";
+
+    return bloco({
+      id: "risco", icone: "ic-alert", titulo: "Encerrar cliente",
+      resumo: arquivada
+        ? "Arquivada em " + U.dataCurta(c.empresa.arquivadaEm)
+        : "Arquivar corta o acesso e guarda tudo; excluir apaga de vez",
+      selo: arquivada ? "Arquivada" : "",
+      seloCls: "badge--na",
+      corpo: function () {
+        return '<div class="notice notice--warn" style="margin-bottom:14px">' +
+            '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+            '<span><strong>Arquivar é quase sempre o certo.</strong> O cliente perde o acesso ' +
+            'na hora e a empresa sai da sua lista de trabalho, mas os documentos continuam ' +
+            'guardados — e documento de cliente tem prazo de guarda. Excluir não tem volta.' +
+            '</span></div>' +
+          (arquivada
+            ? '<p class="text-sm text-muted" style="margin-bottom:14px">Esta empresa está ' +
+              'arquivada. O cliente não consegue mais entrar. Para devolver o acesso, ' +
+              'desarquive e gere um link novo em "Acesso ao portal".</p>'
+            : '') +
+          '<div class="row">' +
+            (arquivada
+              ? '<button type="button" class="btn btn--ghost btn--sm" data-desarquivar="' +
+                U.escAttr(c.id) + '">Desarquivar</button>'
+              : '<button type="button" class="btn btn--primary btn--sm" data-arquivar="' +
+                U.escAttr(c.id) + '">Arquivar cliente</button>') +
+            (souAdmin
+              ? '<button type="button" class="btn btn--danger btn--sm" data-excluir="' +
+                U.escAttr(c.id) + '">Excluir definitivamente</button>'
+              : '') +
+          '</div>' +
+          (souAdmin ? '' :
+            '<p class="field__hint" style="margin-top:10px;margin-bottom:0">Excluir ' +
+            'definitivamente é só para administrador.</p>');
+      }
+    });
+  }
+
+  /* Cortar o acesso: some o vínculo dos dois lados e queima os
+     convites que ainda não foram usados. */
+  function cortarAcesso(c) {
+    var raiz = FB.db.collection("empresas").doc(c.id);
+    return raiz.collection("acessos").get().then(function (snap) {
+      var uids = [];
+      snap.forEach(function (d) { uids.push(d.id); });
+
+      var passos = uids.map(function (uid) {
+        return raiz.collection("acessos").doc(uid).delete().catch(function () {})
+          .then(function () {
+            return FB.db.collection("clientes").doc(uid).collection("empresas")
+                     .doc(c.id).delete().catch(function () {});
+          })
+          .then(function () {
+            /* O vínculo antigo, de uma empresa só, aponta para
+               esta? Então ele também some. */
+            return FB.db.collection("clientes").doc(uid).get().then(function (d) {
+              if (d.exists && (d.data() || {}).empresaId === c.id) {
+                return FB.db.collection("clientes").doc(uid).delete().catch(function () {});
+              }
+            }, function () {});
+          });
+      });
+
+      passos.push(
+        FB.db.collection("convites").where("empresaId", "==", c.id).get()
+          .then(function (cs) {
+            var fila = Promise.resolve();
+            cs.forEach(function (d) {
+              fila = fila.then(function () { return d.ref.delete().catch(function () {}); });
+            });
+            return fila;
+          }, function () {})
+      );
+
+      return Promise.all(passos);
+    });
+  }
+
+  function arquivar(c) {
+    UI.confirmar({
+      titulo: "Arquivar " + nomeDe(c),
+      mensagem: "O cliente perde o acesso ao portal agora e a empresa sai da sua lista de " +
+                "trabalho. Nenhum documento é apagado — dá para desarquivar depois.",
+      confirmar: "Arquivar"
+    }).then(function (ok) {
+      if (!ok) return;
+      UI.toast("Arquivando…", "", 5000);
+      cortarAcesso(c).then(function () {
+        return FB.db.collection("empresas").doc(c.id)
+                 .set({ arquivadaEm: Date.now() }, { merge: true });
+      }).then(function () {
+        UI.toast(nomeDe(c) + " foi arquivada e o acesso do cliente foi cortado.", "ok", 8000);
+        fecharCliente();
+        carregarLista();
+      }, function (e) {
+        UI.toast("Não foi possível arquivar: " + FB.explicar(e), "erro", 9000);
+      });
+    });
+  }
+
+  function desarquivar(c) {
+    FB.db.collection("empresas").doc(c.id)
+      .set({ arquivadaEm: null }, { merge: true }).then(function () {
+        UI.toast("Empresa desarquivada. Gere um link novo em \"Acesso ao portal\" para o " +
+                 "cliente voltar a entrar.", "ok", 10000);
+        carregarCliente(c.id).then(function (novo) {
+          empresas = empresas.map(function (x) { return x.id === c.id ? novo : x; });
+          aberto = novo;
+          desenharFicha();
+        }, function () {});
+      }, function (e) {
+        UI.toast("Não foi possível desarquivar: " + FB.explicar(e), "erro", 9000);
+      });
+  }
+
+  /* Apaga tudo, na ordem que não deixa buraco. */
+  function excluirDeVez(c) {
+    var raiz = FB.db.collection("empresas").doc(c.id);
+    var subcolecoes = ["itens", "socios", "mensagens", "credenciais", "financeiro", "eventos"];
+
+    /* 1. O acesso morre primeiro. */
+    return cortarAcesso(c).then(function () {
+      /* 2. Arquivos do Storage, pelos metadados que temos. */
+      var arquivos = [];
+      Object.keys(c.dados.itens || {}).forEach(function (k) {
+        (c.dados.itens[k].arquivos || []).forEach(function (a) {
+          arquivos.push({ id: a.id, pasta: "documentos" });
+        });
+      });
+      (c.mensagens || []).forEach(function (m) {
+        (m.anexos || []).forEach(function (a) { arquivos.push({ id: a.id, pasta: "mensagens" }); });
+      });
+      if (c.financeiro && c.financeiro.termo && c.financeiro.termo.id) {
+        arquivos.push({ id: c.financeiro.termo.id, pasta: "documentos" });
+      }
+      return Promise.all(arquivos.map(function (a) {
+        return FB.storage.ref("empresas/" + c.id + "/" + a.pasta + "/" + a.id + "/arquivo")
+                 .delete().catch(function () {});
+      }));
+    }).then(function () {
+      /* 3. Subcoleções, uma a uma. */
+      var fila = Promise.resolve();
+      subcolecoes.forEach(function (nome) {
+        fila = fila.then(function () {
+          return raiz.collection(nome).get().then(function (snap) {
+            var f = Promise.resolve();
+            snap.forEach(function (d) {
+              f = f.then(function () { return d.ref.delete().catch(function () {}); });
+            });
+            return f;
+          }, function () {});
+        });
+      });
+      return fila;
+    }).then(function () {
+      /* 4. Por último, a empresa. */
+      return raiz.delete();
+    });
+  }
+
+  function pedirExclusao(c) {
+    var nome = nomeDe(c);
+    var m = UI.modal({
+      titulo: "Excluir " + nome,
+      corpoHTML:
+        '<div class="notice notice--warn" style="margin-bottom:14px">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>Isto não tem volta.</strong> Some tudo: documentos enviados, sócios, ' +
+          'mensagens, senhas guardadas, o termo e o acesso do cliente. Não há backup dentro do ' +
+          'sistema.</span></div>' +
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+          'Se a intenção é só encerrar o atendimento, <strong>arquivar</strong> resolve e ' +
+          'preserva os documentos.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="exNome">Para confirmar, escreva o nome da empresa: ' +
+            '<strong>' + U.esc(nome) + '</strong></label>' +
+          '<input type="text" class="input" id="exNome" autocomplete="off" data-focus>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Excluir definitivamente", classe: "btn--danger", fecharAntes: false,
+          onClick: function () {
+            var digitado = $("#exNome", m.caixa).value.trim();
+            if (digitado.toLowerCase() !== nome.trim().toLowerCase()) {
+              UI.toast("O nome não confere. Escreva exatamente: " + nome, "erro", 9000);
+              return;
+            }
+            var b = $('[data-acao="1"]', m.caixa);
+            if (b) { b.disabled = true; b.textContent = "Excluindo…"; }
+            excluirDeVez(c).then(function () {
+              UI.fecharModal();
+              UI.toast(nome + " foi excluída.", "ok", 8000);
+              fecharCliente();
+              carregarLista();
+            }, function (e) {
+              if (b) { b.disabled = false; b.textContent = "Excluir definitivamente"; }
+              UI.toast("Não foi possível excluir por completo: " + FB.explicar(e) +
+                       " O acesso do cliente já foi cortado.", "erro", 12000);
+            });
+          }
+        }
+      ]
     });
   }
 
@@ -1599,6 +1835,19 @@
 
       var fm = alvo.closest("[data-fmsg]");
       if (fm) { filtroMensagem = fm.getAttribute("data-fmsg"); desenharMensagens(); return; }
+
+      var acharEmpresa = function (attr, no) {
+        return empresas.filter(function (x) { return x.id === no.getAttribute(attr); })[0];
+      };
+
+      var arq = alvo.closest("[data-arquivar]");
+      if (arq) { var ea = acharEmpresa("data-arquivar", arq); if (ea) arquivar(ea); return; }
+
+      var des = alvo.closest("[data-desarquivar]");
+      if (des) { var ed = acharEmpresa("data-desarquivar", des); if (ed) desarquivar(ed); return; }
+
+      var exc = alvo.closest("[data-excluir]");
+      if (exc) { var ex = acharEmpresa("data-excluir", exc); if (ex) pedirExclusao(ex); return; }
 
       var nl = alvo.closest("[data-novo-link]");
       if (nl) {

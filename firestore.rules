@@ -107,6 +107,30 @@ service cloud.firestore {
 
       allow update: if false;
       allow delete: if ehEquipe();
+
+      // ---------- Uma pessoa, várias empresas ----------
+      //
+      // É comum o mesmo dono ter dois ou três CNPJs. O campo
+      // `empresaId` acima guarda um só e não pode ser alterado —
+      // então esta lista é como o portal descobre TODAS as
+      // empresas daquele login.
+      //
+      // Não é ela que dá permissão: quem autoriza continua sendo
+      // /empresas/{id}/acessos/{uid}. Aqui é só um índice, e por
+      // isso o cliente só consegue escrever uma entrada se o
+      // acesso correspondente já existir. Listar empresa que não
+      // é dele não leva a lugar nenhum: a leitura da empresa
+      // continua exigindo o documento de acesso.
+      match /empresas/{empresaId} {
+        allow read: if (logado() && request.auth.uid == uid) || ehEquipe();
+
+        allow create: if logado()
+                      && request.auth.uid == uid
+                      && exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(uid));
+
+        allow update: if false;
+        allow delete: if ehEquipe();
+      }
     }
 
     // ---------- Empresas ----------
@@ -225,7 +249,14 @@ service cloud.firestore {
       match /eventos/{eventoId} {
         allow read: if ehEquipe();
         allow create: if equipeOuDono(empresaId);
-        allow update, delete: if false;
+        allow update: if false;
+
+        // Apagar evento a evento continua proibido — é o que dá
+        // sentido à trilha. A exceção é admin, e existe por um
+        // motivo prático: sem ela, excluir uma empresa deixaria
+        // os eventos órfãos no banco para sempre, invisíveis no
+        // console e ainda assim cobrados.
+        allow delete: if ehAdmin();
       }
     }
 

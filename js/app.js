@@ -271,10 +271,15 @@
         ? FB.cadastrarCliente(porta.codigo, email, senha)
         : FB.entrarComoCliente(email, senha);
 
-      acao.then(function (empresaId) {
+      acao.then(function () {
         porta.ocupado = false;
-        return entrarNaEmpresa(empresaId).then(function (ok) {
-          if (!ok) throw new Error("empresa-nao-carregou");
+        /* Depois do login, quem manda é a lista de empresas do
+           login — não o id que a entrada devolveu. É o que faz
+           quem tem dois CNPJs cair na empresa certa. */
+        return descobrirEmpresas().then(function (id) {
+          return entrarNaEmpresa(id).then(function (ok) {
+            if (!ok) throw new Error("empresa-nao-carregou");
+          });
         });
       }).then(function () {
         porta.modo = "";
@@ -292,6 +297,116 @@
     enviar.addEventListener("click", agir);
     var ultimo = $("#ptSenha2") || $("#ptSenha");
     ultimo.addEventListener("keydown", function (ev) { if (ev.key === "Enter") agir(); });
+  }
+
+  /* ============================================================
+     Uma pessoa, várias empresas
+
+     É comum o mesmo dono ter dois ou três CNPJs. Cada um tem o
+     próprio checklist, o próprio progresso e a própria conversa —
+     juntar tudo numa tela só seria errado, porque a documentação
+     é por empresa. Então o portal abre uma de cada vez e troca
+     pelo cabeçalho.
+
+     A escolha fica guardada por login: quem trabalha o dia todo
+     num CNPJ não quer reescolher a cada visita.
+     ============================================================ */
+  var empresasDaConta = [];   /* [{id, nome}] */
+
+  function chaveEscolha() {
+    var FB = global.FB;
+    var u = FB && FB.auth && FB.auth.currentUser;
+    return u ? "totali.onboarding.empresa." + u.uid : "";
+  }
+
+  function empresaLembrada() {
+    var k = chaveEscolha();
+    if (!k) return "";
+    try { return localStorage.getItem(k) || ""; } catch (e) { return ""; }
+  }
+
+  function lembrarEmpresa(id) {
+    var k = chaveEscolha();
+    if (!k) return;
+    try { localStorage.setItem(k, id); } catch (e) { /* segue */ }
+  }
+
+  function esquecerEmpresa() {
+    var k = chaveEscolha();
+    if (!k) return;
+    try { localStorage.removeItem(k); } catch (e) { /* segue */ }
+  }
+
+  /* Carrega a lista de empresas do login e devolve qual abrir. */
+  function descobrirEmpresas() {
+    var FB = global.FB;
+    var u = FB && FB.auth && FB.auth.currentUser;
+    if (!u) return Promise.resolve("");
+
+    return FB.empresasDoCliente(u.uid).then(function (ids) {
+      if (!ids.length) throw new Error("sem-empresa");
+
+      /* Nome de cada uma, para o seletor não mostrar códigos. */
+      return Promise.all(ids.map(function (id) {
+        return FB.db.collection("empresas").doc(id).get().then(function (d) {
+          var e = d.exists ? (d.data() || {}) : {};
+          return { id: id, nome: (e.nomeFantasia || e.razaoSocial || "Empresa").trim() };
+        }, function () { return { id: id, nome: "Empresa" }; });
+      })).then(function (lista) {
+        empresasDaConta = lista.sort(function (a, b) {
+          return a.nome.localeCompare(b.nome, "pt-BR");
+        });
+        var lembrada = empresaLembrada();
+        var vale = empresasDaConta.some(function (x) { return x.id === lembrada; });
+        return vale ? lembrada : empresasDaConta[0].id;
+      });
+    });
+  }
+
+  function abrirSeletorEmpresas() {
+    if (empresasDaConta.length < 2) return;
+    var atual = Store.estado.empresaId;
+
+    UI.modal({
+      titulo: "Suas empresas",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+          'Cada empresa tem a própria lista de documentos e a própria conversa com a ' +
+          U.esc(DATA.ORG.curto) + '.</p>' +
+        '<div class="card">' + empresasDaConta.map(function (e) {
+          var aqui = e.id === atual;
+          return '<button type="button" class="cliente" data-trocar-empresa="' +
+            U.escAttr(e.id) + '"' + (aqui ? ' disabled' : '') +
+            ' style="border-bottom:1px solid var(--stroke)">' +
+            '<span class="group__icon">' + ic("ic-building") + '</span>' +
+            '<span class="cliente__info">' +
+              '<span class="cliente__nome">' + U.esc(e.nome) + '</span>' +
+              '<span class="cliente__meta">' +
+                (aqui ? "Você está aqui" : "Tocar para abrir") + '</span>' +
+            '</span>' +
+            (aqui ? badgeSituacao("aprovado") : '<span class="cliente__chev">' +
+              ic("ic-chevron-right") + '</span>') +
+          '</button>';
+        }).join("") + '</div>',
+      acoes: [{ rotulo: "Fechar", classe: "btn--ghost" }]
+    });
+  }
+
+  function trocarEmpresa(id) {
+    if (!id || id === Store.estado.empresaId) { UI.fecharModal(); return; }
+    UI.fecharModal();
+    Store.flush();
+    lembrarEmpresa(id);
+    entrarNaEmpresa(id).then(function (ok) {
+      if (!ok) { UI.toast("Não foi possível abrir esta empresa.", "erro"); return; }
+      estadoUI.gruposAbertos = {};
+      estadoUI.trilhaAberta = "";
+      navegar("inicio");
+      var nome = (empresasDaConta.filter(function (x) { return x.id === id; })[0] || {}).nome || "";
+      UI.toast("Você está em " + nome + ".", "ok");
+    }, function () {
+      UI.toast("Não foi possível abrir esta empresa.", "erro");
+    });
   }
 
   /* Entrar na empresa: daqui em diante o portal grava no servidor.
@@ -2452,6 +2567,8 @@
     }).then(function (ok) {
       if (!ok) return;
       var FB = global.FB;
+      esquecerEmpresa();
+      empresasDaConta = [];
       /* Grava o que estiver pendente ANTES de encerrar a sessão:
          depois do logout o servidor não aceita mais escrita. Sem
          internet a gravação fica pendurada, então esperamos no
@@ -2591,6 +2708,10 @@
 
     atualizarConta(temSessao);
 
+    /* O seletor só existe para quem tem mais de uma empresa. */
+    var btnEmp = $("#btnEmpresas");
+    if (btnEmp) btnEmp.hidden = !(temSessao && empresasDaConta.length > 1);
+
     $$("[data-nav]").forEach(function (b) {
       var id = b.getAttribute("data-nav");
       if (id === rota) b.setAttribute("aria-current", "page");
@@ -2728,6 +2849,14 @@
     document.addEventListener("click", function (ev) {
       if (ev.target.closest("#btnSair") || ev.target.closest("#btnSairMenu")) {
         sairDaConta();
+        return;
+      }
+
+      if (ev.target.closest("#btnEmpresas")) { abrirSeletorEmpresas(); return; }
+
+      var trocar = ev.target.closest("[data-trocar-empresa]");
+      if (trocar && !trocar.disabled) {
+        trocarEmpresa(trocar.getAttribute("data-trocar-empresa"));
         return;
       }
 
@@ -3141,7 +3270,7 @@
        de acesso restrito — ninguém vê nada sem senha. */
     if (!codigo) {
       return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return entrarNaEmpresa(empresaId);
+        if (empresaId) return descobrirEmpresas().then(entrarNaEmpresa);
         if (FB.equipe) return false;      /* equipe testando: deixa passar */
         porta.modo = "login";
         return true;
@@ -3169,7 +3298,7 @@
          reabrindo o link antigo. Manda para o login. */
       var msg = FB.explicar(e);
       return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return entrarNaEmpresa(empresaId);
+        if (empresaId) return descobrirEmpresas().then(entrarNaEmpresa);
         porta.modo = "login";
         setTimeout(function () { UI.toast(msg, "erro", 9000); }, 700);
         return true;
