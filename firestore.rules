@@ -289,6 +289,32 @@ service cloud.firestore {
       }
     }
 
+    // ---------- Pedidos de exclusão de conta de login ----------
+    //
+    // O painel não consegue apagar uma conta do Authentication: isso
+    // exige poder de administrador do projeto, que não pode morar
+    // dentro de uma página web. Então o painel GRAVA UM PEDIDO aqui
+    // e uma função do servidor reage à gravação.
+    //
+    // Foi assim que ficou depois de a versão por HTTPS não passar:
+    // função de 2ª geração roda sobre Cloud Run, e liberar a chamada
+    // exigiria conceder acesso a `allUsers` — proibido pela política
+    // da organização da Totali. Invertendo o sentido, some o
+    // endereço público e quem autoriza volta a ser esta regra.
+    //
+    // Criar é só de admin. Alterar e apagar, de ninguém: o resultado
+    // é escrito pelo servidor e o pedido vira registro do que foi
+    // feito, com autor e data.
+    match /exclusoesDeConta/{pedidoId} {
+      allow read: if ehEquipe();
+      allow create: if ehAdmin()
+                    && request.resource.data.pedidoPor == request.auth.uid
+                    && request.resource.data.uids is list
+                    && request.resource.data.uids.size() > 0
+                    && request.resource.data.uids.size() <= 20;
+      allow update, delete: if false;
+    }
+
     // ---------- Conteúdo do portal ----------
     //
     // Textos, documentos do checklist, trilhas da Academy. Todo

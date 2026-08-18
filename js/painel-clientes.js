@@ -1647,9 +1647,7 @@
      excluída igual, e o painel avisa quais contas ficaram e onde
      apagá-las à mão. É por isso que a promessa nunca rejeita.
      ========================================================= */
-  var URL_FUNCOES = "https://southamerica-east1-" +
-                    (global.FIREBASE_CONFIG && global.FIREBASE_CONFIG.projectId) +
-                    ".cloudfunctions.net/";
+  var ESPERA_FUNCAO_MS = 20000;
 
   function excluirContasDeAcesso(uids) {
     if (!uids || !uids.length) return Promise.resolve({ disponivel: true, apagadas: [] });
@@ -1657,25 +1655,46 @@
     var u = FB.auth && FB.auth.currentUser;
     if (!u) return Promise.resolve({ disponivel: false, apagadas: [] });
 
-    return u.getIdToken().then(function (token) {
-      return fetch(URL_FUNCOES + "excluirAcessoDoCliente", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ data: { uids: uids } })
-      });
-    }).then(function (resp) {
-      if (!resp.ok) return { disponivel: false, apagadas: [] };
-      return resp.json().then(function (corpo) {
-        var r = (corpo && corpo.result) || {};
-        return {
-          disponivel: true,
-          apagadas: r.apagadas || [],
-          recusadas: r.recusadas || []
-        };
+    var ref = FB.db.collection("exclusoesDeConta").doc();
+
+    return ref.set({
+      uids: uids,
+      pedidoPor: u.uid,
+      pedidoEm: FB.agora()
+    }).then(function () {
+      /* Fica ouvindo o próprio pedido até o servidor escrever o
+         resultado nele. Com teto de tempo: se a função não estiver
+         publicada, ninguém responde, e travar a tela esperando
+         seria pior do que avisar. */
+      return new Promise(function (resolve) {
+        var pronto = false;
+        var parar = ref.onSnapshot(function (d) {
+          var v = d.data() || {};
+          if (!v.concluidoEm || pronto) return;
+          pronto = true;
+          parar();
+          resolve({
+            disponivel: !v.erro,
+            apagadas: v.apagadas || [],
+            recusadas: v.recusadas || [],
+            erro: v.erro || ""
+          });
+        }, function () {
+          if (pronto) return;
+          pronto = true;
+          resolve({ disponivel: false, apagadas: [] });
+        });
+
+        setTimeout(function () {
+          if (pronto) return;
+          pronto = true;
+          try { parar(); } catch (e) {}
+          resolve({ disponivel: false, apagadas: [] });
+        }, ESPERA_FUNCAO_MS);
       });
     }).catch(function () {
-      /* Função não publicada, sem rede, CORS: dá tudo no mesmo —
-         a conta continua lá e quem resolve é a equipe. */
+      /* Sem permissão, sem rede: dá no mesmo — a conta continua lá
+         e quem resolve é a equipe, com o aviso da tela. */
       return { disponivel: false, apagadas: [] };
     });
   }
@@ -1703,9 +1722,9 @@
           (resultado.disponivel
             ? 'Mas ' + U.plural(uids.length, "esta conta de acesso não pôde ser apagada",
                                              "estas contas de acesso não puderam ser apagadas") + ':'
-            : 'A conta de acesso do cliente, porém, fica no Firebase Authentication — ' +
-              'apagá-la depende de uma função no servidor que ainda não foi publicada ' +
-              '(<code>functions/index.js</code>).') +
+            : 'A conta de acesso do cliente, porém, fica no Firebase Authentication. ' +
+              'O pedido de exclusão foi registrado, mas o servidor não respondeu — ' +
+              'confira se a função <code>processarExclusaoDeConta</code> está publicada.') +
         '</p>' +
         '<div class="cred__par" style="flex-direction:column;align-items:stretch;gap:6px">' +
           uids.map(function (uid) {
