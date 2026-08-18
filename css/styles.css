@@ -2220,13 +2220,19 @@ body.tour-aberto{overscroll-behavior:contain}
   .aceite__caixa{padding:13px}
 }
 
-/* As duas vias da cobrança, lado a lado — para a equipe escolher
-   sabendo o que muda em cada uma, não pelo nome do botão. */
+/* As três vias da cobrança — portal, WhatsApp e e-mail — lado a
+   lado, para a equipe escolher sabendo o que muda em cada uma,
+   não pelo nome do botão. */
 .cobranca__vias{display:grid;gap:10px}
 .cobranca__via{
   padding:11px 13px;border-radius:12px;
   border:1px solid var(--stroke);background:var(--glass);
 }
+/* Via indisponível (sem telefone, sem e-mail) continua visível e
+   explicando por quê: sumir daria a impressão de que o sistema
+   não faz aquilo. */
+.cobranca__via--off{opacity:.55}
+.cobranca__via--off .cobranca__t .ic{color:var(--txt-4)}
 .cobranca__t{
   display:flex;align-items:center;gap:8px;
   font-size:13.5px;font-weight:650;color:var(--txt);
@@ -2235,4 +2241,23 @@ body.tour-aberto{overscroll-behavior:contain}
 .cobranca__d{
   display:block;font-size:12.5px;color:var(--txt-3);line-height:1.55;margin-top:5px;
 }
-@media (min-width:520px){ .cobranca__vias{grid-template-columns:1fr 1fr} }
+@media (min-width:560px){ .cobranca__vias{grid-template-columns:repeat(3,1fr)} }
+
+/* ============================================================
+   "Enviar depois" — o combinado do cliente
+
+   Três prazos fechados. O botão mostra o rótulo em cima e a data
+   real embaixo: "na próxima semana" é vago, "26/08" não é.
+   ============================================================ */
+.prazos{display:grid;gap:9px}
+.prazo{
+  height:auto;min-height:56px;padding:11px 14px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;
+}
+.prazo__rot{display:block;font-size:14px;font-weight:650;color:var(--txt)}
+.prazo__dia{display:block;font-size:12.5px;color:var(--txt-3);font-weight:500}
+@media (min-width:520px){ .prazos{grid-template-columns:repeat(3,1fr)} }
+
+.lembrete__acoes{
+  display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;
+}

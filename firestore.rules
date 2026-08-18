@@ -201,18 +201,23 @@ service cloud.firestore {
       // fora desta lista é o que impede o cliente de aprovar o
       // próprio documento — e a trava precisa valer na criação E na
       // alteração, senão basta criar o documento já aprovado.
+      //
+      // `lembrete` é do cliente: é a data em que ele mesmo se
+      // comprometeu a voltar neste documento ("enviar depois").
+      // Não muda a situação do item — continua faltando — e por
+      // isso pode ficar na mão dele sem risco nenhum.
       match /itens/{chave} {
         allow read: if equipeOuDono(empresaId);
 
         allow create: if ehEquipe()
                       || (ehDonoDaEmpresa(empresaId) && soEstesCamposAoCriar([
                            'arquivos', 'valor', 'na', 'forma',
-                           'obs', 'atualizadoEm'
+                           'obs', 'atualizadoEm', 'lembrete'
                          ]));
         allow update: if ehEquipe()
                       || (ehDonoDaEmpresa(empresaId) && soEstesCampos([
                            'arquivos', 'valor', 'na', 'forma',
-                           'obs', 'atualizadoEm'
+                           'obs', 'atualizadoEm', 'lembrete'
                          ]));
         allow delete: if ehAdmin();
       }

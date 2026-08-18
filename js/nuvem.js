@@ -68,7 +68,8 @@
      zero de propósito: se levasse a hora atual, toda gravação
      pareceria diferente e o documento seria reescrito para sempre. */
   var ITEM_VAZIO = {
-    arquivos: [], valor: "", na: false, forma: "", obs: "", atualizadoEm: 0
+    arquivos: [], valor: "", na: false, forma: "", obs: "", atualizadoEm: 0,
+    lembrete: 0
   };
 
   function criar(empresaId, cacheLocal) {
@@ -116,7 +117,8 @@
         na: r.na === true,
         forma: txt(r.forma, 60),
         obs: txt(r.obs, 1000),
-        atualizadoEm: num(r.atualizadoEm)
+        atualizadoEm: num(r.atualizadoEm),
+        lembrete: num(r.lembrete)
       };
     }
 

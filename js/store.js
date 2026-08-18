@@ -196,6 +196,11 @@
     return {
       arquivos: [], valor: "", na: false, obs: "", forma: "",
       atualizadoEm: 0,
+      /* "Enviar depois": a data que o próprio cliente escolheu
+         para voltar a este documento. Zero quando não marcou.
+         Não muda a situação do item — ele continua faltando —,
+         só troca a cobrança automática por um combinado. */
+      lembrete: 0,
       /* Preenchido pela equipe da Totali no painel interno.
          status: "" | "analise" | "aprovado" | "pendencia" */
       revisao: revisaoVazia()
@@ -308,6 +313,7 @@
         novo.forma = typeof r.forma === "string" ? r.forma.slice(0, 60) : "";
         novo.na = r.na === true;
         novo.atualizadoEm = typeof r.atualizadoEm === "number" ? r.atualizadoEm : 0;
+        novo.lembrete = typeof r.lembrete === "number" && r.lembrete > 0 ? r.lembrete : 0;
 
         if (r.revisao && typeof r.revisao === "object") {
           var st = String(r.revisao.status || "");
@@ -709,6 +715,36 @@
       }, "arquivos");
       Store.registrarEvento("arquivo:removeu", chave, nome);
       return backend.removerArquivo(arquivoId, "documento").catch(function () {});
+    },
+
+    /* =======================================================
+       "Enviar depois"
+
+       O documento que falta não sai da lista e não muda de
+       situação — ele continua faltando, e a equipe continua
+       vendo que falta. O que muda é o combinado: o cliente diz
+       quando vai voltar, o portal para de empurrar aquele item
+       para a frente da fila até lá, e no dia avisa.
+
+       Existe porque a alternativa real não é "enviar agora": é
+       fechar o portal e esquecer. Quem está sem o documento em
+       mãos não tem o que fazer com um botão de enviar.
+       ======================================================= */
+    marcarLembrete: function (chave, quando) {
+      var ms = Number(quando) || 0;
+      Store.commit(function () {
+        var r = Store.item(chave);
+        r.lembrete = ms;
+        r.atualizadoEm = Date.now();
+      }, "lembrete");
+      Store.registrarEvento(ms ? "lembrete:marcou" : "lembrete:limpou", chave,
+                            ms ? new Date(ms).toISOString().slice(0, 10) : "");
+      return ms;
+    },
+
+    lembreteDe: function (chave) {
+      var r = estado.itens[chave];
+      return (r && r.lembrete) || 0;
     },
 
     baixarArquivo: function (arquivoId, tipo) {

@@ -143,6 +143,23 @@
       }, rotaAtual);
     },
 
+    /* O combinado do "Enviar depois" chegou ao dia.
+
+       Este é o único aviso que a própria pessoa pediu — os outros
+       partem da Totali. Por isso o texto lembra disso ("você
+       marcou"), em vez de soar como cobrança. */
+    lembreteDoCliente: function (nomeDoDocumento, quantos, rotaAtual) {
+      return Notif.avisarSeAusente({
+        titulo: quantos > 1 ? "Você marcou " + quantos + " documentos para hoje"
+                            : "Você marcou este documento para hoje",
+        corpo: quantos > 1
+          ? nomeDoDocumento + " e mais " + (quantos - 1)
+          : nomeDoDocumento,
+        tag: "lembrete",
+        rota: "documentos"
+      }, rotaAtual);
+    },
+
     /* [FIREBASE] Quando o Cloud Messaging entrar, é aqui que a
        inscrição do aparelho será obtida e enviada ao servidor,
        para que o aviso chegue com o aplicativo fechado.

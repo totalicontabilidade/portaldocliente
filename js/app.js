@@ -548,9 +548,24 @@
      e ele tem que descobrir sozinho onde parou — que é exatamente
      o momento em que as pessoas desistem. Correção pedida vem na
      frente, porque é o que está travando a migração. */
+  /* O próximo documento a cobrar da pessoa.
+
+     Pula o que ela mesma marcou para depois, enquanto o dia não
+     chega: insistir num item que a pessoa acabou de adiar é
+     ignorar o que ela disse, e o "Continuar de onde parei"
+     passaria a apontar sempre para a mesma parede. Vencido o
+     prazo, o item volta para a fila normalmente. Se TODOS os
+     pendentes estiverem adiados, mostramos o primeiro mesmo
+     assim — melhor que uma tela sem próximo passo. */
   function proximoPasso() {
-    var l = global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS, { limite: 1 });
-    return l.length ? l[0] : null;
+    var l = global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS);
+    if (!l.length) return null;
+    var agora = Date.now();
+    var livre = l.filter(function (p) {
+      var ms = (Store.estado.itens[p.chave] || {}).lembrete || 0;
+      return !ms || ms <= agora;
+    });
+    return livre.length ? livre[0] : l[0];
   }
 
   /* Documentos que a equipe devolveu, já com o motivo que ela
@@ -668,6 +683,46 @@
                 '</span>' +
               '</span>' +
               '<span class="corr__acao">Reenviar' + ic("ic-chevron-right") + '</span>' +
+            '</button>';
+          }).join("") +
+        '</div>' +
+      '</section>';
+    }
+
+    /* ---- O que o próprio cliente marcou para hoje ----
+
+       Fica logo abaixo das devoluções porque é um compromisso
+       que ele assumiu, não uma cobrança da Totali. O tom muda por
+       isso: lembra, não pressiona, e o botão de remarcar está ali
+       do lado para quem não conseguiu. */
+    var vencidos = lembretesVencidos();
+    if (vencidos.length) {
+      html +=
+      '<section class="section" id="blocoLembretes">' +
+        '<div class="card card--pad">' +
+          '<div class="atencao__cab" style="margin-bottom:12px">' +
+            '<span class="atencao__icone">' + ic("ic-clock") + '</span>' +
+            '<span class="atencao__txt">' +
+              '<span class="atencao__titulo">' +
+                (vencidos.length === 1
+                  ? "Você marcou este documento para hoje"
+                  : "Você marcou " + vencidos.length + " documentos para hoje") + '</span>' +
+              '<span class="atencao__desc">Foi o dia que você mesmo escolheu. Se ainda não ' +
+                'conseguiu, é só marcar outro — sem problema nenhum.</span>' +
+            '</span>' +
+          '</div>' +
+          vencidos.map(function (p) {
+            return '<button type="button" class="group__head group__head--selo" ' +
+                'data-rota="documentos" data-grupo="' + U.escAttr(p.grupo.id) + '" ' +
+                'data-alvo="' + U.escAttr(p.chave) + '" ' +
+                'style="border-bottom:1px solid var(--stroke)">' +
+              '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
+              '<span class="group__info">' +
+                '<span class="group__title" style="display:block;font-size:14px">' +
+                  nomeComSocio(p) + '</span>' +
+                '<span class="group__meta">' + U.esc(p.grupo.titulo) + '</span>' +
+              '</span>' +
+              '<span class="group__chev">' + ic("ic-chevron-right") + '</span>' +
             '</button>';
           }).join("") +
         '</div>' +
@@ -944,8 +999,151 @@
         '<button type="button" class="btn btn--quiet btn--sm" data-reativar="1">Reativar este item</button></div>';
     }
 
+    /* ---- "Enviar depois" ----
+       Só faz sentido no que ainda falta. Em documento resolvido,
+       marcado como não aplicável ou coberto pela CNH, seria um
+       botão que não leva a lugar nenhum. */
+    if (!pronto && !grupoNA && sit !== "na" && sit !== "substituido") {
+      html += lembreteHTML(chave, reg.lembrete || 0);
+    }
+
     html += '</div></div></div>';
     return html;
+  }
+
+  /* ============================================================
+     "Enviar depois"
+
+     Três opções fechadas em vez de um calendário: escolher uma
+     data no celular é trabalhoso, e o que a pessoa quer dizer
+     quase sempre é "não é agora". Datas soltas também virariam
+     lembretes espalhados por meses.
+
+     A data cai sempre às 9h — hora de expediente, não a hora em
+     que a pessoa por acaso clicou.
+     ============================================================ */
+  var PRAZOS = [
+    { id: "amanha",  rot: "Amanhã",           dias: 1 },
+    { id: "3dias",   rot: "Em 3 dias",        dias: 3 },
+    { id: "semana",  rot: "Na próxima semana", dias: 7 }
+  ];
+
+  function daquiADias(dias) {
+    var d = new Date();
+    d.setDate(d.getDate() + dias);
+    d.setHours(9, 0, 0, 0);
+    return d.getTime();
+  }
+
+  function lembreteVencido(ms) { return ms > 0 && ms <= Date.now(); }
+
+  function lembreteHTML(chave, ms) {
+    if (ms > 0) {
+      var venceu = lembreteVencido(ms);
+      return '<div class="notice ' + (venceu ? "notice--warn" : "notice--info") +
+          '" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
+          '<span class="notice__icon">' + ic("ic-clock") + '</span>' +
+          '<span>' +
+            (venceu
+              ? '<strong>Você tinha marcado este documento para ' + U.esc(U.dataCurta(ms)) +
+                '.</strong> Chegou o dia — se ainda não conseguiu, é só remarcar.'
+              : '<strong>Combinado: você volta neste documento em ' +
+                U.esc(U.dataCurta(ms)) + '.</strong> Vamos te lembrar no dia.') +
+            '<span class="lembrete__acoes">' +
+              '<button type="button" class="btn btn--quiet btn--sm" data-lembrar="abrir">' +
+                'Mudar a data</button>' +
+              '<button type="button" class="btn btn--quiet btn--sm" data-lembrar="limpar">' +
+                'Cancelar</button>' +
+            '</span>' +
+          '</span></div>';
+    }
+    return '<div class="item__actions">' +
+      '<button type="button" class="btn btn--quiet btn--sm" data-lembrar="abrir">' +
+        ic("ic-clock") + 'Enviar depois</button>' +
+    '</div>';
+  }
+
+  function pedirLembrete(chave, nomeItem) {
+    var atual = Store.lembreteDe(chave);
+    UI.modal({
+      titulo: "Quando você volta neste documento?",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.6;color:var(--txt-2);margin-bottom:14px">' +
+          'Sem problema não ter agora. Escolha um dia e a gente te lembra — ' +
+          U.esc(nomeItem || "este documento") + ' continua na lista até chegar.</p>' +
+        '<div class="prazos">' +
+          PRAZOS.map(function (p) {
+            return '<button type="button" class="btn btn--ghost prazo" data-prazo="' +
+              U.escAttr(p.id) + '" data-prazo-chave="' + U.escAttr(chave) + '">' +
+              '<span class="prazo__rot">' + U.esc(p.rot) + '</span>' +
+              '<span class="prazo__dia">' + U.esc(U.dataCurta(daquiADias(p.dias))) + '</span>' +
+            '</button>';
+          }).join("") +
+        '</div>',
+      acoes: (atual
+        ? [{
+            rotulo: "Cancelar o lembrete", classe: "btn--quiet",
+            onClick: function () { limparLembrete(chave); }
+          }]
+        : []
+      ).concat([{ rotulo: "Fechar", classe: "btn--ghost" }])
+    });
+  }
+
+  /* Os botões de prazo vivem dentro do modal e são tratados pelo
+     ouvinte geral de cliques, no fim deste arquivo — mesmo
+     caminho do seletor de empresas. */
+  function escolherPrazo(chave, prazoId) {
+    var escolha = PRAZOS.filter(function (p) { return p.id === prazoId; })[0];
+    if (!escolha) return;
+    var quando = daquiADias(escolha.dias);
+    Store.marcarLembrete(chave, quando);
+    UI.fecharModal();
+    UI.toast("Combinado. Te lembramos em " + U.dataCurta(quando) + ".", "ok", 4000);
+    render();
+  }
+
+  function limparLembrete(chave) {
+    Store.marcarLembrete(chave, 0);
+    UI.toast("Lembrete cancelado.", "ok", 3000);
+    render();
+  }
+
+  /* Documentos cujo dia combinado já chegou. */
+  function lembretesVencidos() {
+    var agora = Date.now();
+    return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS)
+      .filter(function (p) {
+        var ms = (Store.estado.itens[p.chave] || {}).lembrete || 0;
+        return ms > 0 && ms <= agora;
+      });
+  }
+
+  /* Avisa uma vez por dia, não a cada abertura do portal.
+
+     O aviso vale enquanto o documento não chega, e quem abre o
+     portal cinco vezes num dia não precisa de cinco notificações.
+     A marca do último aviso fica só neste aparelho: é preferência
+     de aparelho, não dado do cliente, e não tem por que ocupar
+     espaço no servidor. */
+  var CHAVE_AVISO = "totali:lembrete:ultimoAviso";
+
+  function conferirLembretes() {
+    var vencidos = lembretesVencidos();
+    if (!vencidos.length) return;
+
+    var N = global.Notif;
+    if (!N || !N.ativo) return;
+
+    var hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    var marca = String(hoje.getTime());
+    try {
+      if (localStorage.getItem(CHAVE_AVISO) === marca) return;
+      localStorage.setItem(CHAVE_AVISO, marca);
+    } catch (e) { /* sem armazenamento: avisa e segue */ }
+
+    N.lembreteDoCliente(vencidos[0].item.nome, vencidos.length, estadoUI.rota);
   }
 
   function grupoHTML(grupo) {
@@ -3232,6 +3430,12 @@
         return;
       }
 
+      var prazo = ev.target.closest("[data-prazo]");
+      if (prazo) {
+        escolherPrazo(prazo.getAttribute("data-prazo-chave"), prazo.getAttribute("data-prazo"));
+        return;
+      }
+
       var verTutorial = ev.target.closest("[data-tutorial]");
       if (verTutorial) {
         abrirTutorial(verTutorial.getAttribute("data-tutorial"));
@@ -3329,6 +3533,15 @@
         }, "na");
         Store.registrarEvento("item:naoSeAplica", cxn.chave, cxn.item.nome);
         Store.flush(); render();
+        return;
+      }
+
+      var lembrar = ev.target.closest("[data-lembrar]");
+      if (lembrar) {
+        var cxl = contextoItem(lembrar);
+        if (!cxl) return;
+        if (lembrar.getAttribute("data-lembrar") === "limpar") limparLembrete(cxl.chave);
+        else pedirLembrete(cxl.chave, cxl.item.nome);
         return;
       }
 
@@ -3829,6 +4042,7 @@
       if (!location.hash) location.replace("#/inicio");
       render();
       document.body.classList.add("pronto");
+      conferirLembretes();
 
       /* O convite do servidor depende de rede, então roda depois
          da primeira pintura: a tela nunca fica esperando. */

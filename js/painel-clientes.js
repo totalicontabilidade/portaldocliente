@@ -595,18 +595,146 @@
       }).join("");
     }
 
-    if (!grupos.length) {
-      caixa.innerHTML = '<div class="card"><div class="empty">' +
-        '<div class="empty__icon">' + ic("ic-check-circle") + '</div>' +
-        '<div class="empty__title">Nada pendente</div>' +
-        '<div class="empty__desc">' +
-          (empresas.length ? "Todo mundo entregou o que era obrigatório."
-                           : "Ainda não há cliente cadastrado.") + '</div>' +
-      '</div></div>';
-      return;
-    }
+    var vazio = !grupos.length
+      ? '<div class="card"><div class="empty">' +
+          '<div class="empty__icon">' + ic("ic-check-circle") + '</div>' +
+          '<div class="empty__title">Nada pendente</div>' +
+          '<div class="empty__desc">' +
+            (empresas.length ? "Todo mundo entregou o que era obrigatório."
+                             : "Ainda não há cliente cadastrado.") + '</div>' +
+        '</div></div>'
+      : grupos.map(cartaoPendencia).join("");
 
-    caixa.innerHTML = grupos.map(cartaoPendencia).join("");
+    caixa.innerHTML = filaHTML() + vazio;
+  }
+
+  /* ============================================================
+     Fila de conferência — o que CHEGOU e ninguém olhou
+
+     É o outro lado da aba: abaixo ficam os documentos que faltam;
+     aqui, os que já chegaram e esperam a equipe. A diferença
+     importa porque o trabalho é oposto — um se resolve cobrando,
+     o outro se resolve conferindo.
+
+     Ordenada pelo mais antigo, atravessando todas as empresas. A
+     ficha do cliente continua existindo para quando se quer o
+     contexto inteiro; esta fila serve para o outro modo de
+     trabalho, o de sentar e limpar a fila. Antes disso, a equipe
+     precisava abrir cliente por cliente para descobrir onde havia
+     algo esperando.
+     ============================================================ */
+  var filaAberta = true;
+
+  function filaDeConferencia() {
+    var fila = [];
+    empresas.forEach(function (c) {
+      if (arquivada(c)) return;
+      naoConferidos(c).forEach(function (x) {
+        var reg = c.dados.itens[x.chave] || {};
+        var socio = x.socioId
+          ? c.dados.socios.filter(function (s) { return s.id === x.socioId; })[0]
+          : null;
+        fila.push({
+          cliente: c, chave: x.chave, item: x.item, grupo: x.grupo,
+          /* Documento de sócio sem o nome do sócio é ambíguo: numa
+             empresa com três sócios, "RG" aparece três vezes. */
+          nome: x.item.nome + (socio && socio.nome ? " — " + socio.nome : ""),
+          em: emMs(reg.atualizadoEm) || 0
+        });
+      });
+    });
+    /* Sem data conhecida vai para o fim: não dá para afirmar que
+       espera há muito tempo sem saber desde quando. */
+    fila.sort(function (a, b) {
+      if (!a.em && !b.em) return 0;
+      if (!a.em) return 1;
+      if (!b.em) return -1;
+      return a.em - b.em;
+    });
+    return fila;
+  }
+
+  function esperaDe(em) {
+    if (!em) return { texto: "sem data", dias: 0 };
+    var dias = Math.floor((Date.now() - em) / DIA);
+    if (dias <= 0) return { texto: "chegou hoje", dias: 0 };
+    if (dias === 1) return { texto: "esperando há 1 dia", dias: 1 };
+    return { texto: "esperando há " + dias + " dias", dias: dias };
+  }
+
+  function filaHTML() {
+    var fila = filaDeConferencia();
+    if (!fila.length) return "";
+
+    var maisAntigo = esperaDe(fila[0].em);
+
+    return '<section class="card group" data-open="' + (filaAberta ? "true" : "false") +
+        '" style="margin-bottom:16px">' +
+      '<button type="button" class="group__head group__head--selo" data-fila="1">' +
+        '<span class="group__icon">' + ic("ic-check-circle") + '</span>' +
+        '<span class="group__info">' +
+          '<span class="group__title" style="display:block">Fila de conferência</span>' +
+          '<span class="group__meta" style="display:block">Documentos que chegaram e ainda não ' +
+            'foram conferidos · o mais antigo ' + U.esc(maisAntigo.texto) + '</span>' +
+        '</span>' +
+        '<span class="badge ' + (maisAntigo.dias >= 3 ? "badge--pendencia" : "badge--analise") + '">' +
+          '<span class="dot"></span>' + fila.length + '</span>' +
+        '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
+      '</button>' +
+      (filaAberta
+        ? '<div class="group__body">' +
+            fila.map(function (f) {
+              var e = esperaDe(f.em);
+              return '<div class="item"><div class="item__top">' +
+                '<span class="group__icon">' + ic(f.grupo.icone) + '</span>' +
+                '<div class="item__main">' +
+                  '<div class="item__name">' + U.esc(f.nome) + '</div>' +
+                  '<div class="item__row">' +
+                    '<span class="text-xs" style="color:var(--gold-2);font-weight:640">' +
+                      U.esc(nomeDe(f.cliente)) + '</span>' +
+                    '<span class="text-xs text-muted">' + U.esc(f.grupo.titulo) + '</span>' +
+                    '<span class="text-xs' + (e.dias >= 3 ? '" style="color:var(--warn);font-weight:640' : ' text-muted') +
+                      '">' + U.esc(e.texto) + '</span>' +
+                  '</div>' +
+                  '<div class="item__actions">' +
+                    '<button type="button" class="btn btn--primary btn--sm" data-fila-aprovar="' +
+                      U.escAttr(f.cliente.id) + '|' + U.escAttr(f.chave) + '">Aprovar</button>' +
+                    '<button type="button" class="btn btn--ghost btn--sm" data-cliente="' +
+                      U.escAttr(f.cliente.id) + '">Abrir ficha</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div></div>';
+            }).join("") +
+          '</div>'
+        : '') +
+    '</section>';
+  }
+
+  /* Aprovar direto da fila, sem abrir a ficha. É o ganho da tela:
+     conferir vinte documentos vira vinte cliques, não vinte
+     idas e voltas. */
+  function aprovarDaFila(idCliente, chave) {
+    var c = empresas.filter(function (x) { return x.id === idCliente; })[0];
+    if (!c) return;
+
+    var revisao = {
+      status: "aprovado", motivo: "",
+      por: (equipe && (equipe.nome || equipe.email)) || "equipe",
+      em: Date.now()
+    };
+
+    FB.db.collection("empresas").doc(c.id).collection("itens")
+      .doc(global.Nuvem.codificar(chave))
+      .set({ revisao: revisao }, { merge: true })
+      .then(function () {
+        if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
+        c.dados.itens[chave].revisao = revisao;
+        desenharPendencias();
+        atualizarContadores();
+        UI.toast("Aprovado.", "ok", 2500);
+      }, function (e) {
+        UI.toast("Não foi possível aprovar: " + FB.explicar(e), "erro", 9000);
+      });
   }
 
   /* Cada empresa é um cartão que abre e fecha; dentro dela, um
@@ -691,6 +819,7 @@
               '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
                 (p.item.obrigatorio
                   ? '<span class="text-xs text-muted">obrigatório</span>' : '') +
+                combinadoHTML(c, p.chave) +
               '</div>' +
             '</div>' +
           '</div></div>';
@@ -998,6 +1127,11 @@
         '<button type="button" class="btn btn--ghost btn--sm" id="clVoltar">' +
           ic("ic-chevron-right", "gira180") + 'Todos os clientes</button>' +
         '<button type="button" class="btn btn--quiet btn--sm" id="clRecarregar">Atualizar</button>' +
+        /* A ficha em papel: para levar à visita, anexar no e-mail
+           ou arquivar no processo do cliente. Senhas não entram —
+           ver js/ficha-pdf.js. */
+        '<button type="button" class="btn btn--quiet btn--sm" id="clFichaPDF">' +
+          ic("ic-download") + 'Exportar em PDF</button>' +
       '</div>' +
 
       '<section class="section">' +
@@ -1049,8 +1183,12 @@
             return '<p class="text-sm text-muted">Nada pendente. Tudo o que era obrigatório ' +
               'já chegou.</p>';
           }
+          /* Um botão só, que abre as três vias. Antes dizia
+             "Cobrar pelo portal" e escondia que havia outras. */
           return '<button type="button" class="btn btn--primary btn--sm" id="clCobrar" ' +
-              'style="margin-bottom:14px">' + ic("ic-send") + 'Cobrar pelo portal</button>' +
+              'style="margin-bottom:6px">' + ic("ic-send") + 'Cobrar tudo o que falta</button>' +
+            '<p class="text-xs text-muted" style="margin:0 0 14px">Portal, WhatsApp ou e-mail — ' +
+              'você escolhe na próxima tela.</p>' +
             pendentes.map(function (p) {
               return '<div class="item"><div class="item__top">' +
                 '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
@@ -1059,7 +1197,18 @@
                     (p.socio ? ' <span class="text-xs text-muted">· ' +
                       U.esc(p.socio.nome || "sócio") + '</span>' : '') + '</div>' +
                   '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
-                    '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span></div>' +
+                    '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span>' +
+                    /* O cliente marcou dia para voltar neste
+                       documento. Cobrar antes disso é desfazer um
+                       combinado que ele cumpriu até agora. */
+                    combinadoHTML(c, p.chave) + '</div>' +
+                  /* Cobrar UM documento: o texto vai preso a ele, e
+                     no portal do cliente vira link direto para o
+                     item — muito mais preciso que "faltam 11". */
+                  '<div class="item__actions">' +
+                    '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
+                      U.escAttr(p.chave) + '">Cobrar só este</button>' +
+                  '</div>' +
                 '</div>' +
               '</div></div>';
             }).join("");
@@ -1897,6 +2046,27 @@
     });
   }
 
+  /* ---------- "Enviar depois", visto de cá ----------
+
+     O cliente pode marcar um dia para voltar num documento. A
+     equipe precisa enxergar isso, senão cobra hoje o que ficou
+     combinado para sexta — e a cobrança que chega em cima de um
+     combinado cumprido é a que faz o cliente parar de responder.
+
+     Vencido o prazo, o selo troca de cor e vira o contrário: é o
+     melhor momento para cobrar, porque a própria pessoa já tinha
+     dito que aquele era o dia. */
+  function combinadoHTML(c, chave) {
+    var ms = ((c.dados.itens[chave] || {}).lembrete) || 0;
+    if (!ms) return "";
+    var venceu = ms <= Date.now();
+    return '<span class="text-xs" style="color:' +
+      (venceu ? "var(--warn)" : "var(--txt-3)") + ';font-weight:' + (venceu ? "640" : "500") + '">' +
+      (venceu ? "prometeu para " + U.esc(U.dataCurta(ms)) + " — venceu"
+              : "o cliente marcou para " + U.esc(U.dataCurta(ms))) +
+    '</span>';
+  }
+
   /* Nome legível de "fiscal/certificado-digital". */
   function nomeDaChave(chave) {
     var partes = String(chave).split("/");
@@ -2491,6 +2661,39 @@
       });
     });
 
+    var pdf = $("#clFichaPDF");
+    if (pdf) pdf.addEventListener("click", function () {
+      if (!aberto) return;
+      if (!global.FichaPDF || !global.FichaPDF.disponivel()) {
+        UI.toast("O gerador de PDF não carregou. Atualize a página e tente de novo.", "erro", 8000);
+        return;
+      }
+      pdf.disabled = true;
+      var antes = pdf.innerHTML;
+      pdf.textContent = "Gerando…";
+
+      global.FichaPDF.gerar(aberto).then(function (r) {
+        var url = URL.createObjectURL(r.blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = r.nome;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        /* Um minuto é folga suficiente para o navegador terminar
+           de gravar o arquivo antes de o endereço deixar de valer. */
+        setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 60000);
+        pdf.disabled = false;
+        pdf.innerHTML = antes;
+        UI.toast("Ficha exportada.", "ok", 3000);
+      }, function (e) {
+        pdf.disabled = false;
+        pdf.innerHTML = antes;
+        UI.toast("Não foi possível gerar o PDF: " + ((e && e.message) || "erro"), "erro", 9000);
+      });
+    });
+
     var enviar = $("#clEnviarMsg");
     if (enviar) enviar.addEventListener("click", function () {
       var campo = $("#clMsg");
@@ -2534,27 +2737,148 @@
     return true;
   }
 
-  /* A cobrança serve tanto da ficha quanto da lista de
-     pendências, então mora fora das duas.
+  /* Abre o programa de e-mail com tudo preenchido.
 
-     Dois caminhos, porque servem a momentos diferentes: pelo
-     portal fica registrado na conversa e o cliente encontra
-     junto do checklist; pelo WhatsApp chega onde ele já olha.
-     O texto é o mesmo, e a equipe pode ajustar antes. */
-  function abrirCobranca(c) {
-    var texto = montarCobranca(c);
+     `mailto:` e não integração com servidor de e-mail: a mensagem
+     sai da caixa da própria pessoa, com a assinatura dela, e a
+     resposta do cliente volta para ela. Integração exigiria
+     servidor, domínio verificado e um remetente genérico — mais
+     peça para manter e pior para quem recebe. */
+  /* O endereço vai cru no `mailto:`, não percent-encoded: `%40` no
+     lugar do arroba trava alguns programas de e-mail. Em troca,
+     ele precisa PARECER um endereço antes de sair daqui — é o que
+     impede alguém de embutir uma quebra de linha e emendar um
+     destinatário oculto no cabeçalho. */
+  function emailValido(v) {
+    return /^[^\s<>"'@,;:]+@[^\s<>"'@,;:]+\.[^\s<>"'@,;:]+$/.test(String(v || "").trim());
+  }
+
+  function abrirNoEmail(email, assunto, corpo) {
+    var alvo = String(email || "").trim();
+    if (!emailValido(alvo)) return false;
+    var a = document.createElement("a");
+    a.href = "mailto:" + alvo +
+             "?subject=" + encodeURIComponent(assunto) +
+             "&body=" + encodeURIComponent(corpo);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  }
+
+  /* ============================================================
+     Cobrança — uma janela, três vias
+
+     Serve a todos os pontos do sistema que cobram: o bloco "o que
+     falta" da ficha, a lista de pendências e a cobrança de um
+     documento específico. Fica fora dos três de propósito — se
+     cada tela montasse a sua, uma hora teriam textos diferentes
+     para a mesma situação.
+
+     Cada via serve a um momento:
+       portal    fica registrado na conversa, junto do checklist;
+       WhatsApp  chega onde o cliente já olha;
+       e-mail    o que dá para encaminhar, imprimir e anexar —
+                 e o único que serve de comprovante numa cobrança
+                 que precise ser formal.
+
+     Nenhuma delas envia sozinha pelo WhatsApp ou pelo e-mail: as
+     duas abrem o aplicativo com o texto pronto e quem aperta
+     enviar é a pessoa. É proposital — mensagem disparada por
+     sistema em nome de alguém erra o tom mais cedo ou mais tarde.
+     ============================================================ */
+  /* Cobrança de UM documento.
+
+     O texto sai nomeando o documento e dizendo onde encontrá-lo, e
+     a mensagem vai presa à chave do item — no portal do cliente
+     isso vira um link direto para ele. Cobrar "os 11 que faltam"
+     costuma render nada; cobrar um documento com nome e caminho
+     rende resposta. */
+  function cobrarItem(c, chave) {
+    var achado = global.Situacao.pendencias(c.dados, DATA.GRUPOS)
+      .filter(function (p) { return p.chave === chave; })[0];
+    if (!achado) { UI.toast("Este documento já não está pendente.", "ok"); return; }
+
+    var quem = achado.socio ? " (de " + (achado.socio.nome || "sócio") + ")" : "";
+    var corrigir = achado.sit === "pendencia";
+    var nome = (c.empresa.responsavelNome || "").split(" ")[0] || "";
+
+    var texto = "Olá" + (nome ? ", " + nome : "") + "! " +
+      (corrigir
+        ? "Precisamos que você reenvie um documento da " + nomeDe(c) + ":\n\n"
+        : "Falta um documento para seguirmos com a " + nomeDe(c) + ":\n\n") +
+      "• " + achado.item.nome + quem + "\n\n" +
+      (achado.item.resumo ? achado.item.resumo + "\n\n" : "") +
+      "É só enviar pelo portal, na aba Documentos, em " + achado.grupo.titulo + ". " +
+      "Dá para tirar foto pelo celular. Qualquer dúvida, responda por aqui mesmo.";
+
+    var montagem = {
+      texto: texto,
+      chave: chave,
+      titulo: "Cobrar: " + achado.item.nome,
+      assunto: (corrigir ? "Reenvio de documento" : "Documento pendente") +
+               " · " + achado.item.nome + " · " + nomeDe(c)
+    };
+
+    /* O cliente marcou dia para voltar neste documento e o dia
+       ainda não chegou. Não bloqueia a cobrança — às vezes ela é
+       necessária mesmo assim —, só garante que a equipe saiba do
+       combinado antes de mandar. */
+    var prometido = ((c.dados.itens[chave] || {}).lembrete) || 0;
+    if (prometido > Date.now()) {
+      UI.confirmar({
+        titulo: "O cliente já marcou uma data",
+        mensagem: "Ele mesmo se comprometeu a enviar " + achado.item.nome + " até " +
+                  U.dataCurta(prometido) + ", e esse dia ainda não chegou. Cobrar agora " +
+                  "pode soar como se ninguém tivesse visto o que ele combinou. Quer cobrar " +
+                  "assim mesmo?",
+        confirmar: "Cobrar mesmo assim"
+      }).then(function (ok) {
+        if (ok) abrirCobranca(c, montagem);
+      });
+      return;
+    }
+
+    abrirCobranca(c, montagem);
+  }
+
+  function abrirCobranca(c, opcoes) {
+    var o = opcoes || {};
+    var texto = o.texto || montarCobranca(c);
     if (!texto) { UI.toast("Este cliente não tem pendência para cobrar.", "ok"); return; }
 
+    var titulo = o.titulo || ("Cobrar " + nomeDe(c));
+    var assunto = o.assunto || ("Documentos pendentes · " + nomeDe(c));
+    var chave = o.chave || "";
+
     var tel = c.empresa.responsavelTelefone || "";
+    var email = c.empresa.responsavelEmail || "";
     var temZap = !!numeroWhatsApp(tel);
+    var temEmail = emailValido(email);
 
     var acoes = [{ rotulo: "Cancelar", classe: "btn--ghost" }];
+
+    if (temEmail) {
+      acoes.push({
+        rotulo: "Abrir e-mail", classe: "btn--ghost", fecharAntes: false,
+        onClick: function () {
+          if (!abrirNoEmail(email, assunto, $("#cbTexto", m.caixa).value)) {
+            UI.toast("E-mail do responsável inválido.", "erro");
+            return;
+          }
+          UI.fecharModal();
+          UI.toast("Seu programa de e-mail foi aberto com a mensagem pronta. Ela não fica " +
+                   "registrada no portal — para registro, use também \"Enviar pelo portal\".",
+                   "", 11000);
+        }
+      });
+    }
+
     if (temZap) {
       acoes.push({
-        rotulo: "Abrir no WhatsApp", classe: "btn--gold", fecharAntes: false,
+        rotulo: "Abrir WhatsApp", classe: "btn--gold", fecharAntes: false,
         onClick: function () {
-          var t = $("#cbTexto", m.caixa).value;
-          if (!abrirNoWhatsApp(tel, t)) {
+          if (!abrirNoWhatsApp(tel, $("#cbTexto", m.caixa).value)) {
             UI.toast("Telefone do responsável inválido.", "erro");
             return;
           }
@@ -2564,30 +2888,34 @@
         }
       });
     }
+
     acoes.push({
       rotulo: "Enviar pelo portal", classe: "btn--primary",
-      onClick: function () { enviarMensagem($("#cbTexto", m.caixa).value, "", c); }
+      onClick: function () { enviarMensagem($("#cbTexto", m.caixa).value, chave, c); }
     });
 
+    var via = function (icone, nome, disponivel, texto) {
+      return '<div class="cobranca__via' + (disponivel ? "" : " cobranca__via--off") + '">' +
+        '<span class="cobranca__t">' + ic(icone) + U.esc(nome) + '</span>' +
+        '<span class="cobranca__d">' + texto + '</span>' +
+      '</div>';
+    };
+
     var m = UI.modal({
-      titulo: "Cobrar " + nomeDe(c),
+      titulo: titulo,
       corpoHTML:
         '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
-          'Ajuste o texto se quiser e escolha por onde enviar.</p>' +
+          'Ajuste o texto se quiser e escolha por onde enviar. Dá para usar mais de uma via — ' +
+          'o portal registra, as outras duas alcançam.</p>' +
         '<div class="cobranca__vias">' +
-          '<div class="cobranca__via">' +
-            '<span class="cobranca__t">' + ic("ic-chat") + 'Pelo portal</span>' +
-            '<span class="cobranca__d">Fica registrado na conversa, junto do checklist.</span>' +
-          '</div>' +
-          '<div class="cobranca__via">' +
-            '<span class="cobranca__t">' + ic("ic-phone") + 'Pelo WhatsApp</span>' +
-            '<span class="cobranca__d">' +
-              (temZap
-                ? 'Vai para ' + U.esc(tel) + '. Abre o WhatsApp com o texto pronto — ' +
-                  'você confere e envia.'
-                : 'Indisponível: o cliente ainda não informou o telefone do responsável.') +
-            '</span>' +
-          '</div>' +
+          via("ic-chat", "Pelo portal", true,
+              'Fica registrado na conversa, junto do checklist.') +
+          via("ic-phone", "Pelo WhatsApp", temZap,
+              temZap ? 'Vai para ' + U.esc(tel) + ', com o texto pronto — você confere e envia.'
+                     : 'O cliente ainda não informou o telefone do responsável.') +
+          via("ic-mail", "Por e-mail", temEmail,
+              temEmail ? 'Vai para ' + U.esc(email) + ', com o texto pronto no seu programa de e-mail.'
+                       : 'O cliente ainda não informou o e-mail do responsável.') +
         '</div>' +
         '<div class="field" style="margin-bottom:0;margin-top:14px">' +
           '<label class="field__label" for="cbTexto">Mensagem</label>' +
@@ -2618,6 +2946,16 @@
 
       var fp = alvo.closest("[data-fpend]");
       if (fp) { filtroPendencia = fp.getAttribute("data-fpend"); desenharPendencias(); return; }
+
+      var fapr = alvo.closest("[data-fila-aprovar]");
+      if (fapr) {
+        var par = String(fapr.getAttribute("data-fila-aprovar")).split("|");
+        aprovarDaFila(par[0], par.slice(1).join("|"));
+        return;
+      }
+
+      var fl = alvo.closest("[data-fila]");
+      if (fl) { filaAberta = !filaAberta; desenharPendencias(); return; }
 
       /* Abrir e fechar empresa e setor. Depois de redesenhar, a
          página volta para onde o cartão estava, senão a lista
@@ -2660,6 +2998,9 @@
 
       var exc = alvo.closest("[data-excluir]");
       if (exc) { var ex = acharEmpresa("data-excluir", exc); if (ex) pedirExclusao(ex); return; }
+
+      var ci = alvo.closest("[data-cobrar-item]");
+      if (ci && aberto) { cobrarItem(aberto, ci.getAttribute("data-cobrar-item")); return; }
 
       var rv = alvo.closest("[data-revogar-convite]");
       if (rv) { revogarConvite(rv.getAttribute("data-revogar-convite")); return; }
