@@ -2261,3 +2261,39 @@ body.tour-aberto{overscroll-behavior:contain}
 .lembrete__acoes{
   display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;
 }
+
+/* ============================================================
+   Mensagem resolvida e anotações internas (painel da equipe)
+
+   Resolvida RECUA, não some: some viraria histórico apagado, e a
+   conversa precisa continuar inteira para quem chegar depois.
+   ============================================================ */
+.msg__resolver{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  margin-top:9px;padding-top:8px;
+  border-top:1px solid var(--stroke-fraco);
+}
+.msg__selo{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;font-weight:600;color:var(--ok);
+}
+.msg__selo .ic{width:13px;height:13px;flex:none}
+.msg--resolvida{opacity:.66}
+.msg--resolvida:hover,.msg--resolvida:focus-within{opacity:1}
+
+.notas{display:grid;gap:10px;margin-bottom:4px}
+.nota{
+  padding:12px 14px;border-radius:12px;
+  border:1px solid var(--stroke);background:var(--surf-2);
+  /* Faixa dourada à esquerda: a distância visual do resto da
+     ficha é o que lembra que isto não é dado do cliente. */
+  border-left:3px solid var(--gold-2);
+}
+.nota__txt{font-size:13.5px;line-height:1.62;color:var(--txt)}
+.nota__txt p{margin:0 0 8px}
+.nota__txt p:last-child{margin-bottom:0}
+.nota__txt ol,.nota__txt ul{margin:6px 0 8px;padding-left:20px}
+.nota__pe{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:9px;padding-top:8px;border-top:1px solid var(--stroke-fraco);
+}

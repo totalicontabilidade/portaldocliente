@@ -102,6 +102,10 @@
       raiz.collection("mensagens").get(),
       raiz.collection("financeiro").get(),
       raiz.collection("acessos").get(),
+      /* Anotações internas. Só a equipe lê — a regra do servidor
+         não deixa o cliente nem listar esta subcoleção. */
+      raiz.collection("notas").get()
+        .catch(function () { return { forEach: function () {} }; }),
       /* Convites em aberto desta empresa. Cada um é uma chave que
          ainda abre a porta — precisa estar visível e poder ser
          revogado, senão um link vazado só morre apagando a
@@ -162,8 +166,15 @@
         }, function () { a.email = ""; });
       }));
 
-      var convites = [];
+      var notas = [];
       r[6].forEach(function (d) {
+        var n = d.data() || {};
+        notas.push({ id: d.id, texto: String(n.texto || ""),
+                     por: String(n.por || ""), em: n.em || 0 });
+      });
+
+      var convites = [];
+      r[7].forEach(function (d) {
         var v = d.data() || {};
         if (v.ativo !== true) return;   /* usado já não abre nada */
         convites.push({ codigo: d.id, criadoEm: v.criadoEm });
@@ -184,7 +195,8 @@
           },
           recibos: recibos,
           mensagens: mensagens,
-          financeiro: financeiro
+          financeiro: financeiro,
+          notas: notas
         };
       });
     });
@@ -844,6 +856,88 @@
     }).length;
   }
 
+  /* ---------- Resolvida ----------
+
+     LER NÃO É RESOLVER. Abrir a conversa marca tudo como lido — e
+     é aí que a mensagem some do radar, mesmo quando pedia uma
+     providência que ninguém tomou. "Vocês conseguem antecipar a
+     folha deste mês?" fica lida em dois segundos e esquecida por
+     duas semanas.
+
+     Resolvida é uma marca separada, e só a equipe põe. O cliente
+     não vê nada disso: não é status do pedido dele, é controle
+     interno de quem já tratou o quê. */
+  function aResolverDe(c) {
+    return c.mensagens.filter(function (m) {
+      return m.autor === "cliente" && !m.resolvidaEm;
+    }).length;
+  }
+
+  /* Uma mensagem, desenhada igual na caixa de entrada e na ficha.
+     Eram dois blocos quase iguais, e o "resolvida" teria que ser
+     escrito duas vezes — que é como um deles fica para trás. */
+  function mensagemHTML(m, c) {
+    var doCliente = m.autor !== "equipe";
+    /* O id da empresa viaja no botão. A ficha e a caixa de entrada
+       são telas diferentes, e mais de uma pode estar montada ao
+       mesmo tempo — deduzir "de quem é esta mensagem" pelo que
+       está aberto acerta quase sempre, e o quase é o problema. */
+    var alvo = (c && c.id) || "";
+    return '<div class="msg msg--' + (doCliente ? "dele" : "minha") +
+        (doCliente && m.resolvidaEm ? " msg--resolvida" : "") + '">' +
+      '<div class="msg__autor">' +
+        U.esc(doCliente ? "Cliente" : (m.autorNome || "Totali")) + '</div>' +
+      '<div>' + U.esc(m.texto) + '</div>' +
+      '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
+      ((m.anexos || []).length
+        ? '<div class="arqs">' + m.anexos.map(function (a) {
+            return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
+              '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="mensagem">' +
+              ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
+          }).join("") + '</div>'
+        : '') +
+      /* Só na mensagem do cliente: é dela que sai providência. */
+      (doCliente
+        ? '<div class="msg__resolver">' +
+            (m.resolvidaEm
+              ? '<span class="msg__selo">' + ic("ic-check") + 'Resolvida por ' +
+                  U.esc(m.resolvidaPor || "equipe") + ' em ' +
+                  U.esc(U.dataCurta(m.resolvidaEm)) + '</span>' +
+                '<button type="button" class="btn btn--quiet btn--sm" ' +
+                  'data-resolver="0" data-emp="' + U.escAttr(alvo) +
+                  '" data-msg="' + U.escAttr(m.id) + '">Reabrir</button>'
+              : '<button type="button" class="btn btn--quiet btn--sm" ' +
+                  'data-resolver="1" data-emp="' + U.escAttr(alvo) +
+                  '" data-msg="' + U.escAttr(m.id) + '">' +
+                  ic("ic-check") + 'Marcar como resolvida</button>') +
+          '</div>'
+        : '') +
+    '</div>';
+  }
+
+  function marcarResolvida(c, msgId, resolver) {
+    var m = c.mensagens.filter(function (x) { return x.id === msgId; })[0];
+    if (!m) return;
+
+    var dados = resolver
+      ? { resolvidaEm: Date.now(),
+          resolvidaPor: (equipe && (equipe.nome || equipe.email)) || "equipe" }
+      : { resolvidaEm: 0, resolvidaPor: "" };
+
+    FB.db.collection("empresas").doc(c.id).collection("mensagens").doc(msgId)
+      .set(dados, { merge: true })
+      .then(function () {
+        m.resolvidaEm = dados.resolvidaEm;
+        m.resolvidaPor = dados.resolvidaPor;
+        atualizarContadores();
+        if (conversaAberta === c) desenharConversa();
+        if (aberto === c) desenharFicha();
+        UI.toast(resolver ? "Marcada como resolvida." : "Reaberta.", "ok", 2500);
+      }, function (e) {
+        UI.toast("Não foi possível marcar: " + FB.explicar(e), "erro", 9000);
+      });
+  }
+
   function ultimaDe(c) {
     return c.mensagens.length ? c.mensagens[c.mensagens.length - 1] : null;
   }
@@ -855,9 +949,17 @@
     if (filtroMensagem === "naolidas") {
       lista = lista.filter(function (c) { return naoLidasDe(c) > 0; });
     }
+    if (filtroMensagem === "aresolver") {
+      lista = lista.filter(function (c) { return aResolverDe(c) > 0; });
+    }
     return lista.sort(function (a, b) {
       var na = naoLidasDe(a), nb = naoLidasDe(b);
       if ((na > 0) !== (nb > 0)) return nb - na;
+      /* Depois das não lidas vêm as que ainda esperam providência.
+         Sem isso, conversa lida-e-esquecida afundava na lista pela
+         data e não voltava nunca. */
+      var ra = aResolverDe(a) > 0, rb = aResolverDe(b) > 0;
+      if (ra !== rb) return ra ? -1 : 1;
       return ((ultimaDe(b) || {}).em || 0) - ((ultimaDe(a) || {}).em || 0);
     });
   }
@@ -879,6 +981,9 @@
     }
 
     var totalNaoLidas = empresas.reduce(function (a, c) { return a + naoLidasDe(c); }, 0);
+    var totalAResolver = empresas.reduce(function (a, c) {
+      return a + (arquivada(c) ? 0 : aResolverDe(c));
+    }, 0);
     var comConversa = empresas.filter(function (c) { return c.mensagens.length; }).length;
 
     var filtros = $("#msFiltros");
@@ -887,7 +992,9 @@
         '<button type="button" class="filtro' + (filtroMensagem === "todas" ? " filtro--on" : "") +
           '" data-fmsg="todas">Todas <b>' + comConversa + '</b></button>' +
         '<button type="button" class="filtro' + (filtroMensagem === "naolidas" ? " filtro--on" : "") +
-          '" data-fmsg="naolidas">Não lidas <b>' + totalNaoLidas + '</b></button>';
+          '" data-fmsg="naolidas">Não lidas <b>' + totalNaoLidas + '</b></button>' +
+        '<button type="button" class="filtro' + (filtroMensagem === "aresolver" ? " filtro--on" : "") +
+          '" data-fmsg="aresolver">A resolver <b>' + totalAResolver + '</b></button>';
     }
 
     var lista = conversas();
@@ -896,11 +1003,14 @@
         '<div class="empty__icon">' + ic("ic-chat") + '</div>' +
         '<div class="empty__title">' +
           (filtroMensagem === "naolidas" ? "Nenhuma mensagem esperando resposta"
-                                         : "Nenhuma conversa ainda") + '</div>' +
+           : filtroMensagem === "aresolver" ? "Nada esperando providência"
+           : "Nenhuma conversa ainda") + '</div>' +
         '<div class="empty__desc">' +
           (filtroMensagem === "naolidas"
             ? "Tudo o que os clientes escreveram já foi lido."
-            : "Quando um cliente escrever pelo portal, a conversa aparece aqui.") + '</div>' +
+            : filtroMensagem === "aresolver"
+              ? "Toda mensagem de cliente já foi tratada e marcada como resolvida."
+              : "Quando um cliente escrever pelo portal, a conversa aparece aqui.") + '</div>' +
       '</div></div>';
       return;
     }
@@ -923,7 +1033,10 @@
         (novas
           ? '<span class="badge badge--pendencia"><span class="dot"></span>' + novas + ' ' +
             U.plural(novas, "nova", "novas") + '</span>'
-          : '') +
+          : aResolverDe(c)
+            ? '<span class="badge badge--analise"><span class="dot"></span>' +
+              aResolverDe(c) + ' a resolver</span>'
+            : '') +
         '<span class="cliente__chev">' + ic("ic-chevron-right") + '</span>' +
       '</button>';
     }).join("") + '</div>';
@@ -970,21 +1083,8 @@
       '</div></div>' +
       '<div class="card card--pad">' +
         (c.mensagens.length
-          ? '<div class="conversa conversa--alta">' + c.mensagens.map(function (m) {
-              return '<div class="msg msg--' + (m.autor === "equipe" ? "minha" : "dele") + '">' +
-                '<div class="msg__autor">' +
-                  U.esc(m.autor === "equipe" ? (m.autorNome || "Totali") : "Cliente") + '</div>' +
-                '<div>' + U.esc(m.texto) + '</div>' +
-                '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
-                ((m.anexos || []).length
-                  ? '<div class="arqs">' + m.anexos.map(function (a) {
-                      return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
-                        '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="mensagem">' +
-                        ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
-                    }).join("") + '</div>'
-                  : '') +
-              '</div>';
-            }).join("") + '</div>'
+          ? '<div class="conversa conversa--alta">' +
+              c.mensagens.map(function (m) { return mensagemHTML(m, c); }).join("") + '</div>'
           : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
         '<div class="field" style="margin-top:14px">' +
           '<label class="field__label" for="msTexto">Responder</label>' +
@@ -1262,6 +1362,7 @@
         }
       });
 
+    html += notasHTML(c);
     html += acessoHTML(c);
     html += zonaDeRiscoHTML(c);
 
@@ -1656,6 +1757,111 @@
      cliente COM acesso a dados órfãos, que o console nem mostra.
      Por isso o acesso morre antes de tudo.
      ============================================================ */
+  /* =========================================================
+     Anotação interna
+
+     O que a equipe precisa lembrar e o cliente não pode ler:
+     "o contador anterior não entrega o balanço", "só atende
+     depois das 18h", "o sócio 2 está em processo de saída".
+     Hoje isso vive no WhatsApp de quem atendeu e some quando
+     essa pessoa está de férias.
+
+     Fica numa subcoleção própria, /notas, e a regra do servidor
+     só deixa a EQUIPE ler e escrever — não é campo escondido na
+     empresa, que o cliente já lê inteira. A separação é o que
+     torna a promessa verdadeira: mesmo que a tela errasse, o
+     servidor não entrega.
+     ========================================================= */
+  function notasHTML(c) {
+    var notas = (c.notas || []).slice().sort(function (a, b) {
+      return (b.em || 0) - (a.em || 0);
+    });
+
+    return bloco({
+      id: "notas", icone: "ic-scroll", titulo: "Anotações internas",
+      resumo: notas.length
+        ? notas.length + " " + U.plural(notas.length, "anotação", "anotações") +
+          " · o cliente nunca vê"
+        : "Nada anotado ainda · o cliente nunca vê",
+      selo: notas.length ? String(notas.length) : "",
+      seloCls: "badge--analise",
+      corpo: function () {
+        return '<div class="notice notice--info" style="margin-bottom:14px;padding:10px 12px;' +
+            'font-size:12.5px">' +
+            '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
+            '<span>Só a equipe da Totali lê o que estiver aqui. Não aparece no portal do ' +
+            'cliente nem na ficha em PDF.</span>' +
+          '</div>' +
+          (notas.length
+            ? '<div class="notas">' + notas.map(function (n) {
+                return '<div class="nota">' +
+                  '<div class="nota__txt">' + U.paragrafos(n.texto || "") + '</div>' +
+                  '<div class="nota__pe">' +
+                    '<span class="text-xs text-muted">' + U.esc(n.por || "equipe") + ' · ' +
+                      U.esc(U.dataHora(n.em)) + '</span>' +
+                    '<button type="button" class="btn btn--quiet btn--sm" data-apagar-nota="' +
+                      U.escAttr(n.id) + '">Apagar</button>' +
+                  '</div>' +
+                '</div>';
+              }).join("") + '</div>'
+            : '') +
+          '<div class="field" style="margin-top:14px;margin-bottom:8px">' +
+            '<label class="field__label" for="clNota">Nova anotação</label>' +
+            '<textarea class="textarea" id="clNota" rows="3" maxlength="2000" ' +
+              'placeholder="O que a próxima pessoa que atender este cliente precisa saber…">' +
+            '</textarea>' +
+          '</div>' +
+          '<button type="button" class="btn btn--primary btn--sm" id="clSalvarNota">' +
+            ic("ic-plus") + 'Anotar</button>';
+      }
+    });
+  }
+
+  function salvarNota(texto) {
+    var c = aberto;
+    var t = String(texto || "").trim().slice(0, 2000);
+    if (!c || !t) return;
+
+    var id = (global.U.uid && global.U.uid()) ||
+             String(Date.now()) + Math.floor(Math.random() * 1e6);
+    var nota = {
+      texto: t,
+      por: (equipe && (equipe.nome || equipe.email)) || "equipe",
+      em: Date.now()
+    };
+
+    FB.db.collection("empresas").doc(c.id).collection("notas").doc(id).set(nota)
+      .then(function () {
+        nota.id = id;
+        if (!c.notas) c.notas = [];
+        c.notas.push(nota);
+        desenharFicha();
+        UI.toast("Anotado.", "ok", 2500);
+      }, function (e) {
+        UI.toast("Não foi possível anotar: " + FB.explicar(e), "erro", 9000);
+      });
+  }
+
+  function apagarNota(id) {
+    var c = aberto;
+    if (!c) return;
+    UI.confirmar({
+      titulo: "Apagar anotação",
+      mensagem: "A anotação some para toda a equipe e não tem como voltar.",
+      confirmar: "Apagar", perigo: true
+    }).then(function (ok) {
+      if (!ok) return;
+      FB.db.collection("empresas").doc(c.id).collection("notas").doc(id).delete()
+        .then(function () {
+          c.notas = (c.notas || []).filter(function (n) { return n.id !== id; });
+          desenharFicha();
+          UI.toast("Anotação apagada.", "ok", 2500);
+        }, function (e) {
+          UI.toast("Não foi possível apagar: " + FB.explicar(e), "erro", 9000);
+        });
+    });
+  }
+
   function zonaDeRiscoHTML(c) {
     var arquivada = !!c.empresa.arquivadaEm;
     var souAdmin = equipe && equipe.papel === "admin";
@@ -1900,7 +2106,8 @@
   /* Apaga tudo, na ordem que não deixa buraco. */
   function excluirDeVez(c) {
     var raiz = FB.db.collection("empresas").doc(c.id);
-    var subcolecoes = ["itens", "socios", "mensagens", "credenciais", "financeiro", "eventos"];
+    var subcolecoes = ["itens", "socios", "mensagens", "credenciais", "financeiro",
+                       "eventos", "notas"];
 
     /* Guardar os uids ANTES de cortar o acesso: depois disso o
        vínculo já não existe e não há como descobrir de quem era
@@ -2083,30 +2290,18 @@
     var naoLidas = msgs.filter(function (m) {
       return m.autor === "cliente" && !m.lidaEm;
     }).length;
+    var aResolver = aResolverDe(c);
 
     return bloco({
       id: "mensagens", icone: "ic-chat", titulo: "Mensagens",
       resumo: msgs.length ? msgs.length + " " + U.plural(msgs.length, "mensagem", "mensagens") +
         " · o cliente lê no portal" : "Nenhuma mensagem ainda",
-      selo: naoLidas ? naoLidas + " " + U.plural(naoLidas, "nova", "novas") : "",
-      seloCls: "badge--pendencia",
+      selo: naoLidas ? naoLidas + " " + U.plural(naoLidas, "nova", "novas")
+            : aResolver ? aResolver + " a resolver" : "",
+      seloCls: naoLidas ? "badge--pendencia" : "badge--analise",
       corpo: function () {
         return (msgs.length
-          ? '<div class="conversa">' + msgs.slice(-30).map(function (m) {
-              return '<div class="msg msg--' + (m.autor === "equipe" ? "minha" : "dele") + '">' +
-                '<div class="msg__autor">' +
-                  U.esc(m.autor === "equipe" ? (m.autorNome || "Totali") : "Cliente") + '</div>' +
-                '<div>' + U.esc(m.texto) + '</div>' +
-                '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
-                ((m.anexos || []).length
-                  ? '<div class="arqs">' + m.anexos.map(function (a) {
-                      return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
-                        '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="mensagem">' +
-                        ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
-                    }).join("") + '</div>'
-                  : '') +
-              '</div>';
-            }).join("") + '</div>'
+          ? '<div class="conversa">' + msgs.slice(-30).map(function (m) { return mensagemHTML(m, c); }).join("") + '</div>'
           : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
 
         '<div class="field" style="margin-top:14px;margin-bottom:8px">' +
@@ -2705,6 +2900,14 @@
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
 
+    var anotar = $("#clSalvarNota");
+    if (anotar) anotar.addEventListener("click", function () {
+      var campo = $("#clNota");
+      if (!campo || !campo.value.trim()) { if (campo) campo.focus(); return; }
+      anotar.disabled = true;
+      salvarNota(campo.value);
+    });
+
     var aprovarTudo = $("#clAprovarTudo");
     if (aprovarTudo) aprovarTudo.addEventListener("click", function () {
       if (!aberto) return;
@@ -2956,6 +3159,20 @@
 
       var fl = alvo.closest("[data-fila]");
       if (fl) { filaAberta = !filaAberta; desenharPendencias(); return; }
+
+      var apn = alvo.closest("[data-apagar-nota]");
+      if (apn) { apagarNota(apn.getAttribute("data-apagar-nota")); return; }
+
+      var rsv = alvo.closest("[data-resolver]");
+      if (rsv) {
+        var idEmp = rsv.getAttribute("data-emp");
+        var dono = empresas.filter(function (x) { return x.id === idEmp; })[0];
+        if (dono) {
+          marcarResolvida(dono, rsv.getAttribute("data-msg"),
+                          rsv.getAttribute("data-resolver") === "1");
+        }
+        return;
+      }
 
       /* Abrir e fechar empresa e setor. Depois de redesenhar, a
          página volta para onde o cartão estava, senão a lista

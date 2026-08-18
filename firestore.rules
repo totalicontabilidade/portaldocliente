@@ -261,7 +261,15 @@ service cloud.firestore {
       //
       // Cada um escreve como si mesmo. Mensagem enviada não se
       // reescreve nem se apaga: o histórico precisa valer alguma
-      // coisa. Só a marca de lida muda.
+      // coisa. O que muda depois do envio são só as marcas.
+      //
+      // `lidaEm`      qualquer um dos dois lados marca.
+      // `resolvidaEm` e `resolvidaPor` são CONTROLE INTERNO da
+      //               equipe: dizem que alguém já tomou a
+      //               providência que a mensagem pedia. Ler não é
+      //               resolver, e por isso são marcas separadas.
+      //               O cliente não escreve nelas — se pudesse,
+      //               poderia dar por resolvido o próprio pedido.
       match /mensagens/{msgId} {
         allow read: if equipeOuDono(empresaId);
 
@@ -269,8 +277,28 @@ service cloud.firestore {
                       && ((ehEquipe() && request.resource.data.autor == 'equipe')
                           || (ehDonoDaEmpresa(empresaId) && request.resource.data.autor == 'cliente'));
 
-        allow update: if equipeOuDono(empresaId) && soEstesCampos(['lidaEm']);
+        allow update: if (ehEquipe() && soEstesCampos(['lidaEm', 'resolvidaEm', 'resolvidaPor']))
+                      || (ehDonoDaEmpresa(empresaId) && soEstesCampos(['lidaEm']));
         allow delete: if ehAdmin();
+      }
+
+      // ---------- Anotações internas ----------
+      //
+      // O que a equipe precisa lembrar e o cliente não pode ler:
+      // "o contador anterior não entrega o balanço", "só atende
+      // depois das 18h". Antes isso vivia no WhatsApp de quem
+      // atendeu e sumia quando essa pessoa saía de férias.
+      //
+      // Coleção separada, e não campo dentro da empresa: o cliente
+      // lê a empresa inteira, então campo escondido lá seria
+      // segredo só na aparência. Aqui `read` exige equipe, e não
+      // há caminho pelo qual o cliente veja ou liste isto.
+      match /notas/{notaId} {
+        allow read: if ehEquipe();
+        allow create, update: if ehEquipe()
+                              && textoAte(request.resource.data.texto, 2000)
+                              && request.resource.data.keys().hasOnly(['texto', 'por', 'em']);
+        allow delete: if ehEquipe();
       }
 
       // ---------- Trilha de auditoria ----------
