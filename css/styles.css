@@ -2373,6 +2373,27 @@ body.tour-aberto{overscroll-behavior:contain}
   .tarefa__icone{width:34px;height:34px}
 }
 
+/* ============================================================
+   Departamentos (aba Segurança)
+
+   Caixas grandes, não uma lista de checkbox miúdo: são cinco
+   opções que alguém marca uma vez por pessoa e depois esquece.
+   O contorno aceso é o que se enxerga de longe.
+   ============================================================ */
+.deptos{display:grid;gap:8px;margin-top:4px}
+.depto{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 13px;border-radius:11px;cursor:pointer;
+  border:1px solid var(--stroke);background:var(--surf-2);
+  transition:border-color .16s ease, background .16s ease;
+}
+.depto:hover{border-color:var(--stroke-2)}
+.depto--on{border-color:rgba(194,162,80,.55);background:var(--surf-3)}
+.depto input{flex:none;width:17px;height:17px;accent-color:var(--gold-2);cursor:pointer}
+.depto__txt{font-size:13.5px;color:var(--txt);line-height:1.35}
+.depto--on .depto__txt{font-weight:620}
+@media (min-width:520px){ .deptos{grid-template-columns:1fr 1fr} }
+
 .notas{display:grid;gap:10px;margin-bottom:4px}
 .nota{
   padding:12px 14px;border-radius:12px;

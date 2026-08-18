@@ -58,7 +58,8 @@
           uid: d.id,
           nome: m.nome || "",
           email: m.email || "",
-          papel: m.papel === "admin" ? "admin" : "equipe"
+          papel: m.papel === "admin" ? "admin" : "equipe",
+          departamentos: Array.isArray(m.departamentos) ? m.departamentos : []
         });
       });
       membros.sort(function (a, b) {
@@ -119,9 +120,19 @@
               (m.papel === "admin" ? "Administrador" : "Equipe") + '</span>' +
             '<span class="text-xs text-muted">' + U.esc(m.email || "sem e-mail") + '</span>' +
           '</div>' +
+          /* O setor fica na linha de baixo, junto do papel: é a
+             segunda coisa que se quer saber ao olhar a lista. */
+          '<div class="item__row">' +
+            '<span class="text-xs" style="color:var(--gold-2);font-weight:600">' +
+              (m.departamentos.length
+                ? U.esc(global.Departamentos.nomesDos(m.departamentos))
+                : "Todos os departamentos") + '</span>' +
+          '</div>' +
           '<div class="item__actions">' +
+            '<button type="button" class="btn btn--quiet btn--sm" data-deptos="' +
+              U.escAttr(m.uid) + '">Departamentos</button>' +
             (euMesmo
-              ? '<span class="text-xs text-muted">Você não pode alterar o próprio acesso — ' +
+              ? '<span class="text-xs text-muted">Você não pode alterar o próprio papel — ' +
                 'é o que impede o painel de ficar sem administrador.</span>'
               : '<button type="button" class="btn btn--ghost btn--sm" data-papel="' +
                   U.escAttr(m.uid) + '">' +
@@ -160,6 +171,18 @@
           '<option value="equipe">Equipe — vê clientes, confere documentos, conversa e cobra</option>' +
           '<option value="admin">Administrador — tudo isso, mais abrir senhas e gerenciar a equipe</option>' +
         '</select></div>' +
+      '<div class="field">' +
+        '<span class="field__label">Departamentos</span>' +
+        '<div class="deptos">' +
+          global.Departamentos.todos().map(function (g) {
+            return '<label class="depto">' +
+              '<input type="checkbox" data-depto="' + U.escAttr(g.id) + '">' +
+              '<span class="depto__txt">' + U.esc(g.titulo) + '</span>' +
+            '</label>';
+          }).join("") +
+        '</div>' +
+        '<div class="field__hint">A tela de início mostra primeiro o que é destes setores. ' +
+          'Nenhum marcado = cuida de todos.</div></div>' +
       '<hr class="hr">' +
       '<div class="field" style="margin-bottom:0">' +
         '<label class="field__label" for="mbUid">Já tem conta? Cole o UID</label>' +
@@ -222,6 +245,10 @@
     var email = $("#mbEmail", m.caixa).value.trim();
     var senha = $("#mbSenha", m.caixa).value;
     var papel = $("#mbPapel", m.caixa).value === "admin" ? "admin" : "equipe";
+    var deptos = [];
+    UI.$$("[data-depto]", m.caixa).forEach(function (c) {
+      if (c.checked) deptos.push(c.getAttribute("data-depto"));
+    });
     var uidColado = $("#mbUid", m.caixa).value.trim();
 
     if (!nome) { $("#mbNome", m.caixa).focus(); UI.toast("Informe o nome.", "erro"); return; }
@@ -232,7 +259,7 @@
         UI.toast(FB.explicar(new Error("uid-invalido")), "erro", 9000);
         return;
       }
-      gravarMembro(uidColado, nome, email, papel, m);
+      gravarMembro(uidColado, nome, email, papel, deptos, m);
       return;
     }
 
@@ -251,7 +278,7 @@
     ocupar(m, true);
 
     comLimite(FB.criarContaEquipe(email, senha), m).then(function (uid) {
-      gravarMembro(uid, nome, email, papel, m);
+      gravarMembro(uid, nome, email, papel, deptos, m);
     }, function (e) {
       ocupar(m, false);
       var msg = (e && e.code === "auth/email-already-in-use")
@@ -262,7 +289,7 @@
     });
   }
 
-  function gravarMembro(uid, nome, email, papel, m) {
+  function gravarMembro(uid, nome, email, papel, deptos, m) {
     if (membros.some(function (x) { return x.uid === uid; })) {
       UI.toast(FB.explicar(new Error("ja-e-membro")), "erro");
       return;
@@ -270,7 +297,7 @@
     ocupar(m, true, "Gravando…");
 
     comLimite(FB.db.collection("usuarios").doc(uid).set({
-      nome: nome, email: email, papel: papel
+      nome: nome, email: email, papel: papel, departamentos: deptos || []
     }), m).then(function () {
       UI.fecharModal();
       UI.toast(nome + " agora tem acesso ao painel.", "ok", 7000);
@@ -279,6 +306,83 @@
       ocupar(m, false);
       UI.toast("A conta existe, mas não foi possível dar o acesso: " + FB.explicar(e) +
                " Tente de novo usando o campo de UID.", "erro", 12000);
+    });
+  }
+
+  /* ---------- Departamentos ----------
+
+     Marcar NENHUM é uma escolha válida e quer dizer "cuida de
+     todos" — está escrito na tela, porque um formulário todo
+     desmarcado normalmente significa o contrário. */
+  function abrirDepartamentos(uid) {
+    if (!souAdmin()) { UI.toast(FB.explicar(new Error("so-admin")), "erro"); return; }
+    var alvo = membros.filter(function (x) { return x.uid === uid; })[0];
+    if (!alvo) return;
+
+    var lista = global.Departamentos.todos();
+    var m = UI.modal({
+      titulo: "Departamentos de " + (alvo.nome || alvo.email),
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:14px">' +
+          'A tela de início mostra primeiro o que é dos setores marcados. Mexer em documento ' +
+          'de outro setor continua permitido — só aparece um aviso antes.</p>' +
+        '<div class="deptos">' +
+          lista.map(function (g) {
+            var ligado = alvo.departamentos.indexOf(g.id) > -1;
+            return '<label class="depto' + (ligado ? " depto--on" : "") + '">' +
+              '<input type="checkbox" data-depto="' + U.escAttr(g.id) + '"' +
+                (ligado ? " checked" : "") + '>' +
+              '<span class="depto__txt">' + U.esc(g.titulo) + '</span>' +
+            '</label>';
+          }).join("") +
+        '</div>' +
+        '<p class="text-xs text-muted" style="margin-top:12px">Nenhum marcado = cuida de todos ' +
+          'os departamentos.</p>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            var escolhidos = [];
+            UI.$$("[data-depto]", m.caixa).forEach(function (c) {
+              if (c.checked) escolhidos.push(c.getAttribute("data-depto"));
+            });
+            salvarDepartamentos(alvo, escolhidos, m);
+          }
+        }
+      ]
+    });
+
+    /* O contorno aceso segue a caixa marcada, senão o estado só
+       aparece no quadradinho e some de longe. */
+    m.caixa.addEventListener("change", function (ev) {
+      var c = ev.target.closest("[data-depto]");
+      if (!c) return;
+      c.closest(".depto").classList.toggle("depto--on", c.checked);
+    });
+  }
+
+  function salvarDepartamentos(alvo, escolhidos, m) {
+    ocupar(m, true, "Salvando…");
+    comLimite(FB.db.collection("usuarios").doc(alvo.uid).set({
+      nome: alvo.nome, email: alvo.email, papel: alvo.papel,
+      departamentos: escolhidos
+    }), m).then(function () {
+      UI.fecharModal();
+      UI.toast(escolhidos.length
+        ? (alvo.nome || alvo.email) + " agora cuida de " +
+          global.Departamentos.nomesDos(escolhidos) + "."
+        : (alvo.nome || alvo.email) + " passa a cuidar de todos os departamentos.", "ok", 7000);
+      carregar();
+      /* Mudou o próprio setor: a tela de início precisa refazer a
+         conta na hora, senão continua mostrando a fila antiga. */
+      if (equipe && alvo.uid === equipe.uid) {
+        equipe.departamentos = escolhidos;
+        if (global.PainelInicio) global.PainelInicio.redesenhar();
+      }
+    }, function (e) {
+      ocupar(m, false, "Salvar");
+      UI.toast("Não foi possível salvar: " + FB.explicar(e), "erro", 9000);
     });
   }
 
@@ -298,8 +402,12 @@
       confirmar: "Confirmar"
     }).then(function (ok) {
       if (!ok) return;
+      /* `departamentos` vai junto de propósito: este `set` grava o
+         documento inteiro, e sem repetir o campo a troca de papel
+         apagaria os setores da pessoa sem ninguém notar. */
       FB.db.collection("usuarios").doc(uid).set({
-        nome: alvo.nome, email: alvo.email, papel: novo
+        nome: alvo.nome, email: alvo.email, papel: novo,
+        departamentos: alvo.departamentos || []
       }).then(function () {
         UI.toast("Papel alterado.", "ok");
         carregar();
@@ -338,6 +446,8 @@
     document.addEventListener("click", function (ev) {
       var alvo = ev.target.closest ? ev.target : null;
       if (!alvo) return;
+      var dp = alvo.closest("[data-deptos]");
+      if (dp) { abrirDepartamentos(dp.getAttribute("data-deptos")); return; }
       var p = alvo.closest("[data-papel]");
       if (p) { trocarPapel(p.getAttribute("data-papel")); return; }
       var r = alvo.closest("[data-remover-membro]");

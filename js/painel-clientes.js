@@ -736,6 +736,12 @@
     var c = empresas.filter(function (x) { return x.id === idCliente; })[0];
     if (!c) return;
 
+    conferindoForaDaArea([chave]).then(function (ok) {
+      if (ok) gravarAprovacaoDaFila(c, chave);
+    });
+  }
+
+  function gravarAprovacaoDaFila(c, chave) {
     var revisao = {
       status: "aprovado", motivo: "",
       por: (equipe && (equipe.nome || equipe.email)) || "equipe",
@@ -2281,6 +2287,45 @@
     '</span>';
   }
 
+  /* ============================================================
+     Mexendo em documento de outro departamento
+
+     Não é bloqueio — é uma parada. A pessoa pode conferir o que
+     for, e num escritório pequeno isso é necessário: alguém cobre
+     o colega de férias na sexta à tarde. O que se quer evitar é o
+     clique distraído, aquele em que se aprova o documento errado
+     por estar na lista errada.
+
+     Vale para APROVAR e para PEDIR CORREÇÃO, que são as duas
+     coisas que o cliente vê acontecer. Ler, cobrar e conversar
+     não pedem aviso nenhum.
+
+     Devolve promessa: quem chama espera o "pode seguir".
+     ============================================================ */
+  function conferindoForaDaArea(chaves) {
+    var D = global.Departamentos;
+    var eu = equipe;
+    var fora = (chaves || []).filter(function (k) { return !D.cuidaDaChave(eu, k); });
+    if (!fora.length) return Promise.resolve(true);
+
+    var setores = [];
+    fora.forEach(function (k) {
+      var g = D.grupoDaChave(k);
+      if (setores.indexOf(g) === -1) setores.push(g);
+    });
+
+    var quantos = fora.length;
+    return UI.confirmar({
+      titulo: quantos === 1 ? "Documento de outro departamento"
+                            : quantos + " documentos de outro departamento",
+      mensagem: "Você cuida de " + D.nomesDos(D.meus(eu)) + ", e " +
+        (quantos === 1 ? "este documento é de " : "estes documentos são de ") +
+        D.nomesDos(setores) + ". Pode seguir — só confirme que é isto mesmo, porque o " +
+        "cliente vê o resultado na hora e o seu nome fica registrado nele.",
+      confirmar: "Sim, sou eu quem confere"
+    });
+  }
+
   /* Nome legível de "fiscal/certificado-digital". */
   function nomeDaChave(chave) {
     var partes = String(chave).split("/");
@@ -2329,6 +2374,14 @@
   function revisar(chave, status, motivo) {
     var c = aberto;
     if (!c) return Promise.resolve(false);
+
+    return conferindoForaDaArea([chave]).then(function (ok) {
+      if (!ok) return false;
+      return gravarRevisao(c, chave, status, motivo);
+    });
+  }
+
+  function gravarRevisao(c, chave, status, motivo) {
     var doc = FB.db.collection("empresas").doc(c.id)
                 .collection("itens").doc(global.Nuvem.codificar(chave));
 
@@ -2580,6 +2633,12 @@
     var c = aberto;
     if (!c || !chaves.length) return Promise.resolve(0);
 
+    return conferindoForaDaArea(chaves).then(function (ok) {
+      return ok ? gravarLote(c, chaves) : 0;
+    });
+  }
+
+  function gravarLote(c, chaves) {
     var revisao = {
       status: "aprovado",
       motivo: "",

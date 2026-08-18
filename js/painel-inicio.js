@@ -71,6 +71,24 @@
     naoLida: 1, conferir: 2, aResolver: 3, parado: 4, convite: 5
   };
 
+  /* ---------- Filtro por departamento ----------
+
+     Ligado por padrão. Quem não tem setor definido cuida de tudo,
+     e para essa pessoa o filtro não muda nada — nem o botão de
+     desligar aparece. */
+  var soMeuSetor = true;
+
+  function souDe() { return (global.FB && global.FB.equipe) || null; }
+
+  function temSetor() {
+    return !global.Departamentos.veTudo(souDe());
+  }
+
+  function daMinhaArea(grupoId) {
+    if (!soMeuSetor) return true;
+    return global.Departamentos.cuida(souDe(), grupoId);
+  }
+
   function reunir() {
     var PC = global.PainelClientes;
     if (!PC) return [];
@@ -100,8 +118,16 @@
         });
       }
 
-      /* 2. Documento entregue, esperando alguém olhar. */
-      var fila = PC.naoConferidos(c);
+      /* 2. Documento entregue, esperando alguém olhar.
+
+         Aqui entra o departamento: quem cuida do Pessoal não
+         precisa ver todo dia os balanços que a contabilidade
+         está conferindo. As mensagens NÃO são filtradas — elas
+         não pertencem a setor nenhum, e uma pergunta sem resposta
+         é problema de quem estiver por perto. */
+      var fila = PC.naoConferidos(c).filter(function (x) {
+        return daMinhaArea(x.grupo.id);
+      });
       if (fila.length) {
         var maisVelho = 0;
         fila.forEach(function (x) {
@@ -207,7 +233,9 @@
 
     var conferir = 0, naoLidas = 0, aResolver = 0, parados = 0;
     ativos.forEach(function (c) {
-      conferir += PC.naoConferidos(c).length;
+      conferir += PC.naoConferidos(c).filter(function (x) {
+        return daMinhaArea(x.grupo.id);
+      }).length;
       naoLidas += PC.naoLidasDe(c);
       aResolver += c.mensagens.filter(function (m) {
         return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm;
@@ -247,6 +275,24 @@
       saudacao.textContent = U.saudacao() + (quem ? ", " + quem.split(" ")[0] : "");
     }
 
+    /* A chave do departamento só existe para quem TEM
+       departamento. Para quem cuida de tudo ela seria um botão
+       que não faz nada. */
+    var chave = $("#inSetor");
+    if (chave) {
+      if (!temSetor()) chave.innerHTML = "";
+      else {
+        chave.innerHTML = '<button type="button" class="filtro' +
+            (soMeuSetor ? " filtro--on" : "") + '" id="inSoMeu">' +
+            U.esc(global.Departamentos.nomesDos(global.Departamentos.meus(souDe()))) + '</button>' +
+          '<button type="button" class="filtro' + (soMeuSetor ? "" : " filtro--on") +
+            '" id="inTudo">Todos os departamentos</button>';
+        var b1 = $("#inSoMeu"), b2 = $("#inTudo");
+        if (b1) b1.addEventListener("click", function () { soMeuSetor = true; desenhar(); });
+        if (b2) b2.addEventListener("click", function () { soMeuSetor = false; desenhar(); });
+      }
+    }
+
     if (PC.carregando) {
       alvo.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
         'Carregando o que precisa de você…</p></div>';
@@ -276,10 +322,14 @@
         '<div class="empty__icon">' + ic("ic-check-circle") + '</div>' +
         '<div class="empty__title">Nada esperando por você</div>' +
         '<div class="empty__desc">' +
-          (PC.empresas.length
-            ? 'Toda mensagem foi respondida, todo documento que chegou já foi conferido e ' +
-              'ninguém está parado. Bom dia de trabalho.'
-            : 'Ainda não há cliente cadastrado. Comece por “Novo cliente”.') + '</div>' +
+          (!PC.empresas.length
+            ? 'Ainda não há cliente cadastrado. Comece por “Novo cliente”.'
+            : (temSetor() && soMeuSetor)
+              ? 'Nada esperando em ' +
+                U.esc(global.Departamentos.nomesDos(global.Departamentos.meus(souDe()))) +
+                '. Toque em “Todos os departamentos” para ver o resto do escritório.'
+              : 'Toda mensagem foi respondida, todo documento que chegou já foi conferido e ' +
+                'ninguém está parado. Bom dia de trabalho.') + '</div>' +
       '</div></div>';
       return;
     }
@@ -355,6 +405,11 @@
 
     desenhar();
   }
+
+  /* A aba Segurança chama isto quando alguém troca o próprio
+     departamento: sem redesenhar, a tela continuaria mostrando a
+     fila do setor antigo. */
+  global.PainelInicio = { redesenhar: desenhar };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();

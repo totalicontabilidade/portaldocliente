@@ -120,7 +120,15 @@
           uid: uid,
           email: d.email || "",
           nome: d.nome || "",
-          papel: d.papel === "admin" ? "admin" : "equipe"
+          papel: d.papel === "admin" ? "admin" : "equipe",
+          /* Departamentos de que a pessoa cuida. Lista VAZIA quer
+             dizer "cuida de todos" — é o que mantém funcionando
+             quem já estava cadastrado antes desta ideia existir, e
+             é também o padrão certo para um escritório pequeno,
+             onde a mesma pessoa costuma cobrir tudo. */
+          departamentos: (Array.isArray(d.departamentos) ? d.departamentos : [])
+            .filter(function (x) { return typeof x === "string" && x; })
+            .slice(0, 20)
         }
       };
     }, function () {
