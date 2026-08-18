@@ -92,12 +92,61 @@
      A recusa com signOut continua onde faz sentido: em
      `entrarComoEquipe`, onde foi o próprio painel que iniciou o
      login e portanto é dono daquela sessão. */
+  /* Quem é este uid na equipe.
+
+     TRÊS RESPOSTAS, NÃO DUAS — e foi confundir duas delas que
+     causou o "coloco a senha e não entra, só entra atualizando a
+     página":
+
+       {estado:"equipe",   quem}  é da equipe
+       {estado:"de-fora"}         logado, mas não é da equipe
+       {estado:"falhou"}          não deu para saber agora
+
+     A leitura de /usuarios logo depois do login chega ao servidor
+     antes de o token novo valer, e a regra nega. Isso é FALHA
+     TEMPORÁRIA, não "não é da equipe" — mas as duas devolviam
+     null, e null manda mostrar a tela de login. Por isso o
+     segundo acesso funcionava: aí a credencial já estava pronta.
+
+     É o mesmo defeito que o portal do cliente teve, corrigido do
+     mesmo jeito. O painel não tinha recebido a correção. */
+  function lerMembro(uid, restam) {
+    return db.collection("usuarios").doc(uid).get().then(function (doc) {
+      if (!doc.exists) return { estado: "de-fora" };
+      var d = doc.data() || {};
+      return {
+        estado: "equipe",
+        quem: {
+          uid: uid,
+          email: d.email || "",
+          nome: d.nome || "",
+          papel: d.papel === "admin" ? "admin" : "equipe"
+        }
+      };
+    }, function () {
+      if (restam <= 0) return { estado: "falhou" };
+      /* Renovar o token antes de insistir: repetir com o mesmo
+         token velho dá o mesmo "negado" três vezes seguidas. */
+      return aguardarCredencial()
+        .then(function () { return esperar(ESPERA_ENTRE_TENTATIVAS); })
+        .then(function () { return lerMembro(uid, restam - 1); });
+    });
+  }
+
   function observarSessao(aoMudar) {
     if (!auth) return function () {};
     return auth.onAuthStateChanged(function (u) {
       if (!u || u.isAnonymous) { equipeAtual = null; aoMudar(null); return; }
-      db.collection("usuarios").doc(u.uid).get().then(function (doc) {
-        if (!doc.exists) {
+
+      lerMembro(u.uid, TENTATIVAS_INDICE).then(function (r) {
+        if (r.estado === "equipe") {
+          r.quem.email = u.email || r.quem.email;
+          equipeAtual = r.quem;
+          aoMudar(equipeAtual);
+          return;
+        }
+
+        if (r.estado === "de-fora") {
           /* Conta logada que não é da equipe — provavelmente um
              cliente com o portal aberto noutra aba. Não é da
              conta do painel mexer nessa sessão. */
@@ -105,35 +154,54 @@
           aoMudar(null);
           return;
         }
-        var d = doc.data() || {};
-        equipeAtual = {
-          uid: u.uid,
-          email: u.email || d.email || "",
-          nome: d.nome || "",
-          papel: d.papel === "admin" ? "admin" : "equipe"
-        };
-        aoMudar(equipeAtual);
-      }, function () {
-        equipeAtual = null;
+
+        /* Não deu para saber. Mandar null aqui jogaria a pessoa
+           de volta para a tela de login no meio do trabalho, por
+           uma oscilação de rede. Mantemos o que já se sabia e
+           avisamos por cima. */
+        if (equipeAtual) {
+          aoMudar(equipeAtual);
+          if (global.UI && global.UI.toast) {
+            global.UI.toast("Sem conexão com o servidor agora. O painel continua aberto — " +
+                            "evite aprovar nada até voltar.", "erro", 9000);
+          }
+          return;
+        }
         aoMudar(null);
       });
     });
   }
 
-  /* ---------- Equipe ---------- */
+  /* ---------- Equipe ----------
+
+     `aguardarCredencial()` ANTES de ler /usuarios, e não depois:
+     a senha acabou de ser aceita, mas o token que o Firestore usa
+     pode ser ainda o anterior. Ler nesse instante volta "negado",
+     e a versão antiga tratava isso como "não é da equipe" — o que
+     além de barrar quem tinha direito, ainda chamava signOut().
+
+     E é por isso que a falha de leitura NÃO desloga mais. Deslogar
+     só continua onde a resposta é certa: o documento existe e diz
+     que a pessoa não é da equipe. */
   function entrarComoEquipe(email, senha) {
     if (!auth) return Promise.reject(new Error("sem-conexao"));
     return auth.signInWithEmailAndPassword(String(email).trim(), String(senha))
       .then(function (cred) {
-        return db.collection("usuarios").doc(cred.user.uid).get();
+        return aguardarCredencial().then(function () {
+          return lerMembro(cred.user.uid, TENTATIVAS_INDICE);
+        });
       })
-      .then(function (doc) {
-        if (!doc.exists) {
+      .then(function (r) {
+        if (r.estado === "equipe") return true;
+        if (r.estado === "de-fora") {
           return auth.signOut().then(function () {
             throw new Error("sem-permissao");
           });
         }
-        return true;
+        /* Não deu para confirmar. A sessão fica de pé: o
+           observador tenta de novo sozinho e, se conseguir, o
+           painel abre sem pedir a senha outra vez. */
+        throw new Error("equipe-leitura-falhou");
       });
   }
 
@@ -510,6 +578,8 @@
     "sem-empresa": "Esta conta ainda não está ligada a nenhuma empresa. Abra o link de convite que a Totali enviou.",
     "leitura-falhou": "Entramos na sua conta, mas não conseguimos consultar a sua empresa agora. " +
                       "Toque em Entrar de novo — seus documentos estão guardados e não se perderam.",
+    "equipe-leitura-falhou": "A senha está certa, mas o servidor não respondeu a tempo. " +
+                             "Sua sessão continua aberta — toque em Entrar de novo.",
     "auth/email-already-in-use": "Já existe uma conta com este e-mail. Entre com sua senha ou use \"Esqueci minha senha\".",
     "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
     "auth/missing-password": "Digite uma senha.",

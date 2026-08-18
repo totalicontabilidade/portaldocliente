@@ -26,9 +26,13 @@
   var UI = global.UI, U = global.U;
   var $ = UI.$, $$ = UI.$$;
 
-  var ABAS = ["clientes", "pendencias", "mensagens", "novo", "conteudo", "seguranca"];
-  var PADRAO = "clientes";
+  var ABAS = ["inicio", "clientes", "pendencias", "mensagens", "novo", "conteudo", "seguranca"];
+  /* Abrir no Início, e não na lista de clientes: a primeira
+     pergunta de quem senta no painel é "o que eu faço agora", não
+     "quem são meus clientes". */
+  var PADRAO = "inicio";
   var TITULOS = {
+    inicio: "Início",
     clientes: "Clientes",
     pendencias: "Pendências",
     mensagens: "Mensagens",

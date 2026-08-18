@@ -135,6 +135,9 @@
   <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <path d="m5 12.5 4.5 4.5L19 7.5"/>
   </symbol>
+  <symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/>
+  </symbol>
   <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 5.5v13M5.5 12h13"/>
   </symbol>
@@ -162,7 +165,7 @@
      outra pessoa.
      ============================================================ -->
 <header class="app-header dark-surface">
-  <button type="button" class="brand" data-aba="clientes" aria-label="Painel da equipe · ir para clientes">
+  <button type="button" class="brand" data-aba="inicio" aria-label="Painel da equipe · ir para o início">
     <img class="brand__logo" src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis" width="220" height="230">
     <span class="brand__divider" aria-hidden="true"></span>
     <span class="brand__text">
@@ -236,6 +239,9 @@
   <nav class="sidenav" aria-label="Navegação do painel">
     <div class="sidenav__label">Painel</div>
 
+    <button type="button" class="sidenav__item" data-aba="inicio">
+      <svg class="ic" aria-hidden="true"><use href="#ic-home"></use></svg>Início
+    </button>
     <button type="button" class="sidenav__item" data-aba="clientes">
       <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
       <span class="sidenav__badge" data-badge-atencao hidden></span>
@@ -280,6 +286,26 @@
     </div>
 
     <!-- ---------------- Aba: Clientes ---------------- -->
+    <!-- ---------------- Aba: Início ----------------
+         O cruzamento das outras abas, em ordem de urgência. Não
+         traz informação nova: traz a mesma em ordem de o que
+         custa mais deixar para amanhã.
+         --------------------------------------------- -->
+    <section data-painel="inicio" hidden>
+      <div class="section__head"><div>
+        <div class="eyebrow" id="inSaudacao">Início</div>
+        <h1 class="section__title" style="font-size:20px;margin-top:4px">O que precisa de você</h1>
+        <p class="section__desc">Mensagens sem resposta, documentos esperando conferência e
+          clientes que pararam — na ordem em que atrasam a migração.</p>
+      </div>
+      <div class="row">
+        <button type="button" class="btn btn--quiet btn--sm" id="inAtualizar">Atualizar</button>
+      </div></div>
+
+      <div class="numeros" id="inNumeros"></div>
+      <div id="inLista"></div>
+    </section>
+
     <section data-painel="clientes" hidden>
       <div id="clTopo">
         <div class="section__head"><div>
@@ -630,7 +656,10 @@
   </main>
 </div>
 
-<nav class="tabbar tabbar--6" id="pnTabbar" aria-label="Navegação do painel" hidden>
+<nav class="tabbar tabbar--7" id="pnTabbar" aria-label="Navegação do painel" hidden>
+  <button type="button" class="tabbar__item" data-aba="inicio">
+    <svg class="ic" aria-hidden="true"><use href="#ic-home"></use></svg>Início
+  </button>
   <button type="button" class="tabbar__item" data-aba="clientes">
     <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>Clientes
     <span class="tabbar__badge" data-badge-atencao hidden></span>
@@ -676,6 +705,7 @@
 <script src="lib/jspdf.umd.min.js"></script>
 <script src="js/ficha-pdf.js"></script>
 <script src="js/painel-clientes.js"></script>
+<script src="js/painel-inicio.js"></script>
 <script src="js/painel-equipe.js"></script>
 </body>
 </html>

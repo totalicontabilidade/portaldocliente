@@ -519,6 +519,13 @@
       pendencias: pendencias,
       mensagens: naoLidas
     });
+
+    /* Um ponto só para avisar a tela de Início. Todo lugar que
+       muda o estado do trabalho já passa por aqui para acertar os
+       números do menu — pendurar o aviso junto é o que garante
+       que o Início não fique mostrando o mundo de dois cliques
+       atrás. */
+    avisarLista();
   }
 
   /* Contagem por situação — dá o panorama sem abrir ninguém. */
@@ -3413,6 +3420,42 @@
       }
     });
   }
+
+  /* ============================================================
+     O que a tela de Início enxerga daqui
+
+     Ela mostra os mesmos clientes desta aba. Se buscasse por
+     conta própria, seriam duas leituras do banco por abertura do
+     painel — e, pior, dois retratos que divergem assim que
+     alguém aprova alguma coisa. Aqui já está carregado; ela só
+     lê e é avisada quando muda.
+
+     Devolve uma cópia rasa da lista: quem está de fora não
+     reordena nem remove o que é desta aba.
+     ============================================================ */
+  var ouvintesLista = [];
+
+  function avisarLista() {
+    ouvintesLista.forEach(function (fn) {
+      try { fn(); } catch (e) { /* um ouvinte com erro não derruba os outros */ }
+    });
+  }
+
+  global.PainelClientes = {
+    get empresas() { return empresas.slice(); },
+    get carregando() { return carregando; },
+    arquivada: arquivada,
+    nomeDe: nomeDe,
+    estadoDoCliente: estadoDoCliente,
+    naoConferidos: naoConferidos,
+    naoLidasDe: naoLidasDe,
+    aResolverDe: aResolverDe,
+    diasParado: diasParado,
+    emMs: emMs,
+    abrirFicha: abrirCliente,
+    abrirConversa: abrirConversa,
+    aoAtualizar: function (fn) { if (typeof fn === "function") ouvintesLista.push(fn); }
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();

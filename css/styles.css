@@ -2129,6 +2129,33 @@ body.tour-aberto{overscroll-behavior:contain}
   .tabbar--6 .tabbar__item{font-size:10px}
 }
 
+/* Sete abas. Entrou o Início, e nenhuma das outras podia sair:
+   tirar Segurança ou Conteúdo da barra as deixaria inalcançáveis
+   no celular, onde não existe o menu lateral.
+
+   A 320px cada aba fica com 45,7px. Medindo no navegador, quem
+   estourava NÃO era a palavra — "Pendências" ocupa 36px e sobra
+   espaço. Era o SELO do contador: com dois dígitos ele fica com
+   19px e, ancorado em 50%+5px, terminava 1,6px além da borda do
+   item. Encolher a fonte não resolveria nada; encostar o selo
+   mais para a esquerda resolve, e com folga até para "99+". */
+.tabbar--7 .tabbar__item{
+  font-size:8.5px;letter-spacing:-.1px;gap:2px;padding:7px 0 6px;
+  /* Sem isto o item recusa encolher abaixo da largura da palavra
+     e "Segurança" sai pela borda direita da tela. */
+  min-width:0;
+}
+.tabbar--7 .tabbar__item .ic{width:19px;height:19px}
+.tabbar--7 .tabbar__badge{left:calc(50% + 2px);min-width:14px;height:14px;font-size:8.5px}
+@media (min-width:380px){
+  .tabbar--7 .tabbar__item{font-size:9.5px;letter-spacing:0;padding:7px 1px 6px}
+  .tabbar--7 .tabbar__item .ic{width:20px;height:20px}
+  .tabbar--7 .tabbar__badge{left:calc(50% + 5px)}
+}
+@media (min-width:440px){
+  .tabbar--7 .tabbar__item{font-size:10px}
+}
+
 /* Cabeçalho de seção com botão de ação à direita.
 
    Em tela estreita o botão espremia o texto e as duas coisas se
@@ -2280,6 +2307,71 @@ body.tour-aberto{overscroll-behavior:contain}
 .msg__selo .ic{width:13px;height:13px;flex:none}
 .msg--resolvida{opacity:.66}
 .msg--resolvida:hover,.msg--resolvida:focus-within{opacity:1}
+
+/* ============================================================
+   Tela de início do painel
+
+   Os números são BOTÕES: cada um leva onde aquilo se resolve.
+   Número que não leva a lugar nenhum é enfeite, e enfeite em
+   painel de trabalho vira ruído em duas semanas.
+   ============================================================ */
+.numeros{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px;
+}
+.numero{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:14px 15px;border-radius:14px;text-align:left;
+  border:1px solid var(--stroke-card);background:var(--surf);
+  cursor:pointer;transition:border-color .16s ease, background .16s ease;
+}
+.numero:hover{border-color:var(--stroke-2);background:var(--surf-2)}
+.numero:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+.numero__n{
+  display:block;font-size:26px;font-weight:700;line-height:1.1;color:var(--txt);
+  font-variant-numeric:tabular-nums;
+}
+.numero__rot{display:block;font-size:12.5px;color:var(--txt-3);line-height:1.4}
+.numero__extra{display:block;font-size:11.5px;color:var(--txt-4);margin-top:3px}
+/* Só o que exige ação hoje ganha o dourado. Se tudo brilhasse,
+   nada brilharia. */
+.numero--forte{border-color:rgba(194,162,80,.5)}
+.numero--forte .numero__n{color:var(--gold-2)}
+
+@media (min-width:760px){ .numeros{grid-template-columns:repeat(4,minmax(0,1fr))} }
+
+.tarefa{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:14px 16px;text-align:left;cursor:pointer;background:none;border:0;
+  border-bottom:1px solid var(--stroke);
+  transition:background .16s ease;
+}
+.tarefa:last-child{border-bottom:0}
+.tarefa:hover{background:var(--surf-2)}
+.tarefa:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px}
+.tarefa__icone{
+  flex:none;width:38px;height:38px;border-radius:11px;
+  display:grid;place-items:center;
+  background:var(--surf-3);color:var(--gold-2);
+}
+.tarefa__icone .ic{width:18px;height:18px}
+.tarefa__txt{flex:1 1 auto;min-width:0}
+.tarefa__t{
+  display:block;font-size:14px;font-weight:640;color:var(--txt);line-height:1.35;
+}
+.tarefa__d{
+  display:block;font-size:12.5px;color:var(--txt-3);line-height:1.45;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.tarefa__q{display:block;font-size:11.5px;color:var(--txt-4);margin-top:3px}
+.tarefa .badge{flex:none}
+
+/* No celular o selo e a seta disputam espaço com o texto. A seta
+   sai: a linha inteira já é clicável. */
+@media (max-width:520px){
+  .tarefa{padding:13px 14px;gap:10px}
+  .tarefa .cliente__chev{display:none}
+  .tarefa__icone{width:34px;height:34px}
+}
 
 .notas{display:grid;gap:10px;margin-bottom:4px}
 .nota{
