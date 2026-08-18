@@ -198,7 +198,16 @@
         raiz.collection("financeiro").get()
       ]).then(function (r) {
         var empDoc = r[0], socios = r[1], itens = r[2], msgs = r[3], fin = r[4];
-        if (!empDoc.exists) throw new Error("empresa-inexistente");
+
+        /* Mesmo cuidado do firebase.js: documento ausente só quer
+           dizer "não existe" quando a resposta veio do SERVIDOR.
+           Vinda do cache, ela não afirma nada — e tratar isso como
+           empresa apagada mandaria o cliente para a tela de senha
+           por causa de uma oscilação de rede. */
+        if (!empDoc.exists) {
+          var doServidor = empDoc.metadata && empDoc.metadata.fromCache === false;
+          throw new Error(doServidor ? "empresa-inexistente" : "leitura-falhou");
+        }
 
         var e = empDoc.data() || {};
         var bruto = {

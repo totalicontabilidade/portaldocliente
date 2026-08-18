@@ -4061,12 +4061,32 @@
         }).then(function (mudou) {
           if (mudou) render();
         }, function (e) {
-          /* Sessão aberta mas empresa que não carrega: sem rede,
-             ou vínculo desfeito pela equipe. Melhor pedir o login
-             de novo do que deixar a tela num meio-termo. */
-          porta.modo = "login";
-          render();
-          UI.toast(global.FB.explicar(e), "erro", 9000);
+          /* PEDIR A SENHA DE NOVO É A ÚLTIMA COISA A SE FAZER, e
+             só quando se sabe que ela é mesmo necessária.
+
+             Antes, qualquer rejeição daqui caía na tela de entrada
+             — inclusive a mais comum de todas, que é a listagem
+             das empresas falhando por rede. A pessoa estava
+             logada, continuava logada, e ainda assim via a tela
+             de senha. É o "deslogou sozinho".
+
+             Só o `sem-empresa` justifica a porta: aí a conta
+             existe e realmente não está ligada a nada, e a saída é
+             abrir o convite. O resto é problema de leitura, e
+             problema de leitura se resolve tentando de novo. */
+          var codigo = (e && (e.code || e.message)) || "";
+          var semSessao = !(global.FB.auth && global.FB.auth.currentUser);
+          var ACABOU = ["sem-empresa", "empresa-inexistente"];
+
+          if (ACABOU.indexOf(codigo) > -1 || semSessao) {
+            porta.modo = "login";
+            render();
+            UI.toast(global.FB.explicar(e), "erro", 9000);
+            return;
+          }
+
+          UI.toast("A conexão com o servidor está instável. Você continua conectado — " +
+                   "atualize a página em alguns segundos.", "erro", 12000);
         });
       }
     }, function () {

@@ -434,11 +434,35 @@
     return new Promise(function (r) { setTimeout(r, ms); });
   }
 
+  /* VAZIO DE VERDADE vs. VAZIO PORQUE NÃO DEU PARA PERGUNTAR
+
+     Este é o caminho que fazia o portal "deslogar sozinho", e ele
+     escapou de todas as correções anteriores porque elas só
+     olhavam o caso de ERRO. Aqui não há erro nenhum.
+
+     Com a persistência do Firestore ligada, uma leitura feita
+     durante uma oscilação de rede é respondida PELO CACHE, com
+     sucesso e sem nenhum documento. O código antigo lia isso como
+     "esta conta não está ligada a empresa nenhuma", e conta sem
+     empresa vai para a porta de entrada. Resultado: cliente com
+     sessão perfeitamente válida caindo na tela de senha.
+
+     `snap.metadata.fromCache` é o que separa as duas coisas. Só
+     resposta vinda do SERVIDOR pode afirmar que está vazio; a do
+     cache, quando não traz nada, não afirma nada. */
+  function vazioConfiavel(snap) {
+    var meta = snap && snap.metadata;
+    /* Sem metadata (navegador antigo, ou objeto de teste): não dá
+       para garantir, então trata como inconclusivo. */
+    return !!meta && meta.fromCache === false;
+  }
+
   function lerIndiceDeEmpresas(ref) {
     return ref.collection("empresas").get().then(function (snap) {
       var ids = [];
       snap.forEach(function (d) { ids.push(d.id); });
-      return { ids: ids, falhou: false };
+      if (ids.length) return { ids: ids, falhou: false };
+      return { ids: [], falhou: !vazioConfiavel(snap) };
     }, function () {
       return { ids: [], falhou: true };
     });
@@ -447,9 +471,11 @@
   /* Cliente de antes do multiempresa: um campo só, na raiz. */
   function lerCampoUnico(ref) {
     return ref.get().then(function (doc) {
-      if (!doc.exists) return { ids: [], falhou: false };
-      var id = String((doc.data() || {}).empresaId || "");
-      return { ids: id ? [id] : [], falhou: false };
+      if (doc.exists) {
+        var id = String((doc.data() || {}).empresaId || "");
+        if (id) return { ids: [id], falhou: false };
+      }
+      return { ids: [], falhou: !vazioConfiavel(doc) };
     }, function () {
       return { ids: [], falhou: true };
     });
