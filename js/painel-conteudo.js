@@ -37,14 +37,23 @@
       grupos: clonar(DATA.GRUPOS),
       faq: clonar(DATA.FAQ),
       compromisso: clonar(DATA.COMPROMISSO),
-      termo: clonar(DATA.TERMO)
+      termo: clonar(DATA.TERMO),
+      bancos: clonar(DATA.BANCOS),
+      maquinetas: clonar(DATA.MAQUINETAS)
     };
   }
 
   function carregar() {
     var r = null;
     try { r = JSON.parse(localStorage.getItem(CHAVE) || "null"); } catch (e) { r = null; }
-    if (r && typeof r === "object" && r.org) { C = r; return "rascunho"; }
+    if (r && typeof r === "object" && r.org) {
+      C = r;
+      /* Rascunho salvo antes do catálogo existir não pode abrir a
+         tela sem bancos e maquininhas. */
+      if (!Array.isArray(C.bancos) || !C.bancos.length) C.bancos = clonar(DATA.BANCOS);
+      if (!Array.isArray(C.maquinetas) || !C.maquinetas.length) C.maquinetas = clonar(DATA.MAQUINETAS);
+      return "rascunho";
+    }
     C = doPadrao();
     return (global.CONTEUDO && global.CONTEUDO.atualizadoEm) ? "publicado" : "padrao";
   }
@@ -119,6 +128,57 @@
       '<button type="button" class="btn btn--quiet btn--sm" data-add="' + U.escAttr(prefixo) + '">' +
         'Adicionar linha</button>' +
       (dica ? '<div class="field__hint">' + U.esc(dica) + '</div>' : '') + '</div>';
+  }
+
+  /* ---------- Catálogo de bancos e maquininhas ----------
+
+     Veio do checklist financeiro na atualização de 2026-08-18. Cada
+     instituição tem um passo a passo de como liberar o acesso, e as
+     maquininhas podem ser marcadas como "Modo Contador" — operadora
+     que libera a contabilidade pelo próprio aplicativo, sem senha.
+
+     A orientação só aparece para o cliente que marcou aquela
+     instituição, então escrever bastante aqui não polui a tela dele. */
+  function catalogoHTML(prefixo, lista, comModoContador, preposicao) {
+    return (lista || []).map(function (item, i) {
+      var p = prefixo + "." + i;
+      return '<div class="ac-item">' +
+        '<div class="ac-item__topo">' +
+          '<input type="text" class="input" data-campo="' + U.escAttr(p + ".nome") + '" ' +
+            'maxlength="80" value="' + U.escAttr(item.nome || "") + '" placeholder="Nome">' +
+          ordemBtns(prefixo, i) +
+          '<button type="button" class="ac-mini ac-mini--x" data-remove="' +
+            U.escAttr(prefixo + ":" + i) + '" aria-label="Remover">&#215;</button>' +
+        '</div>' +
+        (comModoContador
+          ? '<label class="row" style="gap:9px;cursor:pointer;margin:8px 0">' +
+              '<input type="checkbox" data-campo="' + U.escAttr(p + ".semCredencial") + '" ' +
+                'style="width:18px;height:18px"' + (item.semCredencial ? " checked" : "") + '>' +
+              '<span class="text-sm" style="color:var(--txt-2)">Modo Contador — libera a ' +
+                'contabilidade pelo próprio aplicativo, sem login e senha</span></label>'
+          : '') +
+        campo("Como liberar o acesso " + preposicao + " " + (item.nome || "instituição"),
+              p + ".orientacao", item.orientacao, {
+          linhas: 4, max: 1500,
+          dica: "Só aparece para quem marcar esta opção. Uma linha por passo — linhas que " +
+                "começam com traço ou número viram lista numerada."
+        }) +
+      '</div>';
+    }).join("") +
+    '<button type="button" class="btn btn--quiet btn--sm" data-add="' + U.escAttr(prefixo) + '">' +
+      'Adicionar</button>';
+  }
+
+  function secaoBancos() {
+    return '<p class="text-sm text-muted" style="margin-bottom:12px">Lista que o cliente vê na ' +
+      'etapa "Bancos e maquininhas".</p>' + catalogoHTML("bancos", C.bancos, false, "no");
+  }
+
+  function secaoMaquinetas() {
+    return '<p class="text-sm text-muted" style="margin-bottom:12px">Além do passo a passo, marque ' +
+      'as operadoras de <strong>Modo Contador</strong>: nelas o portal deixa de pedir senha e passa ' +
+      'a pedir só a confirmação de que o cadastro foi feito.</p>' +
+      catalogoHTML("maquinetas", C.maquinetas, true, "na");
   }
 
   /* Cada seção com seu próprio ícone e um selo de estado. A pessoa
@@ -425,6 +485,19 @@
         corpo: secaoGrupos
       }) +
       secao({
+        id: "bancos", icone: "ic-card", titulo: "Bancos",
+        resumo: (C.bancos || []).length + " na lista · " +
+          (C.bancos || []).filter(function (b) { return b.orientacao; }).length + " com orientação",
+        corpo: secaoBancos
+      }) +
+      secao({
+        id: "maquinetas", icone: "ic-card", titulo: "Maquininhas",
+        resumo: (C.maquinetas || []).length + " na lista · " +
+          (C.maquinetas || []).filter(function (m) { return m.semCredencial; }).length +
+          " em Modo Contador",
+        corpo: secaoMaquinetas
+      }) +
+      secao({
         id: "faq", icone: "ic-help", titulo: "Perguntas frequentes",
         resumo: (C.faq || []).length + " perguntas na tela de Ajuda",
         corpo: secaoFaq
@@ -469,7 +542,9 @@
                ajuda: { oque: "", onde: [], dica: "", passosTitulo: "", passos: [], passosNota: "" } };
     },
     credenciais: function () { return { id: "", rotulo: "", tipo: "texto", dica: "", placeholder: "" }; },
-    faq: function () { return { q: "", a: "" }; }
+    faq: function () { return { q: "", a: "" }; },
+    bancos: function () { return { nome: "", orientacao: "" }; },
+    maquinetas: function () { return { nome: "", orientacao: "", semCredencial: false }; }
   };
 
   function modeloDe(caminho) {

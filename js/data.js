@@ -83,16 +83,66 @@
      (github.com/totalicontabilidade/checklist-financeiro), que
      deixa de ter link próprio e passa a ser uma etapa daqui.
   --------------------------------- */
+  /* Catálogo de bancos e maquininhas.
+
+     Trazido do checklist financeiro na atualização de 2026-08-18.
+     Lá as listas deixaram de ser texto puro e ganharam duas coisas
+     que mudam o que o cliente vê:
+
+       orientacao     passo a passo de como liberar o acesso naquela
+                      instituição. Só aparece para o que o cliente
+                      marcou — orientação de banco que ele não usa é
+                      ruído.
+
+       semCredencial  a operadora libera o contador por dentro do
+                      próprio aplicativo ("Modo Contador"). Nesses
+                      casos NÃO existe login e senha para digitar:
+                      o cliente confirma que fez o cadastro e
+                      acabou. Pedir senha de quem não tem senha é
+                      o tipo de campo que trava o formulário.
+
+     Continua aceitando texto puro na lista: `normalizarCatalogo`
+     converte, então conteúdo antigo não quebra. */
   var BANCOS = [
-    "Banco do Brasil", "Banco do Nordeste", "Banese", "Bradesco", "C6 Bank",
-    "Caixa Econômica", "Cora", "InfinitePay", "Inter", "Itaú", "Mercado Pago",
-    "Nubank", "PagBank", "Santander", "Sicredi", "Stone"
+    { nome: "Banco do Brasil" }, { nome: "Banco do Nordeste" }, { nome: "Banese" },
+    { nome: "Bradesco" }, { nome: "C6 Bank" }, { nome: "Caixa Econômica" },
+    { nome: "Cora" }, { nome: "InfinitePay" }, { nome: "Inter" }, { nome: "Itaú" },
+    { nome: "Mercado Pago" }, { nome: "Nubank" }, { nome: "PagBank" },
+    { nome: "Santander" }, { nome: "Sicredi" }, { nome: "Stone" }
   ];
 
   var MAQUINETAS = [
-    "Cielo", "Getnet", "InfinitePay", "Mercado Pago", "Mulvi Convênio",
-    "Mulvi Pay", "PagBank", "Rede", "Stone"
+    { nome: "Cielo" }, { nome: "Getnet" }, { nome: "InfinitePay" },
+    { nome: "Mercado Pago" }, { nome: "Mulvi Convênio" }, { nome: "Mulvi Pay" },
+    { nome: "PagBank" }, { nome: "Rede" }, { nome: "Stone" }
   ];
+
+  /* Aceita ["Nome"] ou [{nome, orientacao, semCredencial}] e sempre
+     devolve o formato de objeto. */
+  function normalizarCatalogo(lista, aceitaSemCredencial) {
+    if (!Array.isArray(lista)) return [];
+    var saida = [];
+    lista.slice(0, 60).forEach(function (bruto) {
+      var item = typeof bruto === "string" ? { nome: bruto } : (bruto || {});
+      var nome = txt(item.nome, 80);
+      if (!nome) return;
+      var pronto = { nome: nome, orientacao: txt(item.orientacao, 1500) };
+      if (aceitaSemCredencial) pronto.semCredencial = item.semCredencial === true;
+      saida.push(pronto);
+    });
+    return saida;
+  }
+
+  function nomesDo(lista) {
+    return lista.map(function (i) { return i.nome; });
+  }
+
+  function acharNoCatalogo(lista, nome) {
+    for (var i = 0; i < lista.length; i++) {
+      if (lista[i].nome === nome) return lista[i];
+    }
+    return null;
+  }
 
   /* Os três relatórios que a Totali precisa de cada maquininha,
      todo mês. Mesma lista usada no aviso da tela e no termo de
@@ -966,6 +1016,14 @@
   var FAQ = aplicaFaq(CFG.faq);
   var COMPROMISSO = aplicaCompromisso(CFG.compromisso);
   var TERMO = aplicaTermo(CFG.termo);
+
+  /* O catálogo também é editável pelo painel. Lista vazia ou
+     quebrada cai no padrão — o formulário nunca fica sem opções. */
+  BANCOS = normalizarCatalogo(CFG.bancos, false).length
+    ? normalizarCatalogo(CFG.bancos, false) : normalizarCatalogo(BANCOS, false);
+  MAQUINETAS = normalizarCatalogo(CFG.maquinetas, true).length
+    ? normalizarCatalogo(CFG.maquinetas, true) : normalizarCatalogo(MAQUINETAS, true);
+
   global.DATA = {
     ORG: ORG,
     ETAPAS: ETAPAS,
@@ -975,6 +1033,8 @@
     FAQ: FAQ,
     BANCOS: BANCOS,
     MAQUINETAS: MAQUINETAS,
+    nomesDo: nomesDo,
+    acharNoCatalogo: acharNoCatalogo,
     FORMAS_RELATORIO: FORMAS_RELATORIO,
     RELATORIOS_MENSAIS: RELATORIOS_MENSAIS,
     CANAL_RELATORIOS: CANAL_RELATORIOS,

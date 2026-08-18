@@ -18,6 +18,29 @@
   /* Escape para uso dentro de atributo entre aspas duplas. */
   function escAttr(v) { return esc(v); }
 
+  /* Texto de várias linhas vindo do painel, virando parágrafos.
+
+     Escapa PRIMEIRO e só depois insere as tags — nesta ordem, e
+     nunca na inversa. Linha que começa com "-" ou "1." vira item de
+     lista, que é como a equipe costuma escrever passo a passo. */
+  function paragrafos(v) {
+    var linhas = String(v || "").split(/\r?\n/);
+    var html = "", emLista = false;
+    linhas.forEach(function (bruta) {
+      var linha = bruta.trim();
+      var item = /^(?:[-•*]|\d+[.)])\s+/.test(linha);
+      if (item) {
+        if (!emLista) { html += "<ol>"; emLista = true; }
+        html += "<li>" + esc(linha.replace(/^(?:[-•*]|\d+[.)])\s+/, "")) + "</li>";
+        return;
+      }
+      if (emLista) { html += "</ol>"; emLista = false; }
+      if (linha) html += "<p>" + esc(linha) + "</p>";
+    });
+    if (emLista) html += "</ol>";
+    return html;
+  }
+
   /* ---------- Identificadores ---------- */
   function uid() {
     if (global.crypto && global.crypto.randomUUID) return global.crypto.randomUUID();
@@ -288,6 +311,7 @@
   global.U = {
     esc: esc,
     escAttr: escAttr,
+    paragrafos: paragrafos,
     uid: uid,
     bytes: bytes,
     dataHora: dataHora,

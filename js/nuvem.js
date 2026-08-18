@@ -145,6 +145,11 @@
         temMaquineta: txt(f.temMaquineta, 4),
         maquinetas: (f.maquinetas || []).slice(0, 60).map(function (m) { return txt(m, 80); }),
         maquinetaOutra: txt(f.maquinetaOutra, 200),
+        /* Confirmação do Modo Contador. Só chaves com valor true —
+           `false` aqui não significa nada e só ocuparia espaço. */
+        modoContador: Object.keys(f.modoContador || {}).slice(0, 40)
+          .filter(function (k) { return (f.modoContador || {})[k] === true; })
+          .reduce(function (acc, k) { acc[txt(k, 80)] = true; return acc; }, {}),
         formaRelatorio: txt(f.formaRelatorio, 40),
         observacoes: txt(f.observacoes, 2000),
         concluidoEm: num(f.concluidoEm),

@@ -662,6 +662,48 @@ input[type=checkbox]{accent-color:var(--gold)}
   color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-br);
 }
 
+/* ---------- Orientação de acesso (banco / maquininha) ----------
+   Vem do catálogo, editável pelo painel. Só aparece para o que o
+   cliente marcou. */
+.orienta{
+  margin-top:12px;padding:13px 15px;border-radius:var(--r);
+  background:var(--surf-baixo);border:1px solid var(--stroke);
+}
+.orienta__t{
+  display:flex;align-items:center;gap:7px;
+  font-size:12.5px;font-weight:660;color:var(--gold-2);margin-bottom:7px;
+}
+.orienta__t .ic{width:15px;height:15px;flex:none}
+.orienta__c{font-size:12.5px;color:var(--txt-2);line-height:1.6}
+.orienta__c p{margin:0 0 6px}
+.orienta__c p:last-child{margin-bottom:0}
+.orienta__c ol{counter-reset:passo;display:grid;gap:6px}
+.orienta__c li{
+  counter-increment:passo;position:relative;padding-left:26px;
+}
+.orienta__c li::before{
+  content:counter(passo);position:absolute;left:0;top:1px;
+  width:18px;height:18px;border-radius:50%;display:grid;place-items:center;
+  font-size:10.5px;font-weight:700;
+  color:var(--gold-2);background:rgba(194,162,80,.13);border:1px solid var(--stroke-gold);
+}
+
+/* ---------- Modo Contador ----------
+   Operadora que libera a contabilidade pelo próprio aplicativo:
+   não há senha a informar, só a confirmação de que o cadastro foi
+   feito. */
+.modo-contador{
+  display:flex;gap:11px;align-items:flex-start;cursor:pointer;
+  margin-top:10px;padding:14px 15px;border-radius:var(--r);
+  background:var(--surf-baixo);border:1px solid var(--stroke);
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.modo-contador:hover{border-color:var(--stroke-2)}
+.modo-contador--on{border-color:var(--ok-br);background:var(--ok-bg)}
+.modo-contador input{width:19px;height:19px;flex:none;margin-top:1px}
+.modo-contador__t{display:block;font-size:13.5px;font-weight:640;color:var(--txt)}
+.modo-contador__d{display:block;font-size:12px;color:var(--txt-3);margin-top:4px;line-height:1.5}
+
 /* ---------- Devoluções da equipe ----------
    O único bloco da tela inicial em que o cliente já fez a parte
    dele e ainda assim precisa voltar. Por isso tem cor própria:

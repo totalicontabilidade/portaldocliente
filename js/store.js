@@ -157,6 +157,9 @@
       financeiro: {
         temBanco: "", bancos: [], bancoOutro: "",
         temMaquineta: "", maquinetas: [], maquinetaOutra: "",
+        /* { "Nome da maquininha": true } — confirmação do Modo
+           Contador nas operadoras que não têm senha para informar. */
+        modoContador: {},
         formaRelatorio: "", observacoes: "",
         concluidoEm: 0,
         protocolo: "",
@@ -251,11 +254,25 @@
       alvo.temMaquineta = simNao(f.temMaquineta);
       /* Só aceitamos itens que existem na lista oficial — nada de
          texto arbitrário virando "banco". */
+      var nomesBancos = global.DATA.nomesDo(global.DATA.BANCOS);
+      var nomesMaq = global.DATA.nomesDo(global.DATA.MAQUINETAS);
       if (Array.isArray(f.bancos)) {
-        alvo.bancos = f.bancos.filter(function (b) { return global.DATA.BANCOS.indexOf(b) > -1; });
+        alvo.bancos = f.bancos.filter(function (b) { return nomesBancos.indexOf(b) > -1; });
       }
       if (Array.isArray(f.maquinetas)) {
-        alvo.maquinetas = f.maquinetas.filter(function (m) { return global.DATA.MAQUINETAS.indexOf(m) > -1; });
+        alvo.maquinetas = f.maquinetas.filter(function (m) { return nomesMaq.indexOf(m) > -1; });
+      }
+      /* Confirmação de Modo Contador só vale para maquininha que
+         está marcada E que é de fato de modo próprio no catálogo. */
+      alvo.modoContador = {};
+      if (f.modoContador && typeof f.modoContador === "object") {
+        Object.keys(f.modoContador).slice(0, 40).forEach(function (nome) {
+          var cat = global.DATA.acharNoCatalogo(global.DATA.MAQUINETAS, nome);
+          if (f.modoContador[nome] === true && cat && cat.semCredencial &&
+              alvo.maquinetas.indexOf(nome) > -1) {
+            alvo.modoContador[nome] = true;
+          }
+        });
       }
       alvo.bancoOutro = typeof f.bancoOutro === "string" ? f.bancoOutro.slice(0, 200) : "";
       alvo.maquinetaOutra = typeof f.maquinetaOutra === "string" ? f.maquinetaOutra.slice(0, 200) : "";
@@ -894,6 +911,17 @@
       if (f.temMaquineta === "sim") {
         if (!f.maquinetas.length && !f.maquinetaOutra.trim()) return false;
         if (!f.formaRelatorio) return false;
+        /* Quem escolheu informar o acesso e usa maquininha de Modo
+           Contador precisa confirmar o cadastro — é o equivalente
+           de digitar a senha nas outras, e sem isso a Totali fica
+           sem entrada nenhuma naquela operadora. */
+        if (f.formaRelatorio === "acesso") {
+          var faltou = f.maquinetas.some(function (nome) {
+            var cat = global.DATA.acharNoCatalogo(global.DATA.MAQUINETAS, nome);
+            return cat && cat.semCredencial && !(f.modoContador || {})[nome];
+          });
+          if (faltou) return false;
+        }
       }
       return true;
     },
@@ -904,12 +932,39 @@
     alternarFinanceiro: function (tipo, valor) {
       var lista = tipo === "banco" ? global.DATA.BANCOS
                 : tipo === "maquineta" ? global.DATA.MAQUINETAS : null;
-      if (!lista || lista.indexOf(valor) === -1) return false;
+      /* O catálogo virou lista de objetos {nome, orientacao,
+         semCredencial}; a comparação passou a ser pelo nome. */
+      if (!lista || global.DATA.nomesDo(lista).indexOf(valor) === -1) return false;
       var campo = tipo === "banco" ? "bancos" : "maquinetas";
       Store.commit(function (st) {
         var arr = st.financeiro[campo];
         var i = arr.indexOf(valor);
-        if (i > -1) arr.splice(i, 1); else arr.push(valor);
+        if (i > -1) {
+          arr.splice(i, 1);
+          /* Desmarcou a maquininha: a confirmação dela não faz mais
+             sentido e não pode ficar pendurada no registro. */
+          if (tipo === "maquineta" && st.financeiro.modoContador) {
+            delete st.financeiro.modoContador[valor];
+          }
+        } else arr.push(valor);
+      }, "financeiro");
+      return true;
+    },
+
+    /* Confirmação do Modo Contador, por maquininha.
+
+       Vem do checklist financeiro: algumas operadoras liberam a
+       contabilidade por dentro do próprio aplicativo, então não há
+       login nem senha para guardar. O que a Totali precisa saber é
+       se o cliente fez o cadastro — e é isso que fica registrado. */
+    definirModoContador: function (maquineta, confirmado) {
+      var nome = String(maquineta || "");
+      var cat = global.DATA.acharNoCatalogo(global.DATA.MAQUINETAS, nome);
+      if (!cat || !cat.semCredencial) return false;
+      Store.commit(function (st) {
+        if (!st.financeiro.modoContador) st.financeiro.modoContador = {};
+        if (confirmado) st.financeiro.modoContador[nome] = true;
+        else delete st.financeiro.modoContador[nome];
       }, "financeiro");
       return true;
     },

@@ -1226,6 +1226,12 @@
           if (outro) todos.push(outro);
           return todos.length ? todos.join(", ") : "";
         };
+        /* Modo Contador: a operadora não tem senha, então o que
+           existe é a confirmação do cliente. Sem isto na ficha, a
+           equipe procuraria uma credencial que nunca vai existir. */
+        var confirmadas = Object.keys(f.modoContador || {})
+          .filter(function (k) { return f.modoContador[k] === true; });
+
         return linhaDado("Tem conta em banco",
                          f.temBanco === "sim" ? "Sim" : f.temBanco === "nao" ? "Não" : "") +
           linhaDado("Bancos", lista(f.bancos, f.bancoOutro)) +
@@ -1233,6 +1239,9 @@
                     f.temMaquineta === "sim" ? "Sim" : f.temMaquineta === "nao" ? "Não" : "") +
           linhaDado("Maquininhas", lista(f.maquinetas, f.maquinetaOutra)) +
           linhaDado("Envio dos relatórios", forma ? forma.titulo : "") +
+          (confirmadas.length
+            ? linhaDado("Modo Contador confirmado", confirmadas.join(", "))
+            : "") +
           linhaDado("Observações", f.observacoes) +
           (f.termo && f.termo.id
             ? '<div class="row" style="margin-top:12px">' +

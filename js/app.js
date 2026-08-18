@@ -1295,6 +1295,27 @@
      aparelho do cliente antes de sair (js/cripto.js). No sistema
      antigo eles iam em texto legível para o banco de dados.
      ============================================================ */
+  /* Orientações de acesso, vindas do catálogo.
+
+     Só entram as instituições que o cliente MARCOU. Mostrar o passo
+     a passo de dezesseis bancos, sendo que ele usa dois, é a
+     maneira mais rápida de fazer alguém parar de ler. */
+  function orientacoesHTML(catalogo, marcados, preposicao) {
+    var comTexto = (marcados || []).map(function (nome) {
+      return DATA.acharNoCatalogo(catalogo, nome);
+    }).filter(function (i) { return i && i.orientacao; });
+
+    if (!comTexto.length) return "";
+
+    return comTexto.map(function (i) {
+      return '<div class="orienta">' +
+        '<div class="orienta__t">' + ic("ic-info") + 'Como liberar o acesso ' +
+          preposicao + ' ' + U.esc(i.nome) + '</div>' +
+        '<div class="orienta__c">' + U.paragrafos(i.orientacao) + '</div>' +
+      '</div>';
+    }).join("");
+  }
+
   function caixaSelecao(nome, valor, marcado, rotulo) {
     return '<label class="opcao' + (marcado ? " opcao--on" : "") + '">' +
       '<input type="checkbox" data-' + nome + '="' + U.escAttr(valor) + '"' +
@@ -1369,9 +1390,10 @@
         '<div class="field__label">Marque os bancos que a empresa usa</div>' +
         '<div class="opcoes">' +
           DATA.BANCOS.map(function (b) {
-            return caixaSelecao("banco", b, f.bancos.indexOf(b) > -1, b);
+            return caixaSelecao("banco", b.nome, f.bancos.indexOf(b.nome) > -1, b.nome);
           }).join("") +
         '</div>' +
+        orientacoesHTML(DATA.BANCOS, f.bancos, "no") +
         '<div class="field" style="margin-top:14px;margin-bottom:0">' +
           '<label class="field__label" for="fBancoOutro">Algum banco fora da lista?</label>' +
           '<input type="text" class="input" id="fBancoOutro" data-fin="bancoOutro" maxlength="200" ' +
@@ -1391,9 +1413,10 @@
         '<div class="field__label">Marque as maquininhas que a empresa usa</div>' +
         '<div class="opcoes">' +
           DATA.MAQUINETAS.map(function (m) {
-            return caixaSelecao("maquineta", m, f.maquinetas.indexOf(m) > -1, m);
+            return caixaSelecao("maquineta", m.nome, f.maquinetas.indexOf(m.nome) > -1, m.nome);
           }).join("") +
         '</div>' +
+        orientacoesHTML(DATA.MAQUINETAS, f.maquinetas, "na") +
         '<div class="field" style="margin-top:14px">' +
           '<label class="field__label" for="fMaqOutra">Alguma maquininha fora da lista?</label>' +
           '<input type="text" class="input" id="fMaqOutra" data-fin="maquinetaOutra" maxlength="200" ' +
@@ -1460,16 +1483,36 @@
             '<span>Marque acima quais maquininhas você usa para informar o acesso de cada uma.</span></div>';
         } else {
           escolhidas.forEach(function (nome) {
-            var chave = "financeiro/maquineta/" + nome;
+            var cat = DATA.acharNoCatalogo(DATA.MAQUINETAS, nome);
             html += '<div style="margin-top:14px">' +
               '<div class="field__label" style="font-size:13px;color:var(--gold-2)">' +
-                U.esc(nome) + '</div>' +
-              credenciaisHTML(chave, [
+                U.esc(nome) + '</div>';
+
+            /* MODO CONTADOR — operadora que libera a contabilidade
+               por dentro do próprio aplicativo. Não existe login e
+               senha para digitar; pedir isso trava o formulário de
+               quem não tem o que preencher. */
+            if (cat && cat.semCredencial) {
+              var confirmado = (f.modoContador || {})[nome] === true;
+              html += '<label class="modo-contador' + (confirmado ? " modo-contador--on" : "") + '">' +
+                  '<input type="checkbox" data-modo-contador="' + U.escAttr(nome) + '"' +
+                    (confirmado ? " checked" : "") + '>' +
+                  '<span class="modo-contador__txt">' +
+                    '<span class="modo-contador__t">Já fiz o cadastro no Modo Contador da ' +
+                      U.esc(nome) + '</span>' +
+                    '<span class="modo-contador__d">Esta operadora libera a contabilidade pelo ' +
+                      'próprio aplicativo, então não há senha para informar. Marque quando tiver ' +
+                      'feito o cadastro.</span>' +
+                  '</span>' +
+                '</label>';
+            } else {
+              html += credenciaisHTML("financeiro/maquineta/" + nome, [
                 { id: "login", rotulo: "Login / usuário", tipo: "texto",
                   placeholder: "E-mail ou CNPJ de acesso" },
                 { id: "senha", rotulo: "Senha", tipo: "senha" }
-              ], { titulo: "Acesso da " + nome }) +
-            '</div>';
+              ], { titulo: "Acesso da " + nome });
+            }
+            html += '</div>';
           });
         }
       }
@@ -1531,6 +1574,18 @@
         Store.definirFinanceiro("formaRelatorio", atual === v ? "" : v);
         Store.flush();
         render();
+      });
+    });
+
+    /* Modo Contador: não há senha para guardar, então o que fica
+       registrado é a confirmação do cliente. */
+    $$("[data-modo-contador]").forEach(function (c) {
+      c.addEventListener("change", function () {
+        Store.definirModoContador(c.getAttribute("data-modo-contador"), c.checked);
+        Store.flush();
+        var caixa = c.closest(".modo-contador");
+        if (caixa) caixa.classList.toggle("modo-contador--on", c.checked);
+        atualizarBotaoFinanceiro();
       });
     });
 
