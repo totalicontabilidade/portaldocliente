@@ -442,12 +442,49 @@
     return auth.sendPasswordResetEmail(String(email).trim());
   }
 
-  /* Sessão de cliente já aberta neste aparelho. */
+  /* Sessão de cliente já aberta neste aparelho.
+
+     ATENÇÃO AO QUE ESTA FUNÇÃO DEVOLVE, porque foi a causa de um
+     bug feio: ela distingue **"não há sessão"** de **"há sessão,
+     mas não consegui ler agora"**. Antes as duas coisas viravam
+     string vazia, e quem chamava concluía "não está logado" e
+     mostrava a tela de login — para alguém que estava logado.
+
+     Era isso que o Raoni descrevia como "sou desconectado com
+     frequência" e "faço login, não entra, atualizo e já está
+     dentro": a sessão nunca caiu. O que falhou foi a PRIMEIRA
+     leitura depois de abrir a página, enquanto o Firestore ainda
+     não tinha adotado a credencial. Ao recarregar, o token já
+     estava quente e tudo funcionava — o que fazia o problema
+     parecer aleatório.
+
+     Agora devolve:
+       { estado:"sem-sessao" }              ninguém logado
+       { estado:"pronto", empresaId }       logado e leu
+       { estado:"falhou" }                  logado, leitura falhou
+
+     Só "sem-sessao" pode levar à tela de login. */
   function retomarCliente() {
-    if (!auth || !db) return Promise.resolve("");
+    if (!auth || !db) return Promise.resolve({ estado: "sem-sessao" });
     var u = auth.currentUser;
-    if (!u || u.isAnonymous) return Promise.resolve("");
-    return descobrirEmpresa(u.uid).catch(function () { return ""; });
+    if (!u || u.isAnonymous) return Promise.resolve({ estado: "sem-sessao" });
+
+    /* No boot a credencial pode não ter chegado ao Firestore
+       ainda — a mesma corrida do login. Renovar o token aqui é
+       barato e resolve o caso comum antes da primeira tentativa. */
+    return aguardarCredencial()
+      .then(function () { return descobrirEmpresa(u.uid); })
+      .then(function (empresaId) {
+        return { estado: "pronto", empresaId: empresaId };
+      }, function (e) {
+        var codigo = (e && (e.code || e.message)) || "";
+        /* "sem-empresa" é resposta legítima: a conta existe mas
+           não está ligada a empresa nenhuma. Aí a porta é o
+           destino certo. Qualquer outra falha é problema de
+           leitura, e leitura falha não desloga ninguém. */
+        if (codigo === "sem-empresa") return { estado: "sem-sessao" };
+        return { estado: "falhou" };
+      });
   }
 
   function agora() {

@@ -459,6 +459,46 @@
     });
   }
 
+  /* ---------- Ouvinte de mensagens ---------- */
+  var desligarMsgs = null;
+
+  function desligarTempoReal() {
+    if (desligarMsgs) { try { desligarMsgs(); } catch (e) {} }
+    desligarMsgs = null;
+  }
+
+  function ligarTempoReal() {
+    desligarTempoReal();
+    if (!backend.ouvirMensagens) return;
+
+    desligarMsgs = backend.ouvirMensagens(function (doServidor) {
+      var conhecidas = {};
+      (estado.mensagens || []).forEach(function (m) { conhecidas[m.id] = true; });
+
+      /* Guarda a marca de lida do aparelho: ela é escrita aqui e
+         só depois sobe, então o servidor pode estar atrás. */
+      var lidas = {};
+      (estado.mensagens || []).forEach(function (m) { if (m.lidaEm) lidas[m.id] = m.lidaEm; });
+
+      var novas = doServidor.filter(function (m) { return !conhecidas[m.id]; });
+
+      estado.mensagens = doServidor.map(function (m) {
+        if (!m.lidaEm && lidas[m.id]) m.lidaEm = lidas[m.id];
+        return m;
+      });
+
+      notificar("mensagens");
+
+      /* Aviso só do que chegou do OUTRO lado. Quem escreveu não
+         precisa ser avisado do que acabou de escrever. */
+      var deQuemUsa = estado.usuario && estado.usuario.papel === "equipe" ? "equipe" : "cliente";
+      novas.forEach(function (m) {
+        if (m.autor === deQuemUsa) return;
+        Store.avisar({ tipo: "mensagem", mensagem: m });
+      });
+    });
+  }
+
   var Store = {
     /* ---- ciclo de vida ---- */
     iniciar: function () {
@@ -482,6 +522,20 @@
        aproveitar sobras de outra sessão neste aparelho seria
        misturar dados de gente diferente.
     ------------------------------------------------------- */
+    /* ---------- Conversa em tempo real ----------
+
+       O ouvinte substitui a lista inteira de mensagens pelo que
+       está no servidor. Isso é seguro porque mensagem enviada não
+       se reescreve (a regra do Firestore garante) — então o
+       servidor é sempre a versão boa, e não há edição local para
+       preservar.
+
+       O que NÃO pode acontecer é o ouvinte disparar aviso de
+       "mensagem nova" para quem acabou de escrever. Por isso a
+       comparação é por id: só avisa o que não estava aqui antes e
+       veio do outro lado. */
+    ligarTempoReal: function () { ligarTempoReal(); },
+
     usarServidor: function (empresaId) {
       if (!global.Nuvem || !global.FB || !global.FB.ligado || !empresaId) {
         return Promise.resolve(false);
@@ -497,6 +551,7 @@
         estado.empresaId = empresaId;
         trocandoBackend = false;
         erroPersistencia = false;
+        ligarTempoReal();
         notificar("servidor");
         return true;
       }, function (e) {
@@ -509,6 +564,7 @@
        deste aparelho. O que está no servidor fica intacto — e o
        próximo a usar o computador não vê nada do anterior. */
     sairDaConta: function () {
+      desligarTempoReal();
       trocandoBackend = true;
       backend = LocalBackend;
       return LocalBackend.apagar().then(function () {

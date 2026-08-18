@@ -41,6 +41,50 @@
   /* Cliente aberto no momento. */
   var aberto = null;      /* {id, empresa, dados, mensagens, financeiro, credenciais} */
 
+  /* Ouvinte da conversa do cliente aberto.
+
+     Só existe enquanto uma ficha está aberta: ouvir as mensagens
+     de todas as empresas ao mesmo tempo custaria leitura à toa e
+     não muda nada na tela. Ao fechar ou trocar de cliente, o
+     ouvinte anterior é desligado — senão sobrariam ouvintes vivos
+     de fichas que ninguém está olhando. */
+  var desligarConversa = null;
+
+  function pararConversa() {
+    if (desligarConversa) { try { desligarConversa(); } catch (e) {} }
+    desligarConversa = null;
+  }
+
+  function ouvirConversa(c) {
+    pararConversa();
+    if (!c) return;
+    desligarConversa = FB.db.collection("empresas").doc(c.id)
+      .collection("mensagens").onSnapshot(function (snap) {
+        var lista = [];
+        snap.forEach(function (d) { var m = d.data() || {}; m.id = d.id; lista.push(m); });
+        lista.sort(function (a, b) { return (a.em || 0) - (b.em || 0); });
+
+        /* Nada mudou de fato? Não redesenha: redesenhar a ficha
+           inteira apagaria o que a pessoa está escrevendo. */
+        var antes = (c.mensagens || []).map(function (m) { return m.id; }).join(",");
+        if (antes === lista.map(function (m) { return m.id; }).join(",")) return;
+
+        c.mensagens = lista;
+        if (aberto === c) {
+          var campo = $("#clMsg");
+          var rascunho = campo ? campo.value : "";
+          var tinhaFoco = campo && document.activeElement === campo;
+          desenharFicha();
+          var novo = $("#clMsg");
+          if (novo && rascunho) {
+            novo.value = rascunho;
+            if (tinhaFoco) { novo.focus(); novo.setSelectionRange(rascunho.length, rascunho.length); }
+          }
+        }
+        atualizarContadores();
+      }, function () { /* sem rede: a ficha continua com o que já tem */ });
+  }
+
   /* Chave privada carregada nesta aba. Nunca é gravada. */
   var chavePrivada = null;
 
@@ -798,7 +842,7 @@
       '<div class="card card--pad">' +
         (c.mensagens.length
           ? '<div class="conversa conversa--alta">' + c.mensagens.map(function (m) {
-              return '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") + '">' +
+              return '<div class="msg msg--' + (m.autor === "equipe" ? "minha" : "dele") + '">' +
                 '<div class="msg__autor">' +
                   U.esc(m.autor === "equipe" ? (m.autorNome || "Totali") : "Cliente") + '</div>' +
                 '<div>' + U.esc(m.texto) + '</div>' +
@@ -875,10 +919,12 @@
     $("#clTopo").hidden = true;
     $("#clFicha").hidden = false;
     desenharFicha();
+    ouvirConversa(c);
     global.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function fecharCliente() {
+    pararConversa();
     aberto = null;
     $("#clFicha").hidden = true;
     $("#clLista").hidden = false;
@@ -1858,7 +1904,7 @@
       corpo: function () {
         return (msgs.length
           ? '<div class="conversa">' + msgs.slice(-30).map(function (m) {
-              return '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") + '">' +
+              return '<div class="msg msg--' + (m.autor === "equipe" ? "minha" : "dele") + '">' +
                 '<div class="msg__autor">' +
                   U.esc(m.autor === "equipe" ? (m.autorNome || "Totali") : "Cliente") + '</div>' +
                 '<div>' + U.esc(m.texto) + '</div>' +
@@ -2781,6 +2827,7 @@
         carregarLista();
       } else {
         empresas = [];
+        pararConversa();
         aberto = null;
         conversaAberta = null;
         if (global.Painel) {

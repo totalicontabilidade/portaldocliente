@@ -1591,11 +1591,19 @@ input[type=checkbox]{accent-color:var(--gold)}
   font-size:14px;line-height:1.55;position:relative;
   animation:viewIn .3s var(--ease-out);
 }
-.msg--equipe{
+/* Lado da bolha = quem está OLHANDO, não quem escreveu.
+
+   Antes as classes eram `msg--cliente` e `msg--equipe`, e o lado
+   vinha do autor. Isso funcionava no portal (onde quem olha é o
+   cliente) e ficava invertido no painel: a equipe via as próprias
+   mensagens à esquerda, como se fossem recebidas. Agora quem
+   monta a conversa decide: `msg--minha` à direita, `msg--dele` à
+   esquerda — o padrão de qualquer aplicativo de mensagem. */
+.msg--dele{
   align-self:flex-start;border-bottom-left-radius:5px;
   background:var(--glass-2);border:1px solid var(--stroke);color:var(--txt);
 }
-.msg--cliente{
+.msg--minha{
   align-self:flex-end;border-bottom-right-radius:5px;
   background:linear-gradient(140deg,rgba(194,162,80,.19),rgba(194,162,80,.11));
   border:1px solid var(--stroke-gold);color:var(--txt);
@@ -1604,7 +1612,7 @@ input[type=checkbox]{accent-color:var(--gold)}
   font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--gold-2);margin-bottom:4px;
 }
-.msg--cliente .msg__autor{color:var(--txt-3)}
+.msg--minha .msg__autor{color:var(--txt-3)}
 .msg__ref{
   display:inline-flex;align-items:center;gap:6px;
   margin-bottom:7px;padding:5px 10px;border-radius:9px;

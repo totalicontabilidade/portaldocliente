@@ -486,10 +486,45 @@
       return raiz.collection("credenciais").doc(id).delete();
     }
 
+    /* ============================================================
+       Conversa em tempo real
+
+       Até aqui o portal só lia mensagem quando a página carregava.
+       Na prática isso quer dizer que não dava para conversar: cada
+       lado escrevia e o outro só via depois de atualizar — e foi
+       justamente esse "atualiza para ver" que levava o cliente a
+       recarregar a página o tempo todo, caindo na corrida de
+       credencial e achando que tinha sido desconectado. Os dois
+       problemas eram o mesmo hábito.
+
+       Um ouvinte só, na subcoleção de mensagens. Não uso ouvinte
+       em `itens` de propósito: são dezenas de documentos que mudam
+       a cada digitação, e um ouvinte ali brigaria com a gravação
+       por diferença que já existe. Mensagem é pequena, esparsa e
+       é o único lugar onde tempo real muda a experiência.
+
+       Devolve a função de desligar — sem isso, trocar de empresa
+       deixaria o ouvinte antigo vivo, gastando leitura e
+       misturando conversa de duas empresas. */
+    function ouvirMensagens(aoMudar) {
+      if (!raiz) return function () {};
+      return raiz.collection("mensagens").onSnapshot(function (snap) {
+        var lista = [];
+        snap.forEach(function (d) {
+          var m = d.data() || {};
+          m.id = d.id;
+          lista.push(m);
+        });
+        lista.sort(function (a, b) { return (a.em || 0) - (b.em || 0); });
+        aoMudar(lista);
+      }, function () { /* sem rede: segue com o que já está na tela */ });
+    }
+
     return {
       nome: "nuvem",
       empresaId: empresaId,
       carregar: carregar,
+      ouvirMensagens: ouvirMensagens,
       removerCredencial: removerCredencial,
       salvar: salvar,
       apagar: apagar,

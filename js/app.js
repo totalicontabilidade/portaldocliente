@@ -1725,7 +1725,8 @@
           html += '<div class="chat__dia">' + U.esc(dia) + '</div>';
         }
         var doc = m.chave ? nomeDoItem(m.chave) : "";
-        html += '<div class="msg msg--' + (m.autor === "equipe" ? "equipe" : "cliente") +
+        /* Aqui quem olha é o CLIENTE: mensagem dele à direita. */
+        html += '<div class="msg msg--' + (m.autor === "equipe" ? "dele" : "minha") +
                 (m.autor === "equipe" && !m.lidaEm ? " msg--nova" : "") + '">' +
           (m.autor === "equipe"
             ? '<div class="msg__autor">' + U.esc(m.autorNome || org.curto) + '</div>' : '') +
@@ -3570,6 +3571,27 @@
      empresa no banco. Reabrir o mesmo link em outro aparelho
      funciona — é assim que o cliente não perde nada ao trocar de
      celular ou limpar o navegador. */
+  /* Insiste na retomada antes de desistir.
+
+     A leitura pode falhar por causa da credencial ainda fria, e
+     nesse caso a segunda tentativa quase sempre passa. Três
+     tentativas em ~2,5s são invisíveis para quem está abrindo o
+     portal e evitam mandar para a tela de login alguém que está
+     logado. */
+  function retomarComPaciencia() {
+    var FB = global.FB;
+    var espera = function (ms) {
+      return new Promise(function (r) { setTimeout(r, ms); });
+    };
+    var tentar = function (restam) {
+      return FB.retomarCliente().then(function (r) {
+        if (r.estado !== "falhou" || restam <= 0) return r;
+        return espera(800).then(function () { return tentar(restam - 1); });
+      });
+    };
+    return tentar(3);
+  }
+
   function aplicarConviteDoServidor() {
     var FB = global.FB;
     if (!FB || !FB.ligado) return Promise.resolve(false);
@@ -3581,9 +3603,22 @@
        a pessoa precisa entrar. Com o servidor no ar, o portal é
        de acesso restrito — ninguém vê nada sem senha. */
     if (!codigo) {
-      return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return descobrirEmpresas().then(entrarNaEmpresa);
+      return retomarComPaciencia().then(function (r) {
+        if (r.estado === "pronto") return descobrirEmpresas().then(entrarNaEmpresa);
         if (FB.equipe) return false;      /* equipe testando: deixa passar */
+
+        /* Só vai para a porta quem realmente não tem sessão.
+           Sessão viva com leitura falhando NÃO é motivo para pedir
+           senha de novo — era o que fazia o cliente achar que
+           tinha sido desconectado. */
+        if (r.estado === "falhou") {
+          porta.modo = "";
+          setTimeout(function () {
+            UI.toast("A conexão com o servidor está instável. Seus dados estão salvos — " +
+                     "atualize a página em alguns segundos.", "erro", 12000);
+          }, 600);
+          return true;
+        }
         porta.modo = "login";
         return true;
       });
@@ -3609,8 +3644,8 @@
       /* Convite já usado: provavelmente é o próprio cliente
          reabrindo o link antigo. Manda para o login. */
       var msg = FB.explicar(e);
-      return FB.retomarCliente().then(function (empresaId) {
-        if (empresaId) return descobrirEmpresas().then(entrarNaEmpresa);
+      return retomarComPaciencia().then(function (r) {
+        if (r.estado === "pronto") return descobrirEmpresas().then(entrarNaEmpresa);
         porta.modo = "login";
         setTimeout(function () { UI.toast(msg, "erro", 9000); }, 700);
         return true;
@@ -3697,6 +3732,22 @@
 
     Store.on(function (_, motivo) {
       if (motivo === "mensagens" || motivo === "revisao") atualizarNav(estadoUI.rota);
+
+      /* Mensagem que chegou do servidor precisa aparecer na hora.
+         Só redesenho quando a conversa está aberta — redesenhar a
+         tela inteira enquanto a pessoa preenche um formulário
+         apagaria o que ela está digitando. */
+      if (motivo === "mensagens" && estadoUI.rota === "mensagens") {
+        var caixa = $("#msgTexto");
+        var rascunho = caixa ? caixa.value : "";
+        var foco = caixa && document.activeElement === caixa;
+        render();
+        var nova = $("#msgTexto");
+        if (nova && rascunho) {
+          nova.value = rascunho;
+          if (foco) { nova.focus(); nova.setSelectionRange(rascunho.length, rascunho.length); }
+        }
+      }
       if (motivo === "erro-persistencia") {
         UI.toast(Store.noServidor
           ? "Não conseguimos salvar no servidor agora. Verifique a internet — o que você digitou " +

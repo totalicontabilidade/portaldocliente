@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v37";
+var VERSAO = "v38";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -55,14 +55,33 @@ var SHELL = [
   "./assets/apple-touch-icon.png"
 ];
 
+/* O QUE MUDOU AQUI, E POR QUÊ — leia antes de "otimizar".
+
+   Antes o `install` terminava com `skipWaiting()`, e o `activate`
+   com `clients.claim()`. Juntos, eles faziam a versão nova assumir
+   uma aba JÁ ABERTA no meio do uso. Na prática: o cliente estava
+   enviando um documento, saía uma publicação, o service worker
+   trocava debaixo dele e o envio morria. Foi o "sistema cai
+   enquanto vocês atualizam" que o Raoni relatou.
+
+   Agora a versão nova INSTALA e ESPERA. Ela só assume quando a
+   pessoa toca no aviso "atualizar" — ou seja, num momento em que
+   ela não está no meio de nada. Quem está com a aba aberta
+   continua na versão antiga até decidir trocar, e nada é
+   interrompido. */
 self.addEventListener("install", function (ev) {
   ev.waitUntil(
     caches.open(CACHE).then(function (c) {
       return Promise.all(SHELL.map(function (u) {
         return c.add(new Request(u, { cache: "reload" })).catch(function () { /* segue sem travar */ });
       }));
-    }).then(function () { return self.skipWaiting(); })
+    })
   );
+});
+
+/* A página pede a troca quando o usuário aceita. */
+self.addEventListener("message", function (ev) {
+  if (ev.data === "assumir-agora") self.skipWaiting();
 });
 
 self.addEventListener("activate", function (ev) {

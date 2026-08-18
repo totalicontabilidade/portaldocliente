@@ -80,6 +80,16 @@
         };
         document.addEventListener("visibilitychange", conferir);
 
+        /* Recarrega UMA vez, quando o service worker novo assume.
+           Sem esta trava, o navegador pode disparar o evento mais
+           de uma vez e a página entraria em laço de recarga. */
+        var recarregando = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          if (recarregando) return;
+          recarregando = true;
+          location.reload();
+        });
+
         reg.addEventListener("updatefound", function () {
           var novo = reg.installing;
           if (!novo) return;
@@ -89,16 +99,21 @@
             if (novo.state !== "installed" || !navigator.serviceWorker.controller) return;
             if (!global.UI) return;
 
-            /* "Feche e abra" não resolvia: o texto antigo mandava
-               fazer algo que muitas vezes não bastava. Agora o
-               aviso recarrega de verdade, com um toque. */
-            global.UI.toast("Nova versão do portal disponível. Toque aqui para atualizar.",
-                            "ok", 20000);
+            /* A versão nova está pronta e ESPERANDO. Ela não assume
+               nada por conta própria: quem decide a hora é a
+               pessoa, tocando no aviso. É isso que garante que uma
+               publicação nossa não interrompa um envio em
+               andamento do outro lado. */
+            global.UI.toast("Nova versão do portal pronta. Toque aqui quando quiser atualizar — " +
+                            "nada do que você está fazendo se perde.", "ok", 30000);
             var avisos = document.querySelectorAll("#toasts .toast");
             var ultimo = avisos[avisos.length - 1];
             if (ultimo) {
               ultimo.style.cursor = "pointer";
-              ultimo.addEventListener("click", function () { location.reload(); });
+              ultimo.addEventListener("click", function () {
+                if (reg.waiting) reg.waiting.postMessage("assumir-agora");
+                else location.reload();
+              });
             }
           });
         });
