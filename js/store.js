@@ -673,7 +673,7 @@
     },
 
     /* ---- arquivos ---- */
-    anexar: function (chave, file) {
+    anexar: function (chave, file, aoProgredir) {
       var meta = {
         id: global.U.uid(),
         nome: global.U.nomeSeguro(file.name),
@@ -681,7 +681,7 @@
         tipo: file.type || "",
         em: Date.now()
       };
-      return backend.guardarArquivo(meta.id, file, "documento").then(function () {
+      return backend.guardarArquivo(meta.id, file, "documento", aoProgredir).then(function () {
         Store.commit(function () {
           var r = Store.item(chave);
           r.arquivos.push(meta);

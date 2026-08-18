@@ -662,6 +662,43 @@ input[type=checkbox]{accent-color:var(--gold)}
   color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-br);
 }
 
+/* ---------- Conferir a foto antes de enviar ---------- */
+.previas{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.previa{margin:0;border:1px solid var(--stroke);border-radius:var(--r);overflow:hidden;background:var(--surf-baixo)}
+.previa img{width:100%;height:190px;object-fit:contain;background:#0a0f16;display:block}
+.previa figcaption{
+  font-size:11px;color:var(--txt-3);padding:8px 10px;line-height:1.4;
+  border-top:1px solid var(--stroke-fraco);overflow-wrap:anywhere;
+}
+
+/* ---------- Barra de envio ----------
+   Presa no rodapé e sem bloquear a tela: quem está enviando pode
+   continuar navegando. Sobe acima da barra de abas no celular. */
+.envio{
+  position:fixed;z-index:70;left:14px;right:14px;
+  bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 14px);
+  background:var(--surf-2);border:1px solid var(--stroke-card);border-radius:var(--r);
+  padding:13px 15px;box-shadow:var(--sh-3);
+  opacity:0;transform:translateY(12px);
+  transition:opacity .28s var(--ease-out),transform .28s var(--ease-out);
+}
+.envio--on{opacity:1;transform:none}
+.envio__topo{display:flex;align-items:baseline;gap:10px}
+.envio__t{
+  flex:1;min-width:0;font-size:13px;font-weight:640;color:var(--txt);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.envio__pct{font-size:12.5px;font-weight:700;color:var(--gold-2);font-variant-numeric:tabular-nums}
+.envio__trilho{height:6px;border-radius:6px;background:var(--surf-baixo);overflow:hidden;margin-top:9px}
+.envio__barra{
+  display:block;height:100%;width:0;border-radius:6px;background:var(--gold);
+  transition:width .25s var(--ease-out);
+}
+.envio__nota{font-size:11px;color:var(--txt-3);margin-top:7px}
+@media (min-width:900px){
+  .envio{left:auto;right:24px;bottom:24px;width:340px}
+}
+
 /* ---------- Orientação de acesso (banco / maquininha) ----------
    Vem do catálogo, editável pelo painel. Só aparece para o que o
    cliente marcou. */

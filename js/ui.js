@@ -171,12 +171,69 @@
     });
   }
 
+  /* ============================================================
+     Barra de progresso de envio
+
+     Fica presa no rodapé, acima da barra de abas, e não bloqueia a
+     tela: quem está enviando um documento pode continuar lendo o
+     resto do portal enquanto sobe.
+
+     Não usa <dialog> de propósito — janela modal durante upload
+     dá a impressão de que o sistema travou, que é justamente o que
+     esta barra existe para evitar.
+     ============================================================ */
+  function progresso(titulo) {
+    var caixa = document.createElement("div");
+    caixa.className = "envio";
+    caixa.setAttribute("role", "status");
+    caixa.setAttribute("aria-live", "polite");
+    caixa.innerHTML =
+      '<div class="envio__topo">' +
+        '<span class="envio__t"></span>' +
+        '<span class="envio__pct">0%</span>' +
+      '</div>' +
+      '<div class="envio__trilho"><i class="envio__barra"></i></div>' +
+      '<div class="envio__nota">Pode continuar usando o portal. Não feche esta página.</div>';
+    document.body.appendChild(caixa);
+
+    var elT = caixa.querySelector(".envio__t");
+    var elP = caixa.querySelector(".envio__pct");
+    var elB = caixa.querySelector(".envio__barra");
+    elT.textContent = titulo || "Enviando";
+
+    /* Entrada com timer, e NÃO com requestAnimationFrame.
+
+       rAF não dispara em aba de segundo plano — e trocar de aba
+       durante um envio é o caso mais comum de todos: a pessoa
+       manda o documento e vai fazer outra coisa. Com rAF, a barra
+       nunca ganhava a classe de entrada e ficava invisível
+       justamente em quem mais precisa dela. Timer é throttled em
+       segundo plano, mas dispara. */
+    setTimeout(function () { caixa.classList.add("envio--on"); }, 20);
+
+    return {
+      titulo: function (t) { elT.textContent = t; },
+      pct: function (v) {
+        var n = Math.max(0, Math.min(100, Math.round(v || 0)));
+        elB.style.width = n + "%";
+        elP.textContent = n + "%";
+      },
+      fechar: function () {
+        caixa.classList.remove("envio--on");
+        setTimeout(function () {
+          if (caixa.parentNode) caixa.parentNode.removeChild(caixa);
+        }, 320);
+      }
+    };
+  }
+
   global.UI = {
     $: $, $$: $$, el: el,
     icone: icone,
     toast: toast,
     modal: modal,
     fecharModal: fecharModal,
-    confirmar: confirmar
+    confirmar: confirmar,
+    progresso: progresso
   };
 })(window);

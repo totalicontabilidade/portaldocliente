@@ -3054,22 +3054,79 @@
     } catch (e) { return false; }
   }
 
+  /* ============================================================
+     Conferir antes de enviar
+
+     Foto tremida, cortada ou do documento errado é o motivo nº 1
+     de devolução — e a devolução custa dias: a equipe confere,
+     escreve o motivo, o cliente volta ao portal, refotografa. Ver
+     a imagem antes de enviar corta esse ciclo inteiro no ponto
+     mais barato.
+
+     Só vale para imagem. PDF e planilha não têm o que conferir de
+     olho, e uma janela a mais neles seria só um clique extra.
+     ============================================================ */
+  function ehImagem(f) {
+    return /^image\//.test(f.type || "");
+  }
+
+  function conferirAntes(arquivos) {
+    var imagens = arquivos.filter(ehImagem);
+    if (!imagens.length) return Promise.resolve(true);
+
+    var urls = imagens.map(function (f) { return URL.createObjectURL(f); });
+    var soltar = function () {
+      urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
+    };
+
+    return new Promise(function (resolve) {
+      UI.modal({
+        titulo: imagens.length === 1 ? "Confira a foto antes de enviar"
+                                     : "Confira as " + imagens.length + " fotos",
+        corpoHTML:
+          '<p style="font-size:13.5px;line-height:1.6;color:var(--txt-2);margin-bottom:12px">' +
+            'Dá para ler tudo? As quatro bordas do documento aparecem? Se estiver tremida ou ' +
+            'cortada, é melhor tirar de novo agora do que receber de volta depois.</p>' +
+          '<div class="previas">' +
+            urls.map(function (u, i) {
+              return '<figure class="previa">' +
+                '<img src="' + u + '" alt="Prévia de ' + U.escAttr(imagens[i].name) + '">' +
+                '<figcaption>' + U.esc(U.nomeSeguro(imagens[i].name)) + ' · ' +
+                  U.esc(U.bytes(imagens[i].size)) + '</figcaption>' +
+              '</figure>';
+            }).join("") +
+          '</div>',
+        acoes: [
+          { rotulo: "Tirar de novo", classe: "btn--ghost",
+            onClick: function () { soltar(); resolve(false); } },
+          { rotulo: "Está boa, enviar", classe: "btn--primary",
+            onClick: function () { soltar(); resolve(true); } }
+        ]
+      });
+    });
+  }
+
   function receberArquivos(chave, lista) {
     var arquivos = Array.prototype.slice.call(lista || []);
     if (!arquivos.length) return;
+
+    conferirAntes(arquivos).then(function (segue) {
+      if (segue) enviarArquivos(chave, arquivos);
+    });
+  }
+
+  function enviarArquivos(chave, arquivos) {
     var usado = Store.bytesUsados();
     var fila = Promise.resolve();
     var enviados = 0, erros = 0;
 
-    /* Subir arquivo leva tempo em conexão de celular. Sem este
-       aviso, a pessoa acha que não aconteceu nada e tenta de
-       novo — e aí manda o mesmo documento duas vezes. */
-    if (Store.noServidor) {
-      UI.toast("Enviando " + arquivos.length + " " +
-               U.plural(arquivos.length, "arquivo", "arquivos") + "… não feche a página.", "", 8000);
-    }
+    /* Barra de progresso real, no lugar do aviso genérico. Em 4G
+       ruim, um PDF de 15 MB parecia travamento — e travamento faz
+       a pessoa tocar de novo e mandar o mesmo documento duas
+       vezes. */
+    var barra = Store.noServidor ? UI.progresso("Enviando documento") : null;
 
-    arquivos.forEach(function (f) {
+    arquivos.forEach(function (f, i) {
       fila = fila.then(function () {
         var erro = U.validaArquivo(f, usado);
         if (erro) {
@@ -3078,14 +3135,24 @@
           return null;
         }
         usado += f.size;
-        return Store.anexar(chave, f).then(function () { enviados++; }, function () {
-          erros++;
-          UI.toast("Não foi possível salvar " + U.nomeSeguro(f.name) + ".", "erro");
-        });
+
+        if (barra) {
+          barra.titulo(arquivos.length > 1
+            ? "Enviando " + (i + 1) + " de " + arquivos.length + " · " + U.nomeSeguro(f.name)
+            : "Enviando " + U.nomeSeguro(f.name));
+          barra.pct(0);
+        }
+
+        return Store.anexar(chave, f, barra ? barra.pct : null)
+          .then(function () { enviados++; }, function () {
+            erros++;
+            UI.toast("Não foi possível salvar " + U.nomeSeguro(f.name) + ".", "erro");
+          });
       });
     });
 
     fila.then(function () {
+      if (barra) barra.fechar();
       if (enviados) {
         Store.flush();
         UI.toast(enviados + " " + U.plural(enviados, "arquivo anexado", "arquivos anexados") + ".", "ok");

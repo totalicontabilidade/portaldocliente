@@ -416,10 +416,26 @@
       return storage.ref("empresas/" + empresaId + "/" + pasta(tipo) + "/" + id + "/arquivo");
     }
 
-    function guardarArquivo(id, blob, tipo) {
+    /* `aoProgredir` recebe 0..100 durante o envio.
+
+       O `put()` do Storage devolve uma tarefa que emite progresso —
+       antes esse dado existia e era jogado fora. Num PDF de 15 MB
+       em 4G ruim, a barra é a diferença entre esperar e achar que
+       travou; sem ela o cliente toca de novo e manda o mesmo
+       documento duas vezes. */
+    function guardarArquivo(id, blob, tipo, aoProgredir) {
       if (!storage) return Promise.reject(new Error("sem-armazenamento"));
       var meta = { contentType: global.U.mimeDoArquivo(blob) };
-      return refArquivo(id, tipo).put(blob, meta).then(function () {
+      var tarefa = refArquivo(id, tipo).put(blob, meta);
+
+      if (typeof aoProgredir === "function") {
+        tarefa.on("state_changed", function (s) {
+          if (!s.totalBytes) return;
+          aoProgredir(Math.round((s.bytesTransferred / s.totalBytes) * 100));
+        });
+      }
+
+      return tarefa.then(function () {
         /* Cópia local para abrir rápido e continuar funcionando
            sem sinal. Se falhar, o arquivo já está no servidor. */
         if (cacheLocal) cacheLocal.guardar(id, blob).catch(function () {});
