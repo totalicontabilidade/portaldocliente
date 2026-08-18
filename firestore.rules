@@ -62,8 +62,27 @@ service cloud.firestore {
 
     // ---------- Utilidades ----------
 
+    // Para ALTERAR: nenhum campo fora da lista pode ser tocado.
     function soEstesCampos(campos) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // Para CRIAR: o documento não pode nascer com campo fora da lista.
+    //
+    // Por que esta função existe, e por que ela é diferente da de
+    // cima: `diff(resource.data)` só funciona quando JÁ EXISTE um
+    // documento para comparar. Na criação não existe, e por isso a
+    // trava de alteração simplesmente não vale ali.
+    //
+    // Foi exatamente essa brecha que apareceu no teste de
+    // 2026-08-18: `allow create` não tinha trava de campo nenhuma,
+    // então o cliente conseguia CRIAR um documento de item já com
+    // `revisao: {status:"aprovado"}` — carimbando de aprovado um
+    // documento que ele nunca enviou. Alterar era negado; criar,
+    // não. A regra de alteração dava uma falsa sensação de que o
+    // campo estava protegido.
+    function soEstesCamposAoCriar(campos) {
+      return request.resource.data.keys().hasOnly(campos);
     }
 
     function textoAte(valor, max) {
@@ -177,11 +196,19 @@ service cloud.firestore {
       }
 
       // ---------- Documentos do checklist ----------
+      //
+      // O cliente mexe no ENVIO; a revisão é da equipe. `revisao`
+      // fora desta lista é o que impede o cliente de aprovar o
+      // próprio documento — e a trava precisa valer na criação E na
+      // alteração, senão basta criar o documento já aprovado.
       match /itens/{chave} {
         allow read: if equipeOuDono(empresaId);
 
-        // O cliente mexe no envio; a revisão é da equipe.
-        allow create: if ehEquipe() || ehDonoDaEmpresa(empresaId);
+        allow create: if ehEquipe()
+                      || (ehDonoDaEmpresa(empresaId) && soEstesCamposAoCriar([
+                           'arquivos', 'valor', 'na', 'forma',
+                           'obs', 'atualizadoEm'
+                         ]));
         allow update: if ehEquipe()
                       || (ehDonoDaEmpresa(empresaId) && soEstesCampos([
                            'arquivos', 'valor', 'na', 'forma',
@@ -191,10 +218,12 @@ service cloud.firestore {
       }
 
       // ---------- Sócios ----------
+      // Só nome e CPF. Nada de campo extra entrando de carona.
       match /socios/{socioId} {
         allow read: if equipeOuDono(empresaId);
         allow create, update: if equipeOuDono(empresaId)
-                              && textoAte(request.resource.data.nome, 120);
+                              && textoAte(request.resource.data.nome, 120)
+                              && request.resource.data.keys().hasOnly(['nome', 'cpf']);
         allow delete: if equipeOuDono(empresaId);
       }
 
