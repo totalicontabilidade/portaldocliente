@@ -196,6 +196,10 @@
     return {
       arquivos: [], valor: "", na: false, obs: "", forma: "",
       atualizadoEm: 0,
+      /* Definição da Totali sobre este documento se aplicar ou
+         não a esta empresa. `null` = a equipe não opinou, e vale
+         o `na` que o cliente marcou. Só a equipe grava. */
+      naEquipe: null,
       /* "Enviar depois": a data que o próprio cliente escolheu
          para voltar a este documento. Zero quando não marcou.
          Não muda a situação do item — ele continua faltando —,
@@ -314,6 +318,7 @@
         novo.na = r.na === true;
         novo.atualizadoEm = typeof r.atualizadoEm === "number" ? r.atualizadoEm : 0;
         novo.lembrete = typeof r.lembrete === "number" && r.lembrete > 0 ? r.lembrete : 0;
+        novo.naEquipe = typeof r.naEquipe === "boolean" ? r.naEquipe : null;
 
         if (r.revisao && typeof r.revisao === "object") {
           var st = String(r.revisao.status || "");

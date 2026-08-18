@@ -1380,7 +1380,10 @@
     html += zonaDeRiscoHTML(c);
 
     /* ---- Documentos, um bloco por departamento ---- */
-    html += '<div class="ficha__titulo">Documentos</div>' +
+    html += '<div class="ficha__titulo">Documentos' +
+        '<button type="button" class="btn btn--quiet btn--sm" id="clAplicacao">' +
+          'Quais se aplicam</button>' +
+      '</div>' +
       DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
 
     html += financeiroHTML(c);
@@ -2326,6 +2329,45 @@
     });
   }
 
+  /* Grava o que se aplica e o que não se aplica.
+
+     "Deixar com o cliente" vira REMOÇÃO do campo, não `null`:
+     um `naEquipe: null` gravado continuaria sendo uma opinião da
+     equipe do ponto de vista de quem lê, e a diferença entre
+     "não opinei" e "opinei que é nulo" ia atormentar alguém no
+     futuro. FieldValue.delete() apaga de verdade. */
+  function gravarAplicacao(c, mudancas) {
+    var apagar = global.firebase.firestore.FieldValue.delete();
+    var lote = FB.db.batch();
+    var tocadas = [];
+
+    mudancas.forEach(function (mu) {
+      mu.chaves.forEach(function (chave) {
+        var ref = FB.db.collection("empresas").doc(c.id)
+                    .collection("itens").doc(global.Nuvem.codificar(chave));
+        lote.set(ref, { naEquipe: mu.naEquipe === null ? apagar : mu.naEquipe }, { merge: true });
+        tocadas.push({ chave: chave, valor: mu.naEquipe });
+      });
+    });
+
+    return lote.commit().then(function () {
+      tocadas.forEach(function (t) {
+        if (!c.dados.itens[t.chave]) c.dados.itens[t.chave] = {};
+        if (t.valor === null) delete c.dados.itens[t.chave].naEquipe;
+        else c.dados.itens[t.chave].naEquipe = t.valor;
+      });
+      if (aberto === c) desenharFicha();
+      atualizarContadores();
+      UI.toast(mudancas.length === 1
+        ? "Documento atualizado."
+        : mudancas.length + " documentos atualizados.", "ok", 4000);
+      return true;
+    }, function (e) {
+      UI.toast("Não foi possível salvar: " + FB.explicar(e), "erro", 9000);
+      throw e;
+    });
+  }
+
   /* Nome legível de "fiscal/certificado-digital". */
   function nomeDaChave(chave) {
     var partes = String(chave).split("/");
@@ -2965,6 +3007,18 @@
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+
+    var aplic = $("#clAplicacao");
+    if (aplic) aplic.addEventListener("click", function () {
+      if (!aberto) return;
+      var c = aberto;
+      global.Aplicacao.abrir({
+        titulo: "Documentos de " + nomeDe(c),
+        itens: c.dados.itens,
+        socios: c.dados.socios,
+        aoSalvar: function (mudancas) { return gravarAplicacao(c, mudancas); }
+      });
+    });
 
     var anotar = $("#clSalvarNota");
     if (anotar) anotar.addEventListener("click", function () {

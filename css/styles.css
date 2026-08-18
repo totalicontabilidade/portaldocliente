@@ -2394,6 +2394,40 @@ body.tour-aberto{overscroll-behavior:contain}
 .depto--on .depto__txt{font-weight:620}
 @media (min-width:520px){ .deptos{grid-template-columns:1fr 1fr} }
 
+/* ============================================================
+   "Quais documentos se aplicam"
+
+   Cada linha é um documento com três respostas. Os `display:block`
+   abaixo não são enfeite: `<span>` é inline por padrão, e sem eles
+   o nome do documento cola no departamento ("Contrato social e
+   alteraçõesSocietário"). Já aconteceu neste projeto — três vezes.
+   ============================================================ */
+.aplics{display:grid;gap:10px;max-height:52vh;overflow-y:auto;padding-right:4px}
+.aplic{
+  padding:11px 13px;border-radius:12px;
+  border:1px solid var(--stroke);background:var(--surf-2);
+}
+.aplic__cab{display:flex;align-items:flex-start;gap:10px}
+.aplic__cab .group__icon{flex:none;width:32px;height:32px}
+.aplic__cab .group__icon .ic{width:16px;height:16px}
+.aplic__txt{flex:1 1 auto;min-width:0}
+.aplic__nome{display:block;font-size:13.5px;font-weight:620;color:var(--txt);line-height:1.35}
+.aplic__grupo{display:block;font-size:12px;color:var(--txt-4);margin-top:2px}
+
+.aplic__opcoes{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.aplic__op{
+  flex:1 1 auto;min-width:96px;
+  padding:7px 10px;border-radius:9px;cursor:pointer;
+  font-size:12.5px;font-weight:600;line-height:1.2;
+  border:1px solid var(--stroke);background:var(--surf);color:var(--txt-3);
+  transition:border-color .16s ease, background .16s ease, color .16s ease;
+}
+.aplic__op:hover{border-color:var(--stroke-2);color:var(--txt-2)}
+.aplic__op--on{
+  border-color:rgba(194,162,80,.6);background:var(--surf-3);color:var(--gold-2);
+}
+.aplic__op:focus-visible{outline:2px solid var(--gold-2);outline-offset:1px}
+
 .notas{display:grid;gap:10px;margin-bottom:4px}
 .nota{
   padding:12px 14px;border-radius:12px;

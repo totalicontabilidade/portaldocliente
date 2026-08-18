@@ -206,6 +206,13 @@ service cloud.firestore {
       // comprometeu a voltar neste documento ("enviar depois").
       // Não muda a situação do item — continua faltando — e por
       // isso pode ficar na mão dele sem risco nenhum.
+      //
+      // `naEquipe` é o contrário: é a Totali dizendo se aquele
+      // documento se aplica àquela empresa. Não está na lista do
+      // cliente, então ele nunca grava esse campo. E enquanto ele
+      // existir, o cliente também não mexe no `na` dele — é o que
+      // faz "a definição da equipe prevalece" ser verdade no
+      // servidor, e não só na tela.
       match /itens/{chave} {
         allow read: if equipeOuDono(empresaId);
 
@@ -215,10 +222,13 @@ service cloud.firestore {
                            'obs', 'atualizadoEm', 'lembrete'
                          ]));
         allow update: if ehEquipe()
-                      || (ehDonoDaEmpresa(empresaId) && soEstesCampos([
-                           'arquivos', 'valor', 'na', 'forma',
-                           'obs', 'atualizadoEm', 'lembrete'
-                         ]));
+                      || (ehDonoDaEmpresa(empresaId)
+                          && soEstesCampos([
+                               'arquivos', 'valor', 'na', 'forma',
+                               'obs', 'atualizadoEm', 'lembrete'
+                             ])
+                          && (!('naEquipe' in resource.data)
+                              || !('na' in request.resource.data.diff(resource.data).affectedKeys())));
         allow delete: if ehAdmin();
       }
 

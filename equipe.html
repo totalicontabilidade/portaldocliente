@@ -432,6 +432,22 @@
             navegador e pode ser encaminhado — por isso ele carrega só informação da empresa.</span>
         </div>
 
+        <!-- Escolher o que se aplica ANTES de gerar o link é o
+             melhor momento: é agora que alguém da equipe está
+             olhando o CNPJ e o regime desta empresa. -->
+        <div class="field" style="margin-top:18px;margin-bottom:0">
+          <span class="field__label">Documentos deste cliente</span>
+          <div class="row" style="margin-top:2px">
+            <button type="button" class="btn btn--ghost btn--sm" id="cDocs">
+              <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>
+              Escolher quais se aplicam
+            </button>
+            <span class="text-xs text-muted" id="cDocsResumo">Todos, por enquanto</span>
+          </div>
+          <div class="field__hint">O que você marcar como “não se aplica” já sai da lista do
+            cliente antes mesmo de ele entrar. Dá para mudar depois na ficha dele.</div>
+        </div>
+
         <button type="button" class="btn btn--primary btn--block" id="cGerar" style="margin-top:18px">
           Gerar link do cliente
         </button>
@@ -701,6 +717,7 @@
 <script src="js/situacao.js"></script>
 <script src="js/nuvem.js"></script>
 <script src="js/departamentos.js"></script>
+<script src="js/aplicacao.js"></script>
 <script src="js/painel.js"></script>
 <script src="js/equipe.js"></script>
 <script src="js/painel-conteudo.js"></script>

@@ -869,6 +869,18 @@
     var pronto = Store.resolvida(sit);
     var grupoNA = !!Store.estado.gruposNA[grupo.id];
 
+    /* A Totali já disse se este documento se aplica a esta
+       empresa. Quando disse, o cliente não decide mais — some o
+       botão de "não se aplica" e entra um aviso no lugar.
+
+       É a diferença entre esconder e explicar: sem o aviso, o
+       cliente que tivesse marcado antes veria a marca dele mudar
+       sozinha e não entenderia por quê. */
+    var travado = typeof reg.naEquipe === "boolean";
+    var botaoNA = travado
+      ? ''
+      : '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>';
+
     var html = '<div class="item ' + (pronto ? "item--done " : "") +
                (sit === "na" ? "item--na " : "") + (sit === "pendencia" ? "item--pendencia" : "") +
                '" data-chave="' + U.escAttr(chave) + '">' +
@@ -897,6 +909,21 @@
     if (sit === "aprovado" && reg.revisao && reg.revisao.em) {
       html += '<div class="item__desc" style="color:var(--ok)">Conferido pela Totali em ' +
               U.esc(U.dataCurta(reg.revisao.em)) + '.</div>';
+    }
+
+    /* A Totali definiu. Vale tanto para tirar da lista quanto
+       para devolver: "não precisa" e "precisa sim" são as duas
+       respostas que o cliente não tem como saber sozinho. */
+    if (travado && !grupoNA) {
+      html += reg.naEquipe
+        ? '<div class="notice notice--ok" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
+            '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
+            '<span><strong>A ' + U.esc(DATA.ORG.curto) + ' verificou: este documento não se ' +
+            'aplica à sua empresa.</strong> Você não precisa enviar nada aqui.</span></div>'
+        : '<div class="notice notice--info" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
+            '<span class="notice__icon">' + ic("ic-info") + '</span>' +
+            '<span>A ' + U.esc(DATA.ORG.curto) + ' confirmou que este documento é necessário ' +
+            'para a sua empresa. Se você acha que não se aplica, fale pelas Mensagens.</span></div>';
     }
 
     if (grupoNA) {
@@ -933,11 +960,7 @@
             : '') +
           '<button type="button" class="btn btn--ghost btn--sm" data-enviar="1">' +
             ic("ic-upload") + (reg.arquivos.length ? "Adicionar outro" : "Enviar arquivo") + '</button>' +
-          (item.obrigatorio && !reg.arquivos.length
-            ? '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>'
-            : !item.obrigatorio && !reg.arquivos.length
-              ? '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>'
-              : '') +
+          (!reg.arquivos.length ? botaoNA : '') +
         '</div>';
       }
 
@@ -960,8 +983,7 @@
             'value="' + U.escAttr(reg.valor || "") + '"></div>';
         }
         if (!item.obrigatorio) {
-          html += '<div class="item__actions">' +
-            '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button></div>';
+          html += '<div class="item__actions">' + botaoNA + '</div>';
         }
       }
 
@@ -985,7 +1007,7 @@
                 (ativo ? "btn--primary" : "btn--ghost") + '" data-forma="' + U.escAttr(f.id) + '">' +
                 (ativo ? ic("ic-check") : "") + U.esc(f.rot) + '</button>';
             }).join("") +
-            '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>' +
+            botaoNA +
           '</div>';
 
         if (reg.forma === "informar" && item.credenciais) {
@@ -994,7 +1016,7 @@
       }
     }
 
-    if (sit === "na" && !grupoNA) {
+    if (sit === "na" && !grupoNA && !travado) {
       html += '<div class="item__actions">' +
         '<button type="button" class="btn btn--quiet btn--sm" data-reativar="1">Reativar este item</button></div>';
     }

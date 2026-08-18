@@ -40,7 +40,21 @@
 
     var chave = chaveItem(grupo.id, item.id, socioId);
     var r = itens[chave];
-    if (r && r.na) return "na";
+
+    /* A DEFINIÇÃO DA EQUIPE VENCE A DO CLIENTE.
+
+       `na` é do cliente; `naEquipe` é da Totali, que sabe quais
+       documentos aquela empresa realmente precisa entregar.
+       Quando existe definição da equipe, ela decide sozinha — o
+       `true` tira o documento da lista e o `false` o devolve,
+       mesmo que o cliente tivesse marcado o contrário.
+
+       Ausente quer dizer "a equipe não opinou", e aí vale o que o
+       cliente marcou. É o que mantém funcionando tudo o que já
+       existia antes deste campo. */
+    var decidiu = r && typeof r.naEquipe === "boolean";
+    if (decidiu && r.naEquipe) return "na";
+    if (!decidiu && r && r.na) return "na";
 
     if (item.substituivelPor) {
       var sub = itens[chaveItem(grupo.id, item.substituivelPor, socioId)];

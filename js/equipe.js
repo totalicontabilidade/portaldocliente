@@ -284,6 +284,10 @@
 
       var botao = $("#cGerar");
 
+      /* O que a equipe já escolheu nesta tela, ainda sem empresa
+         no banco. Vira gravação logo depois de a empresa nascer. */
+      var docsEscolhidos = global.__docsNovoCliente || [];
+
       /* Com servidor: cria a empresa e o convite no banco. O link
          leva só o código — nenhum dado da empresa passa pela URL. */
       if (FB && FB.ligado && FB.equipe) {
@@ -313,6 +317,25 @@
             criadoEm: FB.agora()
           });
         }).then(function () {
+          /* Os documentos escolhidos nascem junto com a empresa,
+             para o cliente já abrir o portal com a lista certa —
+             e não com a lista cheia que encolhe depois. */
+          if (!docsEscolhidos.length) return null;
+          var lote = FB.db.batch();
+          docsEscolhidos.forEach(function (mu) {
+            mu.chaves.forEach(function (chave) {
+              lote.set(refEmpresa.collection("itens").doc(global.Nuvem.codificar(chave)),
+                       { naEquipe: mu.naEquipe }, { merge: true });
+            });
+          });
+          return lote.commit().catch(function () {
+            /* A empresa e o link já existem e valem. Se só isto
+               falhar, dá para refazer na ficha — melhor que
+               derrubar o cadastro inteiro. */
+            UI.toast("A empresa foi criada, mas a lista de documentos não foi salva. " +
+                     "Ajuste na ficha do cliente.", "erro", 11000);
+          });
+        }).then(function () {
           botao.disabled = false;
           botao.textContent = "Gerar link do cliente";
           mostrarResultado(montarLinkCodigo(base.value, codigo));
@@ -331,6 +354,39 @@
         c: empresa.cnpj, g: empresa.regime, em: Date.now()
       }));
       UI.toast("Link gerado em modo local para " + nome + ".", "ok");
+    });
+
+    /* Escolher os documentos antes de a empresa existir. A
+       escolha fica em memória e é aplicada logo após o cadastro.
+       Guardar num global é feio, mas é o que evita reescrever o
+       fluxo inteiro do "Gerar link" só por causa disto. */
+    var btnDocs = $("#cDocs");
+    if (btnDocs) btnDocs.addEventListener("click", function () {
+      var jaEscolhido = {};
+      (global.__docsNovoCliente || []).forEach(function (mu) {
+        mu.chaves.forEach(function (k) { jaEscolhido[k] = { naEquipe: mu.naEquipe }; });
+      });
+
+      global.Aplicacao.abrir({
+        titulo: "Documentos deste cliente",
+        itens: jaEscolhido,
+        /* Sem sócios ainda: quem cadastra os sócios é o cliente.
+           A definição de item de sócio fica guardada e vale para
+           os que ele criar. */
+        socios: [],
+        aoSalvar: function (mudancas) {
+          global.__docsNovoCliente = mudancas;
+          var fora = mudancas.filter(function (m) { return m.naEquipe === true; }).length;
+          var resumo = $("#cDocsResumo");
+          if (resumo) {
+            resumo.textContent = fora
+              ? fora + " " + U.plural(fora, "documento fora da lista", "documentos fora da lista")
+              : "Todos, por enquanto";
+          }
+          UI.toast("Escolha guardada. Ela é aplicada quando você gerar o link.", "ok", 6000);
+          return true;
+        }
+      });
     });
 
     $("#cCopiar").addEventListener("click", function () { copiar(campoLink.value, "Link"); });
