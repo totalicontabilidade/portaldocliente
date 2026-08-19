@@ -1208,20 +1208,23 @@
      de documentos.
      ============================================================ */
   var VISTAS = [
-    { id: "documentos", rotulo: "Documentos" },
-    { id: "cadastro",   rotulo: "Cadastro e acesso" },
-    { id: "conversa",   rotulo: "Conversa" }
+    { id: "documentos", rotulo: "Documentos",        icone: "ic-folder" },
+    { id: "cadastro",   rotulo: "Cadastro e acesso", icone: "ic-building" },
+    { id: "conversa",   rotulo: "Conversa",          icone: "ic-chat" }
   ];
   var vistaFicha = "documentos";
 
   function abasFichaHTML(c) {
     var naoLidas = naoLidasDe(c);
-    return '<div class="filtros" style="margin-bottom:16px">' +
+    return '<div class="vistas" role="tablist">' +
       VISTAS.map(function (v) {
-        return '<button type="button" class="filtro' +
-          (vistaFicha === v.id ? " filtro--on" : "") +
-          '" data-vista="' + v.id + '">' + U.esc(v.rotulo) +
-          (v.id === "conversa" && naoLidas ? ' <b>' + naoLidas + '</b>' : '') +
+        var ativa = vistaFicha === v.id;
+        return '<button type="button" role="tab" aria-selected="' + (ativa ? "true" : "false") +
+          '" class="vistas__b' + (ativa ? " vistas__b--on" : "") +
+          '" data-vista="' + v.id + '">' +
+          ic(v.icone) + U.esc(v.rotulo) +
+          (v.id === "conversa" && naoLidas
+            ? '<span class="vistas__n">' + naoLidas + '</span>' : '') +
         '</button>';
       }).join("") +
     '</div>';

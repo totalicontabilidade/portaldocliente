@@ -2551,6 +2551,116 @@ body.tour-aberto{overscroll-behavior:contain}
   margin-top:3px;line-height:1.4;
 }
 
+/* ============================================================
+   As três vistas da ficha do cliente
+
+   Eram etiquetas do mesmo tamanho de um filtro qualquer, e são o
+   controle mais importante da tela: trocar de vista troca de
+   assunto inteiro. Agora são abas sublinhadas, com o padrão que
+   todo mundo já reconhece de navegador — ninguém precisa
+   aprender.
+
+   O contador só aparece em Conversa, e em vermelho, porque é a
+   única das três que pode estar esperando resposta.
+   ============================================================ */
+.vistas{
+  display:flex;gap:26px;margin-bottom:20px;
+  border-bottom:1px solid var(--stroke);
+  overflow-x:auto;scrollbar-width:none;
+}
+.vistas::-webkit-scrollbar{display:none}
+.vistas__b{
+  display:flex;align-items:center;gap:8px;flex:0 0 auto;
+  padding:0 0 13px;margin-bottom:-1px;
+  border:0;border-bottom:2px solid transparent;background:none;cursor:pointer;
+  font-size:15px;font-weight:620;color:var(--txt-4);
+  transition:color .16s ease, border-color .16s ease;
+}
+.vistas__b .ic{width:17px;height:17px;opacity:.85}
+.vistas__b:hover{color:var(--txt-2)}
+.vistas__b--on{color:var(--txt);font-weight:700;border-bottom-color:var(--gold-2)}
+.vistas__b--on .ic{color:var(--gold-2);opacity:1}
+.vistas__b:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px;border-radius:4px}
+.vistas__n{
+  font-size:11px;font-weight:700;line-height:1;
+  padding:3px 7px;border-radius:999px;
+  background:var(--surf-3);color:var(--txt-3);
+}
+.vistas__b--on .vistas__n{background:var(--danger);color:#fff}
+
+@media (max-width:520px){
+  .vistas{gap:18px}
+  .vistas__b{font-size:13.5px;padding-bottom:11px}
+  .vistas__b .ic{width:15px;height:15px}
+}
+
+/* ============================================================
+   Aba Conteúdo do portal — índice e painel
+
+   Eram oito cartões dobráveis empilhados, todos com o mesmo peso.
+   O vídeo que muda toda semana e o endereço da empresa, que muda
+   uma vez por ano, ocupavam exatamente o mesmo espaço.
+
+   O índice fica grudado ao rolar: em seções longas (o checklist
+   tem 26 documentos) a pessoa perdia a referência de onde estava.
+   ============================================================ */
+.conteudo{display:grid;gap:16px;align-items:start}
+@media (min-width:860px){
+  .conteudo{grid-template-columns:250px minmax(0,1fr)}
+  .conteudo__indice{position:sticky;top:16px}
+}
+.conteudo__indice{display:grid;gap:2px;min-width:0}
+.conteudo__i{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:10px 12px;border-radius:10px;border:0;background:none;
+  cursor:pointer;text-align:left;
+  transition:background .16s ease;
+}
+.conteudo__i:hover{background:var(--surf-2)}
+.conteudo__i:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px}
+.conteudo__i .ic{width:16px;height:16px;color:var(--txt-4);flex:none}
+.conteudo__i--on{background:var(--surf-3)}
+.conteudo__i--on .ic{color:var(--gold-2)}
+.conteudo__n{
+  flex:1 1 auto;min-width:0;font-size:13px;color:var(--txt-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.conteudo__i--on .conteudo__n{color:var(--txt);font-weight:640}
+.conteudo__s{
+  flex:none;font-size:10.5px;font-weight:640;color:var(--txt-4);
+  padding:2px 7px;border-radius:999px;background:var(--surf-baixo);
+}
+.conteudo__s--ok{color:var(--ok);background:rgba(76,154,114,.14)}
+
+.conteudo__painel{
+  border:1px solid var(--stroke-card);border-radius:16px;background:var(--surf);
+  overflow:hidden;min-width:0;
+}
+.conteudo__cab{
+  display:flex;align-items:center;gap:11px;
+  padding:15px 17px;border-bottom:1px solid var(--stroke);
+}
+.conteudo__tx{flex:1 1 auto;min-width:0}
+.conteudo__t{display:block;font-size:16px;font-weight:680;color:var(--txt);line-height:1.3}
+.conteudo__d{display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.45}
+.conteudo__corpo{padding:16px}
+.conteudo__corpo > :last-child{margin-bottom:0}
+
+/* No celular o índice vira uma tira que rola de lado: empilhado,
+   ele empurraria o conteúdo para fora da primeira tela. */
+@media (max-width:859px){
+  .conteudo__indice{
+    grid-auto-flow:column;grid-auto-columns:max-content;
+    overflow-x:auto;gap:6px;padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .conteudo__indice::-webkit-scrollbar{display:none}
+  .conteudo__i{padding:8px 12px;border:1px solid var(--stroke);border-radius:999px}
+  .conteudo__i--on{border-color:rgba(194,162,80,.5)}
+  .conteudo__n{white-space:nowrap}
+  .conteudo__s{display:none}
+}
+
 .notas{display:grid;gap:10px;margin-bottom:4px}
 .nota{
   padding:12px 14px;border-radius:12px;

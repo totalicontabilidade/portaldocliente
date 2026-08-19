@@ -184,26 +184,23 @@
   /* Cada seção com seu próprio ícone e um selo de estado. A pessoa
      bate o olho e sabe o que está publicado e o que falta, sem
      abrir uma por uma. */
-  function secao(o) {
-    var aberta = !!abertos[o.id];
-    return '<section class="card group" data-open="' + (aberta ? "true" : "false") + '" ' +
-        'style="margin-bottom:12px">' +
-      '<button type="button" class="group__head' + (o.selo ? " group__head--selo" : "") +
-        '" data-secao="' + o.id + '">' +
-        '<span class="group__icon">' + UI.icone(o.icone || "ic-file") + '</span>' +
-        '<span class="group__info">' +
-          '<span class="group__title" style="display:block">' + U.esc(o.titulo) + '</span>' +
-          '<span class="group__meta" style="display:block">' + U.esc(o.resumo) + '</span>' +
-        '</span>' +
-        (o.selo
-          ? '<span class="badge ' + (o.seloOk ? "badge--aprovado" : "badge--pendente") + '">' +
-            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
-          : '') +
-        '<span class="group__chev">' + UI.icone("ic-chevron-down") + '</span>' +
-      '</button>' +
-      (aberta ? '<div class="group__body" style="padding:16px">' + o.corpo() + '</div>' : '') +
-    '</section>';
-  }
+  /* ============================================================
+     Índice à esquerda, conteúdo à direita
+
+     Eram oito cartões dobráveis empilhados, todos com o mesmo
+     peso: o vídeo que muda toda semana e o endereço da empresa,
+     que muda uma vez por ano, ocupavam o mesmo espaço. E para
+     comparar duas seções era preciso abrir uma, fechar, abrir a
+     outra.
+
+     Agora a lista das oito fica sempre visível de um lado e o que
+     se está editando ocupa o outro. Trocar de assunto é um
+     clique, e a página inteira nunca sai de vista.
+     ============================================================ */
+  var secaoAberta = "video";
+
+  /* Só junta os dados. Quem desenha é montarConteudo(). */
+  function secao(o) { return o; }
 
   /* Capa do YouTube. É o que transforma uma lista de códigos numa
      lista de vídeos: dá para ver na hora se o link colado é mesmo
@@ -468,49 +465,89 @@
        cima o que a equipe mexe toda semana (vídeos, documentos),
        embaixo o que quase nunca muda (contato, endereço, textos
        jurídicos). Pedido do Raoni depois de usar a tela. */
-    $("#pcLista").innerHTML =
+    var SECOES = [
       secao({
         id: "video", icone: "ic-play", titulo: "Vídeo de abertura",
         resumo: "O primeiro vídeo que o cliente vê na tela inicial",
         selo: temVideo ? "Publicado" : "Sem vídeo", seloOk: temVideo, corpo: secaoVideo
-      }) +
+      }),
       secao({
         id: "academy", icone: "ic-play", titulo: "Academy",
         resumo: (C.academy || []).length + " trilhas · " + aulas + " aulas",
         selo: aulasPub + " no ar", seloOk: aulasPub > 0, corpo: secaoAcademy
-      }) +
+      }),
       secao({
         id: "grupos", icone: "ic-folder", titulo: "Documentos do checklist",
         resumo: (C.grupos || []).length + " departamentos · " + docs + " documentos",
         corpo: secaoGrupos
-      }) +
+      }),
       secao({
         id: "bancos", icone: "ic-card", titulo: "Bancos",
         resumo: (C.bancos || []).length + " na lista · " +
           (C.bancos || []).filter(function (b) { return b.orientacao; }).length + " com orientação",
         corpo: secaoBancos
-      }) +
+      }),
       secao({
         id: "maquinetas", icone: "ic-card", titulo: "Maquininhas",
         resumo: (C.maquinetas || []).length + " na lista · " +
           (C.maquinetas || []).filter(function (m) { return m.semCredencial; }).length +
           " em Modo Contador",
         corpo: secaoMaquinetas
-      }) +
+      }),
       secao({
         id: "faq", icone: "ic-help", titulo: "Perguntas frequentes",
         resumo: (C.faq || []).length + " perguntas na tela de Ajuda",
         corpo: secaoFaq
-      }) +
+      }),
       secao({
         id: "textos", icone: "ic-scroll", titulo: "Compromisso e termo",
         resumo: "Textos do aviso na tela e do PDF assinado", corpo: secaoTextos
-      }) +
+      }),
       secao({
         id: "org", icone: "ic-building", titulo: "Contatos e endereço",
         resumo: "Muda raramente — " + C.org.telefoneExibicao + " · " + C.org.horario,
         corpo: secaoOrg
-      });
+      })
+    ];
+
+    /* A seção guardada pode ter sumido — por exemplo, se um dia
+       alguma delas deixar de existir. Cai na primeira. */
+    if (!SECOES.some(function (x) { return x.id === secaoAberta; })) {
+      secaoAberta = SECOES[0].id;
+    }
+    var atual = SECOES.filter(function (x) { return x.id === secaoAberta; })[0];
+
+    $("#pcLista").innerHTML =
+      '<div class="conteudo">' +
+        '<nav class="conteudo__indice" aria-label="Seções do conteúdo">' +
+          SECOES.map(function (x) {
+            var on = x.id === secaoAberta;
+            return '<button type="button" class="conteudo__i' + (on ? " conteudo__i--on" : "") +
+              '" data-secao="' + x.id + '" aria-current="' + (on ? "page" : "false") + '">' +
+              UI.icone(x.icone || "ic-file") +
+              '<span class="conteudo__n">' + U.esc(x.titulo) + '</span>' +
+              (x.selo
+                ? '<span class="conteudo__s' + (x.seloOk ? " conteudo__s--ok" : "") + '">' +
+                  U.esc(x.selo) + '</span>'
+                : '') +
+            '</button>';
+          }).join("") +
+        '</nav>' +
+        '<section class="conteudo__painel">' +
+          '<div class="conteudo__cab">' +
+            '<span class="group__icon">' + UI.icone(atual.icone || "ic-file") + '</span>' +
+            '<span class="conteudo__tx">' +
+              '<span class="conteudo__t">' + U.esc(atual.titulo) + '</span>' +
+              '<span class="conteudo__d">' + U.esc(atual.resumo || "") + '</span>' +
+            '</span>' +
+            (atual.selo
+              ? '<span class="badge ' + (atual.seloOk ? "badge--aprovado" : "badge--pendente") +
+                '"><span class="dot"></span>' + U.esc(atual.selo) + '</span>'
+              : '') +
+          '</div>' +
+          '<div class="conteudo__corpo">' + atual.corpo() + '</div>' +
+        '</section>' +
+      '</div>';
 
     $("#pcResumo").textContent = docs + " documentos · " + (C.academy || []).length +
       " trilhas · " + (C.faq || []).length + " perguntas";
@@ -594,8 +631,18 @@
       var b = ev.target.closest("button");
       if (!b) return;
 
+      /* Dois usos do mesmo atributo, e a diferença é o ponto:
+         "faq" é uma das oito seções do índice; "grupos.0.itens.1"
+         é o editor de um documento lá dentro, que continua
+         abrindo e fechando. Sem esta separação, editar um
+         documento trocaria a seção inteira. */
       var sec = b.getAttribute("data-secao");
-      if (sec) { abertos[sec] = !abertos[sec]; desenhar(); return; }
+      if (sec) {
+        if (sec.indexOf(".") > -1) abertos[sec] = !abertos[sec];
+        else secaoAberta = sec;
+        desenhar();
+        return;
+      }
 
       var add = b.getAttribute("data-add");
       if (add) {

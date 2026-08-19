@@ -3,82 +3,86 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ficha do cliente · modelos</title>
+<title>Abas da ficha e aba Conteúdo · modelos</title>
 <link rel="stylesheet" href="css/styles.css">
 <style>
-/* Só do mockup. Nada aqui vai para o sistema sem você escolher. */
-.mk__faixa{margin:40px 0 16px;padding:13px 17px;border-radius:12px;background:var(--surf-3);border:1px solid var(--stroke-2)}
+/* Só do mockup. */
+.mk__faixa{margin:34px 0 14px;padding:13px 17px;border-radius:12px;background:var(--surf-3);border:1px solid var(--stroke-2)}
 .mk__n{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);font-weight:700}
-.mk__t{display:block;font-size:17px;font-weight:680;color:var(--txt);margin-top:3px}
+.mk__t{display:block;font-size:16.5px;font-weight:680;color:var(--txt);margin-top:3px}
 .mk__d{display:block;font-size:13px;color:var(--txt-3);margin-top:5px;line-height:1.6}
-.mk__janela{border:1px solid var(--stroke-2);border-radius:16px;overflow:hidden;background:var(--bg-0)}
-.mk__barra{display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--surf-baixo);border-bottom:1px solid var(--stroke)}
-.mk__ponto{width:9px;height:9px;border-radius:50%;background:var(--stroke-2)}
-.mk__url{font-size:11.5px;color:var(--txt-4);margin-left:6px}
-.mk__cab{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--stroke);background:var(--surf)}
-.mk__marca{font-size:13.5px;font-weight:700;color:var(--txt)}
-.mk__marca small{display:block;font-size:9.5px;letter-spacing:.14em;color:var(--gold-2);font-weight:700}
-.mk__quem{margin-left:auto;font-size:11.5px;color:var(--txt-3)}
-.mk__abas{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--stroke);background:var(--surf)}
-.mk__aba{padding:8px 13px;font-size:12px;color:var(--txt-4);border-bottom:2px solid transparent}
-.mk__aba--on{color:var(--gold-2);border-bottom-color:var(--gold-2);font-weight:650}
-.mk__tela{padding:18px 16px 26px}
+.mk__q{padding:20px 18px;border:1px dashed var(--stroke-2);border-radius:15px;background:var(--bg-0)}
+.mk__sec{margin:56px 0 0;padding-top:26px;border-top:2px solid var(--stroke-2)}
+.mk__sec h2{font-size:19px;font-weight:700;color:var(--txt);margin:0 0 5px}
+.mk__sec p{font-size:13.5px;color:var(--txt-3);margin:0;line-height:1.6}
 
-.volta{display:flex;gap:8px;margin-bottom:14px;font-size:12px;color:var(--txt-3)}
-.volta span{padding:5px 10px;border:1px solid var(--stroke);border-radius:8px}
+/* ====== ABAS — modelo 1: controle segmentado ====== */
+.a1{display:inline-flex;padding:5px;border-radius:14px;background:var(--surf-baixo);border:1px solid var(--stroke);gap:3px}
+.a1__b{padding:10px 20px;border-radius:10px;border:0;background:none;cursor:pointer;font-size:14px;font-weight:640;color:var(--txt-3);display:flex;align-items:center;gap:7px}
+.a1__b .ic{width:16px;height:16px}
+.a1__b--on{background:var(--surf-3);color:var(--gold-2);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.a1__n{font-size:11px;padding:1px 6px;border-radius:999px;background:rgba(186,66,60,.9);color:#fff;font-weight:700}
 
-.chefe{padding:16px 18px;border-radius:15px;border:1px solid var(--stroke-card);background:var(--surf);margin-bottom:16px}
-.chefe__nome{display:block;font-size:20px;font-weight:700;color:var(--txt)}
-.chefe__sub{display:block;font-size:12px;color:var(--txt-4);margin-top:3px}
-.chefe__nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--txt-3)}
-.chefe__nums b{color:var(--txt);font-size:15px}
+/* ====== ABAS — modelo 2: sublinhado grande ====== */
+.a2{display:flex;gap:28px;border-bottom:1px solid var(--stroke)}
+.a2__b{padding:0 0 13px;border:0;background:none;cursor:pointer;font-size:15.5px;font-weight:620;color:var(--txt-4);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px}
+.a2__b--on{color:var(--txt);border-bottom-color:var(--gold-2);font-weight:700}
+.a2__b .ic{width:17px;height:17px;opacity:.8}
+.a2__n{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--surf-3);color:var(--txt-3);font-weight:700}
+.a2__b--on .a2__n{background:rgba(186,66,60,.9);color:#fff}
 
-.tit{display:flex;align-items:center;gap:11px;margin:20px 0 11px}
-.tit__t{font-size:14px;font-weight:680;color:var(--txt)}
-.tit__linha{flex:1 1 auto;height:1px;background:var(--stroke)}
+/* ====== ABAS — modelo 3: cartões de destino ====== */
+.a3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.a3__b{padding:14px 15px;border-radius:14px;border:1px solid var(--stroke);background:var(--surf);cursor:pointer;text-align:left;display:flex;gap:11px;align-items:center}
+.a3__b--on{border-color:rgba(194,162,80,.6);background:var(--surf-2);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.a3__ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--surf-3);color:var(--txt-3)}
+.a3__b--on .a3__ic{background:rgba(194,162,80,.18);color:var(--gold-2)}
+.a3__ic .ic{width:18px;height:18px}
+.a3__tx{min-width:0}
+.a3__t{display:block;font-size:14px;font-weight:660;color:var(--txt)}
+.a3__d{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
+.a3__b--on .a3__t{color:var(--gold-2)}
+@media (max-width:640px){ .a3{grid-template-columns:1fr} }
 
-/* ---------- A: trilho de situação ---------- */
-.trilho{position:relative;overflow:hidden;margin-bottom:10px}
-.trilho::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sit)}
-.trilho .group__head{padding-left:17px}
-.st-ok{--sit:#4c9a72}
-.st-conf{--sit:#c2a250}
-.st-corr{--sit:#ba423c}
-.st-pend{--sit:#2c4157}
+/* ====== CONTEÚDO — modelo 1: índice + painel ====== */
+.c1{display:grid;grid-template-columns:230px 1fr;gap:18px;align-items:start}
+.c1__lista{display:grid;gap:2px}
+.c1__i{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:0;background:none;text-align:left;width:100%}
+.c1__i:hover{background:var(--surf-2)}
+.c1__i--on{background:var(--surf-3)}
+.c1__i .ic{width:16px;height:16px;color:var(--txt-4);flex:none}
+.c1__i--on .ic{color:var(--gold-2)}
+.c1__n{flex:1 1 auto;font-size:13px;color:var(--txt-2)}
+.c1__i--on .c1__n{color:var(--txt);font-weight:640}
+.c1__c{font-size:11px;color:var(--txt-4)}
+.c1__painel{border:1px solid var(--stroke-card);border-radius:15px;background:var(--surf);padding:18px}
+.c1__pt{font-size:16px;font-weight:680;color:var(--txt);margin:0 0 4px}
+.c1__pd{font-size:13px;color:var(--txt-3);margin:0 0 16px;line-height:1.55}
+@media (max-width:720px){ .c1{grid-template-columns:1fr} }
 
-/* ---------- B: agrupado por quem tem a bola ---------- */
-.faixa{margin:18px 0 10px;display:flex;align-items:center;gap:9px}
-.faixa__pt{width:9px;height:9px;border-radius:50%;background:var(--c)}
-.faixa__t{font-size:12.5px;font-weight:700;color:var(--c);letter-spacing:.02em}
-.faixa__n{font-size:11.5px;color:var(--txt-4)}
-.faixa__linha{flex:1 1 auto;height:1px;background:var(--stroke)}
-.cx{border:1px solid var(--stroke);border-radius:13px;background:var(--surf);margin-bottom:9px;padding:13px 15px;display:flex;align-items:center;gap:12px}
-.cx--voce{border-color:rgba(194,162,80,.5);background:var(--surf-2)}
-.cx--pronto{opacity:.55}
-.cx__ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--surf-3);color:var(--txt-3)}
-.cx--voce .cx__ic{background:rgba(194,162,80,.16);color:var(--gold-2)}
-.cx__ic .ic{width:17px;height:17px}
-.cx__txt{flex:1 1 auto;min-width:0}
-.cx__n{display:block;font-size:13.5px;font-weight:640;color:var(--txt)}
-.cx__d{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
+/* ====== CONTEÚDO — modelo 2: agrupado por frequência ====== */
+.c2__gr{margin-bottom:24px}
+.c2__cab{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.c2__t{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-2)}
+.c2__d{font-size:12px;color:var(--txt-4)}
+.c2__l{border-top:1px solid var(--stroke);margin-top:8px}
+.c2__i{display:flex;align-items:center;gap:13px;padding:14px 4px;border-bottom:1px solid var(--stroke-fraco);cursor:pointer}
+.c2__i:hover{background:var(--surf-2)}
+.c2__ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--surf-3);color:var(--txt-3)}
+.c2__ic .ic{width:15px;height:15px}
+.c2__tx{flex:1 1 auto;min-width:0}
+.c2__n{display:block;font-size:14px;font-weight:620;color:var(--txt)}
+.c2__r{display:block;font-size:12px;color:var(--txt-4);margin-top:2px}
 
-/* ---------- C: peso por elevação ---------- */
-.pz{border-radius:14px;margin-bottom:10px;overflow:hidden;border:1px solid var(--stroke)}
-.pz--alto{
-  border-color:rgba(194,162,80,.55);background:var(--surf-2);
-  box-shadow:0 6px 22px rgba(0,0,0,.34), 0 0 0 1px rgba(194,162,80,.1);
-}
-.pz--medio{background:var(--surf)}
-.pz--baixo{background:transparent;border-style:dashed;opacity:.6}
-.pz__cab{display:flex;align-items:center;gap:11px;padding:13px 15px}
-.pz__ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--surf-3);color:var(--txt-3)}
-.pz--alto .pz__ic{background:rgba(194,162,80,.18);color:var(--gold-2)}
-.pz__ic .ic{width:17px;height:17px}
-.pz__txt{flex:1 1 auto;min-width:0}
-.pz__t{display:block;font-size:14px;font-weight:650;color:var(--txt)}
-.pz--baixo .pz__t{font-size:13px;font-weight:560;color:var(--txt-3)}
-.pz__d{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
-.pz__acao{padding:0 15px 13px;display:flex;gap:8px}
+/* ====== CONTEÚDO — modelo 3: tabela ====== */
+.c3{width:100%;border-collapse:collapse;font-size:13.5px}
+.c3 th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-4);font-weight:700;padding:0 12px 9px;border-bottom:1px solid var(--stroke)}
+.c3 td{padding:13px 12px;border-bottom:1px solid var(--stroke-fraco);vertical-align:middle}
+.c3 tr:hover td{background:var(--surf-2)}
+.c3__n{font-weight:620;color:var(--txt);display:flex;align-items:center;gap:9px}
+.c3__n .ic{width:15px;height:15px;color:var(--txt-4)}
+.c3__q{color:var(--txt-3)}
+.c3__num{font-variant-numeric:tabular-nums;color:var(--txt-2)}
 </style>
 </head>
 <body class="pronto">
@@ -86,171 +90,199 @@
 <div class="bg" aria-hidden="true"><div class="bg__aurora"></div><div class="bg__glow"></div><div class="bg__grid"></div><div class="bg__noise"></div></div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7.5A1.5 1.5 0 0 0 6 4.5v15A1.5 1.5 0 0 0 7.5 21h9a1.5 1.5 0 0 0 1.5-1.5V7z"/><path d="M14 3v4.5H18"/><path d="M9 13h6M9 16.5h4"/></symbol>
-  <symbol id="ic-calculator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3" width="15" height="18" rx="2"/><rect x="7.5" y="6" width="9" height="3.2" rx="1"/><path d="M8.2 12.6h.01M12 12.6h.01M15.8 12.6h.01M8.2 16.2h.01M12 16.2h.01M15.8 16.2h.01"/></symbol>
-  <symbol id="ic-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5h13v17l-2.2-1.5-2.2 1.5-2.1-1.5L9.9 20.5 7.7 19l-2.2 1.5z"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4"/></symbol>
-  <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8.5" r="3.2"/><path d="M3.5 19.5c0-3 2.7-5 6-5s6 2 6 5"/><path d="M16 5.6a3.2 3.2 0 0 1 0 6"/><path d="M17.5 14.9c1.9.6 3.2 2.2 3.2 4.6"/></symbol>
-  <symbol id="ic-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="11" r="2.3"/><path d="M5.5 16.6c.5-1.6 1.9-2.4 3.5-2.4s3 .8 3.5 2.4"/><path d="M15 9.5h3.5M15 13h2.5"/></symbol>
-  <symbol id="ic-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9.5 6 6 6-6"/></symbol>
-  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2l1.8 2.2h9A1.5 1.5 0 0 1 21 9.7v8.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+  <symbol id="ic-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V20"/><path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V20"/><path d="M2.5 20h19"/><path d="M7 8h4M7 12h4M7 16h4M17 14h1M17 17h1"/></symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4 20.5l1.5-3.4A6.9 6.9 0 0 1 3.5 12c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/><path d="M8.7 11.9h.01M12 11.9h.01M15.3 11.9h.01"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5.5v13l11-6.5z"/></symbol>
+  <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.2"/><path d="M2.5 9.8h19"/><path d="M6 14.5h3.5M13 14.5h5"/></symbol>
+  <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="ic-scroll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11A1.5 1.5 0 0 1 19 5v13.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/><circle cx="16" cy="16.5" r="2.2"/></symbol>
 </svg>
 
-<main class="main" style="max-width:900px;margin:0 auto;padding:24px 16px 70px">
+<main class="main" style="max-width:900px;margin:0 auto;padding:26px 16px 80px">
 
-<h1 class="section__title" style="font-size:21px">Ficha do cliente — três modelos</h1>
-<p class="section__desc">Painel da equipe → aba Clientes → um cliente aberto. Todos atacam o mesmo
-  problema: hoje o que já está pronto tem o mesmo peso visual do que espera você.</p>
-
-<!-- =================== MODELO A =================== -->
-<div class="mk__faixa">
-  <span class="mk__n">Modelo A</span>
-  <span class="mk__t">Trilho de situação</span>
-  <span class="mk__d">A estrutura continua por departamento, mas cada cartão ganha uma barra
-    colorida à esquerda que diz a SITUAÇÃO: vermelho tem correção pedida, dourado espera
-    conferência, verde está resolvido, cinza ainda não veio nada. Rolando a página, você
-    encontra o trabalho pela cor antes de ler qualquer palavra. Mudança pequena, sem mexer
-    em como a ficha é organizada.</span>
+<!-- ============================================================ -->
+<div class="mk__sec" style="margin-top:0;border-top:0;padding-top:0">
+  <h2>1 · As três abas da ficha do cliente</h2>
+  <p>Hoje são três etiquetas pequenas, do mesmo tamanho de um filtro qualquer. São o controle
+     mais importante da tela — quem troca de aba muda de assunto inteiro.</p>
 </div>
 
-<div class="mk__janela">
-  <div class="mk__barra"><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__url">equipe.html — Painel da equipe</span></div>
-  <div class="mk__cab"><span class="mk__marca">Painel da equipe<small>USO INTERNO</small></span><span class="mk__quem">eu · Administrador</span></div>
-  <div class="mk__abas"><span class="mk__aba">Início</span><span class="mk__aba mk__aba--on">Clientes</span><span class="mk__aba">Pendências</span><span class="mk__aba">Mensagens</span><span class="mk__aba">Novo</span></div>
-  <div class="mk__tela">
-    <div class="volta"><span>← Todos os clientes</span><span>Atualizar</span><span>Exportar em PDF</span></div>
-    <div class="chefe">
-      <span class="chefe__nome">Totali Soluções Contábeis</span>
-      <span class="chefe__sub">TOTALI SOLUCOES CONTABEIS LTDA · 62.269.366/0001-18</span>
-      <span class="chefe__nums"><span><b>5</b> de 17 documentos</span><span><b>9</b> obrigatórios faltando</span><span><b>2</b> aprovados</span></span>
-    </div>
-    <div class="tit"><span class="tit__t">Documentos</span><span class="tit__linha"></span><button class="btn btn--quiet btn--sm">Quais se aplicam</button></div>
-
-    <section class="card group trilho st-corr" data-open="false">
-      <span class="group__head group__head--selo"><span class="group__icon"><svg class="ic"><use href="#ic-file"></use></svg></span>
-        <span class="group__info"><span class="group__title" style="display:block">Societário</span><span class="group__meta" style="display:block">0 de 1 documento</span></span>
-        <span class="badge badge--pendencia"><span class="dot"></span>1 correção</span><span class="group__chev"><svg class="ic"><use href="#ic-chevron-down"></use></svg></span></span>
-    </section>
-    <section class="card group trilho st-conf" data-open="false">
-      <span class="group__head group__head--selo"><span class="group__icon"><svg class="ic"><use href="#ic-receipt"></use></svg></span>
-        <span class="group__info"><span class="group__title" style="display:block">Fiscal</span><span class="group__meta" style="display:block">2 de 4 documentos</span></span>
-        <span class="badge badge--analise"><span class="dot"></span>2 conferir</span><span class="group__chev"><svg class="ic"><use href="#ic-chevron-down"></use></svg></span></span>
-    </section>
-    <section class="card group trilho st-pend" data-open="false">
-      <span class="group__head group__head--selo"><span class="group__icon"><svg class="ic"><use href="#ic-calculator"></use></svg></span>
-        <span class="group__info"><span class="group__title" style="display:block">Contábil</span><span class="group__meta" style="display:block">0 de 3 documentos</span></span>
-        <span class="badge badge--pendente"><span class="dot"></span>3 faltam</span><span class="group__chev"><svg class="ic"><use href="#ic-chevron-down"></use></svg></span></span>
-    </section>
-    <section class="card group trilho st-ok" data-open="false">
-      <span class="group__head group__head--selo"><span class="group__icon"><svg class="ic"><use href="#ic-users"></use></svg></span>
-        <span class="group__info"><span class="group__title" style="display:block">Departamento Pessoal</span><span class="group__meta" style="display:block">9 de 9 documentos</span></span>
-        <span class="badge badge--aprovado"><span class="dot"></span>Completo</span><span class="group__chev"><svg class="ic"><use href="#ic-chevron-down"></use></svg></span></span>
-    </section>
+<div class="mk__faixa">
+  <span class="mk__n">Abas · modelo 1</span>
+  <span class="mk__t">Controle segmentado</span>
+  <span class="mk__d">Um bloco só, com fundo próprio, e a aba ativa elevada por dentro dele.
+    Compacto, e a forma já diz "escolha uma destas três". O número de mensagens não lidas entra
+    em vermelho, porque é a única das três que pode estar esperando você.</span>
+</div>
+<div class="mk__q">
+  <div class="a1">
+    <button class="a1__b a1__b--on"><svg class="ic"><use href="#ic-folder"></use></svg>Documentos</button>
+    <button class="a1__b"><svg class="ic"><use href="#ic-building"></use></svg>Cadastro e acesso</button>
+    <button class="a1__b"><svg class="ic"><use href="#ic-chat"></use></svg>Conversa <span class="a1__n">2</span></button>
   </div>
 </div>
 
-<!-- =================== MODELO B =================== -->
 <div class="mk__faixa">
-  <span class="mk__n">Modelo B</span>
-  <span class="mk__t">Agrupado por quem tem a bola</span>
-  <span class="mk__d">Muda a ORGANIZAÇÃO, não só a cor. Em vez de agrupar por departamento,
-    agrupa por quem precisa agir: <b>Esperando você</b> em cima, <b>Com o cliente</b> no meio,
-    <b>Concluído</b> embaixo e recuado. O departamento vira uma linha de apoio. Você abre a
-    ficha e a primeira coisa na tela é literalmente a sua fila.</span>
+  <span class="mk__n">Abas · modelo 2</span>
+  <span class="mk__t">Sublinhado grande</span>
+  <span class="mk__d">Texto maior, espaçado, com a linha dourada embaixo da ativa. É o padrão que
+    todo mundo reconhece de navegador e de sistema — ninguém precisa aprender. Ocupa a largura
+    toda e separa visualmente o cabeçalho do conteúdo.</span>
 </div>
-
-<div class="mk__janela">
-  <div class="mk__barra"><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__url">equipe.html — Painel da equipe</span></div>
-  <div class="mk__cab"><span class="mk__marca">Painel da equipe<small>USO INTERNO</small></span><span class="mk__quem">eu · Administrador</span></div>
-  <div class="mk__abas"><span class="mk__aba">Início</span><span class="mk__aba mk__aba--on">Clientes</span><span class="mk__aba">Pendências</span><span class="mk__aba">Mensagens</span><span class="mk__aba">Novo</span></div>
-  <div class="mk__tela">
-    <div class="volta"><span>← Todos os clientes</span><span>Atualizar</span><span>Exportar em PDF</span></div>
-    <div class="chefe">
-      <span class="chefe__nome">Totali Soluções Contábeis</span>
-      <span class="chefe__sub">TOTALI SOLUCOES CONTABEIS LTDA · 62.269.366/0001-18</span>
-      <span class="chefe__nums"><span><b>5</b> de 17 documentos</span><span><b>9</b> obrigatórios faltando</span><span><b>2</b> aprovados</span></span>
-    </div>
-
-    <div class="faixa" style="--c:#c2a250"><span class="faixa__pt"></span><span class="faixa__t">ESPERANDO VOCÊ</span><span class="faixa__n">2 documentos</span><span class="faixa__linha"></span><button class="btn btn--primary btn--sm">Aprovar os 2</button></div>
-    <div class="cx cx--voce"><span class="cx__ic"><svg class="ic"><use href="#ic-receipt"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">Certificado digital da empresa (e-CNPJ)</span><span class="cx__d">Fiscal · chegou há 3 dias</span></span>
-      <button class="btn btn--primary btn--sm">Aprovar</button><button class="btn btn--ghost btn--sm">Corrigir</button></div>
-    <div class="cx cx--voce"><span class="cx__ic"><svg class="ic"><use href="#ic-receipt"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">Acesso ao Simples Nacional</span><span class="cx__d">Fiscal · chegou ontem</span></span>
-      <button class="btn btn--primary btn--sm">Aprovar</button><button class="btn btn--ghost btn--sm">Corrigir</button></div>
-
-    <div class="faixa" style="--c:#b0728a"><span class="faixa__pt"></span><span class="faixa__t">COM O CLIENTE</span><span class="faixa__n">10 documentos</span><span class="faixa__linha"></span><button class="btn btn--quiet btn--sm">Cobrar tudo</button></div>
-    <div class="cx"><span class="cx__ic"><svg class="ic"><use href="#ic-file"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">Contrato social e alterações</span><span class="cx__d">Societário · correção pedida há 5 dias</span></span>
-      <span class="badge badge--pendencia"><span class="dot"></span>Correção</span></div>
-    <div class="cx"><span class="cx__ic"><svg class="ic"><use href="#ic-calculator"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">Balanços patrimoniais anteriores</span><span class="cx__d">Contábil · o cliente marcou para 21/08</span></span>
-      <span class="badge badge--pendente"><span class="dot"></span>Não enviado</span></div>
-    <div class="cx"><span class="cx__ic"><svg class="ic"><use href="#ic-calculator"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">DRE de períodos anteriores</span><span class="cx__d">Contábil</span></span>
-      <span class="badge badge--pendente"><span class="dot"></span>Não enviado</span></div>
-    <div class="cx" style="justify-content:center"><span class="text-xs text-muted">+ 7 documentos · mostrar todos</span></div>
-
-    <div class="faixa" style="--c:#4c9a72"><span class="faixa__pt"></span><span class="faixa__t">CONCLUÍDO</span><span class="faixa__n">5 documentos</span><span class="faixa__linha"></span></div>
-    <div class="cx cx--pronto"><span class="cx__ic"><svg class="ic"><use href="#ic-users"></use></svg></span>
-      <span class="cx__txt"><span class="cx__n">Departamento Pessoal · 9 documentos</span><span class="cx__d">Todos aprovados</span></span>
-      <svg class="ic" style="color:#4c9a72"><use href="#ic-check"></use></svg></div>
+<div class="mk__q">
+  <div class="a2">
+    <button class="a2__b a2__b--on"><svg class="ic"><use href="#ic-folder"></use></svg>Documentos</button>
+    <button class="a2__b"><svg class="ic"><use href="#ic-building"></use></svg>Cadastro e acesso</button>
+    <button class="a2__b"><svg class="ic"><use href="#ic-chat"></use></svg>Conversa <span class="a2__n">2</span></button>
   </div>
 </div>
 
-<!-- =================== MODELO C =================== -->
 <div class="mk__faixa">
-  <span class="mk__n">Modelo C</span>
-  <span class="mk__t">Peso por elevação</span>
-  <span class="mk__d">Mantém a ordem por departamento, mas o que exige você fica <b>elevado</b> —
-    contorno dourado, fundo mais claro, sombra, ações já visíveis. O que está com o cliente fica
-    normal. O que terminou fica <b>rebaixado</b>: contorno tracejado, sem fundo, texto menor. A
-    hierarquia é de profundidade, não de cor — funciona também para quem enxerga cor de
-    maneira diferente.</span>
+  <span class="mk__n">Abas · modelo 3</span>
+  <span class="mk__t">Cartões de destino</span>
+  <span class="mk__d">Três cartões lado a lado, cada um dizendo o que tem dentro. O mais visível
+    dos três e o único que informa antes do clique — dá para saber que há 2 mensagens novas sem
+    entrar. Em troca, ocupa bem mais altura no topo da tela.</span>
+</div>
+<div class="mk__q">
+  <div class="a3">
+    <button class="a3__b a3__b--on"><span class="a3__ic"><svg class="ic"><use href="#ic-folder"></use></svg></span>
+      <span class="a3__tx"><span class="a3__t">Documentos</span><span class="a3__d">2 esperando você</span></span></button>
+    <button class="a3__b"><span class="a3__ic"><svg class="ic"><use href="#ic-building"></use></svg></span>
+      <span class="a3__tx"><span class="a3__t">Cadastro e acesso</span><span class="a3__d">Dados, sócios, senhas</span></span></button>
+    <button class="a3__b"><span class="a3__ic"><svg class="ic"><use href="#ic-chat"></use></svg></span>
+      <span class="a3__tx"><span class="a3__t">Conversa</span><span class="a3__d">2 mensagens novas</span></span></button>
+  </div>
 </div>
 
-<div class="mk__janela">
-  <div class="mk__barra"><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__ponto"></span><span class="mk__url">equipe.html — Painel da equipe</span></div>
-  <div class="mk__cab"><span class="mk__marca">Painel da equipe<small>USO INTERNO</small></span><span class="mk__quem">eu · Administrador</span></div>
-  <div class="mk__abas"><span class="mk__aba">Início</span><span class="mk__aba mk__aba--on">Clientes</span><span class="mk__aba">Pendências</span><span class="mk__aba">Mensagens</span><span class="mk__aba">Novo</span></div>
-  <div class="mk__tela">
-    <div class="volta"><span>← Todos os clientes</span><span>Atualizar</span><span>Exportar em PDF</span></div>
-    <div class="chefe">
-      <span class="chefe__nome">Totali Soluções Contábeis</span>
-      <span class="chefe__sub">TOTALI SOLUCOES CONTABEIS LTDA · 62.269.366/0001-18</span>
-      <span class="chefe__nums"><span><b>5</b> de 17 documentos</span><span><b>9</b> obrigatórios faltando</span><span><b>2</b> aprovados</span></span>
-    </div>
-    <div class="tit"><span class="tit__t">Documentos</span><span class="tit__linha"></span><button class="btn btn--quiet btn--sm">Quais se aplicam</button></div>
+<!-- ============================================================ -->
+<div class="mk__sec">
+  <h2>2 · Primeira página da aba Conteúdo do portal</h2>
+  <p>Hoje são oito cartões iguais empilhados. Vídeo de abertura e Contatos têm o mesmo peso,
+     mas um você mexe toda semana e o outro quase nunca.</p>
+</div>
 
-    <div class="pz pz--alto">
-      <div class="pz__cab"><span class="pz__ic"><svg class="ic"><use href="#ic-receipt"></use></svg></span>
-        <span class="pz__txt"><span class="pz__t">Fiscal</span><span class="pz__d">2 documentos chegaram e esperam conferência</span></span>
-        <span class="badge badge--analise"><span class="dot"></span>2</span></div>
-      <div class="pz__acao"><button class="btn btn--primary btn--sm">Aprovar os 2</button><button class="btn btn--ghost btn--sm">Abrir</button></div>
+<div class="mk__faixa">
+  <span class="mk__n">Conteúdo · modelo 1</span>
+  <span class="mk__t">Índice à esquerda, conteúdo à direita</span>
+  <span class="mk__d">A lista das oito seções fica sempre visível de um lado e o que você está
+    editando ocupa o outro. Você vê onde está, troca de assunto num clique e nunca perde a
+    página inteira de vista. É o formato de quem edita — sem abrir e fechar nada.</span>
+</div>
+<div class="mk__q">
+  <div class="c1">
+    <div class="c1__lista">
+      <button class="c1__i"><svg class="ic"><use href="#ic-play"></use></svg><span class="c1__n">Vídeo de abertura</span><span class="c1__c">1</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-play"></use></svg><span class="c1__n">Academy</span><span class="c1__c">3</span></button>
+      <button class="c1__i c1__i--on"><svg class="ic"><use href="#ic-folder"></use></svg><span class="c1__n">Documentos do checklist</span><span class="c1__c">26</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-card"></use></svg><span class="c1__n">Bancos</span><span class="c1__c">12</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-card"></use></svg><span class="c1__n">Maquininhas</span><span class="c1__c">8</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-help"></use></svg><span class="c1__n">Perguntas frequentes</span><span class="c1__c">9</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-scroll"></use></svg><span class="c1__n">Compromisso e termo</span></button>
+      <button class="c1__i"><svg class="ic"><use href="#ic-building"></use></svg><span class="c1__n">Contatos e endereço</span></button>
     </div>
+    <div class="c1__painel">
+      <p class="c1__pt">Documentos do checklist</p>
+      <p class="c1__pd">5 departamentos · 26 documentos. É esta lista que o cliente vê no portal.</p>
+      <div class="item"><div class="item__top"><div class="item__main">
+        <div class="item__name">Societário</div>
+        <div class="item__row"><span class="text-xs text-muted">1 documento</span></div>
+      </div></div></div>
+      <div class="item"><div class="item__top"><div class="item__main">
+        <div class="item__name">Contábil</div>
+        <div class="item__row"><span class="text-xs text-muted">3 documentos</span></div>
+      </div></div></div>
+      <div class="item"><div class="item__top"><div class="item__main">
+        <div class="item__name">Fiscal</div>
+        <div class="item__row"><span class="text-xs text-muted">4 documentos</span></div>
+      </div></div></div>
+    </div>
+  </div>
+</div>
 
-    <div class="pz pz--alto">
-      <div class="pz__cab"><span class="pz__ic"><svg class="ic"><use href="#ic-file"></use></svg></span>
-        <span class="pz__txt"><span class="pz__t">Societário</span><span class="pz__d">Correção pedida há 5 dias, o cliente ainda não reenviou</span></span>
-        <span class="badge badge--pendencia"><span class="dot"></span>1</span></div>
-      <div class="pz__acao"><button class="btn btn--quiet btn--sm">Cobrar</button><button class="btn btn--ghost btn--sm">Abrir</button></div>
+<div class="mk__faixa">
+  <span class="mk__n">Conteúdo · modelo 2</span>
+  <span class="mk__t">Agrupado por quanto muda</span>
+  <span class="mk__d">Linhas simples, sem cartão, separadas por três títulos: <b>o que muda toda
+    semana</b>, <b>o que muda às vezes</b>, <b>o que quase nunca muda</b>. O peso visual passa a
+    vir do grupo, não da moldura. Quem entra para trocar o vídeo da semana encontra na primeira
+    linha; o endereço da empresa fica lá embaixo, onde deve estar.</span>
+</div>
+<div class="mk__q">
+  <div class="c2__gr">
+    <div class="c2__cab"><span class="c2__t">Muda toda semana</span><span class="c2__d">o que o cliente vê primeiro</span></div>
+    <div class="c2__l">
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-play"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Vídeo de abertura</span><span class="c2__r">O primeiro vídeo da tela inicial</span></span>
+        <span class="badge badge--aprovado"><span class="dot"></span>Publicado</span></div>
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-play"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Academy</span><span class="c2__r">3 trilhas · 11 aulas</span></span>
+        <span class="badge badge--aprovado"><span class="dot"></span>8 no ar</span></div>
     </div>
+  </div>
+  <div class="c2__gr">
+    <div class="c2__cab"><span class="c2__t">Muda às vezes</span><span class="c2__d">quando entra cliente de perfil novo</span></div>
+    <div class="c2__l">
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-folder"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Documentos do checklist</span><span class="c2__r">5 departamentos · 26 documentos</span></span></div>
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-card"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Bancos</span><span class="c2__r">12 na lista · 7 com orientação</span></span></div>
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-card"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Maquininhas</span><span class="c2__r">8 na lista · 3 em Modo Contador</span></span></div>
+      <div class="c2__i"><span class="c2__ic"><svg class="ic"><use href="#ic-help"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Perguntas frequentes</span><span class="c2__r">9 perguntas na tela de Ajuda</span></span></div>
+    </div>
+  </div>
+  <div class="c2__gr">
+    <div class="c2__cab"><span class="c2__t">Quase nunca muda</span><span class="c2__d">confira uma vez por ano</span></div>
+    <div class="c2__l">
+      <div class="c2__i" style="opacity:.72"><span class="c2__ic"><svg class="ic"><use href="#ic-scroll"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Compromisso e termo</span><span class="c2__r">Textos do aviso e do PDF assinado</span></span></div>
+      <div class="c2__i" style="opacity:.72"><span class="c2__ic"><svg class="ic"><use href="#ic-building"></use></svg></span>
+        <span class="c2__tx"><span class="c2__n">Contatos e endereço</span><span class="c2__r">(79) 99841-2107 · seg a sex, 8h às 18h</span></span></div>
+    </div>
+  </div>
+</div>
 
-    <div class="pz pz--medio">
-      <div class="pz__cab"><span class="pz__ic"><svg class="ic"><use href="#ic-calculator"></use></svg></span>
-        <span class="pz__txt"><span class="pz__t">Contábil</span><span class="pz__d">0 de 3 · nada chegou ainda</span></span>
-        <span class="badge badge--pendente"><span class="dot"></span>3</span></div>
-    </div>
-
-    <div class="pz pz--baixo">
-      <div class="pz__cab"><span class="pz__ic"><svg class="ic"><use href="#ic-users"></use></svg></span>
-        <span class="pz__txt"><span class="pz__t">Departamento Pessoal</span><span class="pz__d">9 de 9 · completo</span></span>
-        <svg class="ic" style="color:#4c9a72"><use href="#ic-check"></use></svg></div>
-    </div>
-
-    <div class="pz pz--baixo">
-      <div class="pz__cab"><span class="pz__ic"><svg class="ic"><use href="#ic-badge"></use></svg></span>
-        <span class="pz__txt"><span class="pz__t">Documentos dos sócios</span><span class="pz__d">Não se aplica a esta empresa</span></span></div>
-    </div>
+<div class="mk__faixa">
+  <span class="mk__n">Conteúdo · modelo 3</span>
+  <span class="mk__t">Tabela</span>
+  <span class="mk__d">Uma linha por seção, com colunas de quantidade e situação. É o formato mais
+    denso e o que melhor responde "o que está no ar e o que está vazio" numa olhada só. Menos
+    caloroso que os outros dois, e no celular vira rolagem lateral.</span>
+</div>
+<div class="mk__q">
+  <div style="overflow-x:auto">
+    <table class="c3">
+      <thead><tr><th>Seção</th><th>Quantidade</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-play"></use></svg>Vídeo de abertura</span></td>
+            <td class="c3__num">1 vídeo</td><td><span class="badge badge--aprovado"><span class="dot"></span>Publicado</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-play"></use></svg>Academy</span></td>
+            <td class="c3__num">3 trilhas · 11 aulas</td><td><span class="badge badge--aprovado"><span class="dot"></span>8 no ar</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-folder"></use></svg>Documentos do checklist</span></td>
+            <td class="c3__num">26 documentos</td><td><span class="c3__q">5 departamentos</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-card"></use></svg>Bancos</span></td>
+            <td class="c3__num">12 na lista</td><td><span class="c3__q">7 com orientação</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-card"></use></svg>Maquininhas</span></td>
+            <td class="c3__num">8 na lista</td><td><span class="c3__q">3 em Modo Contador</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-help"></use></svg>Perguntas frequentes</span></td>
+            <td class="c3__num">9 perguntas</td><td><span class="c3__q">tela de Ajuda</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-scroll"></use></svg>Compromisso e termo</span></td>
+            <td class="c3__num">2 textos</td><td><span class="c3__q">aviso e PDF</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+        <tr><td><span class="c3__n"><svg class="ic"><use href="#ic-building"></use></svg>Contatos e endereço</span></td>
+            <td class="c3__num">—</td><td><span class="c3__q">(79) 99841-2107</span></td>
+            <td><button class="btn btn--quiet btn--sm">Editar</button></td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
