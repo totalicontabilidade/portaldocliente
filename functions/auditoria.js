@@ -75,6 +75,14 @@ function quantos(v) {
   return Array.isArray(v) ? v.length : 0;
 }
 
+/* O id do documento guarda a chave com "~" no lugar de "/",
+   porque "/" separa caminho no Firestore. Na trilha vale a forma
+   legível: quem for ler isto daqui a dois anos quer ver
+   "contabil/dre", não "contabil~dre". */
+function chaveLegivel(id) {
+  return String(id || "").replace(/~/g, "/");
+}
+
 /* ------------------------------------------------------------
    Documentos do checklist
    ------------------------------------------------------------ */
@@ -86,7 +94,7 @@ exports.auditarItem = onDocumentWritten(
     const depois = event.data.after.exists ? event.data.after.data() : null;
     if (!depois) return;                       /* exclusão: a empresa toda saiu */
 
-    const base = { chave: texto(chave, 200) };
+    const base = { chave: chaveLegivel(chave) };
 
     /* Arquivos: quantos entraram, quantos saíram. Os nomes vão
        junto porque é o que identifica o documento numa conferência
@@ -152,11 +160,11 @@ exports.auditarCredencial = onDocumentWritten(
     if (!existiaAntes && existeDepois) {
       const d = event.data.after.data() || {};
       await anotar(empresaId, "credencial:guardada", {
-        chave: texto(chave, 200),
+        chave: chaveLegivel(chave),
         campos: Array.isArray(d.campos) ? d.campos.map((c) => texto(c, 60)) : []
       });
     } else if (existiaAntes && !existeDepois) {
-      await anotar(empresaId, "credencial:apagada", { chave: texto(chave, 200) });
+      await anotar(empresaId, "credencial:apagada", { chave: chaveLegivel(chave) });
     }
   }
 );
