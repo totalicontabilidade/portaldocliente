@@ -27,8 +27,8 @@
    No Cloud Shell (console.cloud.google.com, ícone >_ no topo):
 
      mkdir -p ~/totali && cd ~/totali
-     # cole o arquivo aqui com o editor do Cloud Shell
      npm init -y && npm install firebase-admin
+     curl -sO https://raw.githubusercontent.com/totalicontabilidade/portaldocliente/main/ferramentas/limpar-contas.js
      node limpar-contas.js
 
    Assim ele SÓ MOSTRA o relatório. Não apaga nada.
@@ -49,7 +49,14 @@
    ============================================================ */
 "use strict";
 
-const admin = require("firebase-admin");
+/* Importação modular: `admin.auth()` depende de getters que o
+   pacote monta no postinstall, e o Cloud Shell bloqueia scripts
+   de instalação por padrão — ali o namespace vem vazio e o
+   programa morre em "admin.auth is not a function". Estes três
+   caminhos não dependem de nada disso. */
+const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
+const { getFirestore } = require("firebase-admin/firestore");
 
 const PROJETO = "portaldocliente-8cc7d";
 
@@ -65,9 +72,9 @@ const PROTEGIDOS = [
 
 const APAGAR = process.argv.indexOf("--apagar") > -1;
 
-admin.initializeApp({ projectId: PROJETO });
-const auth = admin.auth();
-const db = admin.firestore();
+const app = initializeApp({ projectId: PROJETO });
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 const DIA = 86400000;
 
