@@ -6,7 +6,7 @@
 
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self';
+  script-src 'self' https://www.google.com https://www.gstatic.com;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: https://i.ytimg.com;
   font-src 'self';
@@ -15,11 +15,14 @@
     https://identitytoolkit.googleapis.com
     https://securetoken.googleapis.com
     https://firebasestorage.googleapis.com
-    https://portaldocliente-8cc7d.firebasestorage.app;
+    https://portaldocliente-8cc7d.firebasestorage.app
+    https://firebaseappcheck.googleapis.com
+    https://content-firebaseappcheck.googleapis.com
+    https://www.google.com;
   object-src 'none';
   base-uri 'none';
   form-action 'none';
-  frame-src 'none';
+  frame-src https://www.google.com;
   upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
@@ -706,6 +709,7 @@
 <script src="lib/firebase-auth-compat.js"></script>
 <script src="lib/firebase-firestore-compat.js"></script>
 <script src="lib/firebase-storage-compat.js"></script>
+<script src="lib/firebase-app-check-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/firebase.js"></script>
 <script src="js/chave-publica.js"></script>

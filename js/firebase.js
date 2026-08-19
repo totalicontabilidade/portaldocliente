@@ -49,6 +49,22 @@
     }
     try {
       app = global.firebase.initializeApp(global.FIREBASE_CONFIG);
+
+      /* App Check ANTES de auth e firestore: ele precisa estar de
+         pé para que as chamadas seguintes já saiam com o token.
+         Ligado depois, as primeiras chamadas saem sem token — e
+         no dia em que a verificação for exigida, essas primeiras
+         seriam recusadas.
+
+         Envolvido em try próprio: falha de App Check não pode
+         derrubar o portal. Enquanto a verificação estiver em
+         modo monitoramento, tudo funciona sem ele. */
+      if (global.APP_CHECK_SITE_KEY && global.firebase.appCheck) {
+        try {
+          global.firebase.appCheck().activate(global.APP_CHECK_SITE_KEY, true);
+        } catch (eAC) { /* segue sem App Check */ }
+      }
+
       auth = global.firebase.auth();
       db = global.firebase.firestore();
       if (global.firebase.storage) storage = global.firebase.storage();

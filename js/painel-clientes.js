@@ -1189,6 +1189,64 @@
      ========================================================= */
   var abertosFicha = {};
 
+  /* ============================================================
+     A ficha em três vistas
+
+     Antes era uma coluna só com onze cartões dobráveis, todos
+     fechados: cadastro, sócios, documentos, financeiro, senhas,
+     convite, anotações, encerrar. Para ver o telefone do
+     responsável a pessoa abria três cartões e fechava dois.
+
+     Cartão dobrável faz sentido para DOCUMENTO, que é lista longa
+     e repetitiva e onde o selo do cabeçalho já diz se vale abrir.
+     Não faz sentido para cadastro, que é um punhado de campos que
+     se quer LER, não abrir.
+
+     Então: documentos continuam em cartão; o resto vira painel
+     aberto, em duas colunas no computador. E a conversa ganha
+     vista própria, porque ninguém lê mensagem no meio da lista
+     de documentos.
+     ============================================================ */
+  var VISTAS = [
+    { id: "documentos", rotulo: "Documentos" },
+    { id: "cadastro",   rotulo: "Cadastro e acesso" },
+    { id: "conversa",   rotulo: "Conversa" }
+  ];
+  var vistaFicha = "documentos";
+
+  function abasFichaHTML(c) {
+    var naoLidas = naoLidasDe(c);
+    return '<div class="filtros" style="margin-bottom:16px">' +
+      VISTAS.map(function (v) {
+        return '<button type="button" class="filtro' +
+          (vistaFicha === v.id ? " filtro--on" : "") +
+          '" data-vista="' + v.id + '">' + U.esc(v.rotulo) +
+          (v.id === "conversa" && naoLidas ? ' <b>' + naoLidas + '</b>' : '') +
+        '</button>';
+      }).join("") +
+    '</div>';
+  }
+
+  /* Painel de configuração: sem chevron, sem dobrar, sempre
+     legível. É a diferença entre guardar e mostrar. */
+  function painel(o) {
+    return '<section class="painel' + (o.largo ? " painel--largo" : "") + '">' +
+      '<div class="painel__cab">' +
+        '<span class="group__icon">' + ic(o.icone || "ic-file") + '</span>' +
+        '<span class="painel__txt">' +
+          '<span class="painel__t">' + U.esc(o.titulo) + '</span>' +
+          (o.resumo ? '<span class="painel__d">' + U.esc(o.resumo) + '</span>' : '') +
+        '</span>' +
+        (o.selo
+          ? '<span class="badge ' + (o.seloCls || "badge--analise") + '">' +
+            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
+          : '') +
+        (o.acao || '') +
+      '</div>' +
+      '<div class="painel__corpo">' + o.corpo() + '</div>' +
+    '</section>';
+  }
+
   function bloco(o) {
     var aberto = !!abertosFicha[o.id];
     return '<section class="card group" data-open="' + (aberto ? "true" : "false") + '" ' +
@@ -1283,7 +1341,10 @@
 
       /* ---- O que falta: único bloco que já nasce aberto, porque
              é o motivo de a equipe abrir esta ficha. ---- */
-      bloco({
+      '';
+
+    function faltaHTML(c, pendentes, est) {
+      return bloco({
         id: "falta", icone: "ic-alert", titulo: "O que falta",
         resumo: pendentes.length
           ? "Correções pedidas primeiro, depois os obrigatórios"
@@ -1326,14 +1387,16 @@
               '</div></div>';
             }).join("");
         }
-      }) +
+      });
+    }
 
-      /* ---- Cadastro ---- */
-      bloco({
-        id: "cadastro", icone: "ic-building", titulo: "Cadastro e contato",
-        resumo: (e.responsavelNome || "Sem responsável informado") +
-          (e.responsavelTelefone ? " · " + e.responsavelTelefone : ""),
-        selo: est.cadastroOk ? "" : "Incompleto", seloCls: "badge--pendente",
+    /* ---- Cadastro, em painel aberto ---- */
+    function painelCadastro() {
+      return painel({
+        icone: "ic-building", titulo: "Cadastro e contato",
+        resumo: est.cadastroOk ? "" : "Faltam dados do responsável",
+        acao: '<button type="button" class="btn btn--quiet btn--sm" id="clEditarCadastro">' +
+              'Editar</button>',
         corpo: function () {
           return linhaDado("Razão social", e.razaoSocial) +
             linhaDado("Nome fantasia", e.nomeFantasia) +
@@ -1356,15 +1419,15 @@
                   ic("ic-phone") + 'WhatsApp</a>' : '') +
             '</div>';
         }
-      }) +
+      });
+    }
 
-      /* ---- Sócios ---- */
-      bloco({
-        id: "socios", icone: "ic-badge", titulo: "Sócios",
+    function painelSocios() {
+      return painel({
+        icone: "ic-badge", titulo: "Sócios",
         resumo: c.dados.socios.length
-          ? c.dados.socios.map(function (s) { return s.nome || "sócio"; }).join(", ")
+          ? c.dados.socios.length + " " + U.plural(c.dados.socios.length, "cadastrado", "cadastrados")
           : "Nenhum cadastrado",
-        selo: c.dados.socios.length ? "" : "Falta cadastrar", seloCls: "badge--pendente",
         corpo: function () {
           return c.dados.socios.length
             ? c.dados.socios.map(function (s) {
@@ -1374,21 +1437,35 @@
               'de sócio ainda não existe para este cliente.</p>';
         }
       });
+    }
 
-    html += notasHTML(c);
-    html += acessoHTML(c);
-    html += zonaDeRiscoHTML(c);
+    /* ---- Montagem por vista ---- */
+    html += abasFichaHTML(c);
 
-    /* ---- Documentos, um bloco por departamento ---- */
-    html += '<div class="ficha__titulo">Documentos' +
-        '<button type="button" class="btn btn--quiet btn--sm" id="clAplicacao">' +
-          'Quais se aplicam</button>' +
-      '</div>' +
-      DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
+    if (vistaFicha === "documentos") {
+      html += faltaHTML(c, pendentes, est) +
+        '<div class="ficha__titulo">Documentos' +
+          '<button type="button" class="btn btn--quiet btn--sm" id="clAplicacao">' +
+            'Quais se aplicam</button>' +
+        '</div>' +
+        DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
+    }
 
-    html += financeiroHTML(c);
-    html += credenciaisHTML(c);
-    html += mensagensHTML(c);
+    if (vistaFicha === "cadastro") {
+      html += '<div class="paineis">' +
+          painelCadastro() +
+          painelSocios() +
+          acessoHTML(c) +
+          financeiroHTML(c) +
+          credenciaisHTML(c) +
+          notasHTML(c) +
+        '</div>' +
+        zonaDeRiscoHTML(c);
+    }
+
+    if (vistaFicha === "conversa") {
+      html += mensagensHTML(c);
+    }
 
     $("#clFicha").innerHTML = html;
     ligarFicha();
@@ -1518,7 +1595,7 @@
   function financeiroHTML(c) {
     var f = c.financeiro;
 
-    return bloco({
+    return painel({
       id: "financeiro", icone: "ic-card", titulo: "Bancos e maquininhas",
       resumo: !f ? "O cliente ainda não respondeu esta etapa"
         : f.concluidoEm ? "Concluído em " + U.dataCurta(f.concluidoEm) +
@@ -1579,7 +1656,7 @@
     var acessos = c.acessos || [];
     var convites = c.convites || [];
 
-    return bloco({
+    return painel({
       id: "acesso", icone: "ic-lock", titulo: "Acesso ao portal",
       resumo: (acessos.length
         ? acessos.length + " " + U.plural(acessos.length, "acesso criado", "acessos criados")
@@ -1793,7 +1870,7 @@
       return (b.em || 0) - (a.em || 0);
     });
 
-    return bloco({
+    return painel({
       id: "notas", icone: "ic-scroll", titulo: "Anotações internas",
       resumo: notas.length
         ? notas.length + " " + U.plural(notas.length, "anotação", "anotações") +
@@ -2257,7 +2334,7 @@
       }).join("");
     }
 
-    return bloco({
+    return painel({
       id: "credenciais", icone: "ic-lock", titulo: "Acessos e senhas",
       resumo: chaves.length
         ? "Abrir exige a chave privada, que fica só na memória desta aba"
@@ -2326,6 +2403,120 @@
         D.nomesDos(setores) + ". Pode seguir — só confirme que é isto mesmo, porque o " +
         "cliente vê o resultado na hora e o seu nome fica registrado nele.",
       confirmar: "Sim, sou eu quem confere"
+    });
+  }
+
+  /* ============================================================
+     Editar o cadastro da empresa
+
+     Razão social, CNPJ e regime são da equipe — o cliente nem vê
+     esses campos no portal. Até agora, um CNPJ digitado errado no
+     cadastro só se consertava pelo console do Firebase, o que na
+     prática queria dizer "não se conserta".
+
+     Os dados do responsável também entram: o cliente preenche,
+     mas quem atende costuma descobrir o telefone certo antes dele
+     — e ficar esperando o cliente corrigir trava a cobrança.
+     ============================================================ */
+  function campoTexto(id, rotulo, valor, extra) {
+    return '<div class="field">' +
+      '<label class="field__label" for="' + id + '">' + U.esc(rotulo) + '</label>' +
+      '<input type="text" class="input" id="' + id + '" maxlength="200" autocomplete="off" ' +
+        (extra || '') + ' value="' + U.escAttr(valor || "") + '"></div>';
+  }
+
+  var REGIMES = ["", "Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI",
+                 "Não sei informar"];
+
+  function editarCadastro(c) {
+    var e = c.empresa;
+    var m = UI.modal({
+      titulo: "Editar cadastro",
+      corpoHTML:
+        campoTexto("edRazao", "Razão social", e.razaoSocial, 'data-focus') +
+        campoTexto("edFantasia", "Nome fantasia", e.nomeFantasia) +
+        '<div class="grid-2">' +
+          campoTexto("edCnpj", "CNPJ", e.cnpj, 'inputmode="numeric" maxlength="18"') +
+          '<div class="field">' +
+            '<label class="field__label" for="edRegime">Regime tributário</label>' +
+            '<select class="select" id="edRegime">' +
+              REGIMES.map(function (r) {
+                return '<option value="' + U.escAttr(r) + '"' +
+                  (String(e.regime || "") === r ? " selected" : "") + '>' +
+                  U.esc(r || "Selecione…") + '</option>';
+              }).join("") +
+            '</select></div>' +
+        '</div>' +
+        '<hr class="hr">' +
+        campoTexto("edRespNome", "Responsável", e.responsavelNome) +
+        campoTexto("edRespCargo", "Função", e.responsavelCargo) +
+        '<div class="grid-2">' +
+          campoTexto("edRespEmail", "E-mail", e.responsavelEmail, 'inputmode="email"') +
+          campoTexto("edRespTel", "Telefone", e.responsavelTelefone, 'inputmode="tel"') +
+        '</div>' +
+        '<div class="field__hint" style="margin-top:4px">O cliente vê o nome fantasia no topo do ' +
+          'portal dele. Razão social, CNPJ e regime são só nossos.</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary", fecharAntes: false,
+          onClick: function () { salvarCadastro(c, m); }
+        }
+      ]
+    });
+
+    /* Máscara ao digitar, igual à tela de novo cliente — senão o
+       mesmo CNPJ fica com pontuação num lugar e sem no outro. */
+    var campoCnpj = $("#edCnpj", m.caixa);
+    if (campoCnpj) campoCnpj.addEventListener("input", function () {
+      campoCnpj.value = U.mascaraCNPJ(campoCnpj.value);
+    });
+    var campoTel = $("#edRespTel", m.caixa);
+    if (campoTel) campoTel.addEventListener("input", function () {
+      campoTel.value = U.mascaraTelefone(campoTel.value);
+    });
+  }
+
+  function salvarCadastro(c, m) {
+    var pega = function (id) { return ($(id, m.caixa) || {}).value || ""; };
+    var razao = pega("#edRazao").trim();
+    if (razao.length < 3) {
+      UI.toast("A razão social precisa ter pelo menos 3 letras.", "erro");
+      return;
+    }
+
+    var cnpj = pega("#edCnpj").trim();
+    /* CNPJ vazio passa: às vezes a empresa ainda está sendo
+       aberta e o número não existe. Errado é que não pode. */
+    if (cnpj && !U.validaCNPJ(cnpj)) {
+      UI.toast("O CNPJ não confere. Verifique os números ou deixe em branco.", "erro", 8000);
+      return;
+    }
+
+    var dados = {
+      razaoSocial: razao.slice(0, 150),
+      nomeFantasia: pega("#edFantasia").trim().slice(0, 120),
+      cnpj: cnpj,
+      regime: pega("#edRegime"),
+      responsavelNome: pega("#edRespNome").trim().slice(0, 200),
+      responsavelCargo: pega("#edRespCargo").trim().slice(0, 200),
+      responsavelEmail: pega("#edRespEmail").trim().slice(0, 200),
+      responsavelTelefone: pega("#edRespTel").trim().slice(0, 200),
+      atualizadoEm: Date.now()
+    };
+
+    var botao = $('[data-acao="1"]', m.caixa);
+    if (botao) { botao.disabled = true; botao.textContent = "Salvando…"; }
+
+    FB.db.collection("empresas").doc(c.id).set(dados, { merge: true }).then(function () {
+      Object.keys(dados).forEach(function (k) { c.empresa[k] = dados[k]; });
+      UI.fecharModal();
+      desenharFicha();
+      desenharLista();
+      UI.toast("Cadastro atualizado.", "ok", 3000);
+    }, function (err) {
+      if (botao) { botao.disabled = false; botao.textContent = "Salvar"; }
+      UI.toast("Não foi possível salvar: " + FB.explicar(err), "erro", 9000);
     });
   }
 
@@ -3008,6 +3199,11 @@
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
 
+    var editar = $("#clEditarCadastro");
+    if (editar) editar.addEventListener("click", function () {
+      if (aberto) editarCadastro(aberto);
+    });
+
     var aplic = $("#clAplicacao");
     if (aplic) aplic.addEventListener("click", function () {
       if (!aberto) return;
@@ -3279,6 +3475,14 @@
 
       var fl = alvo.closest("[data-fila]");
       if (fl) { filaAberta = !filaAberta; desenharPendencias(); return; }
+
+      var vis = alvo.closest("[data-vista]");
+      if (vis) {
+        vistaFicha = vis.getAttribute("data-vista");
+        desenharFicha();
+        global.scrollTo({ top: 0, behavior: "auto" });
+        return;
+      }
 
       var apn = alvo.closest("[data-apagar-nota]");
       if (apn) { apagarNota(apn.getAttribute("data-apagar-nota")); return; }

@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v46";
+var VERSAO = "v47";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -27,6 +27,7 @@ var SHELL = [
   "./lib/firebase-auth-compat.js",
   "./lib/firebase-firestore-compat.js",
   "./lib/firebase-storage-compat.js",
+  "./lib/firebase-app-check-compat.js",
   "./js/firebase-config.js",
   "./js/firebase.js",
   "./js/chave-publica.js",
