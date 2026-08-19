@@ -1157,6 +1157,11 @@
        a ficha. O resto fica recolhido, e o selo do cabeçalho diz
        onde tem trabalho esperando. */
     abertosFicha = { falta: true };
+    /* Cada cliente abre em Documentos, sempre. A vista é lembrada
+       enquanto se trabalha num mesmo cliente, mas carregá-la para
+       o próximo surpreende: abre-se uma ficha nova e cai numa
+       conversa que ficou de vinte minutos atrás. */
+    vistaFicha = "documentos";
     $("#clLista").hidden = true;
     $("#clTopo").hidden = true;
     $("#clFicha").hidden = false;
@@ -2726,8 +2731,12 @@
     }).length;
     var aResolver = aResolverDe(c);
 
-    return bloco({
-      id: "mensagens", icone: "ic-chat", titulo: "Mensagens",
+    /* Painel, e não cartão dobrável: esta é a vista INTEIRA de
+       Conversa. Dobrado, o clique em "Conversa" levava a uma tela
+       com um cartão fechado no meio — a pessoa trocou de vista
+       para ler a conversa e teve que clicar de novo para vê-la. */
+    return painel({
+      id: "mensagens", icone: "ic-chat", titulo: "Mensagens", largo: true,
       resumo: msgs.length ? msgs.length + " " + U.plural(msgs.length, "mensagem", "mensagens") +
         " · o cliente lê no portal" : "Nenhuma mensagem ainda",
       selo: naoLidas ? naoLidas + " " + U.plural(naoLidas, "nova", "novas")
