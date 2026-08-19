@@ -103,9 +103,13 @@
     if (campo && enderecoValido(campo.value)) base = campo.value;
     if (!enderecoValido(base)) return Promise.reject(new Error("endereco-invalido"));
 
+    /* `empresas` sempre presente, mesmo com uma só. Convite que
+       às vezes tem a lista e às vezes não obriga todo mundo que
+       lê a tratar os dois casos — e um deles acaba esquecido. */
     var codigo = FB.novoCodigo();
     return FB.db.collection("convites").doc(codigo).set({
       empresaId: empresaId,
+      empresas: [empresaId],
       ativo: true,
       criadoPor: FB.equipe.uid,
       criadoEm: FB.agora()
@@ -310,8 +314,19 @@
           criadaEm: FB.agora(),
           atualizadoEm: FB.agora()
         }).then(function () {
+          /* `empresaId` é a principal — é o nome que a tela de
+             cadastro mostra ao cliente. `empresas` traz ela e as
+             extras, e é o que a regra do servidor confere na hora
+             de registrar cada acesso. */
+          var extras = [];
+          var extrasMarcadas = document.querySelectorAll("[data-outra]");
+          Array.prototype.forEach.call(extrasMarcadas, function (c) {
+            if (c.checked) extras.push(c.getAttribute("data-outra"));
+          });
+
           return FB.db.collection("convites").doc(codigo).set({
             empresaId: refEmpresa.id,
+            empresas: [refEmpresa.id].concat(extras).slice(0, 20),
             ativo: true,
             criadoPor: FB.equipe.uid,
             criadoEm: FB.agora()
@@ -354,6 +369,52 @@
         c: empresa.cnpj, g: empresa.regime, em: Date.now()
       }));
       UI.toast("Link gerado em modo local para " + nome + ".", "ok");
+    });
+
+    /* ---------- Empresas extras no mesmo link ----------
+
+       A lista vem da aba Clientes, que já carregou tudo. Se ela
+       ainda não carregou (a pessoa abriu direto em "Novo"), o
+       bloco fica com um aviso em vez de uma lista vazia mentindo
+       que não há empresa nenhuma. */
+    function desenharOutras() {
+      var caixa = $("#cOutras");
+      if (!caixa) return;
+      var PC = global.PainelClientes;
+
+      if (!PC || PC.carregando) {
+        caixa.innerHTML = '<p class="text-xs text-muted" style="margin:6px 0 0">' +
+          'Carregando as empresas…</p>';
+        return;
+      }
+
+      var lista = PC.empresas.filter(function (c) { return !PC.arquivada(c); });
+      if (!lista.length) {
+        caixa.innerHTML = '<p class="text-xs text-muted" style="margin:6px 0 0">' +
+          'Ainda não há outra empresa cadastrada.</p>';
+        return;
+      }
+
+      caixa.innerHTML = '<div class="deptos">' + lista.map(function (c) {
+        return '<label class="depto">' +
+          '<input type="checkbox" data-outra="' + U.escAttr(c.id) + '">' +
+          '<span class="depto__txt">' + U.esc(PC.nomeDe(c)) +
+            (c.empresa.cnpj ? ' <span class="text-xs text-muted">· ' + U.esc(c.empresa.cnpj) +
+              '</span>' : '') + '</span>' +
+        '</label>';
+      }).join("") + '</div>';
+    }
+
+    desenharOutras();
+    if (global.PainelClientes) global.PainelClientes.aoAtualizar(desenharOutras);
+    if (global.Painel) global.Painel.aoTrocar(function (aba) {
+      if (aba === "novo") desenharOutras();
+    });
+
+    var caixaOutras = $("#cOutras");
+    if (caixaOutras) caixaOutras.addEventListener("change", function (ev) {
+      var c = ev.target.closest("[data-outra]");
+      if (c) c.closest(".depto").classList.toggle("depto--on", c.checked);
     });
 
     /* Escolher os documentos antes de a empresa existir. A

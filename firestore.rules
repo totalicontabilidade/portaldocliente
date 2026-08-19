@@ -140,14 +140,22 @@ service cloud.firestore {
       // acesso correspondente já existir. Listar empresa que não
       // é dele não leva a lugar nenhum: a leitura da empresa
       // continua exigindo o documento de acesso.
+      //
+      // A EQUIPE TAMBÉM ESCREVE AQUI, e por um motivo concreto:
+      // é ela que dá a uma pessoa já cadastrada o acesso a uma
+      // segunda empresa, pelo painel. Sem isto, aquele botão
+      // gravaria a autorização e não o índice — e o portal, que
+      // descobre a lista por este índice, mostraria só a primeira
+      // empresa. Metade do vínculo é pior que nenhum.
       match /empresas/{empresaId} {
         allow read: if (logado() && request.auth.uid == uid) || ehEquipe();
 
-        allow create: if logado()
-                      && request.auth.uid == uid
-                      && exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(uid));
+        allow create: if ehEquipe()
+                      || (logado()
+                          && request.auth.uid == uid
+                          && exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(uid)));
 
-        allow update: if false;
+        allow update: if ehEquipe();
         allow delete: if ehEquipe();
       }
     }
@@ -179,15 +187,27 @@ service cloud.firestore {
       // Só dá para registrar o PRÓPRIO uid, e só apresentando um
       // código de convite que aponte para esta empresa. Sem o
       // código não há acesso; com o código, só para esta empresa.
+      //
+      // UM LINK, VÁRIAS EMPRESAS
+      // É comum o mesmo dono ter dois ou três CNPJs. O convite
+      // pode listar mais de uma empresa em `empresas`, e aí o
+      // acesso vale para qualquer uma DA LISTA — nunca para fora
+      // dela. `empresaId` continua sendo a principal, e é o que
+      // os convites antigos têm.
       match /acessos/{uid} {
         allow read: if ehEquipe() || request.auth.uid == uid;
 
-        allow create: if logado()
-                      && request.auth.uid == uid
-                      && request.resource.data.codigo is string
-                      && exists(/databases/$(database)/documents/convites/$(request.resource.data.codigo))
-                      && get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.empresaId == empresaId
-                      && get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.ativo == true;
+        allow create: if ehEquipe()
+                      || (logado()
+                          && request.auth.uid == uid
+                          && request.resource.data.codigo is string
+                          && exists(/databases/$(database)/documents/convites/$(request.resource.data.codigo))
+                          && get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.ativo == true
+                          && (
+                               get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.empresaId == empresaId
+                               || (get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.get('empresas', []) is list
+                                   && empresaId in get(/databases/$(database)/documents/convites/$(request.resource.data.codigo)).data.get('empresas', []))
+                             ));
 
         // Registro de acesso não se reescreve. Para revogar,
         // a equipe apaga — e o cliente perde o acesso na hora.

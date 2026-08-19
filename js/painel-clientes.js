@@ -1872,7 +1872,14 @@
           '<button type="button" class="btn btn--primary btn--sm" data-novo-link="' +
             U.escAttr(c.id) + '">' + ic("ic-send") +
             (acessos.length ? 'Gerar novo link de acesso' : 'Gerar link de acesso') + '</button>' +
-
+          /* Uma pessoa, várias empresas: é comum o mesmo dono ter
+             dois ou três CNPJs. Sem isto, cada empresa exigia um
+             login diferente e a pessoa acabava com três senhas
+             para a mesma contabilidade. */
+          (acessos.length
+            ? '<button type="button" class="btn btn--ghost btn--sm" data-vincular="' +
+              U.escAttr(c.id) + '">' + ic("ic-building") + 'Dar acesso a outra empresa</button>'
+            : '') +
         '</div>' +
         (acessos.length
           ? '<p class="field__hint" style="margin-top:10px">Senha esquecida não precisa de link ' +
@@ -1885,6 +1892,121 @@
           'lugar. Serve quando ninguém abriu o primeiro link, quando muda a pessoa ' +
           'responsável na empresa, ou para refazer um acesso perdido.</p>';
       }
+    });
+  }
+
+  /* ============================================================
+     Dar a um acesso existente a entrada em outra empresa
+
+     É comum o mesmo dono ter dois ou três CNPJs. Até agora cada
+     empresa exigia um convite e um login separados, e a pessoa
+     terminava com três senhas para a mesma contabilidade — e a
+     equipe, com três fichas que não se falavam.
+
+     O que isto faz é escrever os dois registros que o portal usa
+     para saber quem entra onde:
+
+       /empresas/{outra}/acessos/{uid}      a autorização
+       /clientes/{uid}/empresas/{outra}     o índice, que é como
+                                            o portal descobre a
+                                            lista no login
+
+     A REGRA DO SERVIDOR NÃO DEIXA O CLIENTE FAZER ISTO — criar
+     um acesso exige apresentar um código de convite válido. Mas
+     a equipe pode: `allow create: if ehEquipe()` vale para os
+     dois caminhos. É o que torna esta tela possível sem afrouxar
+     nada para o lado do cliente.
+     ============================================================ */
+  function vincularOutraEmpresa(c) {
+    var acessos = c.acessos || [];
+    if (!acessos.length) {
+      UI.toast("Este cliente ainda não tem acesso ao portal. Gere um link primeiro.", "erro", 8000);
+      return;
+    }
+
+    /* Empresas que este acesso ainda NÃO tem. Mostrar as que ele
+       já tem só daria chance de clicar à toa. */
+    var jaTem = {};
+    jaTem[c.id] = true;
+
+    var candidatas = empresas.filter(function (e) {
+      if (jaTem[e.id]) return false;
+      if (arquivada(e)) return false;
+      return true;
+    });
+
+    if (!candidatas.length) {
+      UI.toast("Não há outra empresa ativa para vincular.", "", 7000);
+      return;
+    }
+
+    var m = UI.modal({
+      titulo: "Dar acesso a outra empresa",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:14px">' +
+          'A mesma pessoa passa a ver as duas empresas no portal, com <strong>um login só</strong>, ' +
+          'e troca entre elas por um seletor no topo. Nada do que já foi enviado se mexe.</p>' +
+        '<div class="field">' +
+          '<label class="field__label" for="vqQuem">Quem ganha o acesso</label>' +
+          '<select class="select" id="vqQuem">' +
+            acessos.map(function (a) {
+              return '<option value="' + U.escAttr(a.uid) + '">' +
+                U.esc(a.email || a.uid) + '</option>';
+            }).join("") +
+          '</select></div>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="vqEmpresa">Empresa</label>' +
+          '<select class="select" id="vqEmpresa">' +
+            candidatas.map(function (e) {
+              return '<option value="' + U.escAttr(e.id) + '">' + U.esc(nomeDe(e)) +
+                (e.empresa.cnpj ? " · " + U.esc(e.empresa.cnpj) : "") + '</option>';
+            }).join("") +
+          '</select>' +
+          '<div class="field__hint">Só aparecem empresas ativas que este acesso ainda não ' +
+            'enxerga.</div></div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Dar acesso", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            var uid = $("#vqQuem", m.caixa).value;
+            var alvo = $("#vqEmpresa", m.caixa).value;
+            var email = (acessos.filter(function (a) { return a.uid === uid; })[0] || {}).email || uid;
+            var nomeAlvo = nomeDe(empresas.filter(function (e) { return e.id === alvo; })[0] || {});
+            gravarVinculo(uid, email, alvo, nomeAlvo, m);
+          }
+        }
+      ]
+    });
+  }
+
+  function gravarVinculo(uid, email, empresaId, nomeAlvo, m) {
+    var botao = $('[data-acao="1"]', m.caixa);
+    if (botao) { botao.disabled = true; botao.textContent = "Dando acesso…"; }
+
+    var lote = FB.db.batch();
+    lote.set(FB.db.collection("empresas").doc(empresaId).collection("acessos").doc(uid),
+             { em: FB.agora(), porEquipe: (equipe && equipe.uid) || "" }, { merge: true });
+    lote.set(FB.db.collection("clientes").doc(uid).collection("empresas").doc(empresaId),
+             { em: FB.agora() }, { merge: true });
+
+    lote.commit().then(function () {
+      UI.fecharModal();
+      UI.toast(email + " agora também acessa " + nomeAlvo +
+               ". Ele troca de empresa pelo seletor no topo do portal.", "ok", 9000);
+      /* A ficha aberta mostra os acessos; recarregar o cliente é
+         o que faz o novo vínculo aparecer sem F5. */
+      var id = aberto && aberto.id;
+      if (id) {
+        carregarCliente(id).then(function (novo) {
+          empresas = empresas.map(function (x) { return x.id === id ? novo : x; });
+          aberto = novo;
+          desenharFicha();
+        }, function () {});
+      }
+    }, function (e) {
+      if (botao) { botao.disabled = false; botao.textContent = "Dar acesso"; }
+      UI.toast("Não foi possível dar o acesso: " + FB.explicar(e), "erro", 9000);
     });
   }
 
@@ -3700,6 +3822,13 @@
 
       var ci = alvo.closest("[data-cobrar-item]");
       if (ci && aberto) { cobrarItem(aberto, ci.getAttribute("data-cobrar-item")); return; }
+
+      var vinc = alvo.closest("[data-vincular]");
+      if (vinc) {
+        var cv = empresas.filter(function (x) { return x.id === vinc.getAttribute("data-vincular"); })[0];
+        if (cv) vincularOutraEmpresa(cv);
+        return;
+      }
 
       var rv = alvo.closest("[data-revogar-convite]");
       if (rv) { revogarConvite(rv.getAttribute("data-revogar-convite")); return; }

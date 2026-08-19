@@ -290,7 +290,20 @@
       var d = doc.data() || {};
       if (d.ativo !== true) throw new Error("convite-usado");
       if (!d.empresaId) throw new Error("convite-invalido");
-      return { codigo: cod, empresaId: String(d.empresaId) };
+
+      /* UM LINK, VÁRIAS EMPRESAS.
+
+         `empresaId` continua sendo a principal — é o que a tela
+         de cadastro mostra, e o que os convites antigos têm. A
+         lista `empresas` é a novidade, e vem com a principal
+         dentro dela para quem lê não precisar juntar as duas
+         coisas na mão. */
+      var lista = Array.isArray(d.empresas)
+        ? d.empresas.filter(function (x) { return typeof x === "string" && x; })
+        : [];
+      if (lista.indexOf(String(d.empresaId)) === -1) lista.unshift(String(d.empresaId));
+
+      return { codigo: cod, empresaId: String(d.empresaId), empresas: lista.slice(0, 20) };
     });
   }
 
@@ -340,12 +353,20 @@
            volta negada e o cliente recém-criado não consegue
            entrar na própria empresa. */
         return aguardarCredencial().then(function () {
-          var ref = db.collection("empresas").doc(convite.empresaId)
-                      .collection("acessos").doc(uid);
-          return ref.get().then(function (doc) {
-            if (doc.exists) return null;
-            return ref.set({ codigo: convite.codigo, em: agora() });
-          });
+          /* Uma empresa por vez, e em fila: sao gravacoes que a
+             regra confere uma a uma contra o convite. Se alguma
+             falhar, as outras continuam valendo -- melhor entrar
+             em duas de tres do que em nenhuma. */
+          return convite.empresas.reduce(function (fila, empresaId) {
+            return fila.then(function () {
+              var ref = db.collection("empresas").doc(empresaId)
+                          .collection("acessos").doc(uid);
+              return ref.get().then(function (doc) {
+                if (doc.exists) return null;
+                return ref.set({ codigo: convite.codigo, em: agora() });
+              }).catch(function () { /* segue para a proxima */ });
+            });
+          }, Promise.resolve());
         });
       })
       .then(function () {
@@ -365,10 +386,14 @@
            guarda só o primeiro e não pode ser alterado.
            Se a regra ainda não tiver sido republicada, segue sem
            ela — o portal cai para uma empresa só. */
-        return db.collection("clientes").doc(uid)
-                 .collection("empresas").doc(convite.empresaId)
-                 .set({ em: agora() })
-                 .catch(function () { /* segue com o modo antigo */ });
+        return convite.empresas.reduce(function (fila, empresaId) {
+          return fila.then(function () {
+            return db.collection("clientes").doc(uid)
+                     .collection("empresas").doc(empresaId)
+                     .set({ em: agora() })
+                     .catch(function () { /* segue com o modo antigo */ });
+          });
+        }, Promise.resolve());
       })
       .then(function () {
         /* Convite queimado: link encaminhado ou vazado depois
