@@ -185,7 +185,38 @@
       Object.keys(st.gruposNA || {}).slice(0, 60).forEach(function (k) {
         if (st.gruposNA[k] === true) grupos[txt(k, 60)] = true;
       });
-      return { gruposNA: grupos, tutoriais: tutoriais, credenciaisEnviadas: recibos };
+      /* RESUMO DO PROGRESSO — não é para o portal, é para o
+         servidor.
+
+         A lista de documentos vive em js/data.js e é editável
+         pela equipe na aba Conteúdo. A Cloud Function que avisa
+         o cliente parado não tem como conhecê-la sem duplicar a
+         lista lá dentro — e duas listas divergem no dia em que
+         alguém acrescentar um documento.
+
+         Então quem sabe contar grava a conta: o portal, que já
+         tem tudo em mãos. A função só lê o número. */
+      var resumo = null;
+      try {
+        var r = global.Situacao.resumoGeral(
+          { itens: st.itens || {}, socios: st.socios || [], gruposNA: st.gruposNA || {},
+            temCredencial: function (chave) {
+              var c = (st.recibosCredenciais || {})[chave];
+              return !!(c && c.campos && c.campos.length);
+            } },
+          global.DATA.GRUPOS
+        );
+        resumo = {
+          total: num(r.total), ok: num(r.ok),
+          pendentesObrigatorios: num(r.pendentesObrigatorios),
+          pendencias: num(r.pendencias), aprovados: num(r.aprovados),
+          pct: num(r.pct)
+        };
+      } catch (e) { resumo = null; }
+
+      var saida = { gruposNA: grupos, tutoriais: tutoriais, credenciaisEnviadas: recibos };
+      if (resumo) saida.resumo = resumo;
+      return saida;
     }
 
     /* ---------- Leitura ---------- */

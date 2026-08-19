@@ -55,6 +55,18 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+/* As outras funções vivem em arquivos próprios e são publicadas
+   junto. Cada uma cuida de um assunto:
+
+     auditoria.js   trilha gravada pelo servidor (item 4)
+     lembretes.js   aviso diário de pendência    (item 9)
+
+   O initializeApp() acima vale para todas — ele roda uma vez por
+   instância, e os módulos abaixo usam getFirestore(), que pega o
+   app já inicializado. */
+Object.assign(exports, require("./auditoria"));
+Object.assign(exports, require("./lembretes"));
+
 const REGIAO = "southamerica-east1";
 const LIMITE = 20;
 

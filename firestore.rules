@@ -378,6 +378,25 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- Trilha de auditoria do SERVIDOR ----------
+    //
+    // A diferença entre esta e a /eventos de cada empresa é toda
+    // a diferença que importa: /eventos é escrita pelo navegador
+    // e serve para acompanhar; esta é escrita por Cloud Function,
+    // com a hora do servidor, e nenhuma das duas pontas consegue
+    // tocá-la.
+    //
+    // `write: false` para todo mundo — cliente, equipe e admin.
+    // A função passa por cima destas regras porque roda com poder
+    // de administrador do projeto, e é exatamente isso que dá
+    // valor ao registro: quem é parte interessada não escreve.
+    //
+    // Ler é da equipe. É uma trilha de trabalho, não um mural.
+    match /auditoria/{registroId} {
+      allow read: if ehEquipe();
+      allow write: if false;
+    }
+
     // ---------- Conteúdo do portal ----------
     //
     // Textos, documentos do checklist, trilhas da Academy. Todo

@@ -899,7 +899,11 @@
     return '<div class="msg msg--' + (doCliente ? "dele" : "minha") +
         (doCliente && m.resolvidaEm ? " msg--resolvida" : "") + '">' +
       '<div class="msg__autor">' +
-        U.esc(doCliente ? "Cliente" : (m.autorNome || "Totali")) + '</div>' +
+        U.esc(doCliente ? "Cliente" : (m.autorNome || "Totali")) +
+        /* Quem escreveu importa ao reler a conversa meses depois:
+           uma cobrança do sistema e uma cobrança de uma pessoa
+           pesam diferente numa conversa com o cliente. */
+        (m.automatico ? ' <span class="msg__auto">automático</span>' : '') + '</div>' +
       '<div>' + U.esc(m.texto) + '</div>' +
       '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
       ((m.anexos || []).length
