@@ -259,6 +259,30 @@
         UI.toast(FB.explicar(new Error("uid-invalido")), "erro", 9000);
         return;
       }
+
+      /* A ARMADILHA: com o UID preenchido, a senha digitada acima
+         é IGNORADA — a conta já existe e mantém a senha dela. Isso
+         está escrito no formulário, e mesmo assim é fácil não ver:
+         a pessoa digita uma senha, o membro aparece na lista, e
+         semanas depois ninguém entende por que aquela senha não
+         funciona. Aconteceu de verdade neste projeto.
+
+         Então, em vez de avisar depois, perguntamos antes. */
+      if (senha) {
+        UI.confirmar({
+          titulo: "A senha digitada será ignorada",
+          mensagem: "Você colou um UID, então esta pessoa JÁ TEM conta de login e continua " +
+                    "com a senha atual dela. A senha que você digitou acima não vale para " +
+                    "nada. Se a intenção era criar uma conta nova, apague o UID e tente de " +
+                    "novo; se ela esqueceu a senha, use \"Esqueci minha senha\" na tela de " +
+                    "entrada.",
+          confirmar: "Entendi, só vincular"
+        }).then(function (ok) {
+          if (ok) gravarMembro(uidColado, nome, email, papel, deptos, m);
+        });
+        return;
+      }
+
       gravarMembro(uidColado, nome, email, papel, deptos, m);
       return;
     }
