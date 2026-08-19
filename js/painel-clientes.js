@@ -1249,7 +1249,8 @@
 
   function bloco(o) {
     var aberto = !!abertosFicha[o.id];
-    return '<section class="card group" data-open="' + (aberto ? "true" : "false") + '" ' +
+    return '<section class="card group ' + (o.classe || "") +
+        '" data-open="' + (aberto ? "true" : "false") + '" ' +
         'style="margin-bottom:12px">' +
       '<button type="button" class="group__head group__head--selo" data-bloco="' +
           U.escAttr(o.id) + '">' +
@@ -1285,7 +1286,29 @@
     return { conferir: conferir, correcao: correcao };
   }
 
+  /* Erro ao montar a ficha não pode virar "cliquei e não
+     aconteceu nada".
+
+     Sem isto, qualquer exceção no meio da montagem deixa a tela
+     exatamente como estava — e quem clicou conclui que o botão
+     está quebrado, sem nenhuma pista do que houve. Um erro
+     visível vale mais que uma tela imóvel. */
   function desenharFicha() {
+    try { montarFicha(); }
+    catch (e) {
+      var caixa = $("#clFicha");
+      if (caixa) {
+        caixa.innerHTML = '<div class="card card--pad"><div class="notice notice--warn">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>Não foi possível montar esta tela.</strong> ' +
+          U.esc((e && e.message) || "erro desconhecido") +
+          ' — recarregue a página e, se repetir, me avise com esta mensagem.</span></div></div>';
+      }
+      if (global.console && console.error) console.error("desenharFicha:", e);
+    }
+  }
+
+  function montarFicha() {
     var c = aberto;
     if (!c) return;
     var e = c.empresa;
@@ -1493,43 +1516,161 @@
 
     return bloco({
       id: "grupo:" + g.id, icone: g.icone, titulo: g.titulo,
+      /* O trilho colorido à esquerda do cartão: diz a situação
+         mais urgente que existe lá dentro, para achar trabalho
+         percorrendo a página sem ler nada. */
+      classe: "trilho trilho--" + trilhoDoGrupo(c, g),
       resumo: alvos.length
         ? resumo.ok + " de " + resumo.total +
           (c.dados.gruposNA[g.id] ? " · marcado como não se aplica" : "")
         : "Depende dos sócios, e nenhum foi cadastrado",
       selo: selo, seloCls: seloCls,
-      corpo: function () {
-        if (!alvos.length) {
-          return '<p class="text-sm text-muted">Este departamento tem um documento por sócio, ' +
-            'e o cliente ainda não cadastrou nenhum.</p>';
-        }
-        var linhas = "";
-        alvos.forEach(function (socioId) {
-          var socio = socioId
-            ? c.dados.socios.filter(function (s) { return s.id === socioId; })[0]
-            : null;
-          g.itens.forEach(function (item) {
-            linhas += itemHTML(c, g, item, socio);
-          });
-        });
-
-        var fila = paraConferir(c, g);
-        var topo = fila.length
-          ? '<div class="lote">' +
-              '<span class="lote__txt">' + fila.length + ' ' +
-                U.plural(fila.length, "documento chegou", "documentos chegaram") +
-                ' e ' + U.plural(fila.length, "espera", "esperam") + ' conferência.</span>' +
-              '<button type="button" class="btn btn--primary btn--sm" data-aprovar-grupo="' +
-                U.escAttr(g.id) + '">Aprovar ' + fila.length + '</button>' +
-            '</div>'
-          : '';
-
-        return topo + linhas;
-      }
+      corpo: function () { return porQuemTemABola(c, g); }
     });
   }
 
-  function itemHTML(c, g, item, socio) {
+  /* ============================================================
+     Documentos agrupados por QUEM TEM A BOLA
+
+     Antes a ficha era organizada por departamento, e dentro de
+     cada um vinha tudo junto: o que já foi aprovado, o que
+     chegou esperando conferência e o que nunca veio, todos com o
+     mesmo peso. Para achar trabalho, a pessoa abria departamento
+     por departamento e lia item por item.
+
+     Agora a pergunta que organiza a tela é outra: quem precisa
+     agir?
+
+       Esperando você   chegou e ninguém conferiu — É A SUA FILA
+       Com o cliente    falta, ou voltou para correção
+       Concluído        resolvido; fica embaixo e recuado
+
+     O departamento não sumiu: virou a linha de apoio de cada
+     item, que é o peso certo para ele. Saber que um documento é
+     do Fiscal importa depois de saber que ele espera você.
+     ============================================================ */
+  var SECOES = [
+    { id: "voce",    rot: "Esperando você", cor: "voce",
+      sits: ["enviado", "analise"] },
+    { id: "cliente", rot: "Com o cliente",  cor: "cliente",
+      sits: ["pendencia", "pendente"] },
+    { id: "pronto",  rot: "Concluído",      cor: "pronto",
+      sits: ["aprovado", "substituido", "na"] }
+  ];
+
+  /* A linha de apoio de cada item: departamento e, quando existe,
+     o dado que decide a ordem de atacar — há quanto tempo espera,
+     quando a correção foi pedida, o que o cliente combinou. */
+  function apoioDoItem(c, x) {
+    var partes = [x.g.titulo];
+    if (x.socio) partes.push(x.socio.nome || "sócio");
+
+    if (x.sit === "enviado" || x.sit === "analise") {
+      if (x.em) partes.push("chegou " + faz(x.em));
+    } else if (x.sit === "pendencia") {
+      var rev = (c.dados.itens[x.chave] || {}).revisao || {};
+      if (rev.em) partes.push("correção pedida " + faz(emMs(rev.em) || rev.em));
+    } else if (x.sit === "pendente") {
+      var ms = ((c.dados.itens[x.chave] || {}).lembrete) || 0;
+      if (ms) {
+        partes.push(ms <= Date.now()
+          ? "o cliente prometeu para " + U.dataCurta(ms)
+          : "o cliente marcou para " + U.dataCurta(ms));
+      } else if (!x.obrigatorio) {
+        partes.push("opcional");
+      }
+    }
+    return partes.join(" · ");
+  }
+
+  function faz(ms) {
+    if (!ms) return "";
+    var dias = Math.floor((Date.now() - ms) / DIA);
+    if (dias <= 0) return "hoje";
+    if (dias === 1) return "ontem";
+    if (dias < 7) return "há " + dias + " dias";
+    if (dias < 14) return "há uma semana";
+    if (dias < 60) return "há " + Math.floor(dias / 7) + " semanas";
+    return "há " + Math.floor(dias / 30) + " meses";
+  }
+
+  /* Os itens de UM departamento, já divididos em Esperando você /
+     Com o cliente / Concluído. É o miolo do cartão. */
+  function porQuemTemABola(c, g) {
+    var alvos = g.escopo === "socio"
+      ? c.dados.socios.map(function (s) { return s.id; })
+      : [null];
+
+    var todos = [];
+    alvos.forEach(function (socioId) {
+      var socio = socioId
+        ? c.dados.socios.filter(function (s) { return s.id === socioId; })[0]
+        : null;
+      g.itens.forEach(function (item) {
+        var sit = global.Situacao.de(c.dados, g, item, socioId);
+        var chave = global.Situacao.chaveItem(g.id, item.id, socioId);
+        var reg = c.dados.itens[chave] || {};
+        todos.push({
+          g: g, item: item, socio: socio, sit: sit, chave: chave,
+          em: emMs(reg.atualizadoEm) || 0, obrigatorio: !!item.obrigatorio
+        });
+      });
+    });
+
+    if (!todos.length) {
+      return '<p class="text-sm text-muted">Este departamento tem um documento por sócio, ' +
+        'e o cliente ainda não cadastrou nenhum.</p>';
+    }
+
+    var html = "";
+    SECOES.forEach(function (sec) {
+      var lista = todos.filter(function (x) { return sec.sits.indexOf(x.sit) > -1; });
+      if (!lista.length) return;
+
+      /* Dentro da faixa, o mais antigo primeiro: é o que espera há
+         mais tempo, e portanto o que mais atrasa. */
+      lista.sort(function (a, b) {
+        if (!a.em && !b.em) return 0;
+        if (!a.em) return 1;
+        if (!b.em) return -1;
+        return a.em - b.em;
+      });
+
+      html += '<div class="bola bola--' + sec.cor + '">' +
+        '<div class="bola__faixa">' +
+          '<span class="bola__pt"></span>' +
+          '<span class="bola__t">' + U.esc(sec.rot) + '</span>' +
+          '<span class="bola__n">' + lista.length + '</span>' +
+          '<span class="bola__linha"></span>' +
+          (sec.id === "voce"
+            ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar-grupo="' +
+              U.escAttr(g.id) + '">Aprovar ' + lista.length + '</button>'
+            : '') +
+        '</div>' +
+        '<div class="bola__corpo">' +
+          lista.map(function (x) {
+            return itemHTML(c, x.g, x.item, x.socio, apoioDoItem(c, x));
+          }).join("") +
+        '</div>' +
+      '</div>';
+    });
+
+    return html;
+  }
+
+  /* A cor do trilho do cartão: a situação MAIS URGENTE que existe
+     dentro dele. Correção vence conferência, que vence pendente. */
+  function trilhoDoGrupo(c, g) {
+    var atencao = atencaoDoGrupo(c, g);
+    if (atencao.correcao) return "corr";
+    if (atencao.conferir) return "conf";
+    var resumo = global.Situacao.resumoGrupo(c.dados, g);
+    if (resumo.completo && !resumo.vazio) return "ok";
+    if (c.dados.gruposNA[g.id] || resumo.vazio) return "na";
+    return "pend";
+  }
+
+  function itemHTML(c, g, item, socio, apoio) {
     var chave = global.Situacao.chaveItem(g.id, item.id, socio ? socio.id : null);
     var sit = global.Situacao.de(c.dados, g, item, socio ? socio.id : null);
     var reg = c.dados.itens[chave] || {};
@@ -1579,10 +1720,15 @@
       : '';
 
     return '<div class="item"><div class="item__top">' +
+      '<span class="group__icon">' + ic(g.icone) + '</span>' +
       '<div class="item__main">' +
-        '<div class="item__name">' + U.esc(item.nome) +
-          (socio ? ' <span class="text-xs text-muted">· ' + U.esc(socio.nome || "sócio") +
-            '</span>' : '') + '</div>' +
+        '<div class="item__name">' + U.esc(item.nome) + '</div>' +
+        /* O departamento e o tempo de espera vêm aqui, em voz
+           baixa: importam depois de a pessoa saber que este
+           documento é dela. */
+        (apoio
+          ? '<div class="item__apoio">' + U.esc(apoio) + '</div>'
+          : (socio ? '<div class="item__apoio">' + U.esc(socio.nome || "sócio") + '</div>' : '')) +
         '<div class="item__row">' + badge(ROTULO_SITUACAO, sit) +
           (item.obrigatorio ? '<span class="text-xs text-muted">obrigatório</span>' : '') +
         '</div>' +

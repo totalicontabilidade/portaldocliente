@@ -263,6 +263,9 @@
     <button type="button" class="sidenav__item" data-aba="conteudo">
       <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo do portal
     </button>
+    <button type="button" class="sidenav__item" data-aba="usuarios">
+      <svg class="ic" aria-hidden="true"><use href="#ic-badge"></use></svg>Usuários
+    </button>
     <button type="button" class="sidenav__item" data-aba="seguranca">
       <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
     </button>
@@ -529,7 +532,7 @@
     </section>
 
     <!-- ---------------- Aba: Segurança ---------------- -->
-    <section data-painel="seguranca" hidden>
+    <section data-painel="usuarios" hidden>
       <div class="section__head"><div>
         <div class="eyebrow">Acesso ao painel</div>
         <h1 class="section__title" style="font-size:20px;margin-top:4px">Equipe</h1>
@@ -551,7 +554,11 @@
         impede o painel de ficar sem administrador.</span>
       </div>
 
-      <div class="section__head" style="margin-top:32px"><div>
+
+    </section>
+
+    <section data-painel="seguranca" hidden>
+      <div class="section__head"><div>
         <div class="eyebrow">Canal seguro</div>
         <h2 class="section__title" style="font-size:19px;margin-top:4px">Par de chaves</h2>
         <p class="section__desc">O par de chaves é o que permite o cliente enviar senhas pelo portal
@@ -676,7 +683,7 @@
   </main>
 </div>
 
-<nav class="tabbar tabbar--7" id="pnTabbar" aria-label="Navegação do painel" hidden>
+<nav class="tabbar tabbar--8" id="pnTabbar" aria-label="Navegação do painel" hidden>
   <button type="button" class="tabbar__item" data-aba="inicio">
     <svg class="ic" aria-hidden="true"><use href="#ic-home"></use></svg>Início
   </button>
@@ -697,6 +704,9 @@
   </button>
   <button type="button" class="tabbar__item" data-aba="conteudo">
     <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo
+  </button>
+  <button type="button" class="tabbar__item" data-aba="usuarios">
+    <svg class="ic" aria-hidden="true"><use href="#ic-badge"></use></svg>Usuários
   </button>
   <button type="button" class="tabbar__item" data-aba="seguranca">
     <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança

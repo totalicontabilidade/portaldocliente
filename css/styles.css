@@ -2156,6 +2156,27 @@ body.tour-aberto{overscroll-behavior:contain}
   .tabbar--7 .tabbar__item{font-size:10px}
 }
 
+/* Oito abas, depois que Usuários saiu de dentro de Segurança.
+   A 320px cada uma fica com 40px — abaixo do alvo de toque
+   confortável, então a barra passa a rolar na horizontal em vez
+   de espremer mais. Rolar é ruim; letra ilegível é pior. */
+.tabbar--8{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabbar--8::-webkit-scrollbar{display:none}
+.tabbar--8 .tabbar__item{
+  flex:0 0 auto;min-width:56px;
+  font-size:8.5px;letter-spacing:-.1px;gap:2px;padding:7px 4px 6px;
+}
+.tabbar--8 .tabbar__item .ic{width:19px;height:19px}
+.tabbar--8 .tabbar__badge{left:calc(50% + 4px);min-width:14px;height:14px;font-size:8.5px}
+@media (min-width:420px){
+  .tabbar--8{overflow-x:visible}
+  .tabbar--8 .tabbar__item{flex:1 1 0;min-width:0;font-size:9px}
+}
+@media (min-width:520px){
+  .tabbar--8 .tabbar__item{font-size:10px}
+  .tabbar--8 .tabbar__item .ic{width:20px;height:20px}
+}
+
 /* Cabeçalho de seção com botão de ação à direita.
 
    Em tela estreita o botão espremia o texto e as duas coisas se
@@ -2463,6 +2484,71 @@ body.tour-aberto{overscroll-behavior:contain}
   .painel__cab{flex-wrap:wrap;padding:13px 14px}
   .painel__cab .btn{margin-left:auto}
   .painel__corpo{padding:13px 14px}
+}
+
+/* ============================================================
+   Ficha do cliente — trilho de situação e faixas internas
+
+   Duas camadas de hierarquia, e as duas respondem à mesma
+   pergunta: onde está o trabalho?
+
+   FORA, o trilho colorido à esquerda do cartão do departamento
+   mostra a situação mais urgente lá dentro. Percorrendo a
+   página, a cor encontra o trabalho antes da leitura.
+
+   DENTRO, os documentos se dividem por quem tem a bola:
+   esperando você, com o cliente, concluído. Antes vinham todos
+   juntos e com o mesmo peso — o aprovado ocupava o mesmo espaço
+   do que estava travando a migração.
+   ============================================================ */
+.trilho{position:relative;overflow:hidden}
+.trilho::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--sit);
+}
+.trilho > .group__head{padding-left:18px}
+.trilho--corr{--sit:#ba423c}
+.trilho--conf{--sit:var(--gold-2)}
+.trilho--ok{--sit:#4c9a72}
+.trilho--pend{--sit:#2c4157}
+.trilho--na{--sit:var(--stroke)}
+
+.bola{margin-bottom:14px}
+.bola:last-child{margin-bottom:0}
+.bola__faixa{
+  display:flex;align-items:center;gap:9px;
+  margin-bottom:8px;
+}
+.bola__pt{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.bola__t{
+  font-size:11.5px;font-weight:700;color:var(--c);
+  letter-spacing:.06em;text-transform:uppercase;
+}
+.bola__n{
+  font-size:11px;font-weight:640;color:var(--txt-4);
+  padding:1px 7px;border-radius:999px;background:var(--surf-3);
+}
+.bola__linha{flex:1 1 auto;height:1px;background:var(--stroke-fraco)}
+
+.bola--voce{--c:var(--gold-2)}
+.bola--cliente{--c:#b0728a}
+.bola--pronto{--c:#4c9a72}
+
+/* Concluído recua: continua legível, para de disputar atenção. */
+.bola--pronto .bola__corpo{opacity:.55}
+.bola--pronto .bola__corpo:hover,
+.bola--pronto .bola__corpo:focus-within{opacity:1}
+
+/* O que espera a equipe ganha fundo próprio dentro do cartão. */
+.bola--voce .bola__corpo{
+  border:1px solid rgba(194,162,80,.28);border-radius:12px;
+  background:rgba(194,162,80,.05);padding:2px 12px;
+}
+
+/* Departamento e tempo de espera, em voz baixa. */
+.item__apoio{
+  display:block;font-size:11.5px;color:var(--txt-4);
+  margin-top:3px;line-height:1.4;
 }
 
 .notas{display:grid;gap:10px;margin-bottom:4px}
