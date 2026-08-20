@@ -1337,7 +1337,12 @@
            ou arquivar no processo do cliente. Senhas não entram —
            ver js/ficha-pdf.js. */
         '<button type="button" class="btn btn--quiet btn--sm" id="clFichaPDF">' +
-          ic("ic-download") + 'Exportar em PDF</button>' +
+          ic("ic-download") + 'Ficha em PDF</button>' +
+        /* O dossie e outro documento: nao e o retrato de agora, e
+           o registro de como a empresa entrou. Vai para a pasta do
+           cliente e nao muda mais. */
+        '<button type="button" class="btn btn--quiet btn--sm" id="clDossie">' +
+          ic("ic-scroll") + 'Dossiê de entrada</button>' +
       '</div>' +
 
       '<section class="section">' +
@@ -1749,6 +1754,12 @@
     '</div></div>';
   }
 
+  /* "" não é "não": em branco quer dizer que o cliente ainda não
+     respondeu, e a ficha precisa mostrar essa diferença. */
+  function simNao(v) {
+    return v === "sim" ? "Sim" : v === "nao" ? "Não" : "";
+  }
+
   /* ---------- Financeiro ---------- */
   function financeiroHTML(c) {
     var f = c.financeiro;
@@ -1789,6 +1800,17 @@
           (confirmadas.length
             ? linhaDado("Modo Contador confirmado", confirmadas.join(", "))
             : "") +
+          /* Informativo. Aparece separado do resto porque é de
+             outra natureza: não é documento entregue, é o que a
+             contabilidade precisa saber antes de fechar o mês. */
+          '<hr class="hr">' +
+          linhaDado("Relatório de contas pagas", simNao(f.contasPagas)) +
+          (f.contasPagas === "sim"
+            ? linhaDado("Qual sistema", f.contasPagasSistema)
+            : "") +
+          linhaDado("Empréstimo ou financiamento", simNao(f.emprestimo)) +
+          linhaDado("Aplicações financeiras", simNao(f.aplicacoes)) +
+          '<hr class="hr">' +
           linhaDado("Observações", f.observacoes) +
           (f.termo && f.termo.id
             ? '<div class="row" style="margin-top:12px">' +
@@ -2686,6 +2708,44 @@
     });
   }
 
+  /* Baixar um PDF gerado no proprio computador.
+
+     Serve a ficha e ao dossie: os dois montam um blob e devolvem
+     { blob, nome }. Eram dois blocos iguais, e o segundo nasceria
+     copiado do primeiro -- inclusive o minuto de folga antes de
+     soltar o endereco, que existe por um motivo que ninguem
+     lembraria ao copiar. */
+  function baixarPDF(botao, modulo, cliente, aviso) {
+    if (!modulo || !modulo.disponivel()) {
+      UI.toast("O gerador de PDF não carregou. Atualize a página e tente de novo.", "erro", 8000);
+      return;
+    }
+    botao.disabled = true;
+    var antes = botao.innerHTML;
+    botao.textContent = "Gerando…";
+
+    modulo.gerar(cliente).then(function (r) {
+      var url = URL.createObjectURL(r.blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = r.nome;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      /* Um minuto é folga suficiente para o navegador terminar de
+         gravar o arquivo antes de o endereço deixar de valer. */
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 60000);
+      botao.disabled = false;
+      botao.innerHTML = antes;
+      UI.toast(aviso, "ok", 3000);
+    }, function (e) {
+      botao.disabled = false;
+      botao.innerHTML = antes;
+      UI.toast("Não foi possível gerar o PDF: " + ((e && e.message) || "erro"), "erro", 9000);
+    });
+  }
+
   /* ============================================================
      Editar o cadastro da empresa
 
@@ -3441,35 +3501,7 @@
 
     var pdf = $("#clFichaPDF");
     if (pdf) pdf.addEventListener("click", function () {
-      if (!aberto) return;
-      if (!global.FichaPDF || !global.FichaPDF.disponivel()) {
-        UI.toast("O gerador de PDF não carregou. Atualize a página e tente de novo.", "erro", 8000);
-        return;
-      }
-      pdf.disabled = true;
-      var antes = pdf.innerHTML;
-      pdf.textContent = "Gerando…";
-
-      global.FichaPDF.gerar(aberto).then(function (r) {
-        var url = URL.createObjectURL(r.blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = r.nome;
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        /* Um minuto é folga suficiente para o navegador terminar
-           de gravar o arquivo antes de o endereço deixar de valer. */
-        setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 60000);
-        pdf.disabled = false;
-        pdf.innerHTML = antes;
-        UI.toast("Ficha exportada.", "ok", 3000);
-      }, function (e) {
-        pdf.disabled = false;
-        pdf.innerHTML = antes;
-        UI.toast("Não foi possível gerar o PDF: " + ((e && e.message) || "erro"), "erro", 9000);
-      });
+      if (aberto) baixarPDF(pdf, global.FichaPDF, aberto, "Ficha exportada.");
     });
 
     var enviar = $("#clEnviarMsg");
@@ -3482,6 +3514,12 @@
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+
+    var dossie = $("#clDossie");
+    if (dossie) dossie.addEventListener("click", function () {
+      if (!aberto) return;
+      baixarPDF(dossie, global.DossiePDF, aberto, "Dossiê gerado.");
+    });
 
     var editar = $("#clEditarCadastro");
     if (editar) editar.addEventListener("click", function () {

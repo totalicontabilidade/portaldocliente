@@ -160,7 +160,17 @@
         /* { "Nome da maquininha": true } — confirmação do Modo
            Contador nas operadoras que não têm senha para informar. */
         modoContador: {},
-        formaRelatorio: "", observacoes: "",
+        formaRelatorio: "",
+        /* ---- Informativo ----
+           Três perguntas de Sim ou Não que vieram do Checklist
+           Financeiro. Não são documento: são o que a contabilidade
+           precisa saber ANTES de fechar o primeiro mês, para não
+           descobrir um empréstimo em dezembro.
+
+           "" = ainda não respondeu, e é diferente de "nao". */
+        contasPagas: "", contasPagasSistema: "",
+        emprestimo: "", aplicacoes: "",
+        observacoes: "",
         concluidoEm: 0,
         protocolo: "",
         /* Metadados do termo em PDF. O arquivo em si fica no
@@ -286,6 +296,18 @@
       alvo.bancoOutro = typeof f.bancoOutro === "string" ? f.bancoOutro.slice(0, 200) : "";
       alvo.maquinetaOutra = typeof f.maquinetaOutra === "string" ? f.maquinetaOutra.slice(0, 200) : "";
       alvo.observacoes = typeof f.observacoes === "string" ? f.observacoes.slice(0, 2000) : "";
+
+      /* Informativo. Só "sim" e "nao" entram; qualquer outra coisa
+         vira "" — que quer dizer "ainda não respondeu". */
+      var simOuNao = function (v) { return (v === "sim" || v === "nao") ? v : ""; };
+      alvo.contasPagas = simOuNao(f.contasPagas);
+      alvo.emprestimo  = simOuNao(f.emprestimo);
+      alvo.aplicacoes  = simOuNao(f.aplicacoes);
+      /* O sistema só faz sentido junto de "sim". Guardá-lo depois
+         de o cliente trocar para "não" deixaria no banco a resposta
+         de uma pergunta que ele desfez. */
+      alvo.contasPagasSistema = alvo.contasPagas === "sim" && typeof f.contasPagasSistema === "string"
+        ? f.contasPagasSistema.slice(0, 200) : "";
       var formas = global.DATA.FORMAS_RELATORIO.map(function (x) { return x.id; });
       alvo.formaRelatorio = formas.indexOf(f.formaRelatorio) > -1 ? f.formaRelatorio : "";
       alvo.concluidoEm = typeof f.concluidoEm === "number" ? f.concluidoEm : 0;
@@ -1020,7 +1042,26 @@
           if (faltou) return false;
         }
       }
+
+      /* Informativo: as três são obrigatórias. Não é burocracia —
+         é o que evita descobrir um empréstimo em dezembro. */
+      if (!f.contasPagas || !f.emprestimo || !f.aplicacoes) return false;
+      if (f.contasPagas === "sim" && !String(f.contasPagasSistema || "").trim()) return false;
       return true;
+    },
+
+    /* Quais do Informativo ainda faltam — para a mensagem de erro
+       dizer o que falta, e não só "preencha tudo". */
+    informativoPendente: function () {
+      var f = estado.financeiro;
+      var faltam = [];
+      if (!f.contasPagas) faltam.push("relatório de contas pagas");
+      else if (f.contasPagas === "sim" && !String(f.contasPagasSistema || "").trim()) {
+        faltam.push("qual sistema de contas pagas");
+      }
+      if (!f.emprestimo) faltam.push("empréstimo ou financiamento");
+      if (!f.aplicacoes) faltam.push("aplicações financeiras");
+      return faltam;
     },
 
     /* Marcar/desmarcar banco ou maquininha. A validação contra a
@@ -1067,8 +1108,10 @@
     },
 
     definirFinanceiro: function (campo, valor) {
-      var texto = { bancoOutro: 200, maquinetaOutra: 200, observacoes: 2000 };
-      var simNao = { temBanco: 1, temMaquineta: 1 };
+      var texto = { bancoOutro: 200, maquinetaOutra: 200, observacoes: 2000,
+                    contasPagasSistema: 200 };
+      var simNao = { temBanco: 1, temMaquineta: 1,
+                     contasPagas: 1, emprestimo: 1, aplicacoes: 1 };
       var v;
 
       if (texto[campo]) v = String(valor || "").slice(0, texto[campo]);
@@ -1087,6 +1130,10 @@
           st.financeiro.maquinetaOutra = "";
           st.financeiro.formaRelatorio = "";
         }
+        /* Trocar para "não" apaga o sistema digitado: senão o texto
+           iria junto no envio, respondendo uma pergunta que o
+           cliente desfez. */
+        if (campo === "contasPagas" && v !== "sim") st.financeiro.contasPagasSistema = "";
       }, "financeiro");
       return true;
     },

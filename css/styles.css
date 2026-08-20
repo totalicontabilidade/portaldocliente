@@ -2667,6 +2667,39 @@ body.tour-aberto{overscroll-behavior:contain}
   background:var(--surf-3);color:var(--txt-4);
 }
 
+/* ============================================================
+   Informativo — perguntas de Sim ou Não
+
+   A explicação fica atrás de um (?) que abre no TOQUE, não ao
+   passar o mouse: no celular não existe passar o mouse, e é no
+   celular que a maioria dos clientes responde isto.
+   ============================================================ */
+.pergunta{
+  padding:14px 0;border-bottom:1px solid var(--stroke-fraco);
+}
+.pergunta:last-of-type{border-bottom:0;padding-bottom:2px}
+.pergunta__t{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:14.5px;font-weight:620;color:var(--txt);line-height:1.45;
+}
+.pergunta__t > span:first-child{flex:1 1 auto;min-width:0}
+.help-btn--redondo{
+  flex:none;width:22px;height:22px;padding:0;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:12.5px;font-weight:700;line-height:1;
+  border:1px solid var(--stroke-2);background:var(--surf-2);color:var(--txt-3);
+  cursor:pointer;
+}
+.help-btn--redondo:hover{border-color:var(--gold-2);color:var(--gold-2)}
+.help-btn--redondo[aria-expanded="true"]{
+  background:var(--surf-3);border-color:var(--gold-2);color:var(--gold-2);
+}
+.pergunta__porque{
+  margin:9px 0 0;padding:10px 12px;border-radius:10px;
+  font-size:12.5px;line-height:1.6;color:var(--txt-2);
+  background:var(--surf-2);border:1px solid var(--stroke);
+}
+
 .notas{display:grid;gap:10px;margin-bottom:4px}
 .nota{
   padding:12px 14px;border-radius:12px;

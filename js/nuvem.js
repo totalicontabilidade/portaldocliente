@@ -153,6 +153,10 @@
           .filter(function (k) { return (f.modoContador || {})[k] === true; })
           .reduce(function (acc, k) { acc[txt(k, 80)] = true; return acc; }, {}),
         formaRelatorio: txt(f.formaRelatorio, 40),
+        contasPagas: txt(f.contasPagas, 4),
+        contasPagasSistema: txt(f.contasPagasSistema, 200),
+        emprestimo: txt(f.emprestimo, 4),
+        aplicacoes: txt(f.aplicacoes, 4),
         observacoes: txt(f.observacoes, 2000),
         concluidoEm: num(f.concluidoEm),
         protocolo: txt(f.protocolo, 40),

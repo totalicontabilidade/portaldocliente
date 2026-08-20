@@ -28,6 +28,8 @@
     gruposAbertos: {},
     trilhaAberta: "",
     faqAberta: {},
+    /* Quais explicações do Informativo estão abertas. */
+    informativoAberto: {},
     rota: "inicio",
     /* Documento para onde a próxima tela deve rolar. Vive um
        desenho só e some — é um destino de viagem, não um estado. */
@@ -1739,6 +1741,48 @@
       html += '</div>';
     }
 
+    /* --- Informativo ---
+
+       Três perguntas que não pedem documento nenhum, e que a
+       contabilidade precisa saber ANTES de fechar o primeiro mês.
+       Vieram do Checklist Financeiro, onde nasceram de um caso
+       concreto: descobrir um empréstimo em dezembro obriga a
+       refazer o ano inteiro.
+
+       Cada explicação abre no toque, não ao passar o mouse — no
+       celular não existe passar o mouse. */
+    html += '<div class="card card--pad">' +
+      '<h2 class="section__title" style="font-size:17px;margin-bottom:4px">Informativo</h2>' +
+      '<p class="section__desc" style="margin-bottom:16px">Três perguntas rápidas. ' +
+        'Não precisa enviar nada — é só responder.</p>' +
+
+      perguntaInformativo(f, "contasPagas",
+        "A empresa tem relatório de contas pagas?",
+        "Se os pagamentos são lançados em algum sistema ou planilha, precisamos do acesso " +
+        "aos relatórios. É o que evita procurar onde estão os pagamentos depois que o mês " +
+        "já fechou.") +
+
+      (f.contasPagas === "sim"
+        ? '<div class="field" style="margin:-4px 0 18px 0">' +
+            '<label class="field__label" for="fSis">Qual sistema ou ferramenta?' +
+              '<span class="field__req">*</span></label>' +
+            '<input type="text" class="input" id="fSis" data-fin="contasPagasSistema" ' +
+              'maxlength="200" autocomplete="off" ' +
+              'placeholder="Nome do sistema, ou planilha em Excel" value="' +
+              U.escAttr(f.contasPagasSistema) + '"></div>'
+        : '') +
+
+      perguntaInformativo(f, "emprestimo",
+        "A empresa tem empréstimo ou financiamento bancário?",
+        "Precisamos lançar as parcelas e os juros no lugar certo. Um contrato que aparece " +
+        "só no fim do ano obriga a refazer os meses anteriores.") +
+
+      perguntaInformativo(f, "aplicacoes",
+        "A empresa tem aplicações financeiras?",
+        "Rendimento de aplicação é tributado, e o informe do banco costuma chegar tarde. " +
+        "Saber de antemão evita a correção depois.") +
+    '</div>';
+
     /* --- Observações e conclusão --- */
     html += '<div class="card card--pad">' +
       '<div class="field">' +
@@ -1750,15 +1794,57 @@
       '<button type="button" class="btn btn--primary btn--block" id="btnConcluirFin"' +
         (respondido ? "" : " disabled") + '>' +
         (concluido ? "Salvar alterações" : "Concluir esta etapa") + ic("ic-arrow-right") + '</button>' +
-      (respondido ? "" :
-        '<p class="text-xs text-muted" style="margin-top:10px;text-align:center">' +
-        'Responda as perguntas acima para concluir.</p>') +
+      /* Dizer O QUE falta, e não "preencha tudo". A pessoa está
+         olhando uma tela longa; "falta responder X" leva ela ao
+         lugar, "responda as perguntas acima" manda procurar. */
+      (respondido ? "" : (function () {
+        var faltam = Store.informativoPendente();
+        return '<p class="text-xs text-muted" style="margin-top:10px;text-align:center">' +
+          (faltam.length
+            ? 'Falta responder: ' + U.esc(faltam.join(", ")) + '.'
+            : 'Responda as perguntas acima para concluir.') + '</p>';
+      })()) +
     '</div></section>';
 
     return html + rodape();
   }
 
+  /* Uma pergunta de Sim ou Não, com a explicação escondida atrás
+     de um (?) que abre no toque. Reaproveita `data-simnao`, que já
+     é tratado no bindFinanceiro. */
+  function perguntaInformativo(f, campo, pergunta, porque) {
+    var aberta = !!estadoUI.informativoAberto[campo];
+    return '<div class="pergunta">' +
+      '<div class="pergunta__t">' +
+        '<span>' + U.esc(pergunta) + '<span class="field__req">*</span></span>' +
+        '<button type="button" class="help-btn help-btn--redondo" data-porque="' +
+          U.escAttr(campo) + '" aria-expanded="' + (aberta ? "true" : "false") +
+          '" aria-label="Por que perguntamos isto">?</button>' +
+      '</div>' +
+      (aberta
+        ? '<p class="pergunta__porque">' + U.esc(porque) + '</p>'
+        : '') +
+      '<div class="item__actions" style="margin-top:8px">' +
+        ["sim", "nao"].map(function (v) {
+          var on = f[campo] === v;
+          return '<button type="button" class="btn btn--sm ' +
+            (on ? "btn--primary" : "btn--ghost") + '" data-simnao="' + campo +
+            '" data-valor="' + v + '">' + (v === "sim" ? "Sim" : "Não") + '</button>';
+        }).join("") +
+      '</div>' +
+    '</div>';
+  }
+
   function bindFinanceiro() {
+    /* O (?) de cada pergunta. */
+    $$("[data-porque]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var campo = b.getAttribute("data-porque");
+        estadoUI.informativoAberto[campo] = !estadoUI.informativoAberto[campo];
+        render();
+      });
+    });
+
     $$("[data-simnao]").forEach(function (b) {
       b.addEventListener("click", function () {
         var campo = b.getAttribute("data-simnao");
