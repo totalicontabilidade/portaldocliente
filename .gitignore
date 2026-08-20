@@ -32,3 +32,8 @@ uploads/
 *.pdf
 *.docx
 *.xlsx
+
+# Mockups de design: existem para uma decisao e depois saem.
+# Publicados por engano, ficam acessiveis no dominio do cliente.
+_modelos*.html
+_ficha-teste.pdf
