@@ -61,8 +61,21 @@ E dar à conta que roda as funções permissão de ler o segredo:
       --role="roles/secretmanager.secretAccessor" \
       --project=portaldocliente-8cc7d
 
-**Apague o arquivo do Cloud Shell depois.** Ele é uma máquina
-compartilhada com a sua conta, não um cofre.
+**Apague o arquivo do Cloud Shell depois**, num comando separado —
+não encadeado com `&&` na criação do segredo. Ele é uma máquina
+compartilhada com a sua conta, não um cofre:
+
+    rm -f ~/totali/totali-chave-privada-NAO-COMPARTILHAR.json
+
+### Cuidado ao escrever comandos para o Cloud Shell
+
+Nada de `!` dentro de comando colado no bash interativo. Ali
+`!!` significa "repita o comando anterior", e o shell cola o
+comando velho no meio do novo antes de executar. Aconteceu aqui
+com um `console.log('tem chave:', !!k)` — em vez de checar a
+chave, o bash montou uma linha sem sentido e deu erro de sintaxe.
+
+Use `k ? 'sim' : 'nao'` no lugar de `!!k`.
 
 Guarde a cópia offline do arquivo mesmo assim: se o segredo for
 apagado por engano, é dela que ele volta.
