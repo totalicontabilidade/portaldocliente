@@ -267,8 +267,19 @@ service cloud.firestore {
       // O conteúdo já chega embaralhado pelo aparelho do cliente
       // e só abre com a chave privada da Totali. Ainda assim,
       // leitura é só de admin: menos gente vendo, menos risco.
+      //
+      // A LEITURA DEIXOU DE SER SÓ DE ADMIN, e é de propósito.
+      // Estas senhas são de LEITURA DE RELATÓRIO de maquininha,
+      // não de movimentar dinheiro, e a equipe inteira precisa
+      // delas no dia a dia. Exigir que uma pessoa só conseguisse
+      // abrir levava ao pior desfecho possível: print da senha
+      // indo para o WhatsApp.
+      //
+      // O que a equipe lê aqui continua sendo o ENVELOPE FECHADO.
+      // Quem abre é a Cloud Function `abrirCredencial`, e cada
+      // abertura vira registro em /auditoria com nome e hora.
       match /credenciais/{chave} {
-        allow read: if ehAdmin();
+        allow read: if ehEquipe() || ehDonoDaEmpresa(empresaId);
         allow create, update: if ehDonoDaEmpresa(empresaId)
                               && request.resource.data.pacote is map
                               && request.resource.data.pacote.alg is string
@@ -375,6 +386,36 @@ service cloud.firestore {
                     && request.resource.data.uids is list
                     && request.resource.data.uids.size() > 0
                     && request.resource.data.uids.size() <= 20;
+      allow update, delete: if false;
+    }
+
+    // ---------- Pedidos de abertura de senha ----------
+    //
+    // O painel grava um pedido aqui e a Cloud Function
+    // `abrirCredencial` responde no mesmo documento. Mesmo padrão
+    // da exclusão de conta, e pelo mesmo motivo: função chamável
+    // exigiria liberar `allUsers` no Cloud Run, o que a política
+    // da organização proíbe.
+    //
+    // O PEDIDO CARREGA UMA CHAVE PÚBLICA DESCARTÁVEL, gerada na
+    // aba de quem pediu. A função recifra a resposta com ela — e
+    // é por isso que nada aqui dentro é legível, nem para quem
+    // conseguir ler a coleção inteira. Sem essa recifragem, a
+    // senha ficaria em texto puro no documento do pedido, e
+    // teríamos trocado um problema por outro.
+    //
+    // Ler só o próprio pedido: um membro da equipe não precisa
+    // ver o que outro pediu — e, mesmo lendo, não abriria, porque
+    // a chave de resposta é da aba do outro.
+    match /pedidosDeSenha/{pedidoId} {
+      allow read: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      allow create: if ehEquipe()
+                    && request.resource.data.pedidoPor == request.auth.uid
+                    && request.resource.data.empresaId is string
+                    && request.resource.data.chave is string
+                    && request.resource.data.chavePublica is map;
+      // A resposta é escrita pela função, que passa por cima das
+      // regras. Ninguém edita nem apaga um pedido.
       allow update, delete: if false;
     }
 

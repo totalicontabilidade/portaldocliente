@@ -7,8 +7,8 @@
    O cliente digita a senha; ela é cifrada AQUI, no aparelho
    dele, antes de ser guardada ou enviada. O portal só conhece a
    CHAVE PÚBLICA da Totali — com ela dá para trancar, não para
-   abrir. Quem abre é a chave privada, que fica só com a Totali,
-   fora do sistema.
+   abrir. Quem abre é a chave privada, que fica no Secret Manager
+   do projeto e nunca chega a navegador nenhum.
 
    Envelope em duas camadas, que é o padrão para isso:
      1. sorteia uma chave AES-GCM de 256 bits, só para este envio
@@ -19,11 +19,29 @@
    dados, ao backup ou ao aparelho do cliente vê apenas texto
    embaralhado. Sem a chave privada, não há o que ler.
 
+   QUEM ABRE, E COMO — mudou em 20/08/2026
+   ---------------------------------------
+   Antes, abrir exigia o ARQUIVO da chave privada, e só uma
+   pessoa o tinha. Na prática isso empurrava a equipe para o pior
+   caminho possível: print da senha indo para o WhatsApp.
+
+   Hoje a chave mora no Secret Manager e quem abre é a Cloud
+   Function "abrirCredencial", para qualquer membro da equipe — e
+   cada abertura vira registro em /auditoria, com nome e hora.
+
+   O painel manda no pedido uma chave pública descartável, gerada
+   na memória daquela aba, e a função recifra a resposta com ela.
+   Assim, no Firestore, nem o pedido nem a resposta têm senha
+   legível.
+
    O PREÇO DISSO, que precisa estar claro:
-     • a chave privada é a única forma de ler. Perdeu, perdeu.
-       Guarde uma cópia em cofre de senhas e outra offline.
-     • quem tem a chave privada lê tudo. Ela não é de uso diário
-       e não deve ficar no computador de trabalho.
+     • a chave privada continua sendo a única forma de ler.
+       Perdeu, perdeu. Mantenha a cópia em cofre de senhas mesmo
+       depois de subir para o Secret Manager.
+     • o servidor passa a poder abrir. É menos hermético que
+       antes, e foi decisão consciente: são senhas de LEITURA DE
+       RELATÓRIO, e o acesso da equipe inteira vale mais do que
+       uma hermeticidade que ninguém conseguia usar.
 
    Gere o par em equipe.html → "Gerar par de chaves".
    ============================================================ */

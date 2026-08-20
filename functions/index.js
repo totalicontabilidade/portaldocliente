@@ -66,6 +66,7 @@ admin.initializeApp();
    app já inicializado. */
 Object.assign(exports, require("./auditoria"));
 Object.assign(exports, require("./lembretes"));
+Object.assign(exports, require("./senhas"));
 
 const REGIAO = "southamerica-east1";
 const LIMITE = 20;

@@ -208,7 +208,8 @@
       id: "acesso",
       titulo: "Informo o acesso, a Totali baixa sozinha",
       desc: "Você informa login e senha de cada maquininha aqui mesmo. A senha é embaralhada no seu " +
-            "aparelho antes de sair, e só a Totali consegue abrir. Usamos apenas para baixar os " +
+            "aparelho antes de sair, e fica guardada assim. Só a Totali consegue abrir, e toda " +
+            "abertura fica registrada. Usamos apenas para baixar os " +
             "relatórios do mês — nunca para movimentar dinheiro.",
       recomendado: true
     }
@@ -328,7 +329,7 @@
           kind: "acesso",
           nome: "Certificado digital da empresa (e-CNPJ)",
           obrigatorio: true,
-          resumo: "A senha é embaralhada aqui no seu aparelho — só a Totali consegue abrir.",
+          resumo: "A senha é embaralhada aqui no seu aparelho. Só a Totali abre, e fica registrado quem abriu.",
           ajuda: {
             oque: "É a assinatura eletrônica da empresa. Sem ela não é possível transmitir declarações, emitir certidões nem acessar o e-CAC da Receita Federal.",
             onde: [
@@ -781,7 +782,7 @@
     },
     {
       q: "É seguro informar minhas senhas aqui?",
-      a: "É, e explicamos por quê. Quando você toca em \"Guardar com segurança\", a senha é embaralhada dentro do seu próprio aparelho, antes de sair dele. O portal usa uma chave que só serve para trancar; a chave que abre fica com a Totali, fora do sistema. Na prática: nem no seu celular, nem no nosso banco de dados, nem em backup a senha existe de forma legível. Só a nossa equipe consegue abrir, e apenas para fazer o que você contratou. Se preferir não digitar senha nenhuma, os itens de acesso oferecem alternativas: procuração eletrônica no e-CAC, com passo a passo, ou avisar que a Totali já tem acesso."
+      a: "É, e explicamos por quê. Quando você toca em \"Guardar com segurança\", a senha é embaralhada dentro do seu próprio aparelho, antes de sair dele. No nosso banco de dados ela fica guardada assim, embaralhada — nem quem tivesse acesso ao banco conseguiria ler. A chave que abre fica num cofre do servidor, e só a nossa equipe consegue pedir a abertura, pelo sistema interno, quando precisa baixar seus relatórios. Cada uma dessas aberturas fica registrada com o nome de quem abriu e a data — se você quiser saber quem acessou o quê, a gente responde. Se preferir não digitar senha nenhuma, os itens de acesso oferecem alternativas: procuração eletrônica no e-CAC, com passo a passo, ou avisar que a Totali já tem acesso."
     },
     {
       q: "Para que a Totali usa esses acessos?",

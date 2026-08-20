@@ -34,3 +34,35 @@ Rode `limpar-contas.js` **primeiro**. Ele apaga contas de login;
 o `limpar-firestore.js` então enxerga os registros que ficaram
 apontando para elas. Ao contrário, a segunda faxina não veria
 nada.
+
+## Subir a chave privada para o cofre
+
+Feito **uma vez**. Depois disso ninguém volta lá.
+
+A Cloud Function `abrirCredencial` lê a chave privada de um
+segredo chamado `chave-privada-credenciais`, no Secret Manager do
+projeto. Sem ele, o botão "Ver senha" responde erro.
+
+O arquivo é o mesmo `totali-chave-privada-NAO-COMPARTILHAR.json`
+gerado em equipe.html. Dentro dele há um campo `chave` — é o
+conteúdo desse campo que sobe, não o arquivo inteiro.
+
+No Cloud Shell, com o arquivo enviado para lá pelo botão de
+upload:
+
+    node -e "console.log(JSON.stringify(require('./totali-chave-privada-NAO-COMPARTILHAR.json').chave))" > chave.json
+    gcloud secrets create chave-privada-credenciais --data-file=chave.json --project=portaldocliente-8cc7d
+    rm chave.json
+
+E dar à conta que roda as funções permissão de ler o segredo:
+
+    gcloud secrets add-iam-policy-binding chave-privada-credenciais \
+      --member="serviceAccount:114944286344-compute@developer.gserviceaccount.com" \
+      --role="roles/secretmanager.secretAccessor" \
+      --project=portaldocliente-8cc7d
+
+**Apague o arquivo do Cloud Shell depois.** Ele é uma máquina
+compartilhada com a sua conta, não um cofre.
+
+Guarde a cópia offline do arquivo mesmo assim: se o segredo for
+apagado por engano, é dela que ele volta.

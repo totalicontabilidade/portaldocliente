@@ -490,7 +490,8 @@
         '<span><strong>Seus dados ficam protegidos.</strong> O que você enviar fica guardado no ' +
         'servidor da ' + U.esc(DATA.ORG.curto) + ', ligado só à sua empresa, e volta para você em ' +
         'qualquer aparelho onde entrar com sua senha. As senhas que você informar são embaralhadas ' +
-        'ainda no seu aparelho: só a Totali consegue abrir.</span>' +
+        'ainda no seu aparelho e ficam guardadas assim: só a Totali abre, e toda abertura fica ' +
+        'registrada.</span>' +
       '</div>' +
     '</section>' +
 
@@ -1000,7 +1001,8 @@
             '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
             '<span><strong>Pode informar com tranquilidade.</strong> A senha é embaralhada aqui ' +
             'no seu aparelho antes de sair. Nem no seu celular, nem no nosso banco de dados ela ' +
-            'fica legível — só a Totali consegue abrir.</span>' +
+            'fica legível. Só a nossa equipe abre, pelo sistema interno, e cada abertura fica ' +
+            'registrada com nome e data.</span>' +
           '</div>' +
           '<div class="item__actions">' +
             FORMAS.map(function (f) {
@@ -1344,8 +1346,9 @@
         '<span class="notice__icon">' + ic("ic-shield") + '</span>' +
         '<span><strong>Como a senha fica protegida.</strong> Ao tocar em "Guardar com segurança", ' +
         'ela é embaralhada dentro do seu aparelho, antes de sair. O portal só tem a chave que ' +
-        'tranca; a que abre fica com a ' + U.esc(DATA.ORG.curto) + ', fora do sistema. ' +
-        'Nem neste aparelho, nem no nosso banco de dados a senha existe de forma legível. ' +
+        'tranca; a que abre fica num cofre do servidor da ' + U.esc(DATA.ORG.curto) + '. ' +
+        'Nem neste aparelho, nem no nosso banco de dados a senha existe de forma legível — e ' +
+        'toda vez que alguém da nossa equipe abre, fica registrado quem foi e quando. ' +
         'Se preferir não digitar senha, use a procuração eletrônica — o passo a passo está ' +
         'logo acima.</span></div></div>';
     }
@@ -2885,9 +2888,13 @@
         '<div class="help-block"><div class="help-block__t">Como protegemos suas senhas</div>' +
           '<div class="help-block__c">As senhas que você informa no portal são embaralhadas dentro ' +
           'do seu próprio aparelho, antes de saírem dele. O portal carrega apenas a chave que ' +
-          'tranca; a que abre fica com a ' + U.esc(org.curto) + ', guardada fora do sistema. ' +
+          'tranca; a que abre fica guardada num cofre do servidor, e o portal não a tem. ' +
           'Por isso, nem neste aparelho, nem no nosso banco de dados, nem em cópia de segurança a ' +
-          'senha existe de forma legível — só a nossa equipe consegue abrir.<br><br>' +
+          'senha existe de forma legível.<br><br>' +
+          'Quem abre é a nossa equipe, pelo sistema interno, e apenas quando precisa. ' +
+          '<strong>Cada abertura fica registrada</strong> com o nome de quem abriu, qual acesso e ' +
+          'a data — se você quiser saber quem consultou o quê, é só pedir que a gente responde. ' +
+          'Quando alguém sai da equipe, perde o acesso na mesma hora.<br><br>' +
           'Usamos esses acessos apenas para emitir e transmitir o que a sua empresa precisa entregar, ' +
           'baixar relatórios de venda e consultar a situação fiscal. <strong>Nunca movimentamos ' +
           'dinheiro e nunca pedimos a senha do seu banco.</strong><br><br>' +

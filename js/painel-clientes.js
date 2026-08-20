@@ -86,7 +86,6 @@
   }
 
   /* Chave privada carregada nesta aba. Nunca é gravada. */
-  var chavePrivada = null;
 
   /* =========================================================
      Leitura
@@ -206,9 +205,54 @@
      depende dos itens. São várias idas ao servidor — por isso a
      lista carrega uma vez e fica em memória até pedirem para
      atualizar. */
+  /* Roda `fn` sobre todos os itens, no máximo `largura` ao mesmo
+     tempo. Um item que falhar vira null e não derruba os outros —
+     um cliente com problema não pode esconder os demais da lista. */
+  function emLotes(itens, largura, fn) {
+    var saida = new Array(itens.length);
+    var proximo = 0;
+
+    function trabalhar() {
+      if (proximo >= itens.length) return Promise.resolve();
+      var i = proximo++;
+      return Promise.resolve(fn(itens[i])).then(
+        function (r) { saida[i] = r; },
+        function () { saida[i] = null; }
+      ).then(trabalhar);
+    }
+
+    var linhas = [];
+    for (var k = 0; k < Math.min(largura, itens.length); k++) linhas.push(trabalhar());
+    return Promise.all(linhas).then(function () { return saida; });
+  }
+
+  /* Quantos faltam chegar — só para a tela poder dizer "3 de 7"
+     em vez de um "Carregando…" que parece travado. */
+  var totalAcarregar = 0, chegaram = 0;
+  var relogioDesenho = null;
+
+  /* "Carregando 3 de 7 clientes" em vez de "Carregando…". A
+     pessoa precisa saber que a coisa anda; reticências sozinhas
+     parecem travamento. */
+  function textoCarregando() {
+    if (totalAcarregar > 1) {
+      return "Carregando " + chegaram + " de " + totalAcarregar + " clientes…";
+    }
+    return "Carregando…";
+  }
+
+  function desenharComCalma() {
+    if (relogioDesenho) return;
+    relogioDesenho = setTimeout(function () {
+      relogioDesenho = null;
+      desenharTudo();
+    }, 200);
+  }
+
   function carregarLista() {
     if (carregando) return Promise.resolve();
     carregando = true;
+    empresas = [];
     desenharLista();
     desenharPendencias();
     desenharMensagens();
@@ -217,17 +261,46 @@
       var ids = [];
       snap.forEach(function (d) { ids.push(d.id); });
 
-      return ids.reduce(function (fila, id) {
-        return fila.then(function (acc) {
-          return carregarCliente(id).then(function (c) {
-            acc.push(c);
-            return acc;
-          }, function () { return acc; });
+      /* EM PARALELO, e não em fila.
+
+         Antes os clientes eram carregados um de cada vez, com
+         `reduce`, cada um esperando o anterior terminar. E cada
+         cliente são NOVE leituras (empresa, itens, sócios,
+         mensagens, financeiro, acessos, notas, convites, e uma por
+         login). Com dez clientes isso vira dez rodadas em série —
+         era o "demora muito ao clicar em Mensagens", que na
+         verdade era a lista inteira ainda chegando.
+
+         Em paralelo, o tempo passa a ser o do cliente mais lento,
+         não a soma de todos. O Firestore aguenta bem: são leituras
+         pequenas e o navegador já multiplexa as conexões.
+
+         O `em lotes` existe para não abrir sessenta requisições de
+         uma vez num escritório com muitos clientes — a partir de
+         certo ponto, disparar tudo junto fica mais lento, não mais
+         rápido. */
+      totalAcarregar = ids.length;
+      chegaram = 0;
+
+      /* Cada cliente que chega já entra na tela, em vez de todos
+         aparecerem juntos no fim. Com sete clientes a diferença é
+         pequena; com trinta, é a diferença entre uma tela parada e
+         uma lista que enche na frente da pessoa.
+
+         O redesenho é limitado a um a cada 200ms para não repintar
+         a página inteira sete vezes seguidas. */
+      return emLotes(ids, 8, function (id) {
+        return carregarCliente(id).then(function (c) {
+          chegaram++;
+          empresas = empresas.concat([c]);
+          desenharComCalma();
+          return c;
         });
-      }, Promise.resolve([]));
+      });
     }).then(function (lista) {
-      empresas = lista;
+      empresas = lista.filter(Boolean);
       carregando = false;
+      totalAcarregar = 0;
       desenharTudo();
     }, function (e) {
       carregando = false;
@@ -589,7 +662,7 @@
 
     if (carregando) {
       caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
-        'Carregando…</p></div>';
+        U.esc(textoCarregando()) + '</p></div>';
       return;
     }
 
@@ -993,7 +1066,7 @@
 
     if (carregando) {
       caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
-        'Carregando…</p></div>';
+        U.esc(textoCarregando()) + '</p></div>';
       return;
     }
 
@@ -2610,15 +2683,10 @@
   /* ---------- Credenciais ---------- */
   function credenciaisHTML(c) {
     var chaves = Object.keys(c.recibos || {});
-    var souAdmin = equipe && equipe.papel === "admin";
 
     var corpo;
     if (!chaves.length) {
       corpo = '<p class="text-sm text-muted">Nenhum acesso enviado por este cliente.</p>';
-    } else if (!souAdmin) {
-      corpo = '<p class="text-sm text-muted">' + chaves.length + ' ' +
-        U.plural(chaves.length, "acesso enviado", "acessos enviados") +
-        '. Só o administrador consegue abrir.</p>';
     } else {
       corpo = chaves.map(function (chave) {
         var r = c.recibos[chave] || {};
@@ -2629,7 +2697,7 @@
             (r.em ? ' · enviado em ' + U.esc(U.dataCurta(r.em)) : '') + '</span></div>' +
           '<div class="item__actions">' +
             '<button type="button" class="btn btn--ghost btn--sm" data-abrir-cred="' +
-              U.escAttr(chave) + '">Abrir com a chave privada</button>' +
+              U.escAttr(chave) + '">Ver senha</button>' +
           '</div>' +
           '<div class="cred__saida" data-cred-saida="' + U.escAttr(chave) + '" hidden></div>' +
         '</div></div>';
@@ -2639,7 +2707,7 @@
     return painel({
       id: "credenciais", icone: "ic-lock", titulo: "Acessos e senhas",
       resumo: chaves.length
-        ? "Abrir exige a chave privada, que fica só na memória desta aba"
+        ? "Toda a equipe pode abrir · cada abertura fica registrada"
         : "Nenhum acesso enviado",
       selo: chaves.length ? chaves.length + " " +
         U.plural(chaves.length, "guardado", "guardados") : "",
@@ -3350,93 +3418,111 @@
     });
   }
 
-  /* ---------- Abrir credencial ---------- */
-  function pedirChavePrivada() {
-    return new Promise(function (resolve) {
-      if (chavePrivada) { resolve(chavePrivada); return; }
+  /* ============================================================
+     Abrir a senha — sem arquivo de chave
 
-      var m = UI.modal({
-        titulo: "Chave privada",
-        corpoHTML:
-          '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
-            'Selecione o arquivo da chave privada que você baixou ao criar o par. Ele fica só na ' +
-            'memória desta aba — não é gravado, e some quando você fechar a página.</p>' +
-          '<div class="field"><input type="file" class="input" id="ckArquivo" accept=".json,application/json"></div>' +
-          '<div class="field" style="margin-bottom:0">' +
-            '<label class="field__label" for="ckTexto">Ou cole o conteúdo dele</label>' +
-            '<textarea class="textarea" id="ckTexto" rows="4" style="font-size:12px"></textarea>' +
-          '</div>',
-        acoes: [
-          { rotulo: "Cancelar", classe: "btn--ghost", onClick: function () { resolve(null); } },
-          {
-            rotulo: "Carregar", classe: "btn--primary", fecharAntes: false,
-            onClick: function () {
-              var texto = $("#ckTexto", m.caixa).value.trim();
-              var arquivo = $("#ckArquivo", m.caixa).files[0];
+     A chave privada saiu do computador de uma pessoa e foi para o
+     Secret Manager. Quem abre agora é uma Cloud Function, para
+     qualquer membro da equipe, e toda abertura fica registrada em
+     /auditoria.
 
-              var usar = function (bruto) {
-                var jwk = null;
-                try { jwk = JSON.parse(bruto); } catch (e) { jwk = null; }
-                if (!jwk || jwk.kty !== "RSA" || !jwk.d) {
-                  UI.toast("Isso não parece uma chave privada válida.", "erro");
-                  return;
-                }
-                chavePrivada = jwk;
-                UI.fecharModal();
-                resolve(jwk);
-              };
+     A RESPOSTA NÃO VOLTA EM TEXTO PURO. Esta aba gera um par de
+     chaves descartável, na memória, e manda a metade pública com
+     o pedido. A função abre o envelope da Totali e RECIFRA com
+     essa chave descartável. No Firestore, nem o pedido nem a
+     resposta têm senha legível — só esta aba, agora, consegue
+     abrir o que voltou.
 
-              if (arquivo) {
-                var leitor = new FileReader();
-                leitor.onload = function () { usar(String(leitor.result || "")); };
-                leitor.onerror = function () { UI.toast("Não foi possível ler o arquivo.", "erro"); };
-                leitor.readAsText(arquivo);
-                return;
-              }
-              if (!texto) { UI.toast("Escolha o arquivo ou cole o conteúdo.", "erro"); return; }
-              usar(texto);
-            }
-          }
-        ]
-      });
+     Sem isso, a senha ficaria em texto puro no documento do
+     pedido, e teríamos trocado um problema por outro.
+     ============================================================ */
+  var parDaAba = null;
+
+  function chaveDaAba() {
+    if (parDaAba) return Promise.resolve(parDaAba);
+    return global.Cripto.gerarPar().then(function (par) {
+      parDaAba = par;
+      return par;
     });
   }
+
+  var LIMITE_SENHA_MS = 25000;
 
   function abrirCredencial(chave) {
     var c = aberto;
     if (!c) return;
     var saida = $('[data-cred-saida="' + chave.replace(/"/g, '\\"') + '"]');
+    var botao = $('[data-abrir-cred="' + chave.replace(/"/g, '\\"') + '"]');
+    if (botao) { botao.disabled = true; botao.textContent = "Abrindo…"; }
 
-    pedirChavePrivada().then(function (jwk) {
-      if (!jwk) return;
-      return FB.db.collection("empresas").doc(c.id)
-               .collection("credenciais").doc(global.Nuvem.codificar(chave)).get()
-        .then(function (doc) {
-          if (!doc.exists) throw new Error("sem-envelope");
-          return global.Cripto.decifrar((doc.data() || {}).pacote, jwk);
-        })
-        .then(function (valores) {
-          if (!saida) return;
-          saida.hidden = false;
-          saida.innerHTML = Object.keys(valores).map(function (k) {
-            return '<div class="cred__par">' +
-              '<span class="cred__rot">' + U.esc(k) + '</span>' +
-              '<code class="cred__v">' + U.esc(String(valores[k])) + '</code>' +
-              '<button type="button" class="btn btn--quiet btn--sm" data-copiar="' +
-                U.escAttr(String(valores[k])) + '">Copiar</button>' +
-            '</div>';
-          }).join("") +
-          '<p class="text-xs text-muted" style="margin-top:8px">Some da tela ao atualizar. ' +
-            'Não copie para bloco de notas nem para planilha.</p>';
-        })
-        .catch(function (e) {
-          var msg = e && e.message === "sem-envelope"
-            ? "O envelope não está mais no servidor."
-            : "Não foi possível abrir. Confira se é a chave certa — uma chave nova não abre o " +
-              "que foi enviado com a anterior.";
-          UI.toast(msg, "erro", 9000);
+    var soltar = function (msg, tipo) {
+      if (botao) { botao.disabled = false; botao.textContent = "Ver senha"; }
+      if (msg) UI.toast(msg, tipo || "erro", 9000);
+    };
+
+    chaveDaAba().then(function (par) {
+      var ref = FB.db.collection("pedidosDeSenha").doc();
+      var parar = null, relogio = null;
+
+      /* Escuta a resposta chegar. A função grava no mesmo
+         documento, e o onSnapshot avisa na hora — sem ficar
+         perguntando de segundo em segundo. */
+      parar = ref.onSnapshot(function (doc) {
+        if (!doc.exists) return;
+        var d = doc.data() || {};
+        if (!d.concluidoEm) return;
+
+        if (parar) { parar(); parar = null; }
+        if (relogio) { clearTimeout(relogio); relogio = null; }
+
+        if (d.erro) { soltar("Não foi possível abrir: " + d.erro); return; }
+        if (!d.resposta) { soltar("A resposta veio vazia."); return; }
+
+        global.Cripto.decifrar(d.resposta, par.privada).then(function (valores) {
+          soltar("");
+          mostrarSenha(saida, valores);
+        }, function () {
+          soltar("A resposta chegou, mas esta aba não conseguiu abri-la. Recarregue a página.");
         });
+      }, function () {
+        if (relogio) { clearTimeout(relogio); relogio = null; }
+        soltar("Não foi possível acompanhar o pedido.");
+      });
+
+      relogio = setTimeout(function () {
+        if (parar) { parar(); parar = null; }
+        soltar("O servidor não respondeu a tempo. Tente de novo.");
+      }, LIMITE_SENHA_MS);
+
+      return ref.set({
+        pedidoPor: (equipe && equipe.uid) || "",
+        empresaId: c.id,
+        chave: global.Nuvem.codificar(chave),
+        chavePublica: par.publica,
+        em: FB.agora()
+      }).catch(function (e) {
+        if (parar) { parar(); parar = null; }
+        if (relogio) { clearTimeout(relogio); relogio = null; }
+        soltar("Não foi possível pedir: " + FB.explicar(e));
+      });
+    }, function () {
+      soltar("Este navegador não conseguiu preparar a abertura segura.");
     });
+  }
+
+  function mostrarSenha(saida, valores) {
+    if (!saida) return;
+    saida.hidden = false;
+    saida.innerHTML = Object.keys(valores).map(function (k) {
+      return '<div class="cred__par">' +
+        '<span class="cred__rot">' + U.esc(k) + '</span>' +
+        '<code class="cred__v">' + U.esc(String(valores[k])) + '</code>' +
+        '<button type="button" class="btn btn--quiet btn--sm" data-copiar="' +
+          U.escAttr(String(valores[k])) + '">Copiar</button>' +
+      '</div>';
+    }).join("") +
+    '<p class="text-xs text-muted" style="margin-top:8px">Some da tela ao atualizar. ' +
+      'Esta abertura ficou registrada com o seu nome.</p>';
   }
 
   /* =========================================================
