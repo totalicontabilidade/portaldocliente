@@ -24,7 +24,10 @@
   /* A logo entra como imagem; se por algum motivo não carregar,
      o termo sai com o nome escrito e segue válido. */
   function carregarLogo() {
-    return fetch("assets/totali-portal-cor.png")
+    /* Branca: o cabeçalho é faixa NAVY. A colorida tem as letras
+       escuras e some no fundo — e este é o documento que fica com
+       o cliente. */
+    return fetch("assets/totali-portal-branca.png")
       .then(function (r) { return r.ok ? r.blob() : null; })
       .then(function (blob) {
         if (!blob) return null;

@@ -1535,6 +1535,14 @@
       });
     }
 
+    /* Sócios eram só de leitura aqui, e isso deixava a equipe
+       dependente do cliente para corrigir um nome errado ou tirar
+       um sócio que saiu da sociedade. Como cada sócio cadastrado
+       cria uma lista inteira de documentos, um sócio a mais trava
+       o progresso do cliente por um erro que ele não sabe desfazer.
+
+       Agora a equipe cadastra, corrige e remove daqui. A regra do
+       Firestore já permitia (`equipeOuDono`); faltava a tela. */
     function painelSocios() {
       return painel({
         icone: "ic-badge", titulo: "Sócios",
@@ -1542,12 +1550,27 @@
           ? c.dados.socios.length + " " + U.plural(c.dados.socios.length, "cadastrado", "cadastrados")
           : "Nenhum cadastrado",
         corpo: function () {
-          return c.dados.socios.length
+          return (c.dados.socios.length
             ? c.dados.socios.map(function (s) {
-                return linhaDado(s.nome || "Sócio", s.cpf || "");
+                return '<div class="item"><div class="item__top">' +
+                  '<div class="item__main">' +
+                    '<div class="item__name">' + U.esc(s.nome || "Sócio") + '</div>' +
+                    '<div class="text-xs text-muted">' + U.esc(s.cpf || "sem CPF") + '</div>' +
+                  '</div>' +
+                  '<div class="item__actions">' +
+                    '<button type="button" class="btn btn--ghost btn--sm" data-socio-editar="' +
+                      U.escAttr(s.id) + '">Editar</button>' +
+                    '<button type="button" class="btn btn--quiet btn--sm" data-socio-remover="' +
+                      U.escAttr(s.id) + '">Remover</button>' +
+                  '</div>' +
+                '</div></div>';
               }).join("")
             : '<p class="text-sm text-muted">Nenhum sócio cadastrado — a lista de documentos ' +
-              'de sócio ainda não existe para este cliente.</p>';
+              'de sócio ainda não existe para este cliente.</p>') +
+            '<div class="row" style="margin-top:12px">' +
+              '<button type="button" class="btn btn--ghost btn--sm" data-socio-novo="1">' +
+                ic("ic-plus") + 'Adicionar sócio</button>' +
+            '</div>';
         }
       });
     }
@@ -2928,6 +2951,114 @@
     });
   }
 
+  /* ============================================================
+     Sócios, pelo painel
+
+     Vale lembrar por que isto tem peso: cada sócio cadastrado faz
+     nascer uma lista inteira de documentos pessoais no portal do
+     cliente. Cadastrar um sócio a mais é aumentar a cobrança; tirar
+     um sócio errado é diminuir. Por isso remover pede confirmação
+     e diz o que vai acontecer com os documentos.
+     ============================================================ */
+  function editarSocio(c, socioId) {
+    var atual = socioId
+      ? c.dados.socios.filter(function (s) { return s.id === socioId; })[0]
+      : null;
+    if (socioId && !atual) return;
+
+    var m = UI.modal({
+      titulo: atual ? "Editar sócio" : "Adicionar sócio",
+      corpoHTML:
+        campoTexto("soNome", "Nome completo", atual ? atual.nome : "", 'data-focus') +
+        campoTexto("soCpf", "CPF", atual ? atual.cpf : "",
+                   'inputmode="numeric" maxlength="14" placeholder="000.000.000-00"') +
+        '<div class="field__hint" style="margin-top:4px">O sócio aparece para o cliente na tela ' +
+          'de Empresa, e ganha a própria lista de documentos.</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary", fecharAntes: false,
+          onClick: function () { salvarSocio(c, socioId, m); }
+        }
+      ]
+    });
+
+    var campoCpf = $("#soCpf", m.caixa);
+    if (campoCpf) campoCpf.addEventListener("input", function () {
+      campoCpf.value = U.mascaraCPF(campoCpf.value);
+    });
+  }
+
+  function salvarSocio(c, socioId, m) {
+    var pega = function (id) { return ($(id, m.caixa) || {}).value || ""; };
+    var nome = pega("#soNome").trim();
+    if (nome.length < 3) {
+      UI.toast("O nome do sócio precisa ter pelo menos 3 letras.", "erro");
+      return;
+    }
+
+    var cpf = pega("#soCpf").trim();
+    /* Mesma regra do CNPJ na empresa: vazio passa, errado não. */
+    if (cpf && !U.validaCPF(cpf)) {
+      UI.toast("O CPF não confere. Verifique os números ou deixe em branco.", "erro", 8000);
+      return;
+    }
+
+    /* A regra do Firestore aceita SÓ `nome` e `cpf` neste
+       documento — nada de campo extra entrando de carona. */
+    var dados = { nome: nome.slice(0, 120), cpf: cpf };
+    var raiz = FB.db.collection("empresas").doc(c.id).collection("socios");
+    var ref = socioId ? raiz.doc(socioId) : raiz.doc();
+
+    var botao = $('[data-acao="1"]', m.caixa);
+    if (botao) { botao.disabled = true; botao.textContent = "Salvando…"; }
+
+    ref.set(dados).then(function () {
+      var existente = c.dados.socios.filter(function (s) { return s.id === ref.id; })[0];
+      if (existente) { existente.nome = dados.nome; existente.cpf = dados.cpf; }
+      else c.dados.socios.push({ id: ref.id, nome: dados.nome, cpf: dados.cpf });
+      UI.fecharModal();
+      desenharFicha();
+      desenharLista();
+      UI.toast(socioId ? "Sócio atualizado." : "Sócio adicionado.", "ok", 3000);
+    }, function (err) {
+      if (botao) { botao.disabled = false; botao.textContent = "Salvar"; }
+      UI.toast("Não foi possível salvar: " + FB.explicar(err), "erro", 9000);
+    });
+  }
+
+  function removerSocio(c, socioId) {
+    var s = c.dados.socios.filter(function (x) { return x.id === socioId; })[0];
+    if (!s) return;
+
+    UI.modal({
+      titulo: "Remover sócio",
+      corpoHTML:
+        '<p class="text-sm">Remover <strong>' + U.esc(s.nome || "este sócio") + '</strong> do ' +
+          'cadastro de ' + U.esc(nomeDe(c)) + '?</p>' +
+        '<p class="text-sm text-muted" style="margin-top:10px">A lista de documentos pessoais ' +
+          'dele sai do portal do cliente e para de contar no progresso. Os arquivos que ele já ' +
+          'enviou continuam guardados — some a cobrança, não o que chegou.</p>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Remover", classe: "btn--danger",
+          onClick: function () {
+            FB.db.collection("empresas").doc(c.id).collection("socios").doc(socioId).delete()
+              .then(function () {
+                c.dados.socios = c.dados.socios.filter(function (x) { return x.id !== socioId; });
+                desenharFicha();
+                desenharLista();
+                UI.toast("Sócio removido.", "ok", 3000);
+              }, function (err) {
+                UI.toast("Não foi possível remover: " + FB.explicar(err), "erro", 9000);
+              });
+          }
+        }
+      ]
+    });
+  }
+
   /* Grava o que se aplica e o que não se aplica.
 
      "Deixar com o cliente" vira REMOÇÃO do campo, não `null`:
@@ -4054,6 +4185,15 @@
 
       var limpar = alvo.closest("[data-limpar]");
       if (limpar) { revisar(limpar.getAttribute("data-limpar"), ""); return; }
+
+      var socioEd = alvo.closest("[data-socio-editar]");
+      if (socioEd && aberto) { editarSocio(aberto, socioEd.getAttribute("data-socio-editar")); return; }
+
+      var socioRm = alvo.closest("[data-socio-remover]");
+      if (socioRm && aberto) { removerSocio(aberto, socioRm.getAttribute("data-socio-remover")); return; }
+
+      var socioNovo = alvo.closest("[data-socio-novo]");
+      if (socioNovo && aberto) { editarSocio(aberto, ""); return; }
 
       var pend = alvo.closest("[data-pendencia]");
       if (pend) {

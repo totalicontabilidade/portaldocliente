@@ -87,8 +87,10 @@
 
   function plural(n, um, varios) { return n === 1 ? um : varios; }
 
+  /* A LOGO BRANCA, e não a colorida: o cabeçalho é uma faixa NAVY,
+     e a versão colorida tem as letras escuras — some no fundo. */
   function carregarLogo() {
-    return fetch("assets/totali-portal-cor.png")
+    return fetch("assets/totali-portal-branca.png")
       .then(function (r) { return r.ok ? r.blob() : null; })
       .then(function (blob) {
         if (!blob) return null;

@@ -79,3 +79,56 @@ Use `k ? 'sim' : 'nao'` no lugar de `!!k`.
 
 Guarde a cópia offline do arquivo mesmo assim: se o segredo for
 apagado por engano, é dela que ele volta.
+
+---
+
+## anonimizar-auditoria.js — pedido de exclusão pela LGPD
+
+Excluir um cliente pelo painel apaga tudo o que é dele. Uma coisa
+sobra de propósito: a trilha em `/auditoria`. Ela é fechada para
+escrita de todo mundo — cliente, equipe e administrador — e é isso
+que faz dela prova. Se qualquer um pudesse apagar uma linha,
+nenhuma linha valeria nada.
+
+Só que a LGPD dá ao titular o direito de pedir a eliminação dos
+dados (art. 18, VI), e a mesma lei manda conservar o necessário ao
+cumprimento de obrigação legal (art. 16, I). Uma contabilidade tem
+prazo de guarda e precisa conseguir dizer "este documento foi
+aprovado nesta data" mesmo depois de o cliente sair.
+
+Esta ferramenta resolve os dois lados: **não apaga a trilha,
+desliga ela da pessoa.**
+
+Depois de rodar, um registro que dizia
+
+    empresaId  WVMIOtS9UXUNM43RB6hI
+    tipo       item:enviado
+    chave      socios/rg/hPuzsLeSAcr6EQTmPR4x
+    arquivos   ["RG CARLOS MENDES 529982.pdf"]
+
+passa a dizer
+
+    empresaId  anon:533096d40f4fd472
+    tipo       item:enviado
+    chave      socios/rg
+    arquivos   1
+
+O fato, a hora do servidor e quem da Totali agiu continuam lá. O
+nome, o CPF, o nome do arquivo e o id da empresa, não.
+
+### Como rodar
+
+    cd ~/totali
+    node anonimizar-auditoria.js --listar              # quem tem trilha
+    node anonimizar-auditoria.js <empresaId>           # só mostra
+    node anonimizar-auditoria.js <empresaId> --aplicar # age
+
+Rode **depois** de excluir a empresa pelo painel. Se ela ainda
+existir, a ferramenta recusa — anonimizar a trilha de um cliente
+ativo deixa você sem histórico dele sem apagar nada do que é dele
+de verdade. Para insistir mesmo assim: `--mesmo-viva`.
+
+**Não tem volta.** O apelido vem de um SHA-256 com sal, e o id
+original não volta do hash. O sal está escrito no arquivo; trocá-lo
+faz os apelidos antigos e novos deixarem de combinar, então não
+troque depois da primeira anonimização.

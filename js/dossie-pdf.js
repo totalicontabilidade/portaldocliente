@@ -477,8 +477,10 @@
     });
   }
 
+  /* Branca, não colorida: o cabeçalho é faixa NAVY e a versão
+     colorida tem as letras escuras. Mesmo motivo da ficha. */
   function carregarLogo() {
-    return fetch("assets/totali-portal-cor.png")
+    return fetch("assets/totali-portal-branca.png")
       .then(function (r) { return r.ok ? r.blob() : null; })
       .then(function (b) {
         if (!b) return null;
