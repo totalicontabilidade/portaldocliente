@@ -2310,15 +2310,11 @@
       '</button></div>';
   }
 
-  /* Capa própria: só caminho relativo dentro do próprio site.
-     Endereço externo, javascript: e afins não passam daqui —
-     a CSP também barraria, mas não dependemos só dela. */
+  /* Quem decide o que vale como capa é o `DATA.capaSegura`, um só
+     para o portal e para o painel: ou caminho dentro do site, ou
+     endereço da pasta `publico/` do nosso Storage. */
   function capaPropriaValida(caminho) {
-    return typeof caminho === "string" &&
-           /^[A-Za-z0-9_\-./]{1,160}$/.test(caminho) &&
-           caminho.indexOf("..") === -1 &&
-           caminho.charAt(0) !== "/" &&
-           /\.(png|jpe?g|webp)$/i.test(caminho);
+    return !!DATA.capaSegura(caminho);
   }
 
   /* A capa vem, nesta ordem: imagem própria enviada pela equipe,

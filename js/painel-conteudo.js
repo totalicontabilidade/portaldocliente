@@ -202,16 +202,164 @@
   /* Só junta os dados. Quem desenha é montarConteudo(). */
   function secao(o) { return o; }
 
-  /* Capa do YouTube. É o que transforma uma lista de códigos numa
-     lista de vídeos: dá para ver na hora se o link colado é mesmo
-     a aula certa. */
-  function capaYt(id, classe) {
+  /* Capa. É o que transforma uma lista de códigos numa lista de
+     vídeos: dá para ver na hora se o link colado é mesmo a aula
+     certa.
+
+     Ordem: capa enviada pela equipe primeiro, miniatura do YouTube
+     depois. A mesma ordem que o portal usa — se as duas telas
+     discordassem, a equipe editaria às cegas. */
+  function capaDe(item, classe) {
+    var propria = DATA.capaSegura(item && item.capa);
+    if (propria) {
+      return '<img class="capa ' + (classe || "") + '" loading="lazy" alt="" ' +
+        'src="' + U.escAttr(propria) + '">';
+    }
+    var id = (item && item.youtube) || "";
     if (!ID_YT.test(id)) {
       return '<span class="capa capa--vazia ' + (classe || "") + '">' +
         UI.icone("ic-play") + '</span>';
     }
     return '<img class="capa ' + (classe || "") + '" loading="lazy" alt="" ' +
       'src="https://i.ytimg.com/vi/' + U.escAttr(id) + '/mqdefault.jpg">';
+  }
+
+  /* ------------------------------------------------------------
+     Capa enviada pela equipe
+
+     POR QUE A MINIATURA DO YOUTUBE É COPIADA, E NÃO APONTADA
+     -------------------------------------------------------
+     O portal já sabe cair na miniatura do YouTube sozinho, e isso
+     continua valendo como padrão. Mas apontar significa que o
+     navegador de CADA cliente busca a imagem no servidor do
+     Google — e aí o Google fica sabendo quem abriu o portal e
+     quando. É o mesmo motivo pelo qual o mapa da tela de Ajuda só
+     carrega quando a pessoa pede.
+
+     "Usar a do YouTube" resolve os dois lados: a equipe clica, o
+     PAINEL baixa a imagem (só uma vez, no computador de quem está
+     editando) e guarda no nosso Storage. O cliente passa a receber
+     a capa da nossa própria origem. De brinde, a capa congela —
+     miniatura do YouTube muda quando o dono troca, e uma trilha
+     não deveria mudar de cara sozinha.
+     ------------------------------------------------------------ */
+  var TAMANHOS_YT = ["maxresdefault", "hqdefault"];
+
+  function baixarDoYoutube(id) {
+    var tentar = function (i) {
+      if (i >= TAMANHOS_YT.length) {
+        return Promise.reject(new Error("O YouTube não tem capa para este vídeo."));
+      }
+      return fetch("https://i.ytimg.com/vi/" + id + "/" + TAMANHOS_YT[i] + ".jpg")
+        .then(function (r) {
+          /* 404 vem com uma imagem cinza de 120x90 no corpo — se a
+             gente olhasse só o blob, guardaria o borrão. */
+          if (!r.ok) return tentar(i + 1);
+          return r.blob();
+        }, function () { return tentar(i + 1); });
+    };
+    return tentar(0);
+  }
+
+  function subirCapa(blob) {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.equipe) {
+      return Promise.reject(new Error("Sem conexão com o servidor."));
+    }
+    if (blob.size > 5 * 1024 * 1024) {
+      return Promise.reject(new Error("A imagem passa de 5 MB. Reduza antes de enviar."));
+    }
+    var tipo = blob.type || "image/jpeg";
+    if (!/^image\/(jpeg|png|webp)$/.test(tipo)) {
+      return Promise.reject(new Error("Use JPG, PNG ou WEBP."));
+    }
+    var ext = tipo === "image/png" ? "png" : (tipo === "image/webp" ? "webp" : "jpg");
+    /* Nome novo a cada envio: sobrescrever deixaria a capa velha
+       no cache do navegador de quem já viu. */
+    var nome = "publico/academy/" + FB.novoCodigo() + "." + ext;
+    var ref = FB.storage.ref(nome);
+    return ref.put(blob, {
+      contentType: tipo,
+      cacheControl: "public, max-age=31536000, immutable"
+    }).then(function () { return ref.getDownloadURL(); });
+  }
+
+  /* Grava a capa no rascunho e redesenha. `caminho` é o mesmo
+     endereço usado nos campos: "academy.0.videos.2". */
+  function definirCapa(caminho, url) {
+    var partes = caminho.split(".");
+    var alvo = C;
+    for (var i = 0; i < partes.length; i++) {
+      alvo = alvo[partes[i]];
+      if (!alvo) return false;
+    }
+    alvo.capa = url || "";
+    gravar();
+    desenhar();
+    return true;
+  }
+
+  function trocarCapa(caminho, origem) {
+    var partes = caminho.split(".");
+    var alvo = C;
+    for (var i = 0; i < partes.length; i++) { alvo = alvo[partes[i]]; if (!alvo) return; }
+
+    if (origem === "tirar") {
+      definirCapa(caminho, "");
+      UI.toast("Capa removida. Volta a valer a do YouTube, quando houver.", "ok", 4000);
+      return;
+    }
+
+    if (origem === "youtube") {
+      var id = extrairIdYt(alvo.youtube);
+      if (!ID_YT.test(id)) {
+        UI.toast("Cole o link do YouTube antes de puxar a capa.", "erro", 6000);
+        return;
+      }
+      UI.toast("Baixando a capa do YouTube…", "", 3000);
+      baixarDoYoutube(id).then(subirCapa).then(function (url) {
+        definirCapa(caminho, url);
+        UI.toast("Capa guardada no nosso servidor.", "ok", 4000);
+      }, function (e) {
+        UI.toast("Não deu para usar a capa do YouTube: " + (e.message || e), "erro", 9000);
+      });
+      return;
+    }
+
+    /* origem === "arquivo" */
+    var entrada = document.createElement("input");
+    entrada.type = "file";
+    entrada.accept = "image/jpeg,image/png,image/webp";
+    entrada.addEventListener("change", function () {
+      var arq = entrada.files && entrada.files[0];
+      if (!arq) return;
+      UI.toast("Enviando…", "", 3000);
+      subirCapa(arq).then(function (url) {
+        definirCapa(caminho, url);
+        UI.toast("Capa enviada.", "ok", 4000);
+      }, function (e) {
+        UI.toast("Não foi possível enviar: " + (e.message || e), "erro", 9000);
+      });
+    });
+    entrada.click();
+  }
+
+  /* A fileira de botões que aparece embaixo de cada capa. */
+  function botoesCapa(caminho, item) {
+    var tem = !!DATA.capaSegura(item && item.capa);
+    var temVideo = ID_YT.test(extrairIdYt((item && item.youtube) || ""));
+    return '<span class="capa-acoes">' +
+      (temVideo
+        ? '<button type="button" class="ac-mini ac-mini--txt" data-capa="youtube|' +
+          U.escAttr(caminho) + '">Usar a do YouTube</button>'
+        : '') +
+      '<button type="button" class="ac-mini ac-mini--txt" data-capa="arquivo|' +
+        U.escAttr(caminho) + '">Enviar imagem</button>' +
+      (tem
+        ? '<button type="button" class="ac-mini ac-mini--txt" data-capa="tirar|' +
+          U.escAttr(caminho) + '">Tirar</button>'
+        : '') +
+    '</span>';
   }
 
   /* ---------- Seções ---------- */
@@ -248,7 +396,10 @@
   function secaoVideo() {
     var v = C.videoInicio;
     return '<div class="previa">' +
-        capaYt(v.youtube, "capa--larga") +
+        '<span class="previa__capa">' +
+          capaDe(v, "capa--larga") +
+          botoesCapa("videoInicio", v) +
+        '</span>' +
         '<div class="previa__txt">' +
           '<div class="previa__t">' + U.esc(v.titulo || "(sem título)") + '</div>' +
           '<div class="previa__d">' + U.esc(v.desc || "") + '</div>' +
@@ -274,7 +425,13 @@
       var primeira = (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); })[0];
       return '<div class="ac-trilha">' +
         '<div class="ac-trilha__topo">' + ordemBtns("academy", i) +
-          capaYt(primeira ? primeira.youtube : "", "capa--trilha") +
+          '<span class="capa-caixa">' +
+            /* Sem capa própria, a trilha herda a do 1º vídeo
+               publicado — é o que o portal mostra. */
+            capaDe(t.capa ? t : { capa: "", youtube: primeira ? primeira.youtube : "" },
+                   "capa--trilha") +
+            botoesCapa("academy." + i, t) +
+          '</span>' +
           '<span style="flex:1;min-width:0">' +
             '<span class="ac-trilha__t">' + U.esc(t.titulo || "(sem título)") + '</span>' +
             '<span class="ac-trilha__d">' + pub + ' de ' + (t.videos || []).length + ' publicadas</span>' +
@@ -290,7 +447,10 @@
           (t.videos || []).map(function (v, j) {
             var ok = ID_YT.test(v.youtube);
             return '<div class="ac-aula">' + ordemBtns("academy." + i + ".videos", j) +
-              capaYt(v.youtube, "capa--aula") +
+              '<span class="capa-caixa">' +
+                capaDe(v, "capa--aula") +
+                botoesCapa("academy." + i + ".videos." + j, v) +
+              '</span>' +
               '<span class="ac-aula__campos">' +
                 '<input type="text" class="input" data-campo="academy.' + i + '.videos.' + j + '.titulo" ' +
                   'maxlength="140" placeholder="Título da aula" value="' + U.escAttr(v.titulo || "") + '">' +
@@ -301,7 +461,9 @@
                     'maxlength="20" placeholder="4 min" style="max-width:110px" value="' + U.escAttr(v.duracao || "") + '">' +
                 '</span>' +
                 '<span class="ac-aula__estado' + (ok ? " ok" : "") + '">' +
-                  (ok ? "Publicada · capa vem do YouTube" : "Em breve · sem vídeo") + '</span>' +
+                  (ok
+                    ? "Publicada · capa " + (DATA.capaSegura(v.capa) ? "nossa" : "do YouTube")
+                    : "Em breve · sem vídeo") + '</span>' +
               '</span>' +
               '<button type="button" class="ac-mini ac-mini--x" data-remove="academy.' + i + '.videos:' + j +
                 '" aria-label="Remover aula">&#215;</button></div>';
@@ -644,6 +806,13 @@
         return;
       }
 
+      var capa = b.getAttribute("data-capa");
+      if (capa) {
+        var corte = capa.indexOf("|");
+        trocarCapa(capa.slice(corte + 1), capa.slice(0, corte));
+        return;
+      }
+
       var add = b.getAttribute("data-add");
       if (add) {
         var arr = pegar(add);
@@ -677,7 +846,12 @@
         definir(caminho, extraido || el.value.trim());
         var est = el.closest(".ac-aula").querySelector(".ac-aula__estado");
         var ok = ID_YT.test(pegar(caminho));
-        est.textContent = ok ? "Publicada · capa vem do YouTube" : "Em breve · sem vídeo";
+        /* Mesmo texto que `secaoAcademy` monta — se divergirem, o
+           estado muda sozinho ao redesenhar e parece defeito. */
+        var temPropria = !!DATA.capaSegura(pegar(caminho.replace(/\.youtube$/, ".capa")));
+        est.textContent = ok
+          ? "Publicada · capa " + (temPropria ? "nossa" : "do YouTube")
+          : "Em breve · sem vídeo";
         est.classList.toggle("ok", ok);
         if (extraido && el.value.trim() !== extraido) el.value = extraido;
       } else if (el.type === "checkbox") {

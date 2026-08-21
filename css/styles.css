@@ -2019,6 +2019,20 @@ body.tour-aberto{overscroll-behavior:contain}
 }
 .capa--vazia .ic{width:20px;height:20px}
 
+/* Capa + os botões que a trocam, empilhados. A coluna precisa de
+   largura própria: sem ela o flex do .ac-aula espreme os botões
+   contra a capa e o texto quebra letra a letra. */
+.capa-caixa,.previa__capa{
+  display:flex;flex-direction:column;gap:6px;flex:none;align-items:stretch;
+}
+.capa-acoes{display:flex;flex-wrap:wrap;gap:4px}
+/* Os outros .ac-mini são quadradinhos de seta; estes carregam
+   texto, então soltam a largura fixa. */
+.ac-mini--txt{
+  width:auto;height:auto;padding:3px 7px;font-size:10.5px;
+  white-space:nowrap;letter-spacing:.01em;
+}
+
 .previa{display:flex;gap:14px;align-items:flex-start}
 .previa__txt{flex:1;min-width:0}
 .previa__t{font-size:15px;font-weight:660;color:var(--txt);overflow-wrap:anywhere}

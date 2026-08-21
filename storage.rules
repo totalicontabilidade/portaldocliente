@@ -91,11 +91,19 @@ service firebase.storage {
 
     // Capas da Academy e imagens do portal: todo mundo lê,
     // só a equipe publica.
+    //
+    // CREATE E DELETE SEPARADOS, e o motivo é uma armadilha:
+    // `allow write` cobre também a EXCLUSÃO, e numa exclusão não
+    // existe `request.resource` — então `request.resource.size`
+    // reprovava e a equipe nunca conseguia apagar nada. Capa
+    // enviada por engano ficava no bucket para sempre, sem jeito
+    // de tirar a não ser pelo console.
     match /publico/{arquivo=**} {
       allow read: if true;
-      allow write: if ehEquipe()
-                   && request.resource.size <= 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow create, update: if ehEquipe()
+                            && request.resource.size <= 5 * 1024 * 1024
+                            && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if ehEquipe();
     }
 
     match /{tudo=**} {

@@ -858,8 +858,30 @@
   var ID_YT = /^[A-Za-z0-9_-]{11}$/;
   var CAPA_OK = /^[A-Za-z0-9_\-./]{1,160}$/;
 
+  /* CAPA VEM DE DOIS LUGARES, e só desses dois.
+
+     1. Caminho relativo dentro do próprio site (`assets/…`) — é
+        como as capas nasceram, arquivo commitado no repositório.
+     2. Endereço do NOSSO Storage, pasta `publico/` — é o que a
+        equipe consegue enviar pelo painel, sem tocar em código.
+
+     Endereço de fora não entra, e não é preciosismo: `capa` é uma
+     string que vem de arquivo de conteúdo editável, e uma URL
+     qualquer dentro de um `<img>` entrega o IP de cada cliente a
+     quem serviu a imagem. A CSP também barraria — mas não se
+     depende de uma trava só. */
+  function capaDoNossoStorage(c) {
+    var cfg = global.FIREBASE_CONFIG;
+    var bucket = (cfg && typeof cfg.storageBucket === "string") ? cfg.storageBucket : "";
+    if (!bucket) return false;
+    var inicio = "https://firebasestorage.googleapis.com/v0/b/" + bucket + "/o/publico%2F";
+    return c.length <= 600 && c.indexOf(inicio) === 0 && c.indexOf("..") === -1;
+  }
+
   function capaSegura(c) {
-    return (typeof c === "string" && CAPA_OK.test(c) && c.indexOf("..") === -1 &&
+    if (typeof c !== "string" || !c) return "";
+    if (capaDoNossoStorage(c)) return c;
+    return (CAPA_OK.test(c) && c.indexOf("..") === -1 &&
             c.charAt(0) !== "/" && /\.(png|jpe?g|webp)$/i.test(c)) ? c : "";
   }
 
@@ -1040,6 +1062,10 @@
     RELATORIOS_MENSAIS: RELATORIOS_MENSAIS,
     CANAL_RELATORIOS: CANAL_RELATORIOS,
     COMPROMISSO: COMPROMISSO,
-    TERMO: TERMO
+    TERMO: TERMO,
+    /* O portal e o painel precisam do MESMO crivo de capa. Duas
+       cópias da mesma regra viram duas regras diferentes na
+       primeira vez que alguém mexer numa só. */
+    capaSegura: capaSegura
   };
 })(window);
