@@ -427,17 +427,41 @@
           /* Uma empresa por vez, e em fila: sao gravacoes que a
              regra confere uma a uma contra o convite. Se alguma
              falhar, as outras continuam valendo -- melhor entrar
-             em duas de tres do que em nenhuma. */
+             em duas de tres do que em nenhuma.
+
+             MAS ZERO DE UMA NÃO É "SEGUE ADIANTE". Este registro é
+             o que PROVA o vínculo com a empresa; sem nenhum, a
+             conta nasce órfã: existe no Authentication, tem
+             documento em /clientes, e não entra em empresa nenhuma.
+             O `.catch` vazio engolia justamente esse caso.
+
+             Aconteceu no primeiro teste no endereço publicado, em
+             21/08/2026: a conta foi criada, a tela não mudou, e só
+             na segunda tentativa completou. Com a latência real a
+             credencial recém-criada às vezes ainda não vale para o
+             Firestore, e aí a primeira gravação volta negada. */
+          var entrou = 0, ultimoErro = null;
           return convite.empresas.reduce(function (fila, empresaId) {
             return fila.then(function () {
               var ref = db.collection("empresas").doc(empresaId)
                           .collection("acessos").doc(uid);
-              return ref.get().then(function (doc) {
-                if (doc.exists) return null;
-                return ref.set({ codigo: convite.codigo, em: agora() });
-              }).catch(function () { /* segue para a proxima */ });
+              return comTeimosia(function () {
+                return ref.get().then(function (doc) {
+                  if (doc.exists) return null;
+                  return ref.set({ codigo: convite.codigo, em: agora() });
+                });
+              }).then(function () { entrou++; },
+                      function (e) { ultimoErro = e; });
             });
-          }, Promise.resolve());
+          }, Promise.resolve()).then(function () {
+            if (entrou === 0) {
+              /* Erro de verdade, para a tela dizer o que houve e a
+                 pessoa poder tentar de novo. Tentar de novo funciona:
+                 `criarOuEntrar` entra na conta já criada e conclui o
+                 que faltou. */
+              throw (ultimoErro || new Error("acesso-nao-registrado"));
+            }
+          });
         });
       })
       .then(function () {
@@ -503,6 +527,25 @@
     var u = auth && auth.currentUser;
     if (!u) return Promise.resolve();
     return u.getIdToken(true).then(function () {}, function () { /* segue mesmo assim */ });
+  }
+
+  /* Insiste numa gravação que pode esbarrar na credencial fria.
+
+     Renovar o token não é suficiente: o cliente do Firestore
+     continua usando a credencial anterior por um tempo, e a
+     primeira gravação depois de criar a conta volta negada. Está
+     medido neste projeto — já chegou a durar mais de dez segundos.
+
+     Três tentativas com pausa crescente cobrem o caso sem deixar
+     ninguém esperando à toa: se a primeira passa, não custa nada. */
+  function comTeimosia(fazer, restam) {
+    var n = typeof restam === "number" ? restam : 2;
+    return fazer().catch(function (e) {
+      if (n <= 0 || (e && e.code && e.code !== "permission-denied")) throw e;
+      return new Promise(function (r) { setTimeout(r, 900); })
+        .then(aguardarCredencial)
+        .then(function () { return comTeimosia(fazer, n - 1); });
+    });
   }
 
   function entrarComoCliente(email, senha) {
