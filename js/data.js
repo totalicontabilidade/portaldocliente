@@ -14,7 +14,7 @@
   var ORG_PADRAO = {
     nome: "Totali Soluções Contábeis",
     curto: "Totali",
-    email: "cadastro@totalicontabilidade.com.br",
+    email: "contato@totalicontabilidade.com.br",
     telefoneExibicao: "(79) 99841-2107",
     whatsapp: "5579998412107",
     site: "https://www.totalicontabilidade.com.br",

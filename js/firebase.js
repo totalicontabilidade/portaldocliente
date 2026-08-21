@@ -59,6 +59,35 @@
          Envolvido em try próprio: falha de App Check não pode
          derrubar o portal. Enquanto a verificação estiver em
          modo monitoramento, tudo funciona sem ele. */
+      /* TOKEN DE DEPURAÇÃO — só em localhost, e nunca escrito aqui.
+
+         Teste feito em localhost não passa pelo reCAPTCHA: o domínio
+         não está registrado, então cada requisição conta como NÃO
+         VERIFICADA nas métricas do App Check. Enquanto alguém estiver
+         testando local, o número nunca chega a 100% — e aí não dá
+         para distinguir ruído de teste de um cliente sendo recusado
+         de verdade, que é justamente o que a métrica existe para
+         mostrar.
+
+         O token fica no `localStorage` de quem testa, não no código:
+         quem tiver esse valor contorna o App Check, e commitá-lo
+         seria publicar a chave de fuga junto com a fechadura.
+
+         Gerar em: Console → App Check → Apps → o app web →
+         Gerenciar tokens de depuração. Depois, no console do
+         navegador em localhost:
+             localStorage.setItem("totali.appcheck.debug", "<token>")
+
+         A trava é o hostname. No endereço publicado esta linha nunca
+         roda, mesmo que alguém plante o valor no próprio navegador. */
+      var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(global.location.hostname);
+      if (local) {
+        try {
+          var td = global.localStorage.getItem("totali.appcheck.debug");
+          if (td) global.FIREBASE_APPCHECK_DEBUG_TOKEN = td;
+        } catch (eTD) { /* aba privada, segue sem */ }
+      }
+
       if (global.APP_CHECK_SITE_KEY && global.firebase.appCheck) {
         try {
           global.firebase.appCheck().activate(global.APP_CHECK_SITE_KEY, true);
