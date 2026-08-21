@@ -253,9 +253,12 @@
         <span class="usuario__papel">Sua conta</span>
       </span>
     </span>
-    <button type="button" class="hbtn hbtn--gold" id="btnInstalar" hidden>
+    <!-- Só o ícone. O rótulo virou aria-label: quem enxerga entende
+         pelo desenho, e quem usa leitor de tela continua ouvindo o
+         que o botão faz. -->
+    <button type="button" class="hbtn hbtn--gold" id="btnInstalar" hidden
+            aria-label="Instalar o portal no aparelho" title="Instalar o portal no aparelho">
       <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>
-      <span class="hbtn__label">Instalar</span>
     </button>
     <button type="button" class="hbtn" data-nav="ajuda" aria-label="Ajuda">
       <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>

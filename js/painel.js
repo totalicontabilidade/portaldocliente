@@ -139,60 +139,135 @@
      clientes" não ajuda ninguém; "a lista vem ordenada por quem
      está parado há mais tempo" ajuda.
      ============================================================ */
+  /* O tutorial da ROTINA. Vale para todo mundo, e descreve o dia
+     de trabalho na ordem em que ele acontece: chegar, ver o que
+     precisa de você, conferir o que chegou, cobrar o que falta,
+     responder quem escreveu. Nada de explicar a arquitetura do
+     sistema — quem senta aqui quer saber o que fazer agora. */
   var PASSOS = [
     { alvo: null,
       titulo: "Bem-vindo ao painel",
-      texto: "Em um minuto eu mostro onde fica cada coisa. Dá para sair quando quiser, e o " +
-             "botão \"Ver o tutorial\", no topo, traz de volta." },
+      texto: "Em um minuto eu mostro como é o dia aqui dentro. Dá para sair quando quiser, e o " +
+             "botão Tutorial, no topo, traz de volta." },
     { alvo: '.sidenav__item[data-aba="inicio"]',
-      titulo: "Comece sempre pelo Início",
-      texto: "Ele cruza as outras abas e responde uma pergunta só: o que precisa de você agora. " +
-             "Mensagem sem resposta, documento esperando conferência e cliente parado há dias " +
-             "aparecem aqui, em ordem de urgência." },
+      titulo: "Comece sempre por aqui",
+      texto: "O Início responde uma pergunta só: o que precisa de você agora. Ele junta o que " +
+             "está espalhado nas outras abas e põe em ordem de urgência. Se você abrir o painel " +
+             "e não souber por onde começar, é esta a tela." },
     { alvo: '.sidenav__item[data-aba="clientes"]',
-      titulo: "Clientes, do mais parado para o menos",
-      texto: "A lista não é por nome: quem está há mais tempo sem dar sinal fica no topo. " +
-             "Abrir um cliente mostra a ficha dele — documentos, cadastro e conversa." },
+      titulo: "Conferir o que chegou",
+      texto: "A lista vem ordenada por quem está parado há mais tempo, não por nome. Abra um " +
+             "cliente e você vê os documentos dele: aprovar, pedir correção com o motivo, ou " +
+             "tirar a marcação se errou. O que você aprova fica no nome de quem aprovou." },
     { alvo: '.sidenav__item[data-aba="pendencias"]',
-      titulo: "O que falta, e como cobrar",
-      texto: "Aqui fica tudo o que ainda não chegou, empresa por empresa. O botão Cobrar monta " +
-             "o texto pronto com a lista do que falta — você escolhe mandar pelo portal, pelo " +
-             "WhatsApp ou por e-mail." },
+      titulo: "Cobrar o que falta",
+      texto: "Aqui está tudo o que ainda não chegou, empresa por empresa. O botão Cobrar monta " +
+             "o texto pronto com a lista — você escolhe mandar pelo portal, pelo WhatsApp ou " +
+             "por e-mail. Dá para cobrar tudo de uma vez ou só um documento." },
+    { alvo: '.sidenav__item[data-aba="mensagens"]',
+      titulo: "Responder quem escreveu",
+      texto: "Todas as conversas em um lugar, com filtro de não lidas e de a resolver. Quando " +
+             "terminar de tratar uma, marque como resolvida para ela sair da sua frente." },
     { alvo: '.sidenav__item[data-aba="novo"]',
-      titulo: "Para entrar um cliente novo",
-      texto: "Preencha razão social e CNPJ e o painel devolve um link. O cliente abre esse link, " +
+      titulo: "Entrar um cliente novo",
+      texto: "Preencha razão social e CNPJ e o painel devolve um link. O cliente abre o link, " +
              "cria a senha dele e o portal já nasce com os dados certos." },
-    { alvo: '.sidenav__item[data-aba="conteudo"]',
-      titulo: "Nada se muda por código",
-      texto: "Textos, documentos do checklist, vídeos, perguntas frequentes — tudo o que o " +
-             "cliente vê se altera nesta aba." },
     { alvo: "#pnQuem",
       titulo: "Seu nome fica registrado",
-      texto: "Cada documento aprovado e cada senha aberta guarda quem fez e quando. Por isso o " +
-             "acesso é nominal: confira aqui em cima que é você antes de conferir documento." }
+      texto: "Cada documento aprovado e cada senha de maquininha aberta guarda quem fez e " +
+             "quando. Confira aqui em cima que é você antes de conferir documento — e nunca " +
+             "trabalhe na conta de outra pessoa." }
+  ];
+
+  /* O tutorial de ADMINISTRADOR, e só ele. Não repete a rotina:
+     mostra o que muda por ser admin, que é justamente o que a
+     pessoa não descobre sozinha — as três coisas que ela pode
+     fazer e mais ninguém, e o peso de cada uma. */
+  var PASSOS_ADMIN = [
+    { alvo: null,
+      titulo: "Você é administrador",
+      texto: "A rotina é a mesma de todo mundo. O que muda são três poderes que só você tem, e " +
+             "que ninguém da equipe consegue usar. Vou mostrar quais são." },
+    { alvo: '.sidenav__item[data-aba="usuarios"]',
+      titulo: "1. Quem entra no painel",
+      texto: "Só administrador cria, remove ou muda o papel de alguém. Ao desligar uma pessoa, " +
+             "remova a conta dela aqui: o acesso morre na hora. Use e-mail nominal, nunca caixa " +
+             "de setor — é este nome que fica em cada documento aprovado." },
+    { alvo: '.sidenav__item[data-aba="usuarios"]',
+      titulo: "Administrador ou equipe?",
+      texto: "Quem é da equipe faz a rotina inteira: confere documento, cobra, responde, cria " +
+             "cliente e abre senha de maquininha. O que ele NÃO faz é mexer nesta lista nem " +
+             "excluir cliente definitivamente. Na dúvida, cadastre como equipe." },
+    { alvo: '.sidenav__item[data-aba="clientes"]',
+      titulo: "2. Excluir um cliente de vez",
+      texto: "Dentro da ficha, em Encerrar cliente, só você vê o botão de excluir. Ele apaga " +
+             "documentos, mensagens, senhas e o acesso — sem volta e sem backup. Para encerrar " +
+             "atendimento, arquivar resolve e preserva tudo; documento de cliente tem prazo de " +
+             "guarda." },
+    { alvo: '.sidenav__item[data-aba="seguranca"]',
+      titulo: "3. As chaves do canal seguro",
+      texto: "É o par de chaves que deixa o cliente mandar senha sem ela ficar legível. Já está " +
+             "funcionando; você só volta aqui se precisar trocar. Perder a chave privada torna " +
+             "ilegível tudo o que os clientes já enviaram." },
+    { alvo: '.sidenav__item[data-aba="conteudo"]',
+      titulo: "E uma coisa que é sua na prática",
+      texto: "Textos, documentos do checklist, vídeos e perguntas do portal se alteram nesta " +
+             "aba. Toda a equipe pode mexer — mas mudar o checklist muda o que todo cliente " +
+             "precisa enviar, então combine antes." }
   ];
 
   /* Abre sozinho na primeira vez. Se a pessoa sair no meio, conta
      como visto — quem já entendeu não precisa ser interrompido de
      novo, e o botão traz de volta. */
-  function abrirTutorial() {
+  function abrirTutorial(qual) {
     var FB = global.FB;
     if (!global.Tour || global.Tour.aberto) return;
+    var nome = qual === "admin" ? "admin" : "painel";
     global.Tour.iniciar({
-      passos: PASSOS,
-      aoFim: function () { if (FB && FB.marcarTutorialEquipe) FB.marcarTutorialEquipe("painel"); }
+      passos: nome === "admin" ? PASSOS_ADMIN : PASSOS,
+      aoFim: function () { if (FB && FB.marcarTutorialEquipe) FB.marcarTutorialEquipe(nome); }
     });
   }
 
+  /* O botão do cabeçalho. Para quem é da equipe existe um tutorial
+     só, e perguntar qual seria pergunta boba. Para administrador
+     existem dois, e ele precisa conseguir chegar no segundo depois
+     de já ter visto — senão o de administrador some para sempre no
+     dia em que ele o fecha. */
+  function pedirTutorial() {
+    var FB = global.FB;
+    if (!FB || !FB.equipe || FB.equipe.papel !== "admin") { abrirTutorial("painel"); return; }
+
+    UI.modal({
+      titulo: "Ver o tutorial",
+      corpoHTML: '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2)">' +
+        'Qual deles?</p>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        { rotulo: "A rotina do painel", classe: "btn--ghost",
+          onClick: function () { setTimeout(function () { abrirTutorial("painel"); }, 250); } },
+        { rotulo: "O que muda sendo administrador", classe: "btn--primary",
+          onClick: function () { setTimeout(function () { abrirTutorial("admin"); }, 250); } }
+      ]
+    });
+  }
+
+  /* Na primeira vez: a rotina primeiro, para todo mundo. O de
+     administrador vem depois, na visita seguinte — dois tutoriais
+     seguidos no primeiro login seria demais, e o segundo só faz
+     sentido depois de a pessoa ter visto o painel funcionando. */
   function talvezTutorial() {
     var FB = global.FB;
     if (!global.Tour || !FB || !FB.equipe) return;
-    if (FB.tutorialEquipeVisto("painel")) return;
+    var falta = !FB.tutorialEquipeVisto("painel") ? "painel"
+              : (FB.equipe.papel === "admin" && !FB.tutorialEquipeVisto("admin")) ? "admin"
+              : "";
+    if (!falta) return;
     /* Deixa a tela assentar antes de escurecer tudo: abrir o
        tutorial em cima de um painel meio desenhado aponta para
        lugares que ainda vão mudar de posição. */
     setTimeout(function () {
-      if (FB.equipe && !FB.tutorialEquipeVisto("painel")) abrirTutorial();
+      if (FB.equipe && !FB.tutorialEquipeVisto(falta)) abrirTutorial(falta);
     }, 1200);
   }
 
@@ -208,7 +283,7 @@
   function ligar() {
     document.addEventListener("click", function (ev) {
       var t = ev.target.closest("[data-tutorial-painel]");
-      if (t) { ev.preventDefault(); abrirTutorial(); return; }
+      if (t) { ev.preventDefault(); pedirTutorial(); return; }
 
       var b = ev.target.closest("[data-aba]");
       if (!b || b.disabled) return;
