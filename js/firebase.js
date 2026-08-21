@@ -303,7 +303,16 @@
         : [];
       if (lista.indexOf(String(d.empresaId)) === -1) lista.unshift(String(d.empresaId));
 
-      return { codigo: cod, empresaId: String(d.empresaId), empresas: lista.slice(0, 20) };
+      return {
+        codigo: cod,
+        empresaId: String(d.empresaId),
+        empresas: lista.slice(0, 20),
+        /* Nome da empresa, guardado no próprio convite: quem chega
+           por aqui não tem conta e não consegue ler o documento da
+           empresa. Convite antigo não tem este campo, e aí o portal
+           mostra o texto genérico. */
+        nome: typeof d.nome === "string" ? d.nome.slice(0, 120) : ""
+      };
     });
   }
 

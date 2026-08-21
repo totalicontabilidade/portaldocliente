@@ -110,6 +110,20 @@
     return FB.db.collection("convites").doc(codigo).set({
       empresaId: empresaId,
       empresas: [empresaId],
+      /* O NOME VIAJA NO CONVITE, e isso conserta um defeito antigo.
+
+         O portal tentava ler o documento da empresa para dizer
+         "portal de Fulano" na tela de criar acesso. Só que quem
+         chega pelo convite AINDA NÃO TEM CONTA, e a regra da
+         empresa só deixa equipe ou dono lerem — dava
+         permission-denied, e todo cliente de verdade via a
+         mensagem genérica. Passou despercebido porque, testando
+         com a sessão da equipe aberta, o nome aparecia.
+
+         O convite já é legível por quem tem o código (é assim que
+         o fluxo funciona), então o nome é a informação certa para
+         guardar aqui. */
+      nome: String(nomeEmpresa || "").slice(0, 120),
       ativo: true,
       criadoPor: FB.equipe.uid,
       criadoEm: FB.agora()
@@ -327,6 +341,9 @@
           return FB.db.collection("convites").doc(codigo).set({
             empresaId: refEmpresa.id,
             empresas: [refEmpresa.id].concat(extras).slice(0, 20),
+            /* Mesmo motivo do outro ponto que cria convite: quem
+               chega pelo link não consegue ler a empresa. */
+            nome: String(nome || "").slice(0, 120),
             ativo: true,
             criadoPor: FB.equipe.uid,
             criadoEm: FB.agora()

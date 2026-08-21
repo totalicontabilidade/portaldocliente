@@ -4067,17 +4067,24 @@
     /* Com código: mostra a tela de criar acesso, já dizendo de
        qual empresa é o convite. */
     return FB.lerConvite(codigo).then(function (c) {
+      porta.modo = "cadastro";
+      porta.codigo = c.codigo;
+
+      /* O nome vem DO CONVITE, não da empresa. Quem chega por aqui
+         ainda não tem conta, e a regra da empresa só deixa equipe
+         ou dono lerem — a tentativa dava permission-denied e o
+         cliente via "Escolha uma senha para acessar o seu portal"
+         em vez do nome da empresa dele. Passava despercebido porque,
+         testando com a sessão da equipe aberta, o nome aparecia. */
+      if (c.nome) { porta.empresaNome = c.nome; return true; }
+
+      /* Convite antigo, de antes deste campo existir: ainda vale a
+         pena tentar, porque para quem é da equipe a leitura passa. */
       return FB.db.collection("empresas").doc(c.empresaId).get().then(function (doc) {
         var d = doc.exists ? (doc.data() || {}) : {};
-        porta.modo = "cadastro";
-        porta.codigo = c.codigo;
         porta.empresaNome = d.nomeFantasia || d.razaoSocial || "";
         return true;
-      }, function () {
-        porta.modo = "cadastro";
-        porta.codigo = c.codigo;
-        return true;
-      });
+      }, function () { return true; });
     }, function (e) {
       /* Servidor fora do ar: o convite continua válido, só não deu
          para conferir agora. Mandar para o login seria pedir senha
