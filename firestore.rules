@@ -454,8 +454,23 @@ service cloud.firestore {
     // Depois disso, só admin cria outros. Ninguém se promove.
     match /usuarios/{uid} {
       allow read: if (logado() && request.auth.uid == uid) || ehAdmin();
-      allow create, update: if ehAdmin()
-                            && request.resource.data.papel in ['admin', 'equipe'];
+      allow create: if ehAdmin()
+                    && request.resource.data.papel in ['admin', 'equipe'];
+
+      // Quem manda neste documento continua sendo o administrador,
+      // com UMA exceção estreita: cada pessoa marca o próprio
+      // tutorial como visto. Sem isso, quem não é admin veria a
+      // explicação de novo a cada login, para sempre.
+      //
+      // `hasOnly(['tutoriais'])` é o que segura: papel, nome, e-mail
+      // e departamentos não podem mudar por este caminho. Ninguém se
+      // promove marcando que assistiu ao tutorial.
+      allow update: if (ehAdmin() && request.resource.data.papel in ['admin', 'equipe'])
+                    || (logado()
+                        && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['tutoriais']));
+
       allow delete: if ehAdmin() && request.auth.uid != uid;
     }
 

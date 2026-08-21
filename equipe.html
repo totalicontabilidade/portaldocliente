@@ -123,6 +123,12 @@
     <circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.4"/>
     <path d="M12 17h.01"/>
   </symbol>
+  <symbol id="ic-bussola" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="m15.2 8.8-1.9 4.5-4.5 1.9 1.9-4.5z"/>
+  </symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.8h.01"/>
+  </symbol>
   <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 5.5v13l11-6.5z"/>
   </symbol>
@@ -186,6 +192,10 @@
         <span class="usuario__papel" id="pnPapel">—</span>
       </span>
     </span>
+    <button type="button" class="hbtn" data-tutorial-painel="1" aria-label="Ver o tutorial">
+      <svg class="ic" aria-hidden="true"><use href="#ic-bussola"></use></svg>
+      <span class="hbtn__label">Tutorial</span>
+    </button>
     <button type="button" class="hbtn" id="pnSair" aria-label="Sair do painel">
       <svg class="ic" aria-hidden="true"><use href="#ic-sair"></use></svg>
       <span class="hbtn__label">Sair</span>
@@ -759,6 +769,7 @@
 <script defer src="js/cripto.js"></script>
 <script defer src="js/util.js"></script>
 <script defer src="js/ui.js"></script>
+<script defer src="js/tour.js"></script>
 <script defer src="js/conteudo.js"></script>
 <script defer src="js/data.js"></script>
 <script defer src="js/situacao.js"></script>

@@ -144,7 +144,11 @@
              onde a mesma pessoa costuma cobrir tudo. */
           departamentos: (Array.isArray(d.departamentos) ? d.departamentos : [])
             .filter(function (x) { return typeof x === "string" && x; })
-            .slice(0, 20)
+            .slice(0, 20),
+          /* Quais tutoriais esta pessoa já viu. Fica no servidor,
+             igual ao portal do cliente: quem já aprendeu não precisa
+             rever a explicação ao trocar de computador. */
+          tutoriais: (d.tutoriais && typeof d.tutoriais === "object") ? d.tutoriais : {}
         }
       };
     }, function () {
@@ -248,6 +252,35 @@
      internet pode criar conta neste projeto, porque o cadastro
      por e-mail e senha está ligado. Quem manda é o documento em
      /usuarios/{uid}, e esse só admin escreve. */
+  /* Marca um tutorial do painel como visto, para esta pessoa.
+
+     Grava no servidor de propósito — trocar de computador não deve
+     fazer a explicação voltar. A regra do Firestore só deixa mexer
+     no campo `tutoriais` do próprio documento, então isto não é
+     caminho para ninguém mudar o próprio papel.
+
+     Falhar aqui não pode atrapalhar nada: no pior caso o tutorial
+     abre de novo na próxima vez, o que é bem melhor do que um erro
+     na cara de quem acabou de entrar. */
+  function marcarTutorialEquipe(nome) {
+    if (!db || !equipeAtual) return Promise.resolve(false);
+    var chave = String(nome || "").slice(0, 40);
+    if (!chave || equipeAtual.tutoriais[chave]) return Promise.resolve(false);
+
+    var vistos = {};
+    Object.keys(equipeAtual.tutoriais).forEach(function (k) { vistos[k] = equipeAtual.tutoriais[k]; });
+    vistos[chave] = Date.now();
+
+    return db.collection("usuarios").doc(equipeAtual.uid)
+      .set({ tutoriais: vistos }, { merge: true })
+      .then(function () { equipeAtual.tutoriais = vistos; return true; },
+            function () { return false; });
+  }
+
+  function tutorialEquipeVisto(nome) {
+    return !!(equipeAtual && equipeAtual.tutoriais && equipeAtual.tutoriais[String(nome || "")]);
+  }
+
   function criarContaEquipe(email, senha) {
     if (!auth || !global.firebase) return Promise.reject(new Error("sem-conexao"));
     var secundario;
@@ -695,6 +728,8 @@
     observarSessao: observarSessao,
     entrarComoEquipe: entrarComoEquipe,
     criarContaEquipe: criarContaEquipe,
+    marcarTutorialEquipe: marcarTutorialEquipe,
+    tutorialEquipeVisto: tutorialEquipeVisto,
     lerConvite: lerConvite,
     cadastrarCliente: cadastrarCliente,
     entrarComoCliente: entrarComoCliente,

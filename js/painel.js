@@ -122,17 +122,94 @@
 
   function marcarAtencao(quantos) { marcarBadges({ atencao: quantos }); }
 
+  /* ============================================================
+     Tutorial de quem chega agora
+
+     Mesma ideia do portal do cliente, e pelo mesmo motivo: quem
+     abre esta tela pela primeira vez vê oito abas e nenhuma pista
+     de por onde começar. Um passo por assunto, em linguagem de
+     gente, e some quando a pessoa já viu.
+
+     O "já viu" fica no SERVIDOR, no documento da pessoa em
+     /usuarios. Guardar no navegador faria o tutorial voltar toda
+     vez que ela trocasse de computador — e neste escritório isso
+     acontece.
+
+     O texto fala do TRABALHO, não dos botões. "Aqui ficam os
+     clientes" não ajuda ninguém; "a lista vem ordenada por quem
+     está parado há mais tempo" ajuda.
+     ============================================================ */
+  var PASSOS = [
+    { alvo: null,
+      titulo: "Bem-vindo ao painel",
+      texto: "Em um minuto eu mostro onde fica cada coisa. Dá para sair quando quiser, e o " +
+             "botão \"Ver o tutorial\", no topo, traz de volta." },
+    { alvo: '.sidenav__item[data-aba="inicio"]',
+      titulo: "Comece sempre pelo Início",
+      texto: "Ele cruza as outras abas e responde uma pergunta só: o que precisa de você agora. " +
+             "Mensagem sem resposta, documento esperando conferência e cliente parado há dias " +
+             "aparecem aqui, em ordem de urgência." },
+    { alvo: '.sidenav__item[data-aba="clientes"]',
+      titulo: "Clientes, do mais parado para o menos",
+      texto: "A lista não é por nome: quem está há mais tempo sem dar sinal fica no topo. " +
+             "Abrir um cliente mostra a ficha dele — documentos, cadastro e conversa." },
+    { alvo: '.sidenav__item[data-aba="pendencias"]',
+      titulo: "O que falta, e como cobrar",
+      texto: "Aqui fica tudo o que ainda não chegou, empresa por empresa. O botão Cobrar monta " +
+             "o texto pronto com a lista do que falta — você escolhe mandar pelo portal, pelo " +
+             "WhatsApp ou por e-mail." },
+    { alvo: '.sidenav__item[data-aba="novo"]',
+      titulo: "Para entrar um cliente novo",
+      texto: "Preencha razão social e CNPJ e o painel devolve um link. O cliente abre esse link, " +
+             "cria a senha dele e o portal já nasce com os dados certos." },
+    { alvo: '.sidenav__item[data-aba="conteudo"]',
+      titulo: "Nada se muda por código",
+      texto: "Textos, documentos do checklist, vídeos, perguntas frequentes — tudo o que o " +
+             "cliente vê se altera nesta aba." },
+    { alvo: "#pnQuem",
+      titulo: "Seu nome fica registrado",
+      texto: "Cada documento aprovado e cada senha aberta guarda quem fez e quando. Por isso o " +
+             "acesso é nominal: confira aqui em cima que é você antes de conferir documento." }
+  ];
+
+  /* Abre sozinho na primeira vez. Se a pessoa sair no meio, conta
+     como visto — quem já entendeu não precisa ser interrompido de
+     novo, e o botão traz de volta. */
+  function abrirTutorial() {
+    var FB = global.FB;
+    if (!global.Tour || global.Tour.aberto) return;
+    global.Tour.iniciar({
+      passos: PASSOS,
+      aoFim: function () { if (FB && FB.marcarTutorialEquipe) FB.marcarTutorialEquipe("painel"); }
+    });
+  }
+
+  function talvezTutorial() {
+    var FB = global.FB;
+    if (!global.Tour || !FB || !FB.equipe) return;
+    if (FB.tutorialEquipeVisto("painel")) return;
+    /* Deixa a tela assentar antes de escurecer tudo: abrir o
+       tutorial em cima de um painel meio desenhado aponta para
+       lugares que ainda vão mudar de posição. */
+    setTimeout(function () {
+      if (FB.equipe && !FB.tutorialEquipeVisto("painel")) abrirTutorial();
+    }, 1200);
+  }
+
   /* ---------- Entrar e sair ---------- */
   function mostrarPainel(dentro) {
     var painel = $("#painel"), porta = $("#pnPorta"), tabbar = $("#pnTabbar");
     if (painel) painel.hidden = !dentro;
     if (porta) porta.hidden = dentro;
     if (tabbar) tabbar.hidden = !dentro;
-    if (dentro) aplicar(abaDaURL(), true);
+    if (dentro) { aplicar(abaDaURL(), true); talvezTutorial(); }
   }
 
   function ligar() {
     document.addEventListener("click", function (ev) {
+      var t = ev.target.closest("[data-tutorial-painel]");
+      if (t) { ev.preventDefault(); abrirTutorial(); return; }
+
       var b = ev.target.closest("[data-aba]");
       if (!b || b.disabled) return;
       ev.preventDefault();

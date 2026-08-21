@@ -147,9 +147,12 @@
 
   /* ---------- Adicionar ---------- */
   function formularioHTML() {
+    /* Era "senha provisória", e o nome prometia o que o sistema não
+       faz: nada obriga a troca no primeiro acesso. A senha que você
+       digita aqui é a senha da pessoa até ela decidir trocar. */
     return '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:14px">' +
-        'A pessoa recebe uma senha provisória e troca no primeiro acesso, em ' +
-        '"Esqueci minha senha".</p>' +
+        'Combine a senha por um canal separado do e-mail. Quem quiser trocar usa ' +
+        '"Esqueci minha senha" na tela de entrada.</p>' +
       '<div class="field">' +
         '<label class="field__label" for="mbNome">Nome<span class="field__req">*</span></label>' +
         '<input type="text" class="input" id="mbNome" maxlength="120" data-focus ' +
@@ -161,10 +164,9 @@
         '<div class="field__hint">Use e-mail nominal, não caixa de setor. É este nome que fica ' +
           'registrado em cada documento aprovado.</div></div>' +
       '<div class="field">' +
-        '<label class="field__label" for="mbSenha">Senha provisória<span class="field__req">*</span></label>' +
+        '<label class="field__label" for="mbSenha">Senha<span class="field__req">*</span></label>' +
         '<input type="text" class="input" id="mbSenha" maxlength="60" autocomplete="off">' +
-        '<div class="field__hint">Pelo menos 6 caracteres. Combine por um canal seguro e peça ' +
-          'para trocar no primeiro acesso.</div></div>' +
+        '<div class="field__hint">Pelo menos 6 caracteres.</div></div>' +
       '<div class="field">' +
         '<label class="field__label" for="mbPapel">Papel</label>' +
         '<select class="select" id="mbPapel">' +
@@ -295,7 +297,7 @@
     }
     if (!senha || senha.length < 6) {
       $("#mbSenha", m.caixa).focus();
-      UI.toast("A senha provisória precisa ter pelo menos 6 caracteres.", "erro");
+      UI.toast("A senha precisa ter pelo menos 6 caracteres.", "erro");
       return;
     }
 
