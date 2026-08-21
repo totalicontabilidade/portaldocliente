@@ -174,3 +174,59 @@ uma vez:
       curl -fsSL -O "https://raw.githubusercontent.com/totalicontabilidade/portaldocliente/main/ferramentas/$f.js"
     done
     ls -l *.js
+
+---
+
+## zerar-tudo.js — recomeçar do zero absoluto
+
+Apaga **todas** as coleções do Firestore (com subcoleções), **todos**
+os arquivos do Storage e **todas** as contas do Authentication —
+inclusive as suas.
+
+Ele não confia numa lista de coleções escrita à mão: pergunta ao
+banco quais existem. É o que pega coleção antiga, de versão
+anterior, que ninguém lembra que está lá.
+
+    cd ~/totali
+    node zerar-tudo.js                     # só mostra
+    node zerar-tudo.js --apagar            # pede a frase APAGAR TUDO
+    node zerar-tudo.js --apagar --sem-contas    # poupa o Authentication
+    node zerar-tudo.js --apagar --sem-arquivos  # poupa o Storage
+
+### Depois dele, ninguém entra no painel
+
+E o sistema **não se conserta sozinho**: a regra diz que só admin
+cria admin, e não vai sobrar nenhum. Aconteceu em 14/08/2026 por
+acidente; aqui é de propósito.
+
+A volta é pelo console do Firebase, na mão:
+
+**1. Authentication → Users → Add user**
+E-mail e senha do primeiro admin. Depois de criar, **copie o UID**
+que aparece na coluna da direita, na lista de usuários.
+
+**2. Firestore → Iniciar coleção → `usuarios`**
+No campo *ID do documento*, **cole o UID** do passo 1. Não use o ID
+automático — a regra procura o documento pelo uid de quem está
+logado, então um ID qualquer não serve para nada.
+
+Campos:
+
+| campo | tipo | valor |
+|---|---|---|
+| `nome` | string | seu nome |
+| `email` | string | o mesmo do passo 1 |
+| `papel` | string | `admin` |
+
+**3. Abra `equipe.html` e entre.** A partir daí o painel cria os
+outros membros sozinho, em Usuários → Adicionar membro.
+
+Se entrar e o painel disser que a conta não tem acesso: o ID do
+documento não é o uid, ou `papel` não está exatamente `admin`.
+
+### O que ele não toca
+
+Regras do Firestore e do Storage, Cloud Functions, App Check, o
+segredo `chave-privada-credenciais` no Secret Manager e o par de
+chaves em `js/chave-publica.js`. Nada disso é dado de cliente, e
+refazer sem precisar só cria chance de quebrar o que funciona.
