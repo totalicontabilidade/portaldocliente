@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v55";
+var VERSAO = "v56";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -105,6 +105,14 @@ function guardavel(resp) {
   return resp && resp.status === 200 && resp.type === "basic";
 }
 
+/* Sob qual chave esta navegação deve ser guardada. Só existem
+   duas páginas no projeto; qualquer outra rota cai no portal. */
+function paginaDe(url) {
+  try {
+    return /equipe\.html$/i.test(new URL(url).pathname) ? "./equipe.html" : "./index.html";
+  } catch (e) { return "./index.html"; }
+}
+
 /* O que é código do aplicativo e precisa estar sempre atual. */
 function ehCodigo(url) {
   try { return /\.(js|css|webmanifest)$/i.test(new URL(url).pathname); }
@@ -116,18 +124,32 @@ self.addEventListener("fetch", function (ev) {
 
   if (req.method !== "GET" || !mesmaOrigem(req)) return;
 
-  /* Navegação: rede primeiro. */
+  /* Navegação: rede primeiro.
+
+     CADA PÁGINA NO SEU PRÓPRIO LUGAR. Antes, toda navegação era
+     guardada sob a chave "./index.html" — inclusive a do painel.
+     Bastava alguém da equipe abrir o equipe.html para o portal do
+     cliente, naquele aparelho, passar a abrir o PAINEL quando
+     estivesse sem internet. Não vazava nada (o painel exige login
+     e servidor), mas era a tela errada na hora errada. */
   if (req.mode === "navigate") {
+    var pagina = paginaDe(req.url);
     ev.respondWith(
       fetch(req).then(function (resp) {
         if (guardavel(resp)) {
           var copia = resp.clone();
-          caches.open(CACHE).then(function (c) { c.put("./index.html", copia); });
+          caches.open(CACHE).then(function (c) { c.put(pagina, copia); });
         }
         return resp;
       }).catch(function () {
-        return caches.match("./index.html").then(function (r) {
-          return r || caches.match("./");
+        /* O painel não entra no SHELL de propósito: ele é ferramenta
+           da equipe e não faz sentido pesar no aparelho de todo
+           cliente. Sem rede e sem cópia dele, cai no portal. */
+        return caches.match(pagina).then(function (r) {
+          if (r) return r;
+          return caches.match("./index.html").then(function (r2) {
+            return r2 || caches.match("./");
+          });
         });
       })
     );

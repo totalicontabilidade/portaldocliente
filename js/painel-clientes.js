@@ -3446,7 +3446,7 @@
     });
   }
 
-  var LIMITE_SENHA_MS = 25000;
+  var LIMITE_SENHA_MS = 45000;
 
   function abrirCredencial(chave) {
     var c = aberto;
@@ -3464,10 +3464,22 @@
       var ref = FB.db.collection("pedidosDeSenha").doc();
       var parar = null, relogio = null;
 
-      /* Escuta a resposta chegar. A função grava no mesmo
-         documento, e o onSnapshot avisa na hora — sem ficar
-         perguntando de segundo em segundo. */
-      parar = ref.onSnapshot(function (doc) {
+      /* GRAVA PRIMEIRO, ESCUTA DEPOIS — e a ordem não é estilo.
+
+         A regra de leitura desta coleção é
+         `resource.data.pedidoPor == request.auth.uid`. Num
+         documento que AINDA NÃO EXISTE não há `resource`, então a
+         regra reprova e o Firestore derruba a escuta na hora. Era
+         o que acontecia: o pedido ia, a função respondia certo, e
+         o painel nunca via a resposta — só o aviso genérico "não
+         foi possível acompanhar o pedido".
+
+         Escutando depois da gravação, a primeira notificação já
+         traz o documento existente. Se a função for mais rápida
+         que a escuta, melhor ainda: o snapshot inicial vem com a
+         resposta pronta. */
+      var escutar = function () {
+        parar = ref.onSnapshot(function (doc) {
         if (!doc.exists) return;
         var d = doc.data() || {};
         if (!d.concluidoEm) return;
@@ -3484,15 +3496,19 @@
         }, function () {
           soltar("A resposta chegou, mas esta aba não conseguiu abri-la. Recarregue a página.");
         });
-      }, function () {
-        if (relogio) { clearTimeout(relogio); relogio = null; }
-        soltar("Não foi possível acompanhar o pedido.");
-      });
+        }, function () {
+          if (relogio) { clearTimeout(relogio); relogio = null; }
+          soltar("Não foi possível acompanhar o pedido.");
+        });
 
-      relogio = setTimeout(function () {
-        if (parar) { parar(); parar = null; }
-        soltar("O servidor não respondeu a tempo. Tente de novo.");
-      }, LIMITE_SENHA_MS);
+        /* Folga para a primeira abertura do dia: função de 2ª
+           geração acorda do zero e ainda busca a chave no Secret
+           Manager. As seguintes respondem em segundos. */
+        relogio = setTimeout(function () {
+          if (parar) { parar(); parar = null; }
+          soltar("O servidor não respondeu a tempo. Tente de novo.");
+        }, LIMITE_SENHA_MS);
+      };
 
       return ref.set({
         pedidoPor: (equipe && equipe.uid) || "",
@@ -3500,9 +3516,7 @@
         chave: global.Nuvem.codificar(chave),
         chavePublica: par.publica,
         em: FB.agora()
-      }).catch(function (e) {
-        if (parar) { parar(); parar = null; }
-        if (relogio) { clearTimeout(relogio); relogio = null; }
+      }).then(escutar, function (e) {
         soltar("Não foi possível pedir: " + FB.explicar(e));
       });
     }, function () {

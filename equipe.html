@@ -586,20 +586,32 @@
 
         <ol class="passos">
           <li>Gere o par abaixo. A chave privada nunca sai deste navegador até você baixá-la.</li>
-          <li>Baixe a chave privada e guarde em cofre de senhas, com uma cópia offline. É a única
-            forma de ler o que os clientes enviarem.</li>
+          <li>Baixe a chave privada e guarde em cofre de senhas, com uma cópia offline.</li>
           <li>Copie a chave pública e cole em <code>js/chave-publica.js</code>, no lugar do
             <code>null</code>.</li>
+          <li>Suba a chave privada para o Secret Manager, no segredo
+            <code>chave-privada-credenciais</code> — é de lá que o servidor lê para abrir as
+            senhas quando alguém da equipe clica em <strong>Ver senha</strong>. O passo a passo
+            está em <code>ferramentas/LEIAME.md</code>.</li>
           <li>Publique. A partir daí o portal passa a aceitar senhas.</li>
         </ol>
+
+        <div class="notice" style="margin:16px 0">
+          <span class="notice__icon">
+            <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>
+          </span>
+          <span><strong>Quem abre as senhas.</strong> Qualquer pessoa da equipe, pelo botão
+          <strong>Ver senha</strong> na ficha do cliente — sem precisar de arquivo de chave.
+          Quem abre o envelope é o servidor, e cada abertura fica registrada com nome e hora.</span>
+        </div>
 
         <div class="notice notice--warn" style="margin:16px 0">
           <span class="notice__icon">
             <svg class="ic" aria-hidden="true"><use href="#ic-alert"></use></svg>
           </span>
-          <span><strong>Perdeu a chave privada, perdeu o acesso.</strong> Não há recuperação —
-          é isso que garante que ninguém mais consiga ler. Gere de novo só se for recomeçar do
-          zero: uma chave nova não abre o que foi enviado com a anterior.</span>
+          <span><strong>Perdeu a chave privada, perdeu o acesso.</strong> Guarde a cópia no cofre
+          mesmo depois de subir para o Secret Manager. Não há recuperação, e uma chave nova não
+          abre o que foi enviado com a anterior.</span>
         </div>
 
         <button type="button" class="btn btn--primary" id="kGerar">Gerar par de chaves</button>

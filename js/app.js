@@ -302,6 +302,7 @@
       }).then(function () {
         porta.modo = "";
         porta.codigo = "";
+        esquecerConvite();
         render();
         UI.toast("Tudo certo. Bem-vindo!", "ok");
       }, function (e) {
@@ -3987,12 +3988,56 @@
     return tentar(3);
   }
 
+  /* O convite não pode sumir por causa de rede.
+
+     O código sai da barra de endereço assim que é lido — isso é
+     de propósito, porque endereço fica em histórico e em captura
+     de tela. Só que, se a leitura no servidor falhasse logo em
+     seguida, o cliente ficava sem saída: ele AINDA NÃO TEM CONTA,
+     e o link acabara de sumir da tela. Precisava pedir outro.
+
+     Por isso o código fica guardado na sessão desta aba. Atualizar
+     a página recupera o convite, que é exatamente o que a mensagem
+     de erro manda fazer. Some quando a conta é criada, ou quando o
+     servidor diz que o convite não vale mais. */
+  var CHAVE_CONVITE = "totali.convite.k";
+
+  function guardarConvite(cod) {
+    try { sessionStorage.setItem(CHAVE_CONVITE, cod); } catch (e) { /* aba privada */ }
+  }
+  function conviteGuardado() {
+    try { return sessionStorage.getItem(CHAVE_CONVITE) || null; } catch (e) { return null; }
+  }
+  function esquecerConvite() {
+    try { sessionStorage.removeItem(CHAVE_CONVITE); } catch (e) { /* segue */ }
+  }
+
+  /* Falha de rede é diferente de convite inválido.
+
+     `lerConvite` rejeita tanto quando o convite já foi usado
+     quanto quando o servidor não respondeu. Tratar os dois casos
+     igual mandava para a tela de LOGIN alguém que não tem conta
+     nenhuma — o pior desfecho possível para quem está chegando. */
+  function conviteFalhouPorRede(e) {
+    var cod = String((e && e.code) || "");
+    var msg = String((e && e.message) || "");
+    return msg === "sem-conexao" ||
+           cod.indexOf("unavailable") >= 0 ||
+           cod.indexOf("deadline-exceeded") >= 0 ||
+           cod.indexOf("resource-exhausted") >= 0 ||
+           cod.indexOf("internal") >= 0;
+  }
+
   function aplicarConviteDoServidor() {
     var FB = global.FB;
     if (!FB || !FB.ligado) return Promise.resolve(false);
 
     var codigo = null;
     try { codigo = new URLSearchParams(location.search).get("k"); } catch (e) { codigo = null; }
+
+    var veioDaURL = !!codigo;
+    if (veioDaURL) guardarConvite(codigo);
+    else codigo = conviteGuardado();
 
     /* Sem código: ou já existe sessão aberta neste aparelho, ou
        a pessoa precisa entrar. Com o servidor no ar, o portal é
@@ -4019,7 +4064,9 @@
       });
     }
 
-    try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+    if (veioDaURL) {
+      try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+    }
 
     /* Com código: mostra a tela de criar acesso, já dizendo de
        qual empresa é o convite. */
@@ -4036,8 +4083,28 @@
         return true;
       });
     }, function (e) {
+      /* Servidor fora do ar: o convite continua válido, só não deu
+         para conferir agora. Mandar para o login seria pedir senha
+         a quem ainda não tem conta. */
+      if (conviteFalhouPorRede(e)) {
+        /* Deixa a porta CERTA aberta: quem chegou por convite vem
+           criar acesso, não entrar. O nome da empresa fica de fora
+           porque não deu para lê-lo — e tentar de novo é só tocar
+           em "Criar meu acesso", que confere o convite no servidor
+           antes de criar a conta. */
+        porta.modo = "cadastro";
+        porta.codigo = codigo;
+        porta.empresaNome = "";
+        setTimeout(function () {
+          UI.toast("A conexão com o servidor está instável. O seu convite continua " +
+                   "guardado — tente criar o acesso de novo em alguns segundos.", "erro", 12000);
+        }, 600);
+        return true;
+      }
+
       /* Convite já usado: provavelmente é o próprio cliente
          reabrindo o link antigo. Manda para o login. */
+      esquecerConvite();
       var msg = FB.explicar(e);
       return retomarComPaciencia().then(function (r) {
         if (r.estado === "pronto") return descobrirEmpresas().then(entrarNaEmpresa);
