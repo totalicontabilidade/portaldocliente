@@ -47,7 +47,14 @@
   var VERDE = [46, 125, 90];
 
   function disponivel() {
-    return !!(global.jspdf && global.jspdf.jsPDF);
+    return true;   /* chega quando alguém pede o PDF */
+  }
+
+  function garantirJsPDF() {
+    if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
+    return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
+      if (!(global.jspdf && global.jspdf.jsPDF)) throw new Error("jspdf-nao-carregou");
+    });
   }
 
   /* As fontes embutidas descartam travessão, aspas curvas e
@@ -204,9 +211,9 @@
      Desenho
      ------------------------------------------------------------ */
   function gerar(c) {
-    if (!disponivel()) return Promise.reject(new Error("biblioteca-pdf-indisponivel"));
-
-    return lerTrilha(c.id).then(function (trilha) {
+    return garantirJsPDF().then(function () {
+      return lerTrilha(c.id);
+    }).then(function (trilha) {
       var d = reunir(c, trilha);
       var ORG = global.DATA.ORG;
       var em = Date.now();

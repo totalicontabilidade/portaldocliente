@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v59";
+var VERSAO = "v61";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -42,14 +42,22 @@ var SHELL = [
   "./js/tour.js",
   "./js/motion.js",
   "./js/notificacoes.js",
-  "./lib/jspdf.umd.min.js",
+  /* O jsPDF (357 KB) saiu daqui de propósito. Ele é a maior peça
+     do projeto e só serve quando alguém pede um PDF — guardá-lo na
+     primeira visita custava mais que todo o resto do portal junto,
+     em cima de quem está no celular na rua. Passa a ser buscado na
+     hora do uso, e a partir daí fica no cache como qualquer outro
+     arquivo de código. */
   "./js/termo.js",
   "./js/app.js",
   "./js/pwa.js",
   "./manifest.webmanifest",
   "./assets/totali-simbolo.png",
   "./assets/totali-portal-branca.png",
-  "./assets/totali-portal-cor.png",
+  /* A versão colorida saiu daqui: desde que os três PDFs passaram a
+     usar a branca, nenhum código a pede mais. Eram 120 KB baixados
+     na primeira visita de todo cliente para nada. O arquivo continua
+     no repositório — só deixou de ser adiantado. */
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/favicon-32.png",

@@ -17,8 +17,19 @@
   var TINTA = [32, 44, 58];
   var CINZA = [110, 125, 140];
 
+  /* A biblioteca só é baixada quando alguém pede um PDF — são
+     357 KB que não fazem falta para abrir o portal. Por isso
+     `disponivel()` responde que SIM antes de ela existir: ela
+     chega quando for preciso. */
   function jsPDFdisponivel() {
-    return !!(global.jspdf && global.jspdf.jsPDF);
+    return true;
+  }
+
+  function garantirJsPDF() {
+    if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
+    return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
+      if (!(global.jspdf && global.jspdf.jsPDF)) throw new Error("jspdf-nao-carregou");
+    });
   }
 
   /* A logo entra como imagem; se por algum motivo não carregar,
@@ -61,14 +72,11 @@
 
   /* dados: { empresa, cnpj, protocolo, maquinetas[], em } */
   function gerar(dados) {
-    if (!jsPDFdisponivel()) {
-      return Promise.reject(new Error("biblioteca-pdf-indisponivel"));
-    }
     var T = global.DATA.TERMO;
     var ORG = global.DATA.ORG;
     var em = dados.em || Date.now();
 
-    return carregarLogo().then(function (logo) {
+    return garantirJsPDF().then(carregarLogo).then(function (logo) {
       var JS = global.jspdf.jsPDF;
       var doc = new JS({ unit: "mm", format: "a4", compress: true });
       var L = 20;                      /* margem esquerda   */

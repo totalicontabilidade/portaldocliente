@@ -308,6 +308,46 @@
     return new TextDecoder().decode(bytes);
   }
 
+  /* ------------------------------------------------------------
+     Carregar biblioteca só na hora de usar
+
+     O jsPDF tem 357 KB — é o maior arquivo do projeto, maior que
+     todo o Firestore SDK. Ele estava sendo baixado no começo das
+     DUAS páginas, antes de a tela de entrada aparecer, para uma
+     coisa que só acontece quando alguém pede um PDF. Era o
+     principal motivo de o portal demorar a abrir na primeira
+     visita, ainda mais em celular na rua.
+
+     Só do mesmo domínio: a CSP tem `script-src 'self'` e recusaria
+     endereço de fora de qualquer jeito, mas quem escrever aqui
+     depois merece ler isso antes de tentar.
+     ------------------------------------------------------------ */
+  var scriptsPedidos = {};
+
+  function carregarScript(src) {
+    if (scriptsPedidos[src]) return scriptsPedidos[src];
+
+    scriptsPedidos[src] = new Promise(function (ok, falhou) {
+      if (/^[a-z]+:/i.test(src) || src.charAt(0) === "/") {
+        falhou(new Error("só carrega script do próprio site"));
+        return;
+      }
+      var el = document.createElement("script");
+      el.src = src;
+      el.async = true;
+      el.onload = function () { ok(); };
+      el.onerror = function () {
+        /* Deixa tentar de novo: sem isso, uma falha de rede
+           passageira condenaria a função para sempre nesta aba. */
+        delete scriptsPedidos[src];
+        falhou(new Error("não foi possível carregar " + src));
+      };
+      document.head.appendChild(el);
+    });
+
+    return scriptsPedidos[src];
+  }
+
   global.U = {
     esc: esc,
     escAttr: escAttr,
@@ -338,6 +378,7 @@
     b64urlParaTexto: b64urlParaTexto,
     MAX_ARQUIVO: MAX_ARQUIVO,
     MAX_TOTAL: MAX_TOTAL,
-    ACCEPT_ATTR: ACCEPT_ATTR
+    ACCEPT_ATTR: ACCEPT_ATTR,
+    carregarScript: carregarScript
   };
 })(window);

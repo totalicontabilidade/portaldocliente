@@ -2019,6 +2019,41 @@ body.tour-aberto{overscroll-behavior:contain}
 }
 .capa--vazia .ic{width:20px;height:20px}
 
+/* ============================================================
+   Caixa que abre e fecha, no editor de conteúdo
+
+   Serve para trilha da Academy, departamento do checklist, banco,
+   maquininha e pergunta frequente — todas as listas que ficaram
+   longas demais para caber na tela abertas.
+
+   O cabeçalho é BOTÃO e ocupa a linha inteira: alvo grande é o que
+   faz isso funcionar no celular. Os controles de ordem e o remover
+   ficam FORA dele, senão tocar em "subir" abriria a caixa junto.
+   ============================================================ */
+.rec{
+  border:1px solid var(--stroke);border-radius:12px;
+  background:rgba(255,255,255,.02);margin-bottom:10px;overflow:hidden;
+}
+.rec--aberta{border-color:var(--stroke-2,var(--stroke));background:rgba(255,255,255,.035)}
+.rec__topo{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.rec__cab{
+  flex:1;min-width:0;display:flex;align-items:center;gap:10px;
+  background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;
+}
+.rec__seta{color:var(--txt-4);transition:transform .25s var(--ease-out);flex:none;display:flex}
+.rec__seta .ic{width:18px;height:18px}
+.rec--aberta .rec__seta{transform:rotate(180deg);color:var(--gold-2)}
+.rec__txt{min-width:0;flex:1}
+.rec__t{
+  display:block;font-size:14px;font-weight:650;color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.rec__d{
+  display:block;font-size:12px;color:var(--txt-3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.rec__corpo{padding:0 12px 14px;border-top:1px solid var(--stroke);padding-top:14px}
+
 /* Capa + os botões que a trocam, empilhados. A coluna precisa de
    largura própria: sem ela o flex do .ac-aula espreme os botões
    contra a capa e o texto quebra letra a letra. */

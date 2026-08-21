@@ -58,8 +58,15 @@
     pendente: "Não enviado"
   };
 
-  function disponivel() {
-    return !!(global.jspdf && global.jspdf.jsPDF);
+  /* A biblioteca chega quando alguém pede o PDF — são 357 KB fora
+     do caminho de abrir o painel. */
+  function disponivel() { return true; }
+
+  function garantirJsPDF() {
+    if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
+    return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
+      if (!(global.jspdf && global.jspdf.jsPDF)) throw new Error("jspdf-nao-carregou");
+    });
   }
 
   /* As fontes embutidas do PDF só conhecem a tabela latina. Letra
@@ -222,13 +229,11 @@
      Desenho
      ------------------------------------------------------------ */
   function gerar(c) {
-    if (!disponivel()) return Promise.reject(new Error("biblioteca-pdf-indisponivel"));
-
     var d = reunir(c);
     var ORG = global.DATA.ORG;
     var em = Date.now();
 
-    return carregarLogo().then(function (logo) {
+    return garantirJsPDF().then(carregarLogo).then(function (logo) {
       var JS = global.jspdf.jsPDF;
       var doc = new JS({ unit: "mm", format: "a4", compress: true });
 

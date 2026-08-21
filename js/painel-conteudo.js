@@ -130,6 +130,40 @@
       (dica ? '<div class="field__hint">' + U.esc(dica) + '</div>' : '') + '</div>';
   }
 
+  /* ------------------------------------------------------------
+     Caixa que abre e fecha
+
+     Nasceu de um pedido do Raoni: as listas do editor de conteúdo
+     ficaram longas demais. São 21 bancos, 9 maquininhas, 5
+     departamentos com 26 documentos, 5 trilhas com 20 aulas e uma
+     dúzia de perguntas — tudo aberto ao mesmo tempo, achar o que
+     se quer virava rolagem.
+
+     Um helper só, e não quatro cópias parecidas: quando alguém
+     mudar o jeito de recolher, muda em um lugar. O estado mora em
+     `abertos`, que já existia para o editor de documento, e a
+     chave leva ponto porque é assim que o tratador de cliques
+     distingue "recolher um item" de "trocar de seção".
+     ------------------------------------------------------------ */
+  function caixaRecolhivel(o) {
+    var aberto = !!abertos[o.chave];
+    return '<div class="rec' + (aberto ? " rec--aberta" : "") + '">' +
+      '<div class="rec__topo">' +
+        (o.antes || "") +
+        '<button type="button" class="rec__cab" data-secao="' + U.escAttr(o.chave) + '" ' +
+          'aria-expanded="' + (aberto ? "true" : "false") + '">' +
+          '<span class="rec__seta" aria-hidden="true">' + UI.icone("ic-chevron-down") + '</span>' +
+          '<span class="rec__txt">' +
+            '<span class="rec__t">' + U.esc(o.titulo || "(sem nome)") + '</span>' +
+            (o.resumo ? '<span class="rec__d">' + U.esc(o.resumo) + '</span>' : '') +
+          '</span>' +
+        '</button>' +
+        (o.depois || "") +
+      '</div>' +
+      (aberto ? '<div class="rec__corpo">' + o.corpo() + '</div>' : '') +
+    '</div>';
+  }
+
   /* ---------- Catálogo de bancos e maquininhas ----------
 
      Veio do checklist financeiro na atualização de 2026-08-18. Cada
@@ -142,28 +176,33 @@
   function catalogoHTML(prefixo, lista, comModoContador, preposicao) {
     return (lista || []).map(function (item, i) {
       var p = prefixo + "." + i;
-      return '<div class="ac-item">' +
-        '<div class="ac-item__topo">' +
-          '<input type="text" class="input" data-campo="' + U.escAttr(p + ".nome") + '" ' +
-            'maxlength="80" value="' + U.escAttr(item.nome || "") + '" placeholder="Nome">' +
-          ordemBtns(prefixo, i) +
+      return caixaRecolhivel({
+        chave: p,
+        titulo: item.nome || "(sem nome)",
+        resumo: (item.semCredencial ? "Modo Contador · " : "") +
+                (item.orientacao ? "com orientação" : "sem orientação"),
+        depois: ordemBtns(prefixo, i) +
           '<button type="button" class="ac-mini ac-mini--x" data-remove="' +
-            U.escAttr(prefixo + ":" + i) + '" aria-label="Remover">&#215;</button>' +
-        '</div>' +
-        (comModoContador
-          ? '<label class="row" style="gap:9px;cursor:pointer;margin:8px 0">' +
-              '<input type="checkbox" data-campo="' + U.escAttr(p + ".semCredencial") + '" ' +
-                'style="width:18px;height:18px"' + (item.semCredencial ? " checked" : "") + '>' +
-              '<span class="text-sm" style="color:var(--txt-2)">Modo Contador — libera a ' +
-                'contabilidade pelo próprio aplicativo, sem login e senha</span></label>'
-          : '') +
-        campo("Como liberar o acesso " + preposicao + " " + (item.nome || "instituição"),
-              p + ".orientacao", item.orientacao, {
-          linhas: 4, max: 1500,
-          dica: "Só aparece para quem marcar esta opção. Uma linha por passo — linhas que " +
-                "começam com traço ou número viram lista numerada."
-        }) +
-      '</div>';
+            U.escAttr(prefixo + ":" + i) + '" aria-label="Remover">&#215;</button>',
+        corpo: function () {
+          return '<div class="field"><label class="field__label">Nome</label>' +
+              '<input type="text" class="input" data-campo="' + U.escAttr(p + ".nome") + '" ' +
+                'maxlength="80" value="' + U.escAttr(item.nome || "") + '" placeholder="Nome"></div>' +
+            (comModoContador
+              ? '<label class="row" style="gap:9px;cursor:pointer;margin:8px 0">' +
+                  '<input type="checkbox" data-campo="' + U.escAttr(p + ".semCredencial") + '" ' +
+                    'style="width:18px;height:18px"' + (item.semCredencial ? " checked" : "") + '>' +
+                  '<span class="text-sm" style="color:var(--txt-2)">Modo Contador — libera a ' +
+                    'contabilidade pelo próprio aplicativo, sem login e senha</span></label>'
+              : '') +
+            campo("Como liberar o acesso " + preposicao + " " + (item.nome || "instituição"),
+                  p + ".orientacao", item.orientacao, {
+              linhas: 4, max: 1500,
+              dica: "Só aparece para quem marcar esta opção. Uma linha por passo — linhas que " +
+                    "começam com traço ou número viram lista numerada."
+            });
+        }
+      });
     }).join("") +
     '<button type="button" class="btn btn--quiet btn--sm" data-add="' + U.escAttr(prefixo) + '">' +
       'Adicionar</button>';
@@ -423,22 +462,22 @@
     return (C.academy || []).map(function (t, i) {
       var pub = (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); }).length;
       var primeira = (t.videos || []).filter(function (v) { return ID_YT.test(v.youtube); })[0];
-      return '<div class="ac-trilha">' +
-        '<div class="ac-trilha__topo">' + ordemBtns("academy", i) +
-          '<span class="capa-caixa">' +
+      return caixaRecolhivel({
+        chave: "academy." + i,
+        titulo: t.titulo || "(sem título)",
+        resumo: pub + " de " + (t.videos || []).length + " publicadas",
+        antes: '<span class="capa-caixa">' +
             /* Sem capa própria, a trilha herda a do 1º vídeo
                publicado — é o que o portal mostra. */
             capaDe(t.capa ? t : { capa: "", youtube: primeira ? primeira.youtube : "" },
                    "capa--trilha") +
             botoesCapa("academy." + i, t) +
-          '</span>' +
-          '<span style="flex:1;min-width:0">' +
-            '<span class="ac-trilha__t">' + U.esc(t.titulo || "(sem título)") + '</span>' +
-            '<span class="ac-trilha__d">' + pub + ' de ' + (t.videos || []).length + ' publicadas</span>' +
-          '</span>' +
-          '<button type="button" class="btn btn--quiet btn--sm" data-remove="academy:' + i + '">Remover</button>' +
-        '</div>' +
-        '<div class="grid-2">' +
+          '</span>',
+        depois: ordemBtns("academy", i) +
+          '<button type="button" class="ac-mini ac-mini--x" data-remove="academy:' + i + '" ' +
+            'aria-label="Remover trilha">&#215;</button>',
+        corpo: function () {
+          return '<div class="grid-2">' +
           campo("Título", "academy." + i + ".titulo", t.titulo, { max: 120 }) +
           campo("Etiqueta", "academy." + i + ".kicker", t.kicker, { max: 40 }) +
         '</div>' +
@@ -470,7 +509,9 @@
           }).join("") +
           '<button type="button" class="btn btn--ghost btn--sm" data-add="academy.' + i + '.videos">' +
             'Adicionar aula</button>' +
-        '</div></div>';
+        '</div>';
+        }
+      });
     }).join("") +
     '<button type="button" class="btn btn--ghost btn--sm" data-add="academy">Adicionar trilha</button>';
   }
@@ -487,18 +528,18 @@
         '<span>Mexer aqui muda o que o cliente precisa enviar. Documento removido some da lista, ' +
         'mas o que já foi enviado continua guardado.</span></div>' +
       (C.grupos || []).map(function (g, i) {
-        return '<div class="ac-trilha">' +
-          '<div class="ac-trilha__topo">' + ordemBtns("grupos", i) +
-            '<span class="group__icon" style="width:38px;height:38px;border-radius:11px;flex:none">' +
-              UI.icone(g.icone || "ic-file") + '</span>' +
-            '<span style="flex:1;min-width:0">' +
-              '<span class="ac-trilha__t">' + U.esc(g.titulo || "(sem título)") + '</span>' +
-              '<span class="ac-trilha__d">' + (g.itens || []).length + ' documentos · ' +
-                (g.escopo === "socio" ? "por sócio" : "por empresa") + '</span>' +
-            '</span>' +
-            '<button type="button" class="btn btn--quiet btn--sm" data-remove="grupos:' + i + '">Remover</button>' +
-          '</div>' +
-          '<div class="grid-2">' +
+        return caixaRecolhivel({
+          chave: "grupos." + i,
+          titulo: g.titulo || "(sem título)",
+          resumo: (g.itens || []).length + " documentos · " +
+                  (g.escopo === "socio" ? "por sócio" : "por empresa"),
+          antes: '<span class="group__icon" style="width:38px;height:38px;border-radius:11px;flex:none">' +
+              UI.icone(g.icone || "ic-file") + '</span>',
+          depois: ordemBtns("grupos", i) +
+            '<button type="button" class="ac-mini ac-mini--x" data-remove="grupos:' + i + '" ' +
+              'aria-label="Remover departamento">&#215;</button>',
+          corpo: function () {
+            return '<div class="grid-2">' +
             campo("Nome do departamento", "grupos." + i + ".titulo", g.titulo, { max: 80 }) +
             selecao("Ícone", "grupos." + i + ".icone", g.icone, ICONES) +
           '</div>' +
@@ -569,24 +610,31 @@
             }).join("") +
             '<button type="button" class="btn btn--ghost btn--sm" data-add="grupos.' + i + '.itens">' +
               'Adicionar documento</button>' +
-          '</div></div>';
+          '</div>';
+          }
+        });
       }).join("") +
       '<button type="button" class="btn btn--ghost btn--sm" data-add="grupos">Adicionar departamento</button>';
   }
 
   function secaoFaq() {
     return (C.faq || []).map(function (f, i) {
-      return '<div class="ac-aula" style="flex-direction:column;align-items:stretch">' +
-        '<div class="row" style="gap:10px;flex-wrap:nowrap;margin-bottom:10px">' +
-          ordemBtns("faq", i) +
-          '<span class="ac-aula__n" style="margin-top:0">' + (i + 1) + '</span>' +
-          '<span style="flex:1"></span>' +
+      var resposta = String(f.a || "");
+      return caixaRecolhivel({
+        chave: "faq." + i,
+        titulo: f.q || "(sem pergunta)",
+        /* Um pedaço da resposta no cabeçalho: dá para achar a
+           pergunta certa sem abrir uma por uma. */
+        resumo: resposta ? resposta.slice(0, 80) + (resposta.length > 80 ? "…" : "") : "sem resposta",
+        antes: '<span class="ac-aula__n" style="margin-top:0">' + (i + 1) + '</span>',
+        depois: ordemBtns("faq", i) +
           '<button type="button" class="ac-mini ac-mini--x" data-remove="faq:' + i + '" ' +
-            'aria-label="Remover">&#215;</button>' +
-        '</div>' +
-        campo("Pergunta", "faq." + i + ".q", f.q, { max: 200 }) +
-        campo("Resposta", "faq." + i + ".a", f.a, { max: 2000, linhas: 4 }) +
-      '</div>';
+            'aria-label="Remover">&#215;</button>',
+        corpo: function () {
+          return campo("Pergunta", "faq." + i + ".q", f.q, { max: 200 }) +
+                 campo("Resposta", "faq." + i + ".a", f.a, { max: 2000, linhas: 4 });
+        }
+      });
     }).join("") +
     '<button type="button" class="btn btn--ghost btn--sm" data-add="faq">Adicionar pergunta</button>';
   }

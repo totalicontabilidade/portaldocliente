@@ -657,8 +657,12 @@
                 o responsável e um substituto.</li>
               <li>Ative <strong>verificação em duas etapas</strong> na conta Google do projeto e no
                 cofre de senhas.</li>
-              <li>Ao desligar alguém que tinha acesso, <strong>gere um par novo</strong> e peça aos
-                clientes ativos que reenviem os acessos.</li>
+              <li>Ao desligar alguém, <strong>remova a conta dele em Usuários</strong>. O acesso
+                morre na hora, e não é preciso trocar chave nenhuma — quem abre as senhas é o
+                servidor, e a autorização é o crachá em Usuários, não a posse de um arquivo.</li>
+              <li>De vez em quando, <strong>confira quem abriu o quê</strong>. Toda abertura de
+                senha fica registrada com nome e hora, e é esse registro que torna defensável a
+                equipe inteira ter acesso.</li>
             </ul>
           </div>
 
@@ -682,6 +686,11 @@
                 enviadas. Gere um par novo, troque a pública no portal, publique, e oriente os
                 clientes a <strong>trocar as senhas nos sistemas</strong> — trocar a chave não
                 invalida o que já vazou.</li>
+              <li><strong>Uma conta do painel foi comprometida:</strong> hoje este é o caminho
+                mais provável, não o arquivo da chave. Remova a conta em Usuários, veja no
+                registro o que ela abriu, e mande trocar <strong>só as senhas daqueles
+                clientes</strong>. Não precisa gerar par novo: a chave privada não passou por
+                navegador nenhum.</li>
               <li><strong>Trocou a chave:</strong> o que foi enviado antes só abre com a chave antiga.
                 Guarde as duas enquanto houver dado cifrado com a anterior.</li>
             </ul>
@@ -739,31 +748,30 @@
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
-<script src="lib/firebase-app-compat.js"></script>
-<script src="lib/firebase-auth-compat.js"></script>
-<script src="lib/firebase-firestore-compat.js"></script>
-<script src="lib/firebase-storage-compat.js"></script>
-<script src="lib/firebase-app-check-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script src="js/firebase.js"></script>
-<script src="js/chave-publica.js"></script>
-<script src="js/cripto.js"></script>
-<script src="js/util.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/conteudo.js"></script>
-<script src="js/data.js"></script>
-<script src="js/situacao.js"></script>
-<script src="js/nuvem.js"></script>
-<script src="js/departamentos.js"></script>
-<script src="js/aplicacao.js"></script>
-<script src="js/painel.js"></script>
-<script src="js/equipe.js"></script>
-<script src="js/painel-conteudo.js"></script>
-<script src="lib/jspdf.umd.min.js"></script>
-<script src="js/ficha-pdf.js"></script>
-<script src="js/dossie-pdf.js"></script>
-<script src="js/painel-clientes.js"></script>
-<script src="js/painel-inicio.js"></script>
-<script src="js/painel-equipe.js"></script>
+<script defer src="lib/firebase-app-compat.js"></script>
+<script defer src="lib/firebase-auth-compat.js"></script>
+<script defer src="lib/firebase-firestore-compat.js"></script>
+<script defer src="lib/firebase-storage-compat.js"></script>
+<script defer src="lib/firebase-app-check-compat.js"></script>
+<script defer src="js/firebase-config.js"></script>
+<script defer src="js/firebase.js"></script>
+<script defer src="js/chave-publica.js"></script>
+<script defer src="js/cripto.js"></script>
+<script defer src="js/util.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/conteudo.js"></script>
+<script defer src="js/data.js"></script>
+<script defer src="js/situacao.js"></script>
+<script defer src="js/nuvem.js"></script>
+<script defer src="js/departamentos.js"></script>
+<script defer src="js/aplicacao.js"></script>
+<script defer src="js/painel.js"></script>
+<script defer src="js/equipe.js"></script>
+<script defer src="js/painel-conteudo.js"></script>
+<script defer src="js/ficha-pdf.js"></script>
+<script defer src="js/dossie-pdf.js"></script>
+<script defer src="js/painel-clientes.js"></script>
+<script defer src="js/painel-inicio.js"></script>
+<script defer src="js/painel-equipe.js"></script>
 </body>
 </html>
