@@ -132,3 +132,45 @@ de verdade. Para insistir mesmo assim: `--mesmo-viva`.
 original não volta do hash. O sal está escrito no arquivo; trocá-lo
 faz os apelidos antigos e novos deixarem de combinar, então não
 troque depois da primeira anonimização.
+
+---
+
+## zerar-trilhas.js — limpar o banco antes de valer
+
+Três coleções são fechadas para escrita no navegador, de propósito,
+e por isso o painel não consegue limpá-las:
+
+    /auditoria         trilha do servidor — ninguém escreve nela,
+                       nem cliente, nem equipe, nem administrador
+    /exclusoesDeConta  pedidos de exclusão já processados
+    /pedidosDeSenha    cada abertura de senha de maquininha
+
+**Fora de um recomeço, mexer nisso é errado.** Trilha que se apaga
+não prova nada, e o dia em que alguém perguntar "quem aprovou este
+balanço, e quando" a resposta precisa existir.
+
+Use uma vez só, antes de o sistema entrar em uso de verdade, para
+tirar o rastro dos testes.
+
+    cd ~/totali
+    node zerar-trilhas.js                 # só mostra, por tipo
+    node zerar-trilhas.js --apagar        # pede a frase de confirmação
+
+Para pedido de exclusão pela LGPD **não use este**: existe o
+`anonimizar-auditoria.js`, que desliga a trilha da pessoa sem
+destruir a prova.
+
+Ele não toca em `/usuarios`, `/conteudo`, `/empresas` nem no
+Storage. Empresa se apaga pelo painel, que sabe a ordem certa e
+ainda apaga a conta de login do cliente.
+
+### Como trazer as ferramentas para o Cloud Shell
+
+Elas moram no repositório, não na máquina. Para atualizar todas de
+uma vez:
+
+    cd ~/totali
+    for f in limpar-contas limpar-firestore anonimizar-auditoria zerar-trilhas; do
+      curl -fsSL -O "https://raw.githubusercontent.com/totalicontabilidade/portaldocliente/main/ferramentas/$f.js"
+    done
+    ls -l *.js
