@@ -62,6 +62,24 @@ service firebase.storage {
       );
     }
 
+    // PERMISSÃO DE LISTAR, e por que ela precisa existir.
+    //
+    // As regras abaixo casam com ARQUIVO, não com pasta — então
+    // `listAll()` era negado, e o painel só sabia apagar os
+    // arquivos que conhecia pelos metadados do Firestore. Arquivo
+    // cujo registro se perdeu (upload que subiu e cuja gravação
+    // falhou) ficava no bucket para sempre, invisível.
+    //
+    // Achamos um assim em 21/08/2026, de uma empresa apagada dias
+    // antes. Num sistema que promete apagar tudo a pedido do
+    // cliente, isso não é sujeira: é promessa não cumprida.
+    //
+    // Não amplia quem lê o quê — é a mesma dupla que já podia ler
+    // cada arquivo. Só passa a poder enxergar a pasta.
+    match /empresas/{empresaId}/{tudo=**} {
+      allow read: if equipeOuDono(empresaId);
+    }
+
     match /empresas/{empresaId}/documentos/{chave}/{arquivoId} {
       allow read: if equipeOuDono(empresaId);
       allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk();

@@ -2594,6 +2594,40 @@
     });
   }
 
+  /* Desce a pasta do Storage e apaga o que houver, venha de onde
+     vier. `listAll` devolve arquivos (`items`) e pastas
+     (`prefixes`); só as pastas precisam de nova descida.
+
+     A profundidade real é 3 (documentos/{id}/arquivo), e o limite
+     existe para o caso de alguém criar uma estrutura mais funda um
+     dia — nenhuma varredura deve poder rodar para sempre.
+
+     Falha não derruba a exclusão: é melhor a empresa sair do
+     sistema com um arquivo pendente do que ficar meio apagada. Mas
+     o que não saiu é DEVOLVIDO, não engolido — quem chamou decide
+     se avisa. */
+  function varrerPasta(caminho, fundo) {
+    var nivel = fundo || 0;
+    if (nivel > 6) return Promise.resolve([caminho + " (fundo demais)"]);
+
+    return FB.storage.ref(caminho).listAll().then(function (r) {
+      var sobras = [];
+      var arquivos = r.items.map(function (item) {
+        return item.delete().catch(function () { sobras.push(item.fullPath); });
+      });
+      var pastas = r.prefixes.map(function (p) {
+        return varrerPasta(p.fullPath, nivel + 1).then(function (s) {
+          sobras = sobras.concat(s);
+        });
+      });
+      return Promise.all(arquivos.concat(pastas)).then(function () { return sobras; });
+    }, function () {
+      /* Sem permissão de listar (regra antiga ainda publicada) ou
+         sem rede. Não é motivo para abortar. */
+      return [caminho + " (não deu para listar)"];
+    });
+  }
+
   /* Apaga tudo, na ordem que não deixa buraco. */
   function excluirDeVez(c) {
     var raiz = FB.db.collection("empresas").doc(c.id);
@@ -2623,7 +2657,30 @@
       return Promise.all(arquivos.map(function (a) {
         return FB.storage.ref("empresas/" + c.id + "/" + a.pasta + "/" + a.id + "/arquivo")
                  .delete().catch(function () {});
-      }));
+      })).then(function () {
+        /* 2b. E agora VARRE A PASTA INTEIRA.
+
+           O passo acima apaga o que conhecemos pelos metadados. Só
+           que arquivo que subiu e cuja gravação no Firestore falhou
+           não tem metadado nenhum — e ficava no bucket para sempre,
+           invisível para o sistema que prometeu apagá-lo.
+           Encontramos um assim em 21/08/2026, de uma empresa
+           excluída dias antes.
+
+           Aqui a fonte da verdade passa a ser o próprio Storage. */
+        return varrerPasta("empresas/" + c.id);
+      });
+    }).then(function (sobras) {
+      /* Arquivo que resistiu precisa ser DITO. Silêncio aqui vira
+         "apagamos tudo" sobre uma exclusão incompleta — e é
+         exatamente isso que a gente responde a um cliente que
+         pediu para ser esquecido. */
+      if (sobras && sobras.length) {
+        console.warn("Arquivos que não saíram do Storage:", sobras);
+        UI.toast("Atenção: " + sobras.length + " arquivo(s) não saíram do Storage. " +
+                 "Anote o nome da empresa e fale comigo — a lista está no console.",
+                 "erro", 14000);
+      }
     }).then(function () {
       /* 3. Subcoleções, uma a uma. */
       var fila = Promise.resolve();
