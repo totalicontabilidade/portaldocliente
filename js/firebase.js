@@ -337,12 +337,38 @@
     }
 
     var authSec = secundario.auth();
-    return authSec.createUserWithEmailAndPassword(String(email).trim(), String(senha))
-      .then(function (cred) {
-        var uid = cred.user.uid;
-        return authSec.signOut().then(function () { return uid; },
-                                      function () { return uid; });
+    var e = String(email).trim(), s = String(senha);
+
+    var encerrar = function (cred) {
+      var uid = cred.user.uid;
+      return authSec.signOut().then(function () { return uid; },
+                                    function () { return uid; });
+    };
+
+    /* CRIA A CONTA — OU ENTRA NELA, se já existir com esta senha.
+
+       Existe um caso raro em que a conta de login nasce e a
+       gravação do crachá em /usuarios falha logo depois, por rede.
+       A conta fica órfã: não aparece na lista do painel, e tentar
+       cadastrar de novo esbarrava em "e-mail já em uso". A saída
+       era abrir o console do Firebase — dependência que este
+       sistema não deve ter para funcionar no dia a dia.
+
+       Entrando com a MESMA senha que o admin acabou de digitar,
+       descobrimos o uid e concluímos o que faltou. Funciona porque,
+       nesse caso, a conta foi criada por este mesmo formulário com
+       essa mesma senha.
+
+       ISTO NÃO É ATALHO PARA VINCULAR CONTA ALHEIA: sem a senha
+       certa nada avança, e criar o crachá continua exigindo
+       administrador. É o mesmo desenho do cadastro do cliente, e
+       pelo mesmo motivo. */
+    return authSec.createUserWithEmailAndPassword(e, s).then(encerrar, function (erro) {
+      if (!erro || erro.code !== "auth/email-already-in-use") throw erro;
+      return authSec.signInWithEmailAndPassword(e, s).then(encerrar, function () {
+        throw new Error("email-em-uso-com-outra-senha");
       });
+    });
   }
 
   /* ---------- Cliente ---------- */
@@ -777,7 +803,13 @@
     "auth/user-disabled": "Esta conta foi desativada.",
     "sem-permissao": "Esta conta não tem acesso ao painel. Fale com o administrador.",
     "so-admin": "Só quem é administrador pode gerenciar a equipe.",
-    "uid-invalido": "O identificador informado não parece válido. Copie o UID exato do Authentication.",
+    /* Conta de login existe, mas com outra senha. Sem console e sem
+       campo de UID, a saída é a própria pessoa definir uma senha
+       que ela conheça e passar para quem está cadastrando. */
+    "email-em-uso-com-outra-senha":
+      "Já existe uma conta de login com este e-mail, e a senha digitada não é a dela. " +
+      "Peça à pessoa para abrir a tela de entrada do painel, tocar em \"Esqueci minha senha\" " +
+      "e definir uma senha nova — depois é só digitar essa senha aqui e cadastrar de novo.",
     "ja-e-membro": "Esta pessoa já está na lista da equipe.",
     "sem-conexao": "Sem conexão com o servidor.",
     "convite-inexistente": "Este link não é válido. Peça um novo à Totali.",

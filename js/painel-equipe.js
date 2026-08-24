@@ -166,7 +166,12 @@
       '<div class="field">' +
         '<label class="field__label" for="mbSenha">Senha<span class="field__req">*</span></label>' +
         '<input type="text" class="input" id="mbSenha" maxlength="60" autocomplete="off">' +
-        '<div class="field__hint">Pelo menos 6 caracteres.</div></div>' +
+        /* Curto de propósito: é informação que quase nunca vai ser
+           necessária, e um parágrafo aqui atrapalharia o uso de
+           todo dia. Quem precisar, a mensagem de erro explica o
+           resto na hora. */
+        '<div class="field__hint">Pelo menos 6 caracteres. Se a pessoa já tiver login, digite a ' +
+          'senha atual dela — o painel aproveita a conta em vez de criar outra.</div></div>' +
       '<div class="field">' +
         '<label class="field__label" for="mbPapel">Papel</label>' +
         '<select class="select" id="mbPapel">' +
@@ -224,9 +229,9 @@
     var relogio = setTimeout(function () {
       if (terminou) return;
       ocupar(m, false);
-      UI.toast("A gravação está demorando demais. Verifique a internet. Se a conta chegou a ser " +
-               "criada, ela aparece em Authentication, no console do Firebase — apague-a de lá " +
-               "e cadastre de novo por aqui.", "erro", 14000);
+      UI.toast("A gravação está demorando demais. Verifique a internet e tente de novo com o " +
+               "mesmo e-mail e a mesma senha — se a conta chegou a ser criada, o painel conclui " +
+               "o que faltou em vez de reclamar.", "erro", 14000);
     }, LIMITE_MS);
     return promessa.then(function (v) {
       terminou = true; clearTimeout(relogio); return v;
@@ -279,10 +284,7 @@
       gravarMembro(uid, nome, email, papel, deptos, m);
     }, function (e) {
       ocupar(m, false);
-      var msg = (e && e.code === "auth/email-already-in-use")
-        ? "Já existe uma conta de login com este e-mail, sem acesso ao painel. Apague-a em " +
-          "Authentication, no console do Firebase, e cadastre de novo por aqui."
-        : FB.explicar(e);
+      var msg = FB.explicar(e);
       UI.toast(msg, "erro", 11000);
     });
   }
@@ -302,12 +304,12 @@
       carregar();
     }, function (e) {
       ocupar(m, false);
-      /* A conta de login nasceu e o crachá não. Ela fica órfã e
-         invisível aqui dentro — cadastrar de novo esbarraria em
-         "e-mail já em uso". Por isso a saída é o console. */
+      /* A conta de login nasceu e o crachá não. Cadastrar de novo
+         com os MESMOS dados conclui: a criação entra na conta que
+         já existe, descobre o uid e grava o crachá que faltou. */
       UI.toast("A conta de login foi criada, mas o acesso ao painel não: " + FB.explicar(e) +
-               " Apague a conta em Authentication, no console do Firebase, e cadastre de novo.",
-               "erro", 14000);
+               " Tente cadastrar de novo com o mesmo e-mail e a mesma senha — o painel conclui " +
+               "o que faltou.", "erro", 14000);
     });
   }
 
