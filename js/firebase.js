@@ -801,7 +801,19 @@
     "auth/too-many-requests": "Muitas tentativas. Espere alguns minutos e tente de novo.",
     "auth/network-request-failed": "Sem conexão com a internet.",
     "auth/user-disabled": "Esta conta foi desativada.",
-    "sem-permissao": "Esta conta não tem acesso ao painel. Fale com o administrador.",
+    /* Conta de login existe, crachá em /usuarios não.
+       A tela NÃO pode oferecer para criar o crachá aqui: quem está
+       nesta situação não é admin — por definição, já que nem
+       crachá tem — e deixar alguém se promover transformaria
+       "criar conta neste projeto", que é livre por causa do portal
+       do cliente, em "entrar no painel da equipe".
+       O que a tela pode fazer é dizer o passo exato, e ele resolve
+       sem console: com a senha que a pessoa já usa, o cadastro
+       aproveita esta mesma conta em vez de criar outra. */
+    "sem-permissao":
+      "Esta conta existe, mas ainda não tem acesso ao painel. Peça a um administrador para " +
+      "cadastrar você em Usuários com este mesmo e-mail, informando a senha que você já usa — " +
+      "assim ele aproveita esta conta em vez de criar outra.",
     "so-admin": "Só quem é administrador pode gerenciar a equipe.",
     /* Conta de login existe, mas com outra senha. Sem console e sem
        campo de UID, a saída é a própria pessoa definir uma senha
