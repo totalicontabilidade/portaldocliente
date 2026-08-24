@@ -161,6 +161,30 @@
      ============================================================ */
   var porta = { modo: "", codigo: "", empresaNome: "", ocupado: false };
 
+  /* ENQUANTO NÃO SE SABE QUEM ENTROU, NÃO SE PINTA O PORTAL.
+
+     Antes o portal desenhava a tela inicial na hora e só depois
+     perguntava ao servidor se havia sessão ou convite. Quem chegava
+     pelo link via o portal montado por um instante e ele sumia; quem
+     abria sem estar logado via a tela de boas-vindas antes de cair no
+     login. Era o "carrega rápido duas vezes" que o Raoni descreveu.
+
+     Mostrar conteúdo que não é da pessoa e depois tirar é pior do que
+     esperar meio segundo. Agora a decisão vem primeiro, e no lugar do
+     conteúdo fica uma tela neutra — sem número, sem documento, sem
+     nada que ela possa achar que é dela. */
+  var decidindoEntrada = false;
+
+  function aberturaHTML() {
+    return '<section class="section"><div class="card card--pad abertura">' +
+        '<span class="abertura__anel" aria-hidden="true">' +
+          '<img src="assets/totali-simbolo.png" alt="">' +
+        '</span>' +
+        '<p class="abertura__t">Abrindo o seu portal</p>' +
+        '<p class="abertura__d">Só um instante — estamos conferindo o seu acesso.</p>' +
+      '</div></section>';
+  }
+
   function portaHTML() {
     var cadastro = porta.modo === "cadastro";
     return '<section class="section">' +
@@ -3147,6 +3171,14 @@
        alguém precisa ler ANTES de entrar, ou quando não consegue
        entrar. Elas abrem, com um botão de voltar para a entrada.
        Qualquer outra rota continua caindo na porta. */
+    /* Antes de tudo: ainda esperando saber quem é. */
+    if (decidindoEntrada) {
+      document.body.classList.add("porta-aberta");
+      alvo.className = "view";
+      alvo.innerHTML = aberturaHTML();
+      return;
+    }
+
     if (porta.modo) {
       document.body.classList.add("porta-aberta");
 
@@ -4225,13 +4257,34 @@
     Store.iniciar().then(function () {
       aplicarConviteDaURL();
       if (!location.hash) location.replace("#/inicio");
+
+      /* Com servidor no ar, quem decide o que aparece é ele —
+         então segura a pintura até a resposta chegar. Sem servidor
+         (modo local), não há o que esperar. */
+      var FB = global.FB;
+      decidindoEntrada = !!FB;
+
+      /* Rede ruim não pode deixar ninguém olhando "Abrindo…" para
+         sempre. Passado o limite, solta a tela com o que se sabe —
+         o tratamento de erro mais abaixo já explica o que houve. */
+      var destravar = setTimeout(function () {
+        if (!decidindoEntrada) return;
+        decidindoEntrada = false;
+        render();
+        document.body.classList.add("pronto");
+      }, 8000);
+
+      var soltar = function () {
+        clearTimeout(destravar);
+        if (!decidindoEntrada) return;
+        decidindoEntrada = false;
+        document.body.classList.add("pronto");
+      };
+
       render();
       document.body.classList.add("pronto");
       conferirLembretes();
 
-      /* O convite do servidor depende de rede, então roda depois
-         da primeira pintura: a tela nunca fica esperando. */
-      var FB = global.FB;
       if (FB) {
         FB.pronto.then(function () {
           if (!FB.ligado) return false;
@@ -4243,9 +4296,13 @@
               resolve(aplicarConviteDoServidor());
             });
           });
-        }).then(function (mudou) {
-          if (mudou) render();
+        }).then(function () {
+          /* Decidido: seja porta, seja portal, agora dá para pintar
+             a tela certa de uma vez só. */
+          soltar();
+          render();
         }, function (e) {
+          soltar();
           /* PEDIR A SENHA DE NOVO É A ÚLTIMA COISA A SE FAZER, e
              só quando se sabe que ela é mesmo necessária.
 
