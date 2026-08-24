@@ -184,14 +184,7 @@
           }).join("") +
         '</div>' +
         '<div class="field__hint">A tela de início mostra primeiro o que é destes setores. ' +
-          'Nenhum marcado = cuida de todos.</div></div>' +
-      '<hr class="hr">' +
-      '<div class="field" style="margin-bottom:0">' +
-        '<label class="field__label" for="mbUid">Já tem conta? Cole o UID</label>' +
-        '<input type="text" class="input" id="mbUid" maxlength="128" autocomplete="off" ' +
-          'placeholder="deixe vazio para criar uma conta nova">' +
-        '<div class="field__hint">Se a pessoa já tem login no Firebase, copie o UID em ' +
-          'Authentication e cole aqui. Nesse caso, e-mail e senha acima são ignorados.</div></div>';
+          'Nenhum marcado = cuida de todos.</div></div>';
   }
 
   function abrirFormulario() {
@@ -232,8 +225,8 @@
       if (terminou) return;
       ocupar(m, false);
       UI.toast("A gravação está demorando demais. Verifique a internet. Se a conta chegou a ser " +
-               "criada, ela aparece em Authentication — nesse caso use o campo de UID no fim do " +
-               "formulário para concluir.", "erro", 14000);
+               "criada, ela aparece em Authentication, no console do Firebase — apague-a de lá " +
+               "e cadastre de novo por aqui.", "erro", 14000);
     }, LIMITE_MS);
     return promessa.then(function (v) {
       terminou = true; clearTimeout(relogio); return v;
@@ -251,45 +244,24 @@
     UI.$$("[data-depto]", m.caixa).forEach(function (c) {
       if (c.checked) deptos.push(c.getAttribute("data-depto"));
     });
-    var uidColado = $("#mbUid", m.caixa).value.trim();
-
     if (!nome) { $("#mbNome", m.caixa).focus(); UI.toast("Informe o nome.", "erro"); return; }
 
-    /* Caminho 1: a pessoa já tem conta e o admin colou o UID. */
-    if (uidColado) {
-      if (!/^[A-Za-z0-9]{20,128}$/.test(uidColado)) {
-        UI.toast(FB.explicar(new Error("uid-invalido")), "erro", 9000);
-        return;
-      }
+    /* O CAMPO DE UID SAIU DAQUI, em 2026-08-24.
 
-      /* A ARMADILHA: com o UID preenchido, a senha digitada acima
-         é IGNORADA — a conta já existe e mantém a senha dela. Isso
-         está escrito no formulário, e mesmo assim é fácil não ver:
-         a pessoa digita uma senha, o membro aparece na lista, e
-         semanas depois ninguém entende por que aquela senha não
-         funciona. Aconteceu de verdade neste projeto.
+       Ele servia para vincular alguém que já tivesse conta de
+       login sem crachá — situação que era comum porque remover um
+       membro apagava só o crachá e deixava a conta para trás.
+       Agora remover apaga as duas coisas, então essa situação
+       praticamente não acontece mais, e o campo só somava um passo
+       confuso a um formulário que precisa ser óbvio.
 
-         Então, em vez de avisar depois, perguntamos antes. */
-      if (senha) {
-        UI.confirmar({
-          titulo: "A senha digitada será ignorada",
-          mensagem: "Você colou um UID, então esta pessoa JÁ TEM conta de login e continua " +
-                    "com a senha atual dela. A senha que você digitou acima não vale para " +
-                    "nada. Se a intenção era criar uma conta nova, apague o UID e tente de " +
-                    "novo; se ela esqueceu a senha, use \"Esqueci minha senha\" na tela de " +
-                    "entrada.",
-          confirmar: "Entendi, só vincular"
-        }).then(function (ok) {
-          if (ok) gravarMembro(uidColado, nome, email, papel, deptos, m);
-        });
-        return;
-      }
-
-      gravarMembro(uidColado, nome, email, papel, deptos, m);
-      return;
-    }
-
-    /* Caminho 2: cria a conta e o vínculo. */
+       Sobra um caso raro: a conta de login nascer e a gravação do
+       crachá falhar por rede no mesmo instante. Aí a conta fica
+       órfã e invisível no painel. A saída, que as mensagens de
+       erro abaixo explicam, é apagá-la em Authentication e
+       cadastrar de novo. Um caminho de recuperação a menos, mas um
+       formulário mais simples — e é o formulário que se usa
+       sempre. */
     if (!U.validaEmail(email)) {
       $("#mbEmail", m.caixa).focus();
       UI.toast("Digite um e-mail válido.", "erro");
@@ -308,8 +280,8 @@
     }, function (e) {
       ocupar(m, false);
       var msg = (e && e.code === "auth/email-already-in-use")
-        ? "Já existe uma conta com este e-mail. Copie o UID dela em Authentication e cole no " +
-          "campo do fim do formulário."
+        ? "Já existe uma conta de login com este e-mail, sem acesso ao painel. Apague-a em " +
+          "Authentication, no console do Firebase, e cadastre de novo por aqui."
         : FB.explicar(e);
       UI.toast(msg, "erro", 11000);
     });
@@ -330,8 +302,12 @@
       carregar();
     }, function (e) {
       ocupar(m, false);
-      UI.toast("A conta existe, mas não foi possível dar o acesso: " + FB.explicar(e) +
-               " Tente de novo usando o campo de UID.", "erro", 12000);
+      /* A conta de login nasceu e o crachá não. Ela fica órfã e
+         invisível aqui dentro — cadastrar de novo esbarraria em
+         "e-mail já em uso". Por isso a saída é o console. */
+      UI.toast("A conta de login foi criada, mas o acesso ao painel não: " + FB.explicar(e) +
+               " Apague a conta em Authentication, no console do Firebase, e cadastre de novo.",
+               "erro", 14000);
     });
   }
 
@@ -449,17 +425,35 @@
 
     UI.confirmar({
       titulo: "Remover do painel",
-      mensagem: (alvo.nome || alvo.email) + " perde o acesso ao painel na hora. A conta de " +
-                "login continua existindo, mas sem poder nenhum aqui dentro. Para devolver o " +
-                "acesso depois, basta adicionar de novo com o UID.",
+      mensagem: (alvo.nome || alvo.email) + " perde o acesso na hora, e a conta de login é " +
+                "apagada junto. Não fica nada para trás. Para devolver o acesso depois, é " +
+                "cadastrar de novo — com senha nova.",
       confirmar: "Remover", perigo: true
     }).then(function (ok) {
       if (!ok) return;
+
+      /* O CRACHÁ SAI PRIMEIRO, e a ordem importa: a função do
+         servidor recusa apagar quem tem documento em /usuarios —
+         é a trava que impede uma exclusão de cliente derrubar
+         alguém da equipe por engano. Com o crachá fora, a conta
+         deixa de ser da equipe e a exclusão passa. */
       FB.db.collection("usuarios").doc(uid).delete().then(function () {
-        UI.toast("Acesso removido.", "ok");
         carregar();
+        return FB.db.collection("exclusoesDeConta").doc().set({
+          pedidoPor: (FB.equipe && FB.equipe.uid) || "",
+          uids: [uid],
+          em: FB.agora()
+        });
+      }).then(function () {
+        UI.toast("Acesso removido e conta de login apagada.", "ok", 6000);
       }, function (e) {
-        UI.toast("Não foi possível remover: " + FB.explicar(e), "erro", 9000);
+        /* O crachá pode ter saído e a conta não. Dizer qual das
+           duas coisas falhou é o que evita alguém achar que a
+           pessoa ainda entra no painel — ela não entra. */
+        carregar();
+        UI.toast("O acesso ao painel foi removido, mas a conta de login pode ter ficado: " +
+                 FB.explicar(e) + " Confira em Authentication, no console do Firebase.",
+                 "erro", 12000);
       });
     });
   }
