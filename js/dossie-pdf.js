@@ -46,10 +46,6 @@
   var CINZA = [110, 125, 140];
   var VERDE = [46, 125, 90];
 
-  function disponivel() {
-    return true;   /* chega quando alguém pede o PDF */
-  }
-
   function garantirJsPDF() {
     if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
     return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
@@ -501,5 +497,5 @@
       .catch(function () { return null; });
   }
 
-  global.DossiePDF = { gerar: gerar, disponivel: disponivel, nomeDoArquivo: nomeDoArquivo };
+  global.DossiePDF = { gerar: gerar, nomeDoArquivo: nomeDoArquivo };
 })(window);

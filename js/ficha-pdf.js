@@ -59,9 +59,9 @@
   };
 
   /* A biblioteca chega quando alguém pede o PDF — são 357 KB fora
-     do caminho de abrir o painel. */
-  function disponivel() { return true; }
-
+     do caminho de abrir o painel. Havia aqui um `disponivel()` que
+     respondia SIM sempre, de quando ela vinha junto com a página;
+     era fachada, e quem falha de verdade é o `garantirJsPDF`. */
   function garantirJsPDF() {
     if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
     return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
@@ -529,5 +529,5 @@
     });
   }
 
-  global.FichaPDF = { gerar: gerar, disponivel: disponivel, nomeDoArquivo: nomeDoArquivo };
+  global.FichaPDF = { gerar: gerar, nomeDoArquivo: nomeDoArquivo };
 })(window);

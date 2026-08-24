@@ -18,8 +18,11 @@
    O QUE ESTA TELA NÃO FAZ
    -----------------------
    Não guarda senha de cliente em lugar nenhum. As credenciais
-   chegam cifradas e só abrem com a chave privada, que a pessoa
-   carrega na hora, fica na memória da aba e some ao fechar.
+   chegam cifradas e quem as abre é o servidor: a chave privada mora
+   no Secret Manager e nunca passa por navegador. Esta aba só pede a
+   abertura, recebe a resposta recifrada para uma chave descartável
+   dela mesma, e mostra coberta até alguém tocar em "Mostrar".
+   Detalhes no bloco de "Abertura de senha", mais abaixo.
 
    Regra de ouro, igual à do portal: nada que veio do cliente
    entra em innerHTML sem passar por U.esc().
@@ -84,8 +87,6 @@
         atualizarContadores();
       }, function () { /* sem rede: a ficha continua com o que já tem */ });
   }
-
-  /* Chave privada carregada nesta aba. Nunca é gravada. */
 
   /* =========================================================
      Leitura
@@ -2893,10 +2894,13 @@
      soltar o endereco, que existe por um motivo que ninguem
      lembraria ao copiar. */
   function baixarPDF(botao, modulo, cliente, aviso) {
-    if (!modulo || !modulo.disponivel()) {
-      UI.toast("O gerador de PDF não carregou. Atualize a página e tente de novo.", "erro", 8000);
-      return;
-    }
+    /* Havia aqui uma guarda `modulo.disponivel()` que nunca barrava
+       nada: a função devolvia `true` sempre, de quando a biblioteca
+       era carregada junto com a página. Hoje ela é buscada no
+       momento do clique, e quem falha é o `garantirJsPDF()` de
+       dentro do módulo — a rejeição cai no tratamento lá embaixo,
+       com o motivo de verdade. A guarda ainda mandava "atualize a
+       página", conselho que não resolveria nada. */
     botao.disabled = true;
     var antes = botao.innerHTML;
     botao.textContent = "Gerando…";
@@ -4492,8 +4496,9 @@
           (location.protocol === "file:"
             ? 'Esta página foi aberta direto do computador (endereço começando em ' +
               '<code>file://</code>), e nesse modo o Firebase não funciona. Abra pelo endereço ' +
-              'do portal — em teste, <code>http://localhost:8100/equipe.html</code>.'
-            : 'Verifique a internet e recarregue a página.') + '</span></div>';
+              'do portal — em teste, <code>http://localhost:8099/equipe.html</code>.'
+            : 'Verifique a internet. Assim que ela voltar, a lista carrega sozinha.') +
+          '</span></div>';
       }
       var topo = $("#clTopo");
       if (topo) topo.hidden = true;

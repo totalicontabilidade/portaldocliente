@@ -771,6 +771,11 @@
     get estado() { return estado; },
     get backendNome() { return backend.nome; },
     get noServidor() { return backend.nome === "nuvem"; },
+    /* Único jeito de perguntar de fora se a última gravação falhou.
+       Havia dois — este e um `temPendencias()` idêntico — e nenhuma
+       tela usava nenhum dos dois. Ficou este, porque saber se há
+       coisa presa é pergunta legítima e a resposta não deve depender
+       de ler variável interna. */
     get temErroDePersistencia() { return erroPersistencia; },
 
     on: function (fn) { if (typeof fn === "function") ouvintes.push(fn); },
@@ -1110,9 +1115,6 @@
         return estado.credenciais[k] && estado.credenciais[k].pendenteEnvio;
       });
     },
-
-    /* Há gravação que falhou e ainda não conseguiu subir? */
-    temPendencias: function () { return erroPersistencia; },
 
     temCredencial: function (chave) {
       var c = estado.credenciais[chave];

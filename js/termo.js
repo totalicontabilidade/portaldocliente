@@ -18,13 +18,10 @@
   var CINZA = [110, 125, 140];
 
   /* A biblioteca só é baixada quando alguém pede um PDF — são
-     357 KB que não fazem falta para abrir o portal. Por isso
-     `disponivel()` responde que SIM antes de ela existir: ela
-     chega quando for preciso. */
-  function jsPDFdisponivel() {
-    return true;
-  }
-
+     357 KB que não fazem falta para abrir o portal. Havia aqui um
+     `jsPDFdisponivel()` que respondia SIM antes de ela existir, o
+     que é o mesmo que não responder nada; quem falha de verdade é
+     o `garantirJsPDF`, e a rejeição dele carrega o motivo. */
   function garantirJsPDF() {
     if (global.jspdf && global.jspdf.jsPDF) return Promise.resolve();
     return global.U.carregarScript("lib/jspdf.umd.min.js").then(function () {
@@ -208,5 +205,5 @@
     });
   }
 
-  global.Termo = { gerar: gerar, disponivel: jsPDFdisponivel, nomeDoArquivo: nomeDoArquivo };
+  global.Termo = { gerar: gerar, nomeDoArquivo: nomeDoArquivo };
 })(window);

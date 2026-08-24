@@ -645,7 +645,6 @@
     var st = Store.estado;
     var resumo = Store.resumoGeral();
     var etapaId = Store.etapaAtual();
-    var idxEtapa = DATA.ETAPAS.findIndex(function (e) { return e.id === etapaId; });
     var nome = U.primeiroNome(st.empresa.responsavelNome);
     var empresaNome = st.empresa.nomeFantasia || st.empresa.razaoSocial;
     var passo = proximoPasso();
@@ -2063,7 +2062,12 @@
         abrirArquivo(fin.termo.id, fin.termo.nome);
         return;
       }
-      if (!global.Termo || !global.Termo.disponivel()) {
+      /* Só o arquivo faltar é motivo para parar aqui. Se a
+         biblioteca do PDF não carregar, quem avisa é a rejeição do
+         `Termo.gerar` mais abaixo, com o motivo de verdade — antes
+         havia uma guarda `Termo.disponivel()` que nunca barrava
+         nada, porque respondia SIM sempre. */
+      if (!global.Termo) {
         UI.toast("Não foi possível gerar o PDF neste navegador. Fale com a Totali.", "erro");
         return;
       }
@@ -4596,5 +4600,9 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();
 
-  global.APP = { navegar: navegar, render: render };
+  /* Não há `global.APP`. Ele existiu como porta de entrada para
+     `navegar` e `render`, e nada nunca o chamou — nem HTML, nem
+     outro arquivo. Expor função de dentro do portal só porque um
+     dia pode dar jeito é convite para alguém desenhar a tela por
+     fora do fluxo normal. Quem precisa mudar de tela usa o hash. */
 })(window);

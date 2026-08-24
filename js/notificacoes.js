@@ -42,8 +42,6 @@
   var Notif = {
     get suportado() { return temAPI; },
 
-    get permissao() { return temAPI ? Notification.permission : "unsupported"; },
-
     get ativo() { return temAPI && Notification.permission === "granted"; },
 
     /* Por que ainda não dá para avisar — texto pronto para a tela. */
@@ -120,14 +118,10 @@
       }, rotaAtual);
     },
 
-    documentoSolicitado: function (nomeDoDocumento, rotaAtual) {
-      return Notif.avisarSeAusente({
-        titulo: "A Totali pediu um documento",
-        corpo: nomeDoDocumento,
-        tag: "solicitacao",
-        rota: "documentos"
-      }, rotaAtual);
-    },
+    /* Havia aqui um `documentoSolicitado`, e ninguém o chamava. A
+       cobrança de documento sai pela aba Mensagens, e é o
+       `novaMensagem` acima que avisa — um aviso só, com o texto que
+       a equipe escreveu, em vez de dois dizendo quase o mesmo. */
 
     documentoRevisado: function (nomeDoDocumento, situacao, rotaAtual) {
       var textos = {
@@ -158,17 +152,20 @@
         tag: "lembrete",
         rota: "documentos"
       }, rotaAtual);
-    },
-
-    /* [FIREBASE] Quando o Cloud Messaging entrar, é aqui que a
-       inscrição do aparelho será obtida e enviada ao servidor,
-       para que o aviso chegue com o aplicativo fechado.
-       Lembrete: a CSP precisará liberar o domínio do Firebase
-       em connect-src, e o manifesto, o gcm_sender_id. */
-    registrarNoServidor: function () {
-      return Promise.resolve(null);
     }
   };
+
+  /* AVISO COM O APLICATIVO FECHADO — ainda não existe, e não há
+     função de mentira aqui fingindo que existe. Havia uma
+     `registrarNoServidor` que só devolvia `null` e que ninguém
+     chamava; um método que não faz nada é pior do que método
+     nenhum, porque parece pronto.
+
+     Quando o Cloud Messaging entrar, é aqui que a inscrição do
+     aparelho será obtida e mandada ao servidor. Dois detalhes que
+     se descobrem tarde: a CSP precisa liberar o domínio do Firebase
+     em `connect-src`, e o manifesto precisa do `gcm_sender_id`.
+     Os ouvintes `push` e `notificationclick` já estão no sw.js. */
 
   global.Notif = Notif;
 })(window);

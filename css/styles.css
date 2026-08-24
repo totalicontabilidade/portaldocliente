@@ -1062,24 +1062,10 @@ input[type=checkbox]{accent-color:var(--gold)}
   transition:transform .3s var(--ease-out),box-shadow .3s var(--ease-out),border-color .3s var(--ease);
 }
 .tile:hover{transform:translateY(-4px);border-color:var(--stroke-gold);box-shadow:var(--sh-3),0 0 40px rgba(194,162,80,.1)}
-.tile__thumb{
-  aspect-ratio:16/9;position:relative;
-  background:linear-gradient(140deg,#16283a,#25476a);
-  display:grid;place-items:center;overflow:hidden;
-}
-.tile__thumb::before{
-  content:"";position:absolute;inset:0;
-  background:
-    radial-gradient(70% 110% at 80% 8%,rgba(194,162,80,.28),transparent 60%),
-    radial-gradient(60% 90% at 10% 100%,rgba(34,69,108,.6),transparent 60%);
-}
-.tile__thumb::after{
-  content:"";position:absolute;inset:0;
-  background-image:
-    linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
-  background-size:26px 26px;
-}
+/* `.tile__thumb` saiu: era o retângulo desenhado à mão que fazia as
+   vezes de capa quando não havia imagem. Hoje toda capa vem de
+   `capaHTML(..., "capa--tile")`, que resolve os dois casos — a capa
+   de verdade e o lugar dela enquanto não existe. */
 .tile__play{
   width:52px;height:52px;border-radius:50%;
   display:grid;place-items:center;position:relative;z-index:1;
@@ -1094,19 +1080,12 @@ input[type=checkbox]{accent-color:var(--gold)}
 .tile__title{font-size:15px;font-weight:660;margin-top:6px;color:var(--txt)}
 .tile__desc{font-size:12.5px;color:var(--txt-3);margin-top:6px;line-height:1.55}
 .tile__foot{display:flex;align-items:center;gap:9px;margin-top:13px}
-.tile--soon .tile__thumb{filter:saturate(.7)}
 
 /* ---------- 14b. Editor da Academy (uso interno) ---------- */
-.ac-trilha{
-  padding:16px;margin-bottom:14px;border-radius:14px;
-  background:var(--glass);border:1px solid var(--stroke);
-}
-.ac-trilha__topo{display:flex;align-items:center;gap:11px;margin-bottom:14px}
-.ac-trilha__n{
-  width:28px;height:28px;border-radius:9px;flex:none;display:grid;place-items:center;
-  background:rgba(194,162,80,.16);border:1px solid var(--stroke-gold);
-  color:var(--gold-2);font-size:12.5px;font-weight:720;
-}
+/* Só `.ac-trilha__t` e `.ac-trilha__d` continuam sendo emitidos
+   (js/painel-conteudo.js). O contêiner `.ac-trilha` e o cabeçalho
+   com número saíram quando as trilhas do editor passaram a usar o
+   bloco recolhível comum, o `.rec`. */
 .ac-trilha__t{display:block;font-size:14.5px;font-weight:650;color:var(--txt);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ac-trilha__d{display:block;font-size:12px;color:var(--txt-3);margin-top:2px}
@@ -1198,26 +1177,11 @@ input[type=checkbox]{accent-color:var(--gold)}
 .video__soon{font-size:12px;font-weight:650;color:var(--txt-4)}
 .video__capa--soon{cursor:default;filter:saturate(.6)}
 
-/* Aula dentro da trilha */
-.aula{
-  display:flex;align-items:center;gap:13px;
-  padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.05);
-  transition:background .2s var(--ease);
-}
-.aula:last-child{border-bottom:0}
-.aula:hover{background:rgba(255,255,255,.025)}
-.aula--soon{opacity:.62}
-.aula__n{
-  width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
-  background:var(--glass-2);border:1px solid var(--stroke);
-  font-size:12px;font-weight:700;color:var(--txt-3);
-}
-.aula:not(.aula--soon) .aula__n{
-  background:rgba(194,162,80,.16);border-color:var(--stroke-gold);color:var(--gold-2);
-}
-.aula__info{flex:1;min-width:0}
-.aula__t{display:block;font-size:14px;font-weight:600;color:var(--txt);line-height:1.4}
-.aula__d{display:block;font-size:12px;color:var(--txt-3);margin-top:2px}
+/* O bloco `.aula*` saiu daqui: a aula dentro da trilha era uma
+   LINHA de lista e virou cartão com capa, então usa `.tile*` como
+   todo o resto da Academy (ver `cartaoAula` em js/app.js).
+   Não confundir com `.ac-aula*`, mais abaixo, que é do editor de
+   conteúdo do painel e continua em uso. */
 
 /* Player na janela */
 .player{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
@@ -2304,41 +2268,11 @@ details.rec:not([open]) > .rec__body{display:none}
   .pend__acoes .btn{flex:1}
 }
 
-/* Barra inferior com seis abas: as letras encolhem para caber em
-   tela de 320px sem cortar palavra. */
-.tabbar--6 .tabbar__item{font-size:9px;letter-spacing:0;gap:2px}
-.tabbar--6 .tabbar__item .ic{width:20px;height:20px}
-.tabbar--6 .tabbar__badge{left:calc(50% + 6px);min-width:15px;height:15px;font-size:9px}
-@media (min-width:420px){
-  .tabbar--6 .tabbar__item{font-size:10px}
-}
-
-/* Sete abas. Entrou o Início, e nenhuma das outras podia sair:
-   tirar Segurança ou Conteúdo da barra as deixaria inalcançáveis
-   no celular, onde não existe o menu lateral.
-
-   A 320px cada aba fica com 45,7px. Medindo no navegador, quem
-   estourava NÃO era a palavra — "Pendências" ocupa 36px e sobra
-   espaço. Era o SELO do contador: com dois dígitos ele fica com
-   19px e, ancorado em 50%+5px, terminava 1,6px além da borda do
-   item. Encolher a fonte não resolveria nada; encostar o selo
-   mais para a esquerda resolve, e com folga até para "99+". */
-.tabbar--7 .tabbar__item{
-  font-size:8.5px;letter-spacing:-.1px;gap:2px;padding:7px 0 6px;
-  /* Sem isto o item recusa encolher abaixo da largura da palavra
-     e "Segurança" sai pela borda direita da tela. */
-  min-width:0;
-}
-.tabbar--7 .tabbar__item .ic{width:19px;height:19px}
-.tabbar--7 .tabbar__badge{left:calc(50% + 2px);min-width:14px;height:14px;font-size:8.5px}
-@media (min-width:380px){
-  .tabbar--7 .tabbar__item{font-size:9.5px;letter-spacing:0;padding:7px 1px 6px}
-  .tabbar--7 .tabbar__item .ic{width:20px;height:20px}
-  .tabbar--7 .tabbar__badge{left:calc(50% + 5px)}
-}
-@media (min-width:440px){
-  .tabbar--7 .tabbar__item{font-size:10px}
-}
+/* Houve `.tabbar--6` e `.tabbar--7` aqui, de quando o painel tinha
+   menos abas. Saíram: hoje só a de oito é usada (equipe.html), e
+   guardar o ajuste fino de contagens que não existem mais é
+   guardar decisão sobre problema que ninguém tem. Se um dia a barra
+   encolher, o `.tabbar--8` abaixo mostra como se resolve. */
 
 /* Oito abas, depois que Usuários saiu de dentro de Segurança.
    A 320px cada uma fica com 40px — abaixo do alvo de toque

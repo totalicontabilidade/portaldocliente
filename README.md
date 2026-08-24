@@ -35,9 +35,9 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Trilhas da Academy | telas prontas, vídeos pendentes |
 | Avisos no aparelho (portal aberto ou em 2º plano) | pronto |
 | Push com o aplicativo fechado | pendente (Firebase Cloud Messaging) |
-| Trilha de auditoria | grava, mas sem valor probatório (ver ressalva) |
-| Cobrança automática por prazo | pendente (exige Cloud Functions) |
-| Dossiê de entrada em PDF | pendente |
+| Trilha de auditoria | pronta, gravada pelo servidor (`/auditoria`) |
+| Cobrança automática por prazo | pronta (`avisarPendencias`, 10h em dias úteis) |
+| Dossiê de entrada em PDF | pronto |
 | Backup em pasta do computador da equipe | pendente |
 
 O que o cliente envia vai para o **servidor da Totali**, ligado à empresa dele:
@@ -165,12 +165,19 @@ A API que o painel interno vai consumir já existe em `js/store.js`:
 `Store.revisar(chave, status, motivo, por)`, `Store.enviarMensagem(texto, {autor, chave})`,
 `Store.mensagens(chave)`, `Store.naoLidas(paraQuem)`, `Store.registrarEvento(...)`.
 
-### Ressalva sobre a trilha de auditoria
+### Duas trilhas com nomes parecidos, e só uma vale como prova
 
-Hoje ela é gravada no aparelho do cliente, portanto **ele pode adulterá-la**.
-Serve para dar forma ao recurso e para depuração — não tem valor probatório.
-Vira auditoria de verdade quando for escrita no servidor por Cloud Function, com
-o `uid` autenticado e sem permissão de escrita para o cliente.
+`/empresas/{id}/eventos` é gravada **pelo navegador do cliente**, portanto ele
+pode adulterá-la. Serve para acompanhar e depurar — não tem valor probatório.
+
+`/auditoria`, na raiz, é gravada por **Cloud Function** com a hora do servidor
+(`functions/auditoria.js`), e a regra fecha a escrita para todo mundo, inclusive
+admin. É essa que vale: quem aprovou o quê, quem abriu qual senha, quando.
+Ao investigar qualquer coisa, é nela que se olha.
+
+Ela sobrevive de propósito à exclusão do cliente. Para pedido de eliminação pela
+LGPD existe `ferramentas/anonimizar-auditoria.js`, que desliga a trilha da pessoa
+sem destruir a prova.
 
 O mesmo vale para o papel do usuário: `sanear()` força `papel: "cliente"` ao
 carregar, ignorando o que estiver gravado. Quem decide papel é o login, nunca o
@@ -223,11 +230,17 @@ cliente entra por e-mail e senha, de qualquer aparelho.
 | Mensagens | Caixa de entrada de todas as conversas, com as não lidas em destaque |
 | Novo cliente | Cadastro da empresa e geração do link de convite |
 | Conteúdo do portal | Vídeos, trilhas, documentos, perguntas e textos — nada por código |
-| Chaves | Par de chaves do canal seguro e como guardar a chave privada |
+| Usuários | Quem entra no painel, e o crachá de cada um |
+| Segurança | Estado do canal seguro e cuidados; troca de chave fica recolhida |
 
-Na ficha, a equipe **aprova**, **pede correção com motivo** (o texto aparece
-para o cliente) ou tira a marcação. As senhas cifradas só abrem com a chave
-privada, carregada na hora e mantida apenas na memória da aba.
+A ficha do cliente tem quatro vistas: **Documentos**, **Bancos e senhas**,
+**Cadastro e acesso** e **Conversa**. Nela a equipe **aprova**, **pede correção
+com motivo** (o texto aparece para o cliente) ou tira a marcação.
+
+As senhas chegam cifradas e **quem as abre é o servidor**: a chave privada mora
+no Secret Manager e nunca passa por navegador. Qualquer pessoa da equipe abre
+pelo botão **Ver senha**, sem arquivo de chave, e cada abertura fica registrada
+com nome e hora. Na tela a senha nasce coberta, com botão de mostrar.
 
 ### Integração dos outros sistemas
 
@@ -382,8 +395,9 @@ cópia local, nunca o que está no servidor.
 ### O que protege de verdade: as regras
 
 `firestore.rules` e `storage.rules` são a barreira real — a tela apenas esconde.
-O desenho não usa Cloud Functions, e o vínculo entre cliente e empresa nasce do
-convite:
+**O vínculo entre cliente e empresa não depende de Cloud Function**, e isso é de
+propósito: se as funções caírem, o cliente continua entrando e enviando
+documento. O vínculo nasce do convite:
 
 1. A equipe cadastra a empresa e gera um convite com código longo e sorteado.
 2. O cliente abre o link **uma vez**, cria a senha, e o portal registra
@@ -393,53 +407,59 @@ convite:
 
 Consequências assumidas, que precisam estar escritas:
 
-- **A trilha de auditoria é gravada pelo navegador**, então o cliente pode
-  inventar um evento. Serve para acompanhar e depurar; **não tem valor
-  probatório**. Vira prova quando for escrita pelo servidor.
-- **A cobrança automática por prazo não existe** — sem Cloud Functions não há
-  disparo agendado. A cobrança é montada pelo painel e enviada pela equipe.
+- **`/empresas/{id}/eventos` é gravada pelo navegador**, então o cliente pode
+  inventar um evento. Não tem valor probatório. A trilha que vale é `/auditoria`
+  na raiz, escrita por Cloud Function e fechada para escrita de todo mundo.
 - **Apagar documento é só de administrador.** O cliente que remove um arquivo
   deixa o registro vazio, e o histórico de conferência da equipe permanece.
 - **Credencial cifrada só admin lê.** Para o portal continuar sabendo que a
   senha já foi enviada, guarda-se um recibo (quais campos, quando) sem nada do
   conteúdo.
+- **Só senha de usuário de consulta.** O portal exige isso do cliente e o manda
+  falar com a equipe quando a maquininha não permitir criar esse usuário. Senha
+  de movimentação não deve entrar no sistema.
 
 ### Ainda pendente na segurança
 
-1. **App Check**, para impedir uso das credenciais fora do portal.
-2. **Registro de acesso a documento** gravado pelo servidor, para a LGPD.
-3. **Domínio próprio com HTTPS** (o GitHub Pages já serve em HTTPS).
+1. **App Check no Authentication** — Storage e Firestore já estão exigindo desde
+   24/08/2026; o de Authentication segue em monitoramento porque o Google ainda
+   o marca como pré-lançamento.
+2. **Domínio próprio com HTTPS** (o GitHub Pages já serve em HTTPS).
 
 ---
 
-## Cloud Function — apagar a conta de login do cliente
+## Cloud Functions
 
-Está em `functions/index.js` e **ainda não foi publicada**. Sem ela, excluir uma
-empresa apaga tudo do Firestore e do Storage, mas a conta do cliente continua no
-Firebase Authentication. Nada quebra: o painel detecta a ausência da função,
-avisa quais contas ficaram e mostra onde apagá-las à mão.
+Seis funções publicadas, região `southamerica-east1`. Elas fazem o que o
+navegador não pode fazer — e só isso, para que uma queda delas não impeça o
+cliente de usar o portal.
 
-Ela não pode virar código de navegador. Apagar a conta de outra pessoa exige
-poder de administrador do projeto, e esse poder dentro de uma página web ficaria
-visível para qualquer um que abrisse o código-fonte.
+| Função | Arquivo | O que faz |
+|---|---|---|
+| `processarExclusaoDeConta` | `index.js` | Apaga a conta de login do cliente junto com a empresa |
+| `abrirCredencial` | `senhas.js` | Abre a senha guardada para a equipe e varre os pedidos velhos |
+| `auditarItem` · `auditarCredencial` · `auditarAcesso` | `auditoria.js` | Escrevem a trilha de `/auditoria` com a hora do servidor |
+| `avisarPendencias` | `lembretes.js` | Cobra por e-mail às 10h em dias úteis |
 
-Para publicar é preciso **Node.js**, que não está instalado nesta máquina:
+Nenhuma delas é **chamável** (`onCall`): a política da organização proíbe expor
+`allUsers`, e função de 2ª geração roda sobre Cloud Run, que recusaria a chamada.
+O padrão aqui é o inverso — **o painel grava um documento de pedido e a função
+reage** (`onDocumentCreated`). Sai melhor: sem endereço público, autorização
+pelas próprias regras do Firestore, sem CORS, e o pedido já vira registro.
+
+`processarExclusaoDeConta` recusa, de propósito, dois casos: conta que tem
+documento em `usuarios` (é da equipe) e conta que ainda tem acesso a outra
+empresa (o mesmo login pode cuidar de vários CNPJs).
+
+Para publicar, numa janela **normal** do PowerShell (o `.ps1` é bloqueado, então
+`firebase.cmd`, nunca `firebase`):
 
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase use portaldocliente-8cc7d
-cd functions && npm install && cd ..
-firebase deploy --only functions
+cd functions; npm.cmd install; cd ..
+firebase.cmd deploy --only functions --project portaldocliente-8cc7d
 ```
 
-Depois é só usar o painel normalmente — ele passa a apagar a conta junto com a
-empresa, sem mudar mais nada. Confira uma vez excluindo uma empresa de teste: o
-aviso deve dizer que a conta também foi apagada.
-
-A função recusa, de propósito, dois casos: conta que tem documento em `usuarios`
-(é da equipe) e conta que ainda tem acesso a outra empresa (o mesmo login pode
-cuidar de vários CNPJs).
+Se o token tiver expirado, `firebase.cmd login --reauth` antes.
 
 ---
 
@@ -504,7 +524,8 @@ para domínio próprio.
 
 ### 4. Conferir, nesta ordem
 
-1. Abrir `https://.../portal-cliente/equipe.html` e entrar no painel.
+1. Abrir `https://totalicontabilidade.github.io/portaldocliente/equipe.html` e
+   entrar no painel.
 2. Conferir que o campo **Endereço do portal** já veio com o endereço
    publicado. Ele ignora endereço salvo de outro servidor justamente para não
    gerar link de `localhost` depois da publicação.

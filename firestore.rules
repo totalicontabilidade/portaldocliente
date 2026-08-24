@@ -7,11 +7,18 @@ rules_version = '2';
 // que o navegador manda. O que não estiver escrito não existe —
 // a última regra nega tudo o que sobrou.
 //
-// SEM CLOUD FUNCTIONS
-// -------------------
-// Esta versão não depende de Cloud Functions. O vínculo entre o
-// cliente e a empresa dele nasce do CONVITE, e o acesso do dia a
-// dia é feito com e-mail e senha.
+// O VÍNCULO NÃO DEPENDE DE CLOUD FUNCTION
+// ---------------------------------------
+// O vínculo entre o cliente e a empresa dele nasce do CONVITE, e o
+// acesso do dia a dia é feito com e-mail e senha — nada disso passa
+// por servidor próprio, e é de propósito: se as funções caírem, o
+// cliente continua entrando e enviando documento.
+//
+// Cloud Functions EXISTEM, para o que o navegador não pode fazer:
+// apagar conta de login, abrir senha guardada, escrever a trilha
+// de /auditoria e avisar de pendência por e-mail. Elas rodam com
+// poder de administrador e passam por cima destas regras — por
+// isso /auditoria pode ser fechada para escrita de todo mundo.
 //
 // Como funciona:
 //   1. A equipe cadastra a empresa e gera um convite. O link
