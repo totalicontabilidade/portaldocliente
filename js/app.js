@@ -2996,9 +2996,23 @@
   }
 
   /* ---------- Rodapé ---------- */
+  /* A LOGOMARCA DA TOTALI SOLUÇÕES CONTÁBEIS — não a "totali ·
+     Portal do Cliente", que é a submarca desta ferramenta e já
+     está no cabeçalho.
+
+     Saem os dois juntos, logo e nome escrito, mas o CSS mostra
+     um de cada vez: dentro do portal aparece a logo; na tela de
+     entrada, onde o cartão de login já traz a marca grande logo
+     acima, a logo some e sobra o nome em texto. Sem o `<strong>`
+     a assinatura sumiria por inteiro justamente na porta. */
   function rodape() {
     return '<footer class="foot">' +
-      '<strong>' + U.esc(DATA.ORG.nome) + '</strong><br>' +
+      '<span class="foot__marca">' +
+        '<img src="assets/totali-contabil-branca.png" ' +
+          'alt="' + U.escAttr(DATA.ORG.nome) + '" ' +
+          'width="730" height="277" loading="lazy" decoding="async">' +
+      '</span>' +
+      '<strong class="foot__nome">' + U.esc(DATA.ORG.nome) + '</strong><br class="foot__nome-br">' +
       U.esc(DATA.ORG.telefoneExibicao) + ' · ' + U.esc(DATA.ORG.email) + '<br>' +
       '<a href="#/privacidade" data-rota="privacidade">Privacidade e segurança</a>' +
     '</footer>';

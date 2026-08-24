@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v76";
+var VERSAO = "v78";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -54,6 +54,7 @@ var SHELL = [
   "./manifest.webmanifest",
   "./assets/totali-simbolo.png",
   "./assets/totali-portal-branca.png",
+  "./assets/totali-contabil-branca.png",
   /* A versão colorida saiu daqui: desde que os três PDFs passaram a
      usar a branca, nenhum código a pede mais. Eram 120 KB baixados
      na primeira visita de todo cliente para nada. O arquivo continua

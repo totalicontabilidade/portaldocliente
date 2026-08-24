@@ -146,6 +146,9 @@
   <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <path d="m5 12.5 4.5 4.5L19 7.5"/>
   </symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v4.5h-4.5"/>
+  </symbol>
   <symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/>
   </symbol>
@@ -410,6 +413,12 @@
           <div class="field__error" id="cErrCnpj" hidden>CNPJ inválido. Confira os números.</div>
           <div class="field__hint" id="cBuscaEstado">Ao digitar o CNPJ, buscamos os dados na
             Receita Federal e preenchemos o resto. Você pode corrigir tudo depois.</div>
+          <!-- Só aparece quando a consulta falha, para que voltar a
+               tentar seja um clique e não um recolar do número. -->
+          <button type="button" class="btn btn--quiet btn--sm" id="cRebuscar" hidden
+                  style="margin-top:8px">
+            <svg class="ic" aria-hidden="true"><use href="#ic-refresh"></use></svg>Buscar de novo
+          </button>
         </div>
 
         <div class="field">

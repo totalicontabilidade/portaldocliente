@@ -2216,7 +2216,7 @@
           { rotulo: "Fechar", classe: "btn--ghost" },
           {
             rotulo: "Copiar mensagem", classe: "btn--primary", fecharAntes: false,
-            onClick: function () { global.Convite.copiar(r.mensagem, "Mensagem"); }
+            onClick: function () { global.Convite.copiar(r.mensagem, "Mensagem copiada."); }
           }
         ]
       });
@@ -3977,6 +3977,54 @@
     abrirCobranca(c, montagem);
   }
 
+  /* Copiar com rede de segurança de verdade.
+
+     A primeira versão só caía para o jeito antigo quando
+     `navigator.clipboard` NÃO EXISTIA. Só que ele existe e mesmo
+     assim RECUSA em várias situações comuns: aba sem foco, página
+     fora de https, política do navegador. Nesses casos a promessa
+     é rejeitada e o texto não vai — foi o que aconteceu no teste.
+
+     Agora o caminho antigo cobre os dois casos: não existir e
+     existir mas falhar. Ele é síncrono e não depende de permissão,
+     então funciona onde o outro desiste. */
+  function copiarPeloAntigo(texto) {
+    try {
+      var t = document.createElement("textarea");
+      t.value = texto;
+      t.setAttribute("readonly", "readonly");
+      t.style.position = "fixed";
+      t.style.top = "0";
+      t.style.opacity = "0";
+      document.body.appendChild(t);
+      t.select();
+      t.setSelectionRange(0, texto.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(t);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  /* `aviso` é a frase inteira, não um rótulo para eu emendar um
+     "copiado" no fim: "Mensagem" é feminino e saía "Mensagem
+     copiado". Montar frase juntando pedaços erra a concordância
+     mais cedo ou mais tarde. */
+  function copiarTexto(texto, aviso) {
+    var fim = function (ok) {
+      UI.toast(ok ? (aviso || "Copiado.")
+                  : "Não foi possível copiar. Selecione o texto e copie à mão.",
+               ok ? "ok" : "erro");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(
+        function () { fim(true); },
+        function () { fim(copiarPeloAntigo(texto)); }
+      );
+      return;
+    }
+    fim(copiarPeloAntigo(texto));
+  }
+
   function abrirCobranca(c, opcoes) {
     var o = opcoes || {};
     var texto = o.texto || montarCobranca(c);
@@ -4053,8 +4101,20 @@
                        : 'O cliente ainda não informou o e-mail do responsável.') +
         '</div>' +
         '<div class="field" style="margin-bottom:0;margin-top:14px">' +
-          '<label class="field__label" for="cbTexto">Mensagem</label>' +
+          /* O copiar fica JUNTO DO TEXTO, e não na fileira de
+             ações lá embaixo. Ali ele competiria com os três
+             botões de enviar, e ele não é uma quarta via: é o que
+             se usa quando nenhuma das três serve — mandar por
+             Telegram, por SMS, colar num sistema de chamado. */
+          '<div class="campo-topo">' +
+            '<label class="field__label" for="cbTexto" style="margin-bottom:0">Mensagem</label>' +
+            '<button type="button" class="btn btn--quiet btn--sm" data-copiar-de="#cbTexto"' +
+          ' data-copiar-aviso="Mensagem copiada.">' +
+              ic("ic-copy") + 'Copiar texto</button>' +
+          '</div>' +
           '<textarea class="textarea" id="cbTexto" rows="10" style="font-size:13px"></textarea>' +
+          '<div class="field__hint">Copie se quiser mandar por outro caminho. Só o envio ' +
+            '"pelo portal" fica registrado na conversa do cliente.</div>' +
         '</div>',
       acoes: acoes
     });
@@ -4294,6 +4354,20 @@
         navigator.clipboard.writeText(copiar.getAttribute("data-copiar")).then(function () {
           UI.toast("Copiado. Cole onde precisa e não deixe guardado.", "ok");
         }, function () { UI.toast("Não foi possível copiar.", "erro"); });
+        return;
+      }
+
+      /* Copiar o que está DENTRO de um campo, não um texto fixo.
+         A diferença importa na cobrança: a equipe costuma ajustar
+         a mensagem antes de mandar, e copiar o texto original
+         devolveria justamente a versão que ela acabou de mudar. */
+      var copiarDe = alvo.closest("[data-copiar-de]");
+      if (copiarDe) {
+        var campo = $(copiarDe.getAttribute("data-copiar-de"));
+        if (campo) {
+          copiarTexto(campo.value,
+                      copiarDe.getAttribute("data-copiar-aviso") || "Copiado.");
+        }
         return;
       }
     });

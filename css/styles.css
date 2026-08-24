@@ -1366,6 +1366,47 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .foot strong{color:var(--txt-3);font-weight:620}
 
+/* A LOGOMARCA DA CONTABILIDADE, no rodapé e no fim do menu.
+
+   Discreta por dois motivos. Primeiro, é acabamento: quem está no
+   portal já sabe de quem ele é, e marca grande no rodapé lê como
+   anúncio. Segundo, este é um tema escuro com o dourado reservado
+   para o que se pode TOCAR — botão, aba ativa, link; uma logo em
+   opacidade cheia disputaria com eles. Daí a opacidade parcial,
+   que sobe no hover: presente quando se olha, silenciosa quando
+   não.
+
+   A largura vai na `img`, não no `span`: o span é só o invólucro
+   que o `display:none` da tela de entrada liga e desliga, e uma
+   largura nele não segura a imagem de dentro. */
+.foot__marca{
+  display:block;margin:0 auto 12px;opacity:.7;
+  transition:opacity .2s var(--ease);
+}
+.foot__marca img{display:block;width:118px;height:auto;margin:0 auto}
+.foot__marca:hover{opacity:1}
+
+/* NA TELA DE ENTRADA, NÃO. O cartão de login já traz a marca em
+   tamanho grande, e o rodapé fica logo abaixo dele — repetida a
+   um palmo de distância, ela deixa de ser assinatura e vira
+   repetição. Some enquanto a porta está fechada e volta quando a
+   pessoa entra, que é quando o cartão não está mais na tela.
+
+   Logo e nome escrito se revezam: some um, entra o outro, para
+   que o rodapé nunca fique sem assinatura nenhuma. */
+body.porta-aberta .foot__marca{display:none}
+.foot__nome,
+.foot__nome-br{display:none}
+body.porta-aberta .foot__nome{display:inline}
+body.porta-aberta .foot__nome-br{display:inline}
+
+.sidenav__marca{
+  margin-top:18px;padding-top:16px;border-top:1px solid var(--stroke);
+  opacity:.55;transition:opacity .2s var(--ease);
+}
+.sidenav__marca:hover{opacity:.9}
+.sidenav__marca img{display:block;width:112px;height:auto;margin:0 auto}
+
 /* ---------- 21. Desktop ---------- */
 @media (min-width:900px){
   :root{--header-h:68px}
@@ -2061,6 +2102,13 @@ body.tour-aberto{overscroll-behavior:contain}
    faz isso funcionar no celular. Os controles de ordem e o remover
    ficam FORA dele, senão tocar em "subir" abriria a caixa junto.
    ============================================================ */
+/* Rótulo de campo com um botão à direita, na mesma linha. Em tela
+   estreita o botão desce, em vez de espremer o rótulo. */
+.campo-topo{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;margin-bottom:7px;
+}
+
 .rec{
   border:1px solid var(--stroke);border-radius:12px;
   background:rgba(255,255,255,.02);margin-bottom:10px;overflow:hidden;

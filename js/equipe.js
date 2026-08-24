@@ -17,6 +17,12 @@
   var $ = UI.$;
   var CHAVE_BASE = "totali.onboarding.equipe.base";
 
+  /* Prazo de UMA tentativa na Receita. Oito segundos é folgado para
+     uma consulta que costuma levar menos de um décimo disso, e curto
+     o bastante para não parecer travado. Com duas repetições, o pior
+     caso até o aviso de falha fica em torno de meio minuto. */
+  var LIMITE_RECEITA_MS = 8000;
+
   /* Só serve endereço de verdade. Caminho de arquivo no disco
      (file://) gera link que abre a pasta em vez do portal — foi
      o que aconteceu antes de existir esta checagem. */
@@ -170,27 +176,40 @@
     });
   }
 
-  function copiar(texto, rotulo) {
+  /* `aviso` é a frase pronta. Emendar " copiado." num rótulo
+     erra o gênero em "Mensagem" e "Chave pública". */
+  function copiar(texto, aviso) {
     var terminar = function (ok) {
-      UI.toast(ok ? rotulo + " copiado." : "Não foi possível copiar. Selecione e copie à mão.",
+      UI.toast(ok ? (aviso || "Copiado.") : "Não foi possível copiar. Selecione e copie à mão.",
                ok ? "ok" : "erro");
     };
+    /* O jeito antigo cobre DOIS casos, não um: o `clipboard` não
+       existir, e ele existir mas recusar — aba sem foco, página
+       fora de https, política do navegador. A versão anterior só
+       tratava o primeiro, e desistia calada no segundo. */
+    var peloAntigo = function () {
+      try {
+        var t = document.createElement("textarea");
+        t.value = texto;
+        t.setAttribute("readonly", "readonly");
+        t.style.position = "fixed";
+        t.style.top = "0";
+        t.style.opacity = "0";
+        document.body.appendChild(t);
+        t.select();
+        t.setSelectionRange(0, texto.length);
+        var ok = document.execCommand("copy");
+        document.body.removeChild(t);
+        return ok;
+      } catch (e) { return false; }
+    };
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(texto).then(function () { terminar(true); },
-                                                function () { terminar(false); });
+                                                function () { terminar(peloAntigo()); });
       return;
     }
-    try {
-      var t = document.createElement("textarea");
-      t.value = texto;
-      t.style.position = "fixed";
-      t.style.opacity = "0";
-      document.body.appendChild(t);
-      t.select();
-      var ok = document.execCommand("copy");
-      document.body.removeChild(t);
-      terminar(ok);
-    } catch (e) { terminar(false); }
+    terminar(peloAntigo());
   }
 
   /* ---------- Porta de entrada ---------- */
@@ -293,6 +312,7 @@
     base.value = enderecoPadrao();
 
     var aviso = $("#cBuscaEstado");
+    var rebuscar = $("#cRebuscar");
     var AVISO_PADRAO = aviso ? aviso.textContent : "";
     var buscado = "";      /* último CNPJ já consultado */
 
@@ -312,20 +332,65 @@
       return true;
     }
 
+    /* UMA tentativa, com prazo. Sem o prazo, uma conexão que abre e
+       não responde deixa o aviso em "Buscando…" para sempre — e foi
+       exatamente essa a queixa: parecia que nada acontecia. */
+    function tentarReceita(so) {
+      var corta = null;
+      var controle = global.AbortController ? new global.AbortController() : null;
+      var opcoes = controle ? { signal: controle.signal } : {};
+
+      var pedido = fetch("https://brasilapi.com.br/api/cnpj/v1/" + so, opcoes)
+        .then(function (r) {
+          if (r.ok) return r.json();
+          /* 404 é resposta, não falha: o número não existe lá e
+             insistir não muda nada. O resto pode melhorar sozinho. */
+          var e = new Error(r.status === 404 ? "nao-encontrado" : "falhou");
+          e.definitivo = r.status === 404;
+          e.status = r.status;
+          throw e;
+        });
+
+      var prazo = new Promise(function (_, rejeitar) {
+        corta = setTimeout(function () {
+          if (controle) controle.abort();
+          var e = new Error("demorou");
+          rejeitar(e);
+        }, LIMITE_RECEITA_MS);
+      });
+
+      return Promise.race([pedido, prazo]).then(function (d) {
+        clearTimeout(corta);
+        return d;
+      }, function (e) {
+        clearTimeout(corta);
+        throw e;
+      });
+    }
+
+    /* Repete sozinha antes de desistir. A queixa era ter de colar o
+       número três vezes até funcionar; se três tentativas resolvem,
+       quem deve fazer as três é o programa, não a pessoa. */
+    function comInsistencia(so, restam) {
+      return tentarReceita(so).catch(function (e) {
+        if (e && e.definitivo) throw e;
+        if (restam <= 0) throw e;
+        return new Promise(function (ok) { setTimeout(ok, restam === 2 ? 700 : 1600); })
+          .then(function () { return comInsistencia(so, restam - 1); });
+      });
+    }
+
     function buscarNaReceita(numero) {
       var so = U.soDigitos(numero);
       if (so.length !== 14 || so === buscado) return;
       buscado = so;
+      if (rebuscar) rebuscar.hidden = true;
       dizer("Buscando na Receita Federal…");
 
       /* Sem chave e sem cadastro: a BrasilAPI repassa o cadastro
          público da Receita. Se sair do ar, o formulário continua
          inteiro — isto é atalho, não dependência. */
-      fetch("https://brasilapi.com.br/api/cnpj/v1/" + so)
-        .then(function (r) {
-          if (!r.ok) throw new Error(r.status === 404 ? "nao-encontrado" : "falhou");
-          return r.json();
-        })
+      comInsistencia(so, 2)
         .then(function (d) {
           var mudou = [];
           if (preencherSeVazio(razao, d.razao_social)) mudou.push("razão social");
@@ -352,9 +417,27 @@
         })
         .catch(function (e) {
           buscado = "";      /* deixa tentar de novo */
-          dizer(e && e.message === "nao-encontrado"
-            ? "CNPJ não encontrado na Receita. Preencha à mão."
-            : "Não deu para consultar a Receita agora. Preencha à mão.", "var(--txt-3)");
+          var motivo = e && e.message;
+
+          if (motivo === "nao-encontrado") {
+            dizer("CNPJ não encontrado na Receita. Preencha à mão.", "var(--txt-3)");
+            return;                       /* insistir não adianta */
+          }
+
+          /* Dizer QUAL foi o problema. "Não deu certo" não deixa a
+             pessoa fazer nada; "você está sem internet" deixa. */
+          var recado;
+          if (!navigator.onLine) {
+            recado = "Sem internet no momento. Reconecte e toque em Buscar de novo.";
+          } else if (motivo === "demorou") {
+            recado = "A Receita não respondeu a tempo. Toque em Buscar de novo ou preencha à mão.";
+          } else if (e && e.status === 429) {
+            recado = "Muitas consultas seguidas. Espere alguns segundos e toque em Buscar de novo.";
+          } else {
+            recado = "Não deu para consultar a Receita agora. Toque em Buscar de novo ou preencha à mão.";
+          }
+          dizer(recado, "var(--txt-3)");
+          if (rebuscar) rebuscar.hidden = false;
         });
     }
 
@@ -364,6 +447,7 @@
       cnpj.removeAttribute("aria-invalid");
       if (aviso && U.soDigitos(cnpj.value).length < 14) {
         buscado = "";
+        if (rebuscar) rebuscar.hidden = true;
         dizer(AVISO_PADRAO);
       }
       /* Busca sozinha ao completar o número — sem esperar o campo
@@ -375,6 +459,15 @@
     cnpj.addEventListener("blur", function () {
       if (U.validaCNPJ(cnpj.value)) buscarNaReceita(cnpj.value);
     });
+
+    if (rebuscar) {
+      rebuscar.addEventListener("click", function () {
+        rebuscar.hidden = true;
+        buscado = "";                     /* libera o mesmo número */
+        if (U.validaCNPJ(cnpj.value)) buscarNaReceita(cnpj.value);
+        else dizer("Confira o CNPJ antes de buscar.", "var(--txt-3)");
+      });
+    }
 
     $("#cGerar").addEventListener("click", function () {
       var r = razao.value.trim();
@@ -590,8 +683,8 @@
       });
     });
 
-    $("#cCopiar").addEventListener("click", function () { copiar(campoLink.value, "Link"); });
-    $("#cCopiarMsg").addEventListener("click", function () { copiar(campoMsg.value, "Mensagem"); });
+    $("#cCopiar").addEventListener("click", function () { copiar(campoLink.value, "Link copiado."); });
+    $("#cCopiarMsg").addEventListener("click", function () { copiar(campoMsg.value, "Mensagem copiada."); });
 
     iniciarChaves();
   }
@@ -648,7 +741,7 @@
       });
     });
 
-    $("#kCopiarPub").addEventListener("click", function () { copiar($("#kPub").value, "Chave pública"); });
+    $("#kCopiarPub").addEventListener("click", function () { copiar($("#kPub").value, "Chave pública copiada."); });
 
     $("#kBaixarPriv").addEventListener("click", function () {
       if (!privadaGerada) return;
