@@ -1400,12 +1400,8 @@ body.porta-aberta .foot__marca{display:none}
 body.porta-aberta .foot__nome{display:inline}
 body.porta-aberta .foot__nome-br{display:inline}
 
-.sidenav__marca{
-  margin-top:18px;padding-top:16px;border-top:1px solid var(--stroke);
-  opacity:.55;transition:opacity .2s var(--ease);
-}
-.sidenav__marca:hover{opacity:.9}
-.sidenav__marca img{display:block;width:112px;height:auto;margin:0 auto}
+/* `.sidenav__marca` foi removido junto com a logo do menu lateral
+   — ver o comentário no lugar dela, em index.html. */
 
 /* ---------- 21. Desktop ---------- */
 @media (min-width:900px){
