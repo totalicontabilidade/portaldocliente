@@ -348,6 +348,24 @@ html.motion .reveal.is-in{
 .brand:active{transform:scale(.98)}
 .brand[aria-current="page"]{cursor:default}
 .brand__logo{height:30px;width:auto;flex:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
+
+/* A LOGO COMPLETA, que entra quando o cliente está dentro. Ela é
+   quase três vezes mais larga que o símbolo, e no celular divide a
+   barra com o nome da empresa e os botões de ação. Por isso nasce
+   menor aqui e só cresce no desktop: é mais importante o nome do
+   cliente caber do que a marca ficar grande. O `.brand__title` já
+   tem reticências, então o que faltar de espaço ele resolve. */
+.brand__logo--cheia{height:24px}
+@media (min-width:560px){ .brand__logo--cheia{height:30px} }
+@media (min-width:900px){ .brand__logo--cheia{height:33px} }
+
+/* No celular, com a logo completa, o fio divisor sai. Ele existe
+   para separar um símbolo mudo do texto ao lado; a logo completa
+   já termina em palavra e se separa sozinha. São ~12px que vão
+   para o nome da empresa, que é o que corta primeiro. */
+@media (max-width:559px){
+  .brand__logo--cheia + .brand__divider{display:none}
+}
 .brand__divider{width:1px;height:22px;background:var(--stroke-2);flex:none}
 .brand__text{min-width:0;display:block}
 .brand__title{display:block;

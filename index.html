@@ -243,7 +243,12 @@
      ============================================================ -->
 <header class="app-header dark-surface">
   <button type="button" class="brand" data-nav="inicio" aria-label="Totali · voltar para o início">
-    <img class="brand__logo" src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis" width="220" height="230">
+    <!-- Começa no símbolo porque a tela de entrada é o primeiro que
+         se vê; `atualizarCabecalho()` (js/app.js) troca para a logo
+         completa quando o cliente entra. -->
+    <img class="brand__logo" id="brandLogo" data-marca="simbolo"
+         src="assets/totali-simbolo.png" alt="totali · Portal do Cliente"
+         width="220" height="230">
     <span class="brand__divider" aria-hidden="true"></span>
     <span class="brand__text">
       <span class="brand__title" id="brandTitulo">Portal do Cliente</span>

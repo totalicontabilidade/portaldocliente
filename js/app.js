@@ -3295,7 +3295,39 @@
   }
 
   /* O cabeçalho mostra a empresa do cliente assim que ela é
-     conhecida. Antes disso, mantém o nome do portal. */
+     conhecida. Antes disso, mantém o nome do portal.
+
+     A MARCA TAMBÉM TROCA, e por um motivo (decisão dele, 2026-08-24):
+
+     - Na tela de entrada fica só o SÍMBOLO. A logo completa
+       "totali · Portal do Cliente" já está grande no cartão de
+       login, um palmo abaixo; repetida no alto ela não reforça
+       nada, só se repete.
+     - Com o cliente dentro, o cartão de login não existe mais e o
+       alto da tela fica sendo o único lugar com identidade. Aí
+       entra a logo COMPLETA, e o nome da empresa continua ao lado
+       dela — é o que faz o portal parecer do cliente, e é por ele
+       que a equipe sabe de qual cliente é a tela que abriu.
+
+     O subtítulo vira "Cliente" e não "Portal do Cliente" porque a
+     logo ao lado já diz "Portal do Cliente" por extenso. */
+  var MARCA_SIMBOLO = { src: "assets/totali-simbolo.png", w: 220, h: 230 };
+  var MARCA_CHEIA   = { src: "assets/totali-portal-branca.png", w: 660, h: 235 };
+
+  function trocarMarca(cheia) {
+    var img = $("#brandLogo");
+    if (!img) return;
+    var m = cheia ? MARCA_CHEIA : MARCA_SIMBOLO;
+    /* Só mexe se mudou: reatribuir o `src` igual faz o navegador
+       repintar e a marca pisca a cada render. */
+    if (img.getAttribute("data-marca") === (cheia ? "cheia" : "simbolo")) return;
+    img.setAttribute("data-marca", cheia ? "cheia" : "simbolo");
+    img.width = m.w;
+    img.height = m.h;
+    img.src = m.src;
+    img.classList.toggle("brand__logo--cheia", !!cheia);
+  }
+
   function atualizarCabecalho() {
     var e = Store.estado.empresa;
     var nome = (e.nomeFantasia || e.razaoSocial || "").trim();
@@ -3304,11 +3336,13 @@
     if (nome) {
       titulo.textContent = nome;
       titulo.title = e.razaoSocial || nome;
-      sub.textContent = "Portal do Cliente";
+      sub.textContent = "Cliente";
+      trocarMarca(true);
     } else {
       titulo.textContent = "Portal do Cliente";
       titulo.removeAttribute("title");
       sub.textContent = "Onboarding";
+      trocarMarca(false);
     }
   }
 
