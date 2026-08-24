@@ -342,13 +342,19 @@ service cloud.firestore {
         allow delete: if ehEquipe();
       }
 
-      // ---------- Trilha de auditoria ----------
+      // ---------- Acompanhamento da empresa ----------
       //
-      // ATENÇÃO, e isto precisa estar claro: sem Cloud Functions,
-      // quem grava aqui é o próprio navegador. A regra impede
-      // apagar e reescrever, mas NÃO impede o cliente de inventar
-      // um evento. Serve para acompanhar e depurar; NÃO tem valor
-      // probatório. Vira prova quando for gravada pelo servidor.
+      // ATENÇÃO, e isto precisa estar claro: quem grava AQUI é o
+      // próprio navegador. A regra impede apagar e reescrever, mas
+      // NÃO impede o cliente de inventar um evento. Serve para
+      // acompanhar e depurar; NÃO tem valor probatório.
+      //
+      // A trilha que TEM valor é a coleção /auditoria na raiz,
+      // escrita por Cloud Function com a hora do servidor e
+      // fechada para escrita de todo mundo, inclusive admin.
+      // Duas coisas diferentes, com nomes parecidos: esta é o que
+      // aconteceu na tela do cliente; aquela é o que o servidor
+      // presenciou. Ao investigar qualquer coisa, olhar a segunda.
       match /eventos/{eventoId} {
         allow read: if ehEquipe();
         allow create: if equipeOuDono(empresaId);

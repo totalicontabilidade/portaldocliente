@@ -137,5 +137,42 @@ exports.abrirCredencial = onDocumentCreated(
       uid: quem,
       em: FieldValue.serverTimestamp()
     });
+
+    await varrerPedidosVelhos(db);
   }
 );
+
+/* LIMPEZA DOS PEDIDOS JÁ ATENDIDOS.
+
+   Cada pedido guarda a resposta recifrada, e a regra do Firestore
+   proíbe apagar — nem equipe nem admin conseguem, de propósito, para
+   ninguém adulterar o rastro. Resultado: os pedidos se acumulavam
+   para sempre, um por clique em "Ver senha".
+
+   Não é vazamento: a resposta é fechada com uma chave descartável
+   que existiu só naquela aba e morreu com ela, então o documento
+   velho é ruído ilegível. Mas ruído que cresce sem parar é problema
+   de qualquer jeito, e guardar cifra sem motivo é o oposto do que
+   este sistema promete.
+
+   Quem apaga é a própria função, que roda com poder de administrador
+   e passa por cima da regra. Assim a limpeza não depende de ninguém
+   lembrar de abrir o console. A trilha de quem abriu o quê continua
+   inteira em /auditoria, que é onde ela deve estar. */
+const VALIDADE_PEDIDO_MS = 15 * 60 * 1000;
+
+async function varrerPedidosVelhos(db) {
+  try {
+    const limite = new Date(Date.now() - VALIDADE_PEDIDO_MS);
+    const velhos = await db.collection("pedidosDeSenha")
+      .where("em", "<", limite).limit(200).get();
+    if (velhos.empty) return;
+    const lote = db.batch();
+    velhos.forEach((d) => lote.delete(d.ref));
+    await lote.commit();
+  } catch (e) {
+    /* Falhar aqui não pode derrubar a abertura da senha, que já deu
+       certo e é o que a pessoa está esperando. */
+    console.error("nao foi possivel varrer pedidos velhos", e && e.message);
+  }
+}

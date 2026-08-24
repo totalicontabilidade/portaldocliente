@@ -38,8 +38,22 @@
 
      cd ~/totali
      node zerar-trilhas.js                    # só mostra
-     node zerar-trilhas.js --apagar           # pede a frase
+     node zerar-trilhas.js --apagar           # apaga TUDO, pede a frase
      node zerar-trilhas.js --apagar --sim     # sem perguntar
+
+     node zerar-trilhas.js --orfas            # mostra só o rastro de teste
+     node zerar-trilhas.js --orfas --apagar   # apaga só ele
+
+   QUAL DOS DOIS
+   -------------
+   `--orfas` é o de todo dia, depois de uma bateria de teste: apaga
+   o rastro de empresa que já não existe e PRESERVA o histórico de
+   quem existe. Não pede frase de confirmação porque não destrói
+   histórico de cliente nenhum — mas mostra a lista antes, e só age
+   com `--apagar`.
+
+   Sem `--orfas`, apaga as três coleções inteiras. É para recomeçar
+   do zero, e leva o histórico dos clientes reais junto.
 
    ============================================================ */
 "use strict";
@@ -59,6 +73,22 @@ const COLECOES = [
 
 const APAGAR = process.argv.indexOf("--apagar") > -1;
 const SEM_PERGUNTAR = process.argv.indexOf("--sim") > -1;
+
+/* MODO CIRÚRGICO, acrescentado em 2026-08-24.
+
+   Esvaziar as três coleções resolve o caso "recomeçar do zero", mas
+   é grosso demais para o caso comum: depois de uma bateria de teste,
+   o que sobra é lixo de empresa que nunca existiu de verdade,
+   MISTURADO com o histórico dos clientes reais. Apagar tudo levava
+   os dois juntos.
+
+   `--orfas` apaga só o que aponta para empresa que não está mais em
+   /empresas — o rastro dos testes — e não encosta no histórico de
+   quem existe. Os pedidos de exclusão já concluídos e os pedidos de
+   senha entram junto: são ordens de serviço cumpridas, não
+   histórico. Quem abriu qual senha continua registrado em
+   /auditoria, que é onde isso deve morar. */
+const SO_ORFAS = process.argv.indexOf("--orfas") > -1;
 
 initializeApp({ projectId: PROJETO });
 const db = getFirestore();
@@ -101,7 +131,78 @@ async function esvaziar(nome) {
   return apagados;
 }
 
+/* Ids das empresas que ainda existem. Tudo em /auditoria que aponte
+   para fora desta lista é rastro de empresa apagada — na prática,
+   de teste. */
+async function empresasVivas() {
+  const s = await db.collection("empresas").get();
+  const vivas = new Set();
+  s.forEach((d) => vivas.add(d.id));
+  return vivas;
+}
+
+async function limparOrfas() {
+  const vivas = await empresasVivas();
+  console.log(`\n${vivas.size} empresa(s) existindo hoje.\n`);
+
+  const aud = await db.collection("auditoria").get();
+  const orfas = [];
+  const mantidas = new Map();
+  aud.forEach((d) => {
+    const e = (d.data() || {}).empresaId || "";
+    if (e && !vivas.has(e)) orfas.push(d);
+    else mantidas.set(e || "(sem empresa)", (mantidas.get(e || "(sem empresa)") || 0) + 1);
+  });
+
+  /* Pedido de exclusão concluído é ordem de serviço cumprida, e
+     pedido de senha guarda resposta que já não abre — nenhum dos
+     dois é histórico que valha conservar. */
+  const exc = await db.collection("exclusoesDeConta").get();
+  const ped = await db.collection("pedidosDeSenha").get();
+
+  const porEmpresa = new Map();
+  orfas.forEach((d) => {
+    const e = (d.data() || {}).empresaId;
+    porEmpresa.set(e, (porEmpresa.get(e) || 0) + 1);
+  });
+
+  console.log("A APAGAR — rastro de empresa que não existe mais:");
+  for (const [e, n] of [...porEmpresa].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(4)} registro(s)   empresa ${e}`);
+  }
+  console.log(`  ${String(exc.size).padStart(4)} pedido(s) de exclusão já concluídos`);
+  console.log(`  ${String(ped.size).padStart(4)} pedido(s) de abertura de senha`);
+
+  console.log("\nA MANTER — histórico de empresa que existe:");
+  if (!mantidas.size) console.log("  (nenhum)");
+  for (const [e, n] of mantidas) console.log(`  ${String(n).padStart(4)} registro(s)   empresa ${e}`);
+
+  const total = orfas.length + exc.size + ped.size;
+  console.log(`\n  TOTAL A APAGAR: ${total} registro(s)\n`);
+  if (!total) { console.log("Nada a limpar.\n"); return; }
+
+  if (!APAGAR) {
+    console.log("Nada foi alterado. Para apagar:\n");
+    console.log("  node zerar-trilhas.js --orfas --apagar\n");
+    return;
+  }
+
+  const alvos = orfas.concat(exc.docs, ped.docs);
+  let feito = 0;
+  for (let i = 0; i < alvos.length; i += 400) {
+    const lote = db.batch();
+    alvos.slice(i, i + 400).forEach((d) => lote.delete(d.ref));
+    await lote.commit();
+    feito += Math.min(400, alvos.length - i);
+    console.log(`  apagados: ${feito}`);
+  }
+  console.log(`\nPronto. ${feito} registro(s) apagado(s).`);
+  console.log("O histórico das empresas que existem ficou intacto.\n");
+}
+
 async function principal() {
+  if (SO_ORFAS) return limparOrfas();
+
   const linhas = await contar();
   const total = linhas.reduce((a, l) => a + l.total, 0);
 
@@ -118,7 +219,8 @@ async function principal() {
 
   if (!APAGAR) {
     console.log("Nada foi alterado. Para apagar:\n");
-    console.log("  node zerar-trilhas.js --apagar\n");
+    console.log("  node zerar-trilhas.js --apagar          # tudo");
+    console.log("  node zerar-trilhas.js --orfas           # só o rastro de teste (confere antes)\n");
     return;
   }
 

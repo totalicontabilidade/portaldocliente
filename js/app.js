@@ -1812,13 +1812,26 @@
         '</div>';
       }
       if (f.formaRelatorio === "acesso") {
-        html += '<div class="notice notice--info" style="margin-top:14px">' +
+        /* A REGRA VEM ANTES DA CONVENIÊNCIA (decisão dele, 2026-08-24).
+           Isto deixou de ser "dica" e virou a condição do envio: só
+           entra senha de usuário DE CONSULTA. Quem não conseguir
+           criar um fala com a equipe em vez de mandar a senha
+           principal — a Totali não pode ter acesso a senha que
+           movimenta dinheiro, e não quer. */
+        html += '<div class="notice notice--warn" style="margin-top:14px">' +
           '<span class="notice__icon">' + ic("ic-lock") + '</span>' +
-          '<span><strong>Para que serve o acesso.</strong> Usamos só para baixar os relatórios do ' +
-          'mês. Nunca movimentamos dinheiro, não fazemos transferência e não alteramos nada. ' +
-          '<br><strong>Dica:</strong> várias maquininhas (Stone e Cielo, por exemplo) permitem criar ' +
-          'um usuário só de consulta — se puder, crie um para nós. ' +
-          '<br><strong>A Totali nunca pede a senha do seu banco.</strong></span></div>';
+          '<span><strong>Só a senha do usuário de consulta.</strong> ' +
+          'Precisamos de um acesso que apenas <em>veja</em> os relatórios. ' +
+          '<strong>Não mande a senha que movimenta dinheiro</strong> — a que você usa para ' +
+          'transferir, antecipar ou alterar cadastro. A Totali não pode ter acesso a ela.' +
+          '<br><br>A maioria das maquininhas (Stone, Cielo, PagBank e outras) deixa você criar um ' +
+          'usuário só de consulta, em poucos minutos, dentro do próprio painel delas. ' +
+          '<strong>Se a sua não tiver essa opção, não mande nada: ' +
+          '<a href="#/mensagens" data-rota="mensagens">fale com a gente</a> ' +
+          'que combinamos outro jeito.</strong>' +
+          '<br><br>Usamos o acesso só para baixar os relatórios do mês. Nunca movimentamos ' +
+          'dinheiro, não fazemos transferência e não alteramos nada. ' +
+          '<strong>A Totali nunca pede a senha do seu banco.</strong></span></div>';
 
         var escolhidas = f.maquinetas.slice();
         if (f.maquinetaOutra.trim()) escolhidas.push(f.maquinetaOutra.trim());
@@ -1853,10 +1866,12 @@
                 '</label>';
             } else {
               html += credenciaisHTML("financeiro/maquineta/" + nome, [
-                { id: "login", rotulo: "Login / usuário", tipo: "texto",
-                  placeholder: "E-mail ou CNPJ de acesso" },
-                { id: "senha", rotulo: "Senha", tipo: "senha" }
-              ], { titulo: "Acesso da " + nome });
+                { id: "login", rotulo: "Login do usuário de consulta", tipo: "texto",
+                  placeholder: "E-mail ou CNPJ desse usuário" },
+                { id: "senha", rotulo: "Senha do usuário de consulta", tipo: "senha",
+                  dica: "Não é a senha que você usa para movimentar. Se a " + nome +
+                        " não criar usuário de consulta, fale com a gente antes de enviar." }
+              ], { titulo: "Acesso de consulta da " + nome });
             }
             html += '</div>';
           });

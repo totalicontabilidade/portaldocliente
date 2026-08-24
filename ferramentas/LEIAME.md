@@ -149,10 +149,25 @@ e por isso o painel não consegue limpá-las:
 não prova nada, e o dia em que alguém perguntar "quem aprovou este
 balanço, e quando" a resposta precisa existir.
 
-Use uma vez só, antes de o sistema entrar em uso de verdade, para
-tirar o rastro dos testes.
+### `--orfas` — o de todo dia, depois de testar
+
+Apaga só o rastro de empresa que **não existe mais** — na prática, o
+que sobra de uma bateria de teste — e deixa intacto o histórico de
+quem existe. Mostra as duas listas antes de agir.
 
     cd ~/totali
+    node zerar-trilhas.js --orfas             # confere o que sairia
+    node zerar-trilhas.js --orfas --apagar    # apaga
+
+Os pedidos de exclusão já concluídos e os de abertura de senha entram
+junto: são ordens de serviço cumpridas, não histórico. Quem abriu
+qual senha continua registrado em `/auditoria`.
+
+### Sem `--orfas` — esvaziar as três coleções
+
+Leva o histórico dos clientes reais junto. Use uma vez só, antes de o
+sistema entrar em uso de verdade.
+
     node zerar-trilhas.js                 # só mostra, por tipo
     node zerar-trilhas.js --apagar        # pede a frase de confirmação
 

@@ -2160,6 +2160,35 @@ body.tour-aberto{overscroll-behavior:contain}
 }
 .rec__corpo{padding:0 12px 14px;border-top:1px solid var(--stroke);padding-top:14px}
 
+/* Variante em `<details>`, para conteúdo que abre e fecha sozinho
+   sem precisar de JavaScript — usada onde o bloco é raro e não vale
+   a mecânica do `caixaRecolhivel`. O triângulo padrão do navegador
+   sai porque destoa do resto; a seta é a mesma dos outros blocos. */
+details.rec > summary.rec__head{
+  display:flex;align-items:center;gap:10px;padding:11px 13px;
+  cursor:pointer;list-style:none;
+}
+details.rec > summary.rec__head::-webkit-details-marker{display:none}
+details.rec > summary.rec__head::after{
+  content:"";flex:none;width:9px;height:9px;margin-left:auto;
+  border-right:1.8px solid var(--txt-4);border-bottom:1.8px solid var(--txt-4);
+  transform:rotate(45deg) translateY(-2px);
+  transition:transform .25s var(--ease-out),border-color .2s var(--ease);
+}
+details.rec[open] > summary.rec__head::after{
+  transform:rotate(225deg) translateY(-2px);border-color:var(--gold-2);
+}
+details.rec > summary.rec__head:hover{background:rgba(255,255,255,.03)}
+details.rec > summary.rec__head .rec__t{white-space:normal}
+details.rec > summary.rec__head .rec__d{white-space:normal}
+details.rec[open]{border-color:var(--stroke-2,var(--stroke))}
+/* Fechar o `<details>` é trabalho do navegador, mas alguma regra
+   desta folha vence a do agente e o corpo continuava medindo altura
+   com o bloco fechado. Explicitar custa uma linha e não depende de
+   descobrir qual seletor estava ganhando. */
+details.rec:not([open]) > .rec__body{display:none}
+.rec__body{padding:0 13px 15px;border-top:1px solid var(--stroke);padding-top:14px}
+
 /* Capa + os botões que a trocam, empilhados. A coluna precisa de
    largura própria: sem ela o flex do .ac-aula espreme os botões
    contra a capa e o texto quebra letra a letra. */

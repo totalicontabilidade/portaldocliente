@@ -3741,15 +3741,32 @@
     });
   }
 
+  /* A senha aberta nasce COBERTA (pedido dele, 2026-08-24).
+
+     Ela vinha em texto na tela, e quem trabalha em mesa aberta,
+     dividindo monitor ou com alguém passando atrás, expunha a senha
+     do cliente sem perceber. Cobrir por padrão custa um toque a
+     mais e resolve o caso comum, que é só precisar COPIAR — para
+     copiar não é preciso ler.
+
+     O login continua visível: ele identifica de qual acesso se
+     trata, e cobri-lo tornaria a tela indecifrável sem ganho. */
   function mostrarSenha(saida, valores) {
     if (!saida) return;
     saida.hidden = false;
     saida.innerHTML = Object.keys(valores).map(function (k) {
+      var v = String(valores[k]);
+      var sigilo = /senha|password|pin|token|secret/i.test(k);
       return '<div class="cred__par">' +
         '<span class="cred__rot">' + U.esc(k) + '</span>' +
-        '<code class="cred__v">' + U.esc(String(valores[k])) + '</code>' +
+        (sigilo
+          ? '<code class="cred__v" data-oculto="' + U.escAttr(v) + '">' +
+              new Array(Math.min(v.length, 14) + 1).join("•") + '</code>' +
+            '<button type="button" class="btn btn--quiet btn--sm" data-revelar="1" ' +
+              'aria-label="Mostrar senha">Mostrar</button>'
+          : '<code class="cred__v">' + U.esc(v) + '</code>') +
         '<button type="button" class="btn btn--quiet btn--sm" data-copiar="' +
-          U.escAttr(String(valores[k])) + '">Copiar</button>' +
+          U.escAttr(v) + '">Copiar</button>' +
       '</div>';
     }).join("") +
     '<p class="text-xs text-muted" style="margin-top:8px">Some da tela ao atualizar. ' +
@@ -4371,6 +4388,21 @@
 
       var cred = alvo.closest("[data-abrir-cred]");
       if (cred) { abrirCredencial(cred.getAttribute("data-abrir-cred")); return; }
+
+      var rev = alvo.closest("[data-revelar]");
+      if (rev) {
+        var campo = rev.parentNode.querySelector("[data-oculto]");
+        if (!campo) return;
+        var texto = campo.getAttribute("data-oculto");
+        var mostrando = campo.getAttribute("data-mostrando") === "1";
+        campo.textContent = mostrando
+          ? new Array(Math.min(texto.length, 14) + 1).join("•")
+          : texto;
+        campo.setAttribute("data-mostrando", mostrando ? "0" : "1");
+        rev.textContent = mostrando ? "Mostrar" : "Ocultar";
+        rev.setAttribute("aria-label", mostrando ? "Mostrar senha" : "Ocultar senha");
+        return;
+      }
 
       var copiar = alvo.closest("[data-copiar]");
       if (copiar && navigator.clipboard) {
