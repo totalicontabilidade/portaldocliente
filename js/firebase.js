@@ -312,12 +312,30 @@
 
   function criarContaEquipe(email, senha) {
     if (!auth || !global.firebase) return Promise.reject(new Error("sem-conexao"));
-    var secundario;
+    var secundario, nova = false;
     try {
       secundario = global.firebase.app("secundario");
     } catch (e) {
       secundario = global.firebase.initializeApp(global.FIREBASE_CONFIG, "secundario");
+      nova = true;
     }
+
+    /* APP CHECK TAMBÉM AQUI — ele não vem junto.
+
+       `activate()` vale para UMA conexão. Esta é a segunda, e sem
+       esta linha toda criação de membro saía sem token: aparecia
+       como "solicitação sem verificação" nas métricas do
+       Authentication, e no dia em que a verificação fosse EXIGIDA
+       adicionar alguém à equipe deixaria de funcionar.
+
+       Achado em 22/08/2026, investigando por que o número não
+       chegava a 100%. */
+    if (nova && global.APP_CHECK_SITE_KEY && global.firebase.appCheck) {
+      try {
+        global.firebase.appCheck(secundario).activate(global.APP_CHECK_SITE_KEY, true);
+      } catch (eAC) { /* segue sem App Check nesta conexão */ }
+    }
+
     var authSec = secundario.auth();
     return authSec.createUserWithEmailAndPassword(String(email).trim(), String(senha))
       .then(function (cred) {
