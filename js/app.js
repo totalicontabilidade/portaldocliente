@@ -1406,17 +1406,49 @@
     var reg = Store.credencial(chave);
 
     if (guardada) {
+      /* DOIS ESTADOS DIFERENTES, e confundi-los foi o bug de
+         2026-08-24: o envelope existir NÃO quer dizer que chegou à
+         Totali. Enquanto estiver preso no aparelho, o cartão diz
+         isso com todas as letras — senha é o único dado que o
+         cliente não consegue reler para conferir sozinho. */
+      var presa = Store.credencialPendente(chave);
+      var quantos = U.esc(reg.campos.length) + ' ' +
+        U.plural(reg.campos.length, "dado protegido", "dados protegidos");
+
+      if (presa) {
+        return '<div class="cofre cofre--espera" data-cred="' + U.escAttr(chave) + '">' +
+          '<span class="cofre__icone">' + ic("ic-clock") + '</span>' +
+          '<span class="cofre__txt">' +
+            '<span class="cofre__t">Ainda não chegou à Totali</span>' +
+            '<span class="cofre__d">' + quantos + ', já embaralhados e à espera de internet. ' +
+              'Estamos tentando sozinhos — deixe o portal aberto. ' +
+              'Se sair da conta agora, este envio se perde.</span>' +
+          '</span>' +
+          '<span class="cofre__acoes">' +
+            '<button type="button" class="btn btn--primary btn--sm" data-cred-reenviar="1">' +
+              ic("ic-refresh") + 'Tentar agora</button>' +
+          '</span>' +
+        '</div>';
+      }
+
       return '<div class="cofre cofre--ok" data-cred="' + U.escAttr(chave) + '">' +
         '<span class="cofre__icone">' + ic("ic-lock") + '</span>' +
         '<span class="cofre__txt">' +
           '<span class="cofre__t">Acesso guardado com segurança</span>' +
-          '<span class="cofre__d">' + U.esc(reg.campos.length) + ' ' +
-            U.plural(reg.campos.length, "dado protegido", "dados protegidos") +
+          /* DIZER QUE NÃO DÁ PARA VER DE VOLTA, e no mesmo fôlego
+             dizer o que fazer se estiver errado. Sem isso a pessoa
+             que errou a digitação fica sem saída aparente: procura
+             um botão de "ver" que não existe e não percebe que
+             "Digitar de novo" resolve. */
+          '<span class="cofre__d">' + quantos +
             (reg.atualizadoEm ? " · " + U.esc(U.dataCurta(reg.atualizadoEm)) : "") +
-            '. Nem a senha nem o login ficam legíveis neste aparelho.</span>' +
+            '. Por segurança não dá para mostrar de volta, nem para nós nem para você. ' +
+            'Errou alguma coisa? Toque em <strong>Digitar de novo</strong> — o que você ' +
+            'mandar por último é o que vale.</span>' +
         '</span>' +
         '<span class="cofre__acoes">' +
-          '<button type="button" class="btn btn--ghost btn--sm" data-cred-trocar="1">Substituir</button>' +
+          '<button type="button" class="btn btn--ghost btn--sm" data-cred-trocar="1">' +
+            'Digitar de novo</button>' +
           '<button type="button" class="btn btn--quiet btn--sm" data-cred-apagar="1">Apagar</button>' +
         '</span>' +
       '</div>';
@@ -1474,6 +1506,19 @@
     $$("[data-cred-campo]", caixa).forEach(function (i) { i.value = ""; });
   }
 
+  /* "Rótulo: valor" de cada campo preenchido, para a conferência de
+     antes de selar. O rótulo sai do próprio `<label for>` do
+     formulário, e não de uma segunda lista escrita à mão — duas
+     listas para dizer a mesma coisa acabam divergindo. */
+  function resumoDosCampos(caixa) {
+    return $$("[data-cred-campo]", caixa).map(function (i) {
+      var v = String(i.value || "").trim();
+      if (!v) return null;
+      var rot = i.id ? caixa.querySelector('label[for="' + i.id + '"]') : null;
+      return (rot ? rot.textContent.trim() : i.getAttribute("data-cred-campo")) + ": " + v;
+    }).filter(Boolean).join("\n");
+  }
+
   function ligarCredenciais() {
     $$("[data-ver-senha]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -1495,16 +1540,67 @@
           UI.toast("Preencha pelo menos um campo.", "erro");
           return;
         }
+        /* CONFERÊNCIA ANTES DE SELAR.
+
+           Depois de cifrado, nem o cliente nem o portal conseguem
+           reler: o envelope só abre com a chave privada da Totali.
+           Então a única hora em que a pessoa pode conferir se
+           digitou certo é ESTA, e é errado deixá-la passar batido.
+           Um erro de digitação que ninguém percebe só aparece
+           semanas depois, quando a equipe tenta baixar o relatório
+           e não entra.
+
+           A senha aparece por extenso aqui de propósito: quem está
+           olhando a tela é quem acabou de digitá-la. */
+        UI.confirmar({
+          titulo: "Confira antes de enviar",
+          mensagem: "Depois de enviado, isto fica protegido e nem você nem nós conseguimos " +
+                    "mostrar de novo — só a Totali consegue abrir, na hora de usar. " +
+                    "Confira agora:\n\n" + resumoDosCampos(caixa) + "\n\nEstá certo?",
+          confirmar: "Está certo, enviar"
+        }).then(function (confere) {
+          if (!confere) return;
+          enviarCredencial();
+        });
+
+        function enviarCredencial() {
         b.disabled = true;
-        Store.guardarCredencial(chave, valores).then(function (ok) {
-          limparCredenciais(caixa);   /* some da tela imediatamente */
-          Store.flush();
-          if (ok) UI.toast("Acesso guardado com segurança.", "ok");
-          render();
-        }, function () {
-          b.disabled = false;
+        b.textContent = "Enviando…";
+        Store.guardarCredencial(chave, valores).then(function (r) {
+          /* Os campos só somem depois que o envelope existe: até
+             aqui, apagá-los seria pedir para a pessoa digitar a
+             senha de novo se algo desse errado no meio. */
           limparCredenciais(caixa);
-          UI.toast("Não foi possível guardar com segurança. Nada foi salvo.", "erro");
+          if (r === "no-servidor") {
+            UI.toast("Acesso guardado com segurança.", "ok");
+          } else if (r === "so-no-aparelho") {
+            /* Não dizer "guardado": não está com a Totali ainda. */
+            UI.toast("Anotamos, mas ainda não chegou à Totali — a internet falhou. " +
+                     "Continuamos tentando sozinhos; deixe o portal aberto um instante.",
+                     "erro", 11000);
+          }
+          render();
+        }, function (e) {
+          b.disabled = false;
+          b.textContent = "Guardar com segurança";
+          /* Aqui a cifragem falhou, então NÃO existe envelope: os
+             campos ficam como estão, para não obrigar a redigitar. */
+          UI.toast(e && e.message === "canal-nao-configurado"
+            ? "O canal seguro não está configurado. Fale com a Totali antes de enviar senha."
+            : "Não foi possível proteger os dados neste aparelho. Nada foi enviado.", "erro", 9000);
+        });
+        }
+      });
+    });
+
+    $$("[data-cred-reenviar]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        b.disabled = true;
+        b.textContent = "Enviando…";
+        Store.flush().then(function (subiu) {
+          if (subiu) UI.toast("Pronto, chegou à Totali.", "ok");
+          else UI.toast("Ainda não foi. Verifique a internet — seguimos tentando.", "erro", 8000);
+          render();
         });
       });
     });
@@ -3121,12 +3217,41 @@
      Sair da conta
      ============================================================ */
   function sairDaConta() {
-    UI.confirmar({
-      titulo: "Sair da conta",
-      mensagem: "Tudo o que você já enviou fica guardado com a Totali. Para voltar, é só entrar " +
-                "com o mesmo e-mail e senha — deste ou de qualquer outro aparelho.",
-      confirmar: "Sair"
-    }).then(function (ok) {
+    /* SAIR APAGA A CÓPIA DESTE APARELHO. Se houver senha que ainda
+       não chegou ao servidor, sair é destruí-la — e foi assim que
+       um envio se perdeu em 2026-08-24. Então avisamos ANTES, com
+       o que está em jogo dito por extenso. */
+    var presas = Store.credenciaisPendentes ? Store.credenciaisPendentes() : [];
+    var aviso = presas.length
+      ? { titulo: "Ainda há senha para enviar",
+          mensagem: presas.length === 1
+            ? "Uma senha que você guardou ainda não chegou à Totali — faltou internet. " +
+              "Se sair agora, ela se perde e será preciso digitar de novo. " +
+              "Prefere esperar um instante com o portal aberto?"
+            : presas.length + " senhas que você guardou ainda não chegaram à Totali — faltou " +
+              "internet. Se sair agora, elas se perdem e será preciso digitar tudo de novo. " +
+              "Prefere esperar um instante com o portal aberto?",
+          confirmar: "Sair mesmo assim", perigo: true }
+      : { titulo: "Sair da conta",
+          mensagem: "Tudo o que você já enviou fica guardado com a Totali. Para voltar, é só " +
+                    "entrar com o mesmo e-mail e senha — deste ou de qualquer outro aparelho.",
+          confirmar: "Sair" };
+
+    /* Antes de perguntar, uma última tentativa: se a rede voltou, o
+       aviso nem precisa aparecer. */
+    var antes = presas.length
+      ? Promise.race([Promise.resolve(Store.flush()),
+                      new Promise(function (r) { setTimeout(r, 2500); })])
+          .then(function () {
+            var ainda = Store.credenciaisPendentes();
+            return ainda.length ? aviso : { titulo: "Sair da conta",
+              mensagem: "Tudo o que você já enviou fica guardado com a Totali. Para voltar, é só " +
+                        "entrar com o mesmo e-mail e senha — deste ou de qualquer outro aparelho.",
+              confirmar: "Sair" };
+          })
+      : Promise.resolve(aviso);
+
+    antes.then(function (perg) { return UI.confirmar(perg); }).then(function (ok) {
       if (!ok) return;
       var FB = global.FB;
       esquecerEmpresa();
@@ -4104,6 +4229,29 @@
            cod.indexOf("internal") >= 0;
   }
 
+  /* Insiste em abrir a sessão quando a leitura falhou por rede, sem
+     pedir nada à pessoa. Três tentativas espaçadas cobrem a queda
+     curta, que é o caso comum; passando disso, o aviso aparece uma
+     única vez, com a porta em pé para quem quiser entrar à mão. */
+  function tentarEntrarDeNovo(vez) {
+    var esperas = [3000, 8000, 20000];
+    if (vez > esperas.length) {
+      porta.aguardandoRede = false;
+      render();
+      UI.toast("Não conseguimos falar com o servidor. Seus dados estão salvos — " +
+               "entre de novo quando a internet voltar.", "erro", 12000);
+      return;
+    }
+    setTimeout(function () {
+      descobrirEmpresas().then(entrarNaEmpresa).then(function () {
+        porta.aguardandoRede = false;
+        render();
+      }, function () {
+        tentarEntrarDeNovo(vez + 1);
+      });
+    }, esperas[vez - 1]);
+  }
+
   function aplicarConviteDoServidor() {
     var FB = global.FB;
     if (!FB || !FB.ligado) return Promise.resolve(false);
@@ -4128,11 +4276,20 @@
            senha de novo — era o que fazia o cliente achar que
            tinha sido desconectado. */
         if (r.estado === "falhou") {
-          porta.modo = "";
-          setTimeout(function () {
-            UI.toast("A conexão com o servidor está instável. Seus dados estão salvos — " +
-                     "atualize a página em alguns segundos.", "erro", 12000);
-          }, 600);
+          /* A SESSÃO ESTÁ VIVA, só a leitura falhou. Antes isto
+             deixava `porta.modo` vazio e o portal era desenhado sem
+             empresa nenhuma: telas ocas, botões que não levam a
+             lugar nenhum, e um aviso mandando atualizar a página.
+             Parecia travado — e "recarregue" não é resposta que o
+             sistema possa dar ao cliente.
+
+             Agora ele tenta de novo sozinho, com intervalo, e só
+             fala quando tem o que dizer. Não mexo em `porta.modo`
+             aqui: manter a porta em pé é melhor do que mostrar um
+             portal vazio que a pessoa vai achar que é o dela. */
+          porta.modo = "login";
+          porta.aguardandoRede = true;
+          tentarEntrarDeNovo(1);
           return true;
         }
         porta.modo = "login";
@@ -4300,6 +4457,24 @@
           : "Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
             "o navegador está em modo privado.", "erro", 9000);
       }
+      /* A recuperação também precisa de voz. Quem viu o erro fica
+         sem saber se pode fechar a página; sem este aviso, a única
+         forma de descobrir seria perguntar à Totali. */
+      if (motivo === "salvo-depois-do-erro") {
+        UI.toast("Pronto, o que faltava já subiu.", "ok");
+      }
+      if (motivo === "credencial-chegou") {
+        UI.toast("A senha que estava esperando chegou à Totali.", "ok", 7000);
+      }
+      /* Uma senha que deixou de estar presa muda o cartão de
+         "ainda não chegou" para "guardado". Sem redesenhar aqui, o
+         cartão fica mentindo ao contrário: dizendo que falta enviar
+         algo que já foi. Só na tela onde o cartão existe, para não
+         apagar formulário que a pessoa esteja preenchendo. */
+      if ((motivo === "credenciais" || motivo === "credencial-chegou") &&
+          estadoUI.rota === "financeiro") {
+        render();
+      }
     });
 
     Store.iniciar().then(function () {
@@ -4375,8 +4550,23 @@
             return;
           }
 
-          UI.toast("A conexão com o servidor está instável. Você continua conectado — " +
-                   "atualize a página em alguns segundos.", "erro", 12000);
+          /* SEM ESTE `render()` A TELA TRAVAVA.
+
+             `soltar()` só baixa a bandeira de "ainda decidindo" e
+             marca o corpo como pronto; quem troca o cartão neutro
+             pelo conteúdo é o render. Faltando ele, a pessoa ficava
+             olhando a tela de abertura, sem nenhum botão ligado,
+             porque os ouvintes são presos a cada desenho. Nada
+             clicava e só recarregando saía dali — foi o que o Raoni
+             descreveu em 2026-08-24.
+
+             O tempo limite de 8s renderizava; o caminho de erro,
+             que é o mais rápido, não. Por isso a falha aparecia
+             justamente quando o servidor respondia depressa que não
+             deu certo. */
+          render();
+          UI.toast("A conexão com o servidor está instável. Você continua conectado. " +
+                   "Tocando de novo no que quiser, já deve funcionar.", "erro", 10000);
         });
       }
     }, function () {

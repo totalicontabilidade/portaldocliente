@@ -498,7 +498,12 @@
       if (!t) return true;
       var alvo = [
         c.empresa.razaoSocial, c.empresa.nomeFantasia, c.empresa.cnpj,
-        c.empresa.responsavelNome, c.empresa.responsavelEmail
+        c.empresa.responsavelNome, c.empresa.responsavelEmail,
+        /* O protocolo entra na busca porque é o número que o cliente
+           tem na mão: ele está na tela dele e no PDF do termo. Se
+           alguém liga citando "CF-202608-9LD66", a equipe acha o
+           cliente digitando isso, em vez de ter de adivinhar o nome. */
+        (c.financeiro || {}).protocolo
       ].join(" ").toLowerCase();
       return alvo.indexOf(t) > -1;
     }).sort(ordemDeTrabalho);
@@ -1295,8 +1300,15 @@
      vista própria, porque ninguém lê mensagem no meio da lista
      de documentos.
      ============================================================ */
+  /* "Bancos e senhas" é aba própria desde 2026-08-24, a pedido do
+     Raoni. Antes vivia no meio de "Cadastro e acesso", depois do
+     cadastro, dos sócios e do acesso ao portal — e é justamente o
+     conteúdo que a equipe abre a ficha para buscar quando vai
+     baixar relatório de maquineta. Ficava escondido no lugar mais
+     movimentado da ficha. */
   var VISTAS = [
     { id: "documentos", rotulo: "Documentos",        icone: "ic-folder" },
+    { id: "financeiro", rotulo: "Bancos e senhas",   icone: "ic-card" },
     { id: "cadastro",   rotulo: "Cadastro e acesso", icone: "ic-building" },
     { id: "conversa",   rotulo: "Conversa",          icone: "ic-chat" }
   ];
@@ -1304,15 +1316,21 @@
 
   function abasFichaHTML(c) {
     var naoLidas = naoLidasDe(c);
+    /* Quantas senhas o cliente já mandou. O número na aba evita a
+       pergunta que a equipe faria abrindo e fechando: "esse cliente
+       chegou a informar o acesso da maquineta?". */
+    var quantasSenhas = Object.keys((c && c.recibos) || {}).length;
     return '<div class="vistas" role="tablist">' +
       VISTAS.map(function (v) {
         var ativa = vistaFicha === v.id;
+        var selo = "";
+        if (v.id === "conversa" && naoLidas) selo = naoLidas;
+        if (v.id === "financeiro" && quantasSenhas) selo = quantasSenhas;
         return '<button type="button" role="tab" aria-selected="' + (ativa ? "true" : "false") +
           '" class="vistas__b' + (ativa ? " vistas__b--on" : "") +
           '" data-vista="' + v.id + '">' +
           ic(v.icone) + U.esc(v.rotulo) +
-          (v.id === "conversa" && naoLidas
-            ? '<span class="vistas__n">' + naoLidas + '</span>' : '') +
+          (selo ? '<span class="vistas__n">' + selo + '</span>' : '') +
         '</button>';
       }).join("") +
     '</div>';
@@ -1593,13 +1611,18 @@
         DATA.GRUPOS.map(function (g) { return grupoHTML(c, g); }).join("");
     }
 
+    if (vistaFicha === "financeiro") {
+      html += '<div class="paineis">' +
+          financeiroHTML(c) +
+          credenciaisHTML(c) +
+        '</div>';
+    }
+
     if (vistaFicha === "cadastro") {
       html += '<div class="paineis">' +
           painelCadastro() +
           painelSocios() +
           acessoHTML(c) +
-          financeiroHTML(c) +
-          credenciaisHTML(c) +
           notasHTML(c) +
         '</div>' +
         zonaDeRiscoHTML(c);
@@ -4453,10 +4476,20 @@
         carregarModelos();
         carregarLista();
       } else {
+        /* A SESSÃO CAIU. Limpar as variáveis não basta: a ficha do
+           cliente continuava desenhada na tela, com dados de quem
+           acabou de sair e botões que não respondem mais, porque os
+           dados por trás deles sumiram. Quem via isso achava que a
+           página tinha travado e recarregava à força — foi o que o
+           Raoni descreveu em 2026-08-24.
+
+           Fechar a ficha devolve a tela ao estado limpo, e aí o
+           formulário de entrada que aparece por cima é a única
+           coisa com que dá para interagir, que é o correto. */
         empresas = [];
-        pararConversa();
-        aberto = null;
         conversaAberta = null;
+        carregando = false;
+        fecharCliente();
         if (global.Painel) {
           global.Painel.marcarBadges({ atencao: 0, pendencias: 0, mensagens: 0 });
         }

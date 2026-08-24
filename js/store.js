@@ -468,19 +468,149 @@
 
   var trocandoBackend = false;
 
+  /* ===========================================================
+     REENVIO AUTOMÁTICO
+
+     Isto existe porque a mensagem de erro MENTIA. Ela dizia "o que
+     você digitou não se perde, tentamos de novo sozinhos" e nada
+     tentava: `erroPersistencia` era marcado, o aviso aparecia, e a
+     próxima gravação só aconteceria se a pessoa mexesse em outra
+     coisa. Quem salvasse uma senha, visse o erro e saísse da conta
+     perdia a senha — o "Sair" apaga a cópia do aparelho.
+     Aconteceu de verdade com o Raoni em 2026-08-24.
+
+     Dá para insistir com segurança porque `backend.salvar` é
+     comparativo e idempotente: ele confere o retrato do que já está
+     no servidor e só fixa o retrato quando o lote inteiro passa.
+     Repetir a mesma gravação não duplica nada.
+
+     A escada é curta no começo (queda de rede costuma durar
+     segundos) e para de crescer em um minuto, para que voltar a ter
+     sinal não signifique esperar mais dez minutos. */
+  /* ===========================================================
+     ENVELOPE PENDENTE SOBREVIVE AO RECARREGAMENTO
+
+     Credencial é o único dado que o servidor NÃO devolve — a regra
+     só deixa admin ler. Então `carregar()` da nuvem monta
+     `credenciais: {}`, e uma senha que ainda não subiu sumiria
+     assim que a pessoa atualizasse a página.
+
+     O que fica gravado aqui é o ENVELOPE, não a senha: já saiu
+     cifrado com AES e a chave dele vai trancada na chave pública
+     da Totali. Sem a chave privada, que não existe neste aparelho,
+     é ruído. A senha em texto nunca é gravada em lugar nenhum.
+
+     Some assim que o servidor confirma. */
+  var CHAVE_PENDENTES = "totali.onboarding.credpend";
+
+  function guardaLocal() {
+    try { return global.localStorage; } catch (e) { return null; }
+  }
+
+  function lerPendentesSalvos(empresaId) {
+    var g = guardaLocal();
+    if (!g || !empresaId) return {};
+    try {
+      var bruto = JSON.parse(g.getItem(CHAVE_PENDENTES) || "{}");
+      var d = bruto[empresaId];
+      return d && typeof d === "object" ? d : {};
+    } catch (e) { return {}; }
+  }
+
+  function gravarPendentesSalvos(empresaId, mapa) {
+    var g = guardaLocal();
+    if (!g || !empresaId) return;
+    try {
+      var bruto = JSON.parse(g.getItem(CHAVE_PENDENTES) || "{}");
+      if (mapa && Object.keys(mapa).length) bruto[empresaId] = mapa;
+      else delete bruto[empresaId];
+      /* Nada preso em empresa nenhuma: tira a chave inteira, em vez
+         de deixar um "{}" para trás no aparelho da pessoa. */
+      if (Object.keys(bruto).length) g.setItem(CHAVE_PENDENTES, JSON.stringify(bruto));
+      else g.removeItem(CHAVE_PENDENTES);
+    } catch (e) { /* cota cheia ou modo privado: o envio da sessão ainda vale */ }
+  }
+
+  function sincronizarPendentes() {
+    var mapa = {};
+    Object.keys(estado.credenciais || {}).forEach(function (k) {
+      var c = estado.credenciais[k];
+      if (c && c.pendenteEnvio && c.pacote) {
+        mapa[k] = { pacote: c.pacote, campos: c.campos || [], atualizadoEm: c.atualizadoEm || 0 };
+      }
+    });
+    gravarPendentesSalvos(estado.empresaId, mapa);
+  }
+
+  var ESPERAS_MS = [2000, 5000, 12000, 30000, 60000];
+  var tentativa = 0;
+  var relogioReenvio = null;
+  var reenviando = false;
+
+  function pararReenvio() {
+    if (relogioReenvio) { clearTimeout(relogioReenvio); relogioReenvio = null; }
+    tentativa = 0;
+  }
+
+  function agendarReenvio() {
+    if (relogioReenvio) return;                 /* já tem um a caminho */
+    var espera = ESPERAS_MS[Math.min(tentativa, ESPERAS_MS.length - 1)];
+    tentativa++;
+    relogioReenvio = setTimeout(function () {
+      relogioReenvio = null;
+      salvarAgora();
+    }, espera);
+  }
+
+  /* Não espera a escada quando há motivo para achar que melhorou:
+     a rede voltou, ou a pessoa trouxe a aba de volta para a frente
+     (que costuma ser quando o celular reconecta). */
+  function tentarJaSePuder() {
+    if (!erroPersistencia) return;
+    pararReenvio();
+    salvarAgora();
+  }
+
+  if (global.addEventListener) {
+    global.addEventListener("online", tentarJaSePuder);
+  }
+  if (global.document && global.document.addEventListener) {
+    global.document.addEventListener("visibilitychange", function () {
+      if (!global.document.hidden) tentarJaSePuder();
+    });
+  }
+
   var salvarAgora = function () {
     /* Durante a troca de backend o estado está a meio caminho:
        gravar agora escreveria no lugar errado. */
     if (trocandoBackend) return Promise.resolve(false);
+    /* Uma gravação de cada vez. Duas em paralelo comparariam com o
+       mesmo retrato e mandariam as mesmas escritas duas vezes. */
+    if (reenviando) return Promise.resolve(!erroPersistencia);
+    reenviando = true;
     estado.atualizadoEm = Date.now();
     return backend.salvar(estado).then(function () {
+      reenviando = false;
+      pararReenvio();
+      /* O lote subiu inteiro, então nenhuma senha continua presa
+         no aparelho. Sem isto a tela ficaria em "ainda não chegou"
+         para sempre depois de um reenvio bem-sucedido. */
+      var tinhaPresa = Store.confirmarCredenciais();
+      if (erroPersistencia) {
+        erroPersistencia = false;
+        /* Avisar que CHEGOU importa tanto quanto avisar que falhou:
+           quem viu o erro precisa saber que já pode sair em paz. */
+        notificar(tinhaPresa ? "credencial-chegou" : "salvo-depois-do-erro");
+      }
       erroPersistencia = false;
       return true;
     }, function () {
+      reenviando = false;
       if (!erroPersistencia) {
         erroPersistencia = true;
         notificar("erro-persistencia");
       }
+      agendarReenvio();
       return false;
     });
   };
@@ -582,10 +712,39 @@
         backend = novo;
         estado = sanear(bruto);
         estado.empresaId = empresaId;
+
+        /* Devolve ao estado as senhas que ficaram presas neste
+           aparelho numa sessão anterior. O servidor nunca as
+           devolve, então sem isto elas sumiriam agora — que é
+           justamente quando dá para tentar mandar de novo. */
+        var presas = lerPendentesSalvos(empresaId);
+        var quantas = 0;
+        Object.keys(presas).forEach(function (k) {
+          var p = presas[k];
+          if (!p || !p.pacote) return;
+          estado.credenciais[k] = {
+            pacote: p.pacote, campos: p.campos || [],
+            atualizadoEm: p.atualizadoEm || 0, pendenteEnvio: true
+          };
+          /* O RECIBO VOLTA JUNTO. Ele é o que diz ao portal que esta
+             senha já foi informada; sem ele o envelope subiria e a
+             tela continuaria pedindo a senha de novo, porque o
+             cliente não tem permissão para reler a credencial e
+             conferir por conta própria. */
+          if (!estado.recibosCredenciais[k]) {
+            estado.recibosCredenciais[k] = {
+              campos: p.campos || [], em: p.atualizadoEm || Date.now()
+            };
+          }
+          quantas++;
+        });
+
         trocandoBackend = false;
         erroPersistencia = false;
         ligarTempoReal();
         notificar("servidor");
+        /* Com senha presa, tenta subir assim que a sessão abre. */
+        if (quantas) salvarAgora();
         return true;
       }, function (e) {
         trocandoBackend = false;
@@ -894,7 +1053,12 @@
       return C.cifrar(limpos).then(function (pacote) {
         Store.commit(function (st) {
           var agora = Date.now();
-          st.credenciais[chave] = { pacote: pacote, campos: campos, atualizadoEm: agora };
+          st.credenciais[chave] = {
+            pacote: pacote, campos: campos, atualizadoEm: agora,
+            /* Marca local, nunca sobe: enquanto estiver ligada, a
+               senha existe só neste aparelho. */
+            pendenteEnvio: true
+          };
           /* O recibo é o que sobrevive ao logout: no próximo
              acesso o portal sabe que esta senha já veio, sem
              precisar (nem poder) abrir o envelope. */
@@ -902,9 +1066,53 @@
         }, "credenciais");
         /* A auditoria registra QUE houve envio, jamais o conteúdo. */
         Store.registrarEvento("credencial:enviada", chave, campos.join(", "));
-        return true;
+
+        /* AQUI ESTAVA O BUG: antes devolvia `true` neste ponto, com
+           a senha só no aparelho, e a tela dizia "guardado com
+           segurança". Senha é o único dado que o cliente não
+           consegue reler para conferir — se ela não chegar, ninguém
+           percebe até a equipe precisar dela. Então esperamos a
+           gravação e contamos a verdade. Falhando, o envelope fica
+           na fila e o reenvio automático assume. */
+        sincronizarPendentes();
+        return salvarAgora().then(function (subiu) {
+          return subiu ? "no-servidor" : "so-no-aparelho";
+        });
       });
     },
+
+    /* Tira a marca de pendente sem disparar outra gravação: a marca
+       é local e não vai para o servidor, então não há o que gravar. */
+    confirmarCredenciais: function () {
+      var mudou = false;
+      Object.keys(estado.credenciais || {}).forEach(function (k) {
+        if (estado.credenciais[k] && estado.credenciais[k].pendenteEnvio) {
+          delete estado.credenciais[k].pendenteEnvio;
+          mudou = true;
+        }
+      });
+      if (mudou) {
+        sincronizarPendentes();     /* chegou: apaga a cópia de socorro */
+        notificar("credenciais");
+      }
+      return mudou;
+    },
+
+    credencialPendente: function (chave) {
+      var c = estado.credenciais[chave];
+      return !!(c && c.pendenteEnvio);
+    },
+
+    /* Quantas senhas ainda não chegaram ao servidor. É o que o
+       "Sair" consulta antes de apagar a cópia do aparelho. */
+    credenciaisPendentes: function () {
+      return Object.keys(estado.credenciais || {}).filter(function (k) {
+        return estado.credenciais[k] && estado.credenciais[k].pendenteEnvio;
+      });
+    },
+
+    /* Há gravação que falhou e ainda não conseguiu subir? */
+    temPendencias: function () { return erroPersistencia; },
 
     temCredencial: function (chave) {
       var c = estado.credenciais[chave];

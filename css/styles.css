@@ -1682,6 +1682,19 @@ body.porta-aberta .foot__nome-br{display:inline}
   background:rgba(194,162,80,.16);border:1px solid var(--stroke-gold);color:var(--gold-2);
 }
 .cofre--ok .cofre__icone{background:rgba(92,195,148,.16);border-color:var(--ok-br);color:var(--ok)}
+
+/* SENHA CIFRADA QUE AINDA NÃO SUBIU. Âmbar, não verde e não
+   vermelho: não deu errado — está a caminho —, mas também não
+   está resolvido, e o verde ao lado do "guardado" faria a pessoa
+   ler as duas situações como a mesma coisa. */
+.cofre--espera{
+  display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+  background:linear-gradient(150deg,rgba(194,162,80,.15),rgba(15,28,42,.5));
+  border-color:var(--stroke-gold);
+}
+.cofre--espera .cofre__icone{
+  background:rgba(194,162,80,.18);border-color:var(--stroke-gold);color:var(--gold-2);
+}
 .cofre__icone .ic{width:17px;height:17px}
 .cofre__txt{flex:1;min-width:0}
 .cofre__t{display:block;font-size:14px;font-weight:650;color:var(--txt)}
