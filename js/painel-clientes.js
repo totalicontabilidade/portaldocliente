@@ -249,9 +249,15 @@
     }, 200);
   }
 
+  /* Quando a lista veio do servidor pela última vez. É o que
+     permite decidir, ao entrar numa aba, entre redesenhar o que já
+     está na memória e buscar de novo. */
+  var carregadaEm = 0;
+
   function carregarLista() {
     if (carregando) return Promise.resolve();
     carregando = true;
+    carregadaEm = Date.now();
     empresas = [];
     desenharLista();
     desenharPendencias();
@@ -4306,10 +4312,30 @@
     var csv = $("#clCSV");
     if (csv) csv.addEventListener("click", exportarCSV);
 
-    /* Ao voltar para uma aba, redesenha: os números podem ter
-       mudado enquanto a pessoa estava em outra. */
+    /* AO VOLTAR PARA UMA ABA, BUSCA DE NOVO — não só redesenha.
+
+       Antes era só `desenhar*()`, que pinta o que já está na
+       memória. Cliente criado na aba "Novo cliente" não aparecia
+       na lista até alguém tocar em Atualizar: a lista em memória
+       nunca tinha ouvido falar dele. O Raoni tropeçou nisso logo
+       no primeiro convite que mandou.
+
+       Buscar toda vez seria pesado — são nove leituras por cliente.
+       Por isso a regra é: dados com mais de meio minuto, busca;
+       mais novos que isso, redesenha. Trocar de aba para conferir
+       um número não deve custar uma rodada no banco.
+
+       Com uma ficha aberta não se mexe: recarregar por baixo
+       fecharia o que a pessoa está lendo. */
+    var IDADE_MAXIMA_MS = 30000;
+
     if (global.Painel) {
       global.Painel.aoTrocar(function (aba) {
+        if (["clientes", "pendencias", "mensagens", "inicio"].indexOf(aba) === -1) return;
+
+        var velha = (Date.now() - carregadaEm) > IDADE_MAXIMA_MS;
+        if (velha && !aberto && !carregando) { carregarLista(); return; }
+
         if (aba === "pendencias") desenharPendencias();
         if (aba === "mensagens") desenharMensagens();
         if (aba === "clientes" && !aberto) desenharLista();
@@ -4397,7 +4423,11 @@
     emMs: emMs,
     abrirFicha: abrirCliente,
     abrirConversa: abrirConversa,
-    aoAtualizar: function (fn) { if (typeof fn === "function") ouvintesLista.push(fn); }
+    aoAtualizar: function (fn) { if (typeof fn === "function") ouvintesLista.push(fn); },
+    /* Para quem ACABOU de mexer no banco e sabe que a lista ficou
+       velha — criar cliente, por exemplo. Melhor do que esperar o
+       tempo passar: o cliente novo aparece na hora. */
+    recarregar: function () { carregadaEm = 0; return carregarLista(); }
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);

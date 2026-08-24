@@ -2613,7 +2613,13 @@ body.tour-aberto{overscroll-behavior:contain}
    única das três que pode estar esperando resposta.
    ============================================================ */
 .vistas{
-  display:flex;gap:26px;margin-bottom:20px;
+  display:flex;gap:26px;
+  /* Respiro IGUAL em cima e embaixo. As guias vinham coladas no
+     quadro de progresso e grudadas no conteúdo de baixo, o que as
+     fazia parecer parte do quadro em vez do que são: a troca de
+     assunto da ficha inteira. Espaço nos dois lados é o que separa
+     "cabeçalho do cartão" de "menu da tela". */
+  margin-top:22px;margin-bottom:22px;
   border-bottom:1px solid var(--stroke);
   overflow-x:auto;scrollbar-width:none;
 }

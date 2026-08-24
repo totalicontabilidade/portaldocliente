@@ -19,7 +19,8 @@
     https://firebaseappcheck.googleapis.com
     https://content-firebaseappcheck.googleapis.com
     https://www.google.com
-    https://i.ytimg.com;
+    https://i.ytimg.com
+    https://brasilapi.com.br;
   object-src 'none';
   base-uri 'none';
   form-action 'none';
@@ -398,6 +399,19 @@
       </div></div>
 
       <div class="card card--pad">
+        <!-- O CNPJ VEM PRIMEIRO, e não é só ordem de tela: ao
+             completar um CNPJ válido o painel busca os dados na
+             Receita e preenche o resto. Tudo continua editável —
+             a busca adianta, não decide. -->
+        <div class="field">
+          <label class="field__label" for="cCnpj">CNPJ<span class="field__req">*</span></label>
+          <input type="text" class="input" id="cCnpj" inputmode="numeric" maxlength="18"
+                 autocomplete="off" placeholder="00.000.000/0000-00">
+          <div class="field__error" id="cErrCnpj" hidden>CNPJ inválido. Confira os números.</div>
+          <div class="field__hint" id="cBuscaEstado">Ao digitar o CNPJ, buscamos os dados na
+            Receita Federal e preenchemos o resto. Você pode corrigir tudo depois.</div>
+        </div>
+
         <div class="field">
           <label class="field__label" for="cRazao">Razão social<span class="field__req">*</span></label>
           <input type="text" class="input" id="cRazao" maxlength="150" autocomplete="off"
@@ -412,25 +426,19 @@
             mostramos a razão social.</div>
         </div>
 
-        <div class="grid-2">
-          <div class="field">
-            <label class="field__label" for="cCnpj">CNPJ<span class="field__req">*</span></label>
-            <input type="text" class="input" id="cCnpj" inputmode="numeric" maxlength="18"
-                   autocomplete="off" placeholder="00.000.000/0000-00">
-            <div class="field__error" id="cErrCnpj" hidden>CNPJ inválido. Confira os números.</div>
-          </div>
-
-          <div class="field">
-            <label class="field__label" for="cRegime">Regime tributário</label>
-            <select class="select" id="cRegime">
-              <option value="">Selecione…</option>
-              <option>Simples Nacional</option>
-              <option>Lucro Presumido</option>
-              <option>Lucro Real</option>
-              <option>MEI</option>
-              <option>Não sei informar</option>
-            </select>
-          </div>
+        <!-- Sozinho na linha desde que o CNPJ subiu para o topo.
+             Deixar num grid de duas colunas com a outra vazia
+             criava um buraco no meio do formulário. -->
+        <div class="field">
+          <label class="field__label" for="cRegime">Regime tributário</label>
+          <select class="select" id="cRegime">
+            <option value="">Selecione…</option>
+            <option>Simples Nacional</option>
+            <option>Lucro Presumido</option>
+            <option>Lucro Real</option>
+            <option>MEI</option>
+            <option>Não sei informar</option>
+          </select>
         </div>
 
         <div class="field">

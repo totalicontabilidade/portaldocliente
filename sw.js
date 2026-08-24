@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v67";
+var VERSAO = "v70";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -73,11 +73,15 @@ var SHELL = [
    trocava debaixo dele e o envio morria. Foi o "sistema cai
    enquanto vocês atualizam" que o Raoni relatou.
 
-   Agora a versão nova INSTALA e ESPERA. Ela só assume quando a
-   pessoa toca no aviso "atualizar" — ou seja, num momento em que
-   ela não está no meio de nada. Quem está com a aba aberta
-   continua na versão antiga até decidir trocar, e nada é
-   interrompido. */
+   Agora a versão nova INSTALA e ESPERA, e quem manda assumir é a
+   página, pela mensagem "assumir-agora".
+
+   QUANDO A PÁGINA MANDA (ver js/pwa.js): se ninguém tocou na tela
+   desde que ela abriu, na hora — não há envio nem digitação para
+   interromper, e pedir permissão para atualizar algo que a pessoa
+   acabou de abrir não faz sentido. Se já houve toque, espera o
+   aviso ser tocado. A decisão mora lá porque só a página sabe se
+   alguém está no meio de alguma coisa. */
 self.addEventListener("install", function (ev) {
   ev.waitUntil(
     caches.open(CACHE).then(function (c) {

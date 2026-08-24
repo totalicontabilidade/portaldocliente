@@ -24,9 +24,33 @@
     return /^https?:\/\/[^\s]+$/i.test(String(url || "").trim());
   }
 
-  /* Mesma pasta desta página, trocando equipe.html por index.html */
+  /* A PASTA DO PORTAL, tirando a página do painel do caminho.
+
+     Aqui morava um defeito que só aparecia no ar: o GitHub Pages
+     serve `equipe.html` TAMBÉM em `/equipe`, sem extensão. Quem
+     abrisse o painel por esse endereço — e é o que acontece quando
+     se digita à mão ou se salva o atalho — gerava convite para
+     `.../portaldocliente/equipe/?k=...`, uma pasta que não existe.
+     O cliente recebia um link morto, e ninguém do lado de cá tinha
+     como perceber.
+
+     Agora o corte é no ÚLTIMO TRECHO do caminho, com ou sem
+     extensão, e sempre sobra a pasta terminada em barra. */
+  function tirarPaginaDoPainel(caminho) {
+    return String(caminho || "/").replace(/\/equipe(?:\.html)?\/?$/i, "/");
+  }
+
+  function normalizarBase(url) {
+    try {
+      var u = new URL(String(url).trim());
+      var p = tirarPaginaDoPainel(u.pathname.replace(/[?#].*$/, ""));
+      if (!/\/$/.test(p) && !/\.html$/i.test(p)) p += "/";
+      return u.origin + p;
+    } catch (e) { return ""; }
+  }
+
   function enderecoDaPagina() {
-    var daPagina = location.href.replace(/equipe\.html.*$/, "").replace(/[?#].*$/, "");
+    var daPagina = normalizarBase(location.href);
     return enderecoValido(daPagina) ? daPagina : "";
   }
 
@@ -43,14 +67,18 @@
        localhost e depois abriu o painel publicado continuaria
        gerando links de localhost — que só abrem na máquina dele,
        e o cliente receberia um link morto. */
-    if (enderecoValido(salvo) && mesmaOrigem(salvo)) return salvo;
+    /* O que estiver guardado passa pelo mesmo saneamento. Quem já
+       gerou convite antes desta correção tem o endereço errado
+       salvo no navegador, e sem isto continuaria gerando link
+       morto para sempre. */
+    var limpoSalvo = normalizarBase(salvo);
+    if (enderecoValido(limpoSalvo) && mesmaOrigem(limpoSalvo)) return limpoSalvo;
     return enderecoDaPagina();
   }
 
   function baseLimpa(base) {
-    var limpo = String(base || "").trim().replace(/[?#].*$/, "");
+    var limpo = normalizarBase(base);
     if (!limpo) limpo = enderecoPadrao();
-    if (!/\/$/.test(limpo) && !/\.html$/i.test(limpo)) limpo += "/";
     return limpo;
   }
 
@@ -65,13 +93,22 @@
     return baseLimpa(base) + "?k=" + encodeURIComponent(codigo) + "#/inicio";
   }
 
+  /* "o portal de FULANO" dava a entender que o portal era da
+     empresa. Ele é o Portal do Cliente da Totali, PREPARADO para
+     ela — e a diferença importa na primeira impressão.
+
+     O aviso de instalação também mudou: o botão perdeu o rótulo
+     "Instalar" e virou só o ícone, então mandar procurar por uma
+     palavra que não existe mais na tela seria pior que não dizer
+     nada. */
   function mensagemPronta(nomeEmpresa, link) {
     return "Olá! Seja bem-vindo à Totali Soluções Contábeis.\n\n" +
-      "Preparamos o portal de " + nomeEmpresa + " para organizarmos a entrada da sua empresa " +
-      "aqui no escritório. Nele você vê a lista de documentos que precisamos, envia tudo pelo " +
-      "próprio celular e acompanha cada etapa.\n\n" +
+      "Preparamos o Portal do Cliente para " + nomeEmpresa + ", para organizarmos a entrada " +
+      "da sua empresa aqui no escritório. Nele você vê a lista de documentos que precisamos, " +
+      "envia tudo pelo próprio celular e acompanha cada etapa.\n\n" +
       link + "\n\n" +
-      "Dá para instalar como aplicativo: abra o link e toque em \"Instalar\".\n" +
+      "Dá para deixar como aplicativo no celular: abra o link e toque no ícone de download, " +
+      "no alto da tela.\n" +
       "Qualquer dúvida, fale com a gente por lá mesmo, na aba Mensagens.";
   }
 
@@ -255,10 +292,88 @@
 
     base.value = enderecoPadrao();
 
+    var aviso = $("#cBuscaEstado");
+    var AVISO_PADRAO = aviso ? aviso.textContent : "";
+    var buscado = "";      /* último CNPJ já consultado */
+
+    function dizer(texto, cor) {
+      if (!aviso) return;
+      aviso.textContent = texto;
+      aviso.style.color = cor || "";
+    }
+
+    /* Preenche só o que está VAZIO. Se alguém já digitou a razão
+       social à mão, a Receita não passa por cima — quem está na
+       frente da tela sabe mais do que o cadastro. */
+    function preencherSeVazio(campo, valor) {
+      if (!campo || !valor) return false;
+      if (String(campo.value || "").trim()) return false;
+      campo.value = String(valor).slice(0, campo.maxLength > 0 ? campo.maxLength : 200);
+      return true;
+    }
+
+    function buscarNaReceita(numero) {
+      var so = U.soDigitos(numero);
+      if (so.length !== 14 || so === buscado) return;
+      buscado = so;
+      dizer("Buscando na Receita Federal…");
+
+      /* Sem chave e sem cadastro: a BrasilAPI repassa o cadastro
+         público da Receita. Se sair do ar, o formulário continua
+         inteiro — isto é atalho, não dependência. */
+      fetch("https://brasilapi.com.br/api/cnpj/v1/" + so)
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status === 404 ? "nao-encontrado" : "falhou");
+          return r.json();
+        })
+        .then(function (d) {
+          var mudou = [];
+          if (preencherSeVazio(razao, d.razao_social)) mudou.push("razão social");
+          if (preencherSeVazio(fantasia, d.nome_fantasia)) mudou.push("nome fantasia");
+
+          /* MEI a Receita diz de forma confiável. Simples Nacional
+             ela também informa; o resto é escolha do escritório e
+             fica para a pessoa marcar. */
+          if (regime && !regime.value) {
+            if (d.opcao_pelo_mei === true) regime.value = "MEI";
+            else if (d.opcao_pelo_simples === true) regime.value = "Simples Nacional";
+            if (regime.value) mudou.push("regime");
+          }
+
+          var situacao = String(d.descricao_situacao_cadastral || "").toUpperCase();
+          if (situacao && situacao.indexOf("ATIVA") === -1) {
+            dizer("Atenção: na Receita esta empresa consta como " +
+                  d.descricao_situacao_cadastral + ".", "var(--danger)");
+            return;
+          }
+          dizer(mudou.length
+            ? "Preenchido pela Receita: " + mudou.join(", ") + ". Confira e ajuste se precisar."
+            : "Encontrado na Receita, mas os campos já estavam preenchidos — nada foi trocado.");
+        })
+        .catch(function (e) {
+          buscado = "";      /* deixa tentar de novo */
+          dizer(e && e.message === "nao-encontrado"
+            ? "CNPJ não encontrado na Receita. Preencha à mão."
+            : "Não deu para consultar a Receita agora. Preencha à mão.", "var(--txt-3)");
+        });
+    }
+
     cnpj.addEventListener("input", function () {
       cnpj.value = U.mascaraCNPJ(cnpj.value);
       erroCnpj.hidden = true;
       cnpj.removeAttribute("aria-invalid");
+      if (aviso && U.soDigitos(cnpj.value).length < 14) {
+        buscado = "";
+        dizer(AVISO_PADRAO);
+      }
+      /* Busca sozinha ao completar o número — sem esperar o campo
+         perder o foco, que é o momento em que a pessoa já foi
+         digitar a razão social à mão. */
+      if (U.validaCNPJ(cnpj.value)) buscarNaReceita(cnpj.value);
+    });
+
+    cnpj.addEventListener("blur", function () {
+      if (U.validaCNPJ(cnpj.value)) buscarNaReceita(cnpj.value);
     });
 
     $("#cGerar").addEventListener("click", function () {
@@ -372,6 +487,14 @@
           botao.textContent = "Gerar link do cliente";
           mostrarResultado(montarLinkCodigo(base.value, codigo));
           UI.toast("Empresa criada e link gerado para " + nome + ".", "ok");
+
+          /* A lista de clientes vive em memória e não sabe que
+             nasceu uma empresa agora. Sem esta linha, quem manda o
+             convite e vai conferir em Clientes não encontra o
+             cliente e acha que deu errado. */
+          if (global.PainelClientes && global.PainelClientes.recarregar) {
+            global.PainelClientes.recarregar();
+          }
         }, function (e) {
           botao.disabled = false;
           botao.textContent = "Gerar link do cliente";
