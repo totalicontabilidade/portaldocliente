@@ -52,7 +52,19 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<!-- NASCE COM A PORTA FECHADA, e isso conserta um piscar.
+
+     O menu lateral, a barra de abas e o cabeçalho são HTML estático:
+     pintavam assim que a página chegava, antes de o JavaScript saber
+     quem está entrando. Quem abria o link do convite via o portal
+     inteiro por um instante e só depois a tela de criar acesso — e o
+     `defer` nos scripts, que deixou a página aparecer mais cedo,
+     alongou justamente esse instante.
+
+     Começando fechada, o JS só ABRE quando confirma que há sessão.
+     Errar para este lado é invisível; para o outro, mostra a casa
+     de dentro para quem ainda está na porta. -->
+<body class="porta-aberta">
 
 <a class="skip-link" href="#view">Ir para o conteúdo</a>
 
