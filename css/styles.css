@@ -1993,8 +1993,21 @@ body.tour-aberto{overscroll-behavior:contain}
 }
 .cred__par{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}
 .cred__rot{flex:none;min-width:110px;font-size:12px;color:var(--txt-3)}
+
+/* A SENHA SAÍA NA VERTICAL, uma letra por linha.
+
+   A culpa era de `flex:1` com `min-width:0`: espremido entre o
+   rótulo de 110px e dois botões, este campo encolhia até quase
+   nada, e `overflow-wrap:anywhere` fazia o resto — quebrava a cada
+   caractere, porque tecnicamente cabia um por linha.
+
+   `flex-basis` de 150px com piso de 130px inverte a ordem das
+   coisas: em vez de espremer, a linha QUEBRA e o valor ganha a
+   largura toda embaixo. O `anywhere` fica, mas agora só age em
+   senha comprida de verdade, que é para o que ele serve. */
 .cred__v{
-  flex:1;min-width:0;font-size:13.5px;color:var(--txt);
+  flex:1 1 150px;min-width:130px;
+  font-size:13.5px;color:var(--txt);
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   overflow-wrap:anywhere;
 }

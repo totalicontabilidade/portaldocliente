@@ -1398,10 +1398,15 @@
       '<span><strong>Envio de senha indisponível.</strong> ' + U.esc(motivo) + '</span></div>';
   }
 
+  /* Quais cofres estão com o formulário aberto para substituição.
+     Vive só na tela: fechar o portal cancela a troca, e a senha
+     que está no servidor continua valendo. */
+  var trocandoCredencial = {};
+
   function credenciaisHTML(chave, campos, opcoes) {
     var o = opcoes || {};
     var C = global.Cripto;
-    var guardada = Store.temCredencial(chave);
+    var guardada = Store.temCredencial(chave) && !trocandoCredencial[chave];
     var reg = Store.credencial(chave);
 
     if (guardada) {
@@ -1455,11 +1460,22 @@
 
     if (!C || !C.configurada) return avisoCanalSeguro();
 
+    var substituindo = !!trocandoCredencial[chave];
+
     var html = '<div class="cofre" data-cred="' + U.escAttr(chave) + '">' +
       '<div class="cofre__cabeca">' +
         '<span class="cofre__icone">' + ic("ic-lock") + '</span>' +
-        '<span class="cofre__t">' + U.esc(o.titulo || "Informe o acesso") + '</span>' +
-      '</div>';
+        '<span class="cofre__t">' +
+          U.esc(substituindo ? "Digitar de novo" : (o.titulo || "Informe o acesso")) +
+        '</span>' +
+      '</div>' +
+      /* Dizer que a antiga continua valendo tira o medo de estar
+         deixando a Totali sem acesso enquanto redigita. */
+      (substituindo
+        ? '<p class="cofre__nota" style="text-align:left;margin:0 0 12px">' +
+            'O acesso que você mandou antes continua valendo até este chegar. ' +
+            'Se desistir, toque em Cancelar e nada muda.</p>'
+        : '');
 
     campos.forEach(function (c) {
       var id = "cred-" + chave.replace(/[^a-zA-Z0-9]/g, "-") + "-" + c.id;
@@ -1485,7 +1501,11 @@
     });
 
     html += '<button type="button" class="btn btn--primary btn--sm btn--block" data-cred-salvar="1">' +
-        ic("ic-lock") + 'Guardar com segurança</button>' +
+        ic("ic-lock") + (substituindo ? 'Substituir o acesso' : 'Guardar com segurança') + '</button>' +
+      (substituindo
+        ? '<button type="button" class="btn btn--quiet btn--sm btn--block" ' +
+            'style="margin-top:8px" data-cred-cancelar-troca="1">Cancelar</button>'
+        : '') +
       '<p class="cofre__nota">Ao guardar, os dados são embaralhados aqui no seu aparelho. ' +
         'Só a Totali consegue abrir — nem quem tiver acesso a este celular consegue ler.</p>' +
     '</div>';
@@ -1570,6 +1590,9 @@
              aqui, apagá-los seria pedir para a pessoa digitar a
              senha de novo se algo desse errado no meio. */
           limparCredenciais(caixa);
+          /* A substituição terminou: o documento novo já sobrescreveu
+             o antigo, então o cofre volta ao estado "guardado". */
+          delete trocandoCredencial[chave];
           if (r === "no-servidor") {
             UI.toast("Acesso guardado com segurança.", "ok");
           } else if (r === "so-no-aparelho") {
@@ -1604,11 +1627,32 @@
       });
     });
 
+    /* TROCAR NÃO APAGA MAIS NADA.
+
+       Antes, "Digitar de novo" chamava `removerCredencial`, que
+       apaga o documento no servidor NA HORA. Entre esse instante e
+       o envio da senha nova havia uma janela em que a equipe ficava
+       sem senha nenhuma — e se a nova falhasse por rede, a janela
+       não fechava mais. Foi o que aconteceu com o Raoni em
+       2026-08-24: o portal dele preso em "ainda não chegou" e o
+       painel sem nada para mostrar.
+
+       Agora só abre o formulário. A senha antiga continua no
+       servidor até a nova chegar, e quando chega, sobrescreve: o
+       documento tem o mesmo id, então gravar por cima já é a
+       substituição. Não existe momento sem senha. */
     $$("[data-cred-trocar]").forEach(function (b) {
       b.addEventListener("click", function () {
         var chave = b.closest("[data-cred]").getAttribute("data-cred");
-        Store.removerCredencial(chave);
-        Store.flush();
+        trocandoCredencial[chave] = true;
+        render();
+      });
+    });
+
+    $$("[data-cred-cancelar-troca]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var chave = b.closest("[data-cred]").getAttribute("data-cred");
+        delete trocandoCredencial[chave];
         render();
       });
     });

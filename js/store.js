@@ -546,6 +546,9 @@
   var tentativa = 0;
   var relogioReenvio = null;
   var reenviando = false;
+  /* A gravação que está no ar agora, para quem chegar no meio poder
+     esperar por ela em vez de disparar outra ou receber um "não". */
+  var emCurso = null;
 
   function pararReenvio() {
     if (relogioReenvio) { clearTimeout(relogioReenvio); relogioReenvio = null; }
@@ -585,12 +588,19 @@
        gravar agora escreveria no lugar errado. */
     if (trocandoBackend) return Promise.resolve(false);
     /* Uma gravação de cada vez. Duas em paralelo comparariam com o
-       mesmo retrato e mandariam as mesmas escritas duas vezes. */
-    if (reenviando) return Promise.resolve(!erroPersistencia);
+       mesmo retrato e mandariam as mesmas escritas duas vezes.
+
+       Quem chega no meio de outra gravação ESPERA por ela, em vez
+       de receber um "não" na hora. Antes eu devolvia o estado de
+       erro atual, e o "Tentar agora" respondia "ainda não foi" sem
+       ter tentado coisa alguma — bastava haver uma retentativa em
+       curso, que é justamente quando a pessoa aperta o botão. */
+    if (emCurso) return emCurso;
     reenviando = true;
     estado.atualizadoEm = Date.now();
-    return backend.salvar(estado).then(function () {
+    emCurso = backend.salvar(estado).then(function () {
       reenviando = false;
+      emCurso = null;
       pararReenvio();
       /* O lote subiu inteiro, então nenhuma senha continua presa
          no aparelho. Sem isto a tela ficaria em "ainda não chegou"
@@ -606,6 +616,7 @@
       return true;
     }, function () {
       reenviando = false;
+      emCurso = null;
       if (!erroPersistencia) {
         erroPersistencia = true;
         notificar("erro-persistencia");
@@ -613,6 +624,7 @@
       agendarReenvio();
       return false;
     });
+    return emCurso;
   };
   var salvarDebounced = null;   /* criado no init, depende de U */
 
