@@ -328,15 +328,17 @@
         <button type="button" class="btn btn--quiet btn--sm" id="inAtualizar">Atualizar</button>
       </div></div>
 
-      <!-- Aviso de rotina do servidor parada ou com falha. Fica
-           acima de tudo porque, quando existe, é mais importante do
-           que a lista do dia — significa que algo está deixando de
-           acontecer sem ninguém perceber. Vazio no dia a dia. -->
-      <div id="inSaude"></div>
-
       <div class="filtros" id="inSetor"></div>
       <div class="numeros" id="inNumeros"></div>
       <div id="inLista"></div>
+
+      <!-- Aviso de rotina do servidor parada ou com falha.
+           FICA NO FIM, e não no topo (decisão dele, 2026-08-25):
+           quem abre o painel vem resolver o dia, e empurrar a fila
+           de trabalho para baixo por causa de um aviso técnico
+           inverte a prioridade da tela. Aqui ele é encontrado por
+           quem termina a lista — e, no dia a dia, não existe. -->
+      <div id="inSaude"></div>
     </section>
 
     <section data-painel="clientes" hidden>

@@ -332,14 +332,52 @@
 
     if (!problemas.length) { caixa.innerHTML = ""; return; }
 
-    caixa.innerHTML = '<div class="notice notice--warn" style="margin-bottom:16px">' +
-      '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
-      '<span><strong>Uma rotina do servidor precisa de atenção.</strong><br>' +
-      problemas.map(function (p) {
-        return U.esc(p.nome) + " — " + U.esc(p.texto);
-      }).join("<br>") +
-      '<br><span class="text-xs text-muted">Enquanto isso, a cobrança pode ser feita à mão ' +
-      'pela ficha do cliente.</span></span></div>';
+    /* AVISO QUE ENSINA, e não só reclama.
+       Quem lê isto não é quem publica funções — é quem atende
+       cliente. "A rotina falhou" sem o que fazer a seguir vira um
+       alarme que se aprende a ignorar. Então: o que parou, o que
+       isso significa na prática, e o passo a passo. */
+    caixa.innerHTML =
+      '<div class="card card--pad" style="margin-top:26px;border-color:var(--stroke-gold)">' +
+        '<div class="notice notice--warn" style="margin:0 0 16px">' +
+          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+          '<span><strong>Uma rotina do servidor precisa de atenção.</strong><br>' +
+          problemas.map(function (p) {
+            return U.esc(p.nome) + " — " + U.esc(p.texto);
+          }).join("<br>") + '</span>' +
+        '</div>' +
+
+        '<div class="help-block">' +
+          '<div class="help-block__t">O que isso quer dizer</div>' +
+          '<p class="text-sm text-muted" style="margin:0">' +
+            'A cobrança automática é o aviso por e-mail que sai às 10h, em dias úteis, para quem ' +
+            'está com documento atrasado. Com ela parada, <strong>o cliente simplesmente deixa de ' +
+            'ser cobrado</strong> — nada quebra na tela, e por isso este aviso existe. ' +
+            'Todo o resto do portal continua funcionando normalmente.' +
+          '</p>' +
+        '</div>' +
+
+        '<div class="help-block">' +
+          '<div class="help-block__t">O que fazer agora</div>' +
+          '<ol class="passos">' +
+            '<li><strong>Cobre à mão, hoje.</strong> Abra a ficha do cliente e use ' +
+              '<em>Cobrar tudo o que falta</em>. Leva um minuto por cliente e não depende ' +
+              'da rotina.</li>' +
+            '<li><strong>Veja se foi coisa de um dia.</strong> A rotina só roda em dia útil: ' +
+              'se hoje é segunda, o último registro pode ser de sexta e estar tudo certo. ' +
+              'Este aviso só aparece passados quatro dias.</li>' +
+            '<li><strong>Se persistir, chame quem cuida do sistema</strong> e passe esta ' +
+              'informação: <em>a função <code>avisarPendencias</code> não está registrando ' +
+              'execução em <code>/saude</code></em>. É o suficiente para achar a causa.</li>' +
+            '<li><strong>Enquanto não voltar</strong>, olhe a aba <em>Pendências</em> uma vez ' +
+              'por dia. É a mesma lista que a rotina usaria.</li>' +
+          '</ol>' +
+        '</div>' +
+
+        '<p class="text-xs text-muted" style="margin:0">' +
+          'Este aviso some sozinho assim que a rotina voltar a rodar.' +
+        '</p>' +
+      '</div>';
   }
 
   function desenhar() {
