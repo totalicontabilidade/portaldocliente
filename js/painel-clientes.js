@@ -84,6 +84,24 @@
             if (tinhaFoco) { novo.focus(); novo.setSelectionRange(rascunho.length, rascunho.length); }
           }
         }
+        /* A CAIXA DE ENTRADA TAMBÉM É TEMPO REAL.
+
+           Antes só a ficha do cliente redesenhava aqui, e a aba
+           Mensagens ficava parada até alguém tocar em Atualizar —
+           era o "a mensagem do cliente não chega" que o Raoni
+           descreveu. O caminho da equipe para o cliente funcionava
+           porque quem envia já redesenha por conta própria. */
+        if (conversaAberta === c) {
+          var resp = $("#msTexto");
+          var textoResp = resp ? resp.value : "";
+          var focoResp = resp && document.activeElement === resp;
+          desenharConversa();
+          var novaResp = $("#msTexto");
+          if (novaResp && textoResp) {
+            novaResp.value = textoResp;
+            if (focoResp) { novaResp.focus(); novaResp.setSelectionRange(textoResp.length, textoResp.length); }
+          }
+        }
         atualizarContadores();
       }, function () { /* sem rede: a ficha continua com o que já tem */ });
   }
@@ -1159,6 +1177,11 @@
     var c = empresas.filter(function (x) { return x.id === id; })[0];
     if (!c) return;
     conversaAberta = c;
+    anexosPendentes = [];
+    /* Sem isto a conversa da caixa de entrada ficava congelada: só
+       a ficha do cliente ligava o ouvinte, e quem trabalha pela aba
+       Mensagens não via a resposta chegar. */
+    ouvirConversa(c);
     desenharConversa();
     global.scrollTo({ top: 0, behavior: "auto" });
     marcarLidas(c);
@@ -1166,6 +1189,10 @@
 
   function fecharConversa() {
     conversaAberta = null;
+    anexosPendentes = [];
+    /* Só desliga se a ficha do mesmo cliente não estiver aberta —
+       ela também depende deste ouvinte. */
+    if (!aberto) pararConversa();
     desenharMensagens();
   }
 
@@ -1199,13 +1226,36 @@
           ? '<div class="conversa conversa--alta">' +
               c.mensagens.map(function (m) { return mensagemHTML(m, c); }).join("") + '</div>'
           : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
+        /* Mesmo botão da ficha, e pela mesma razão: resolver é da
+           conversa inteira, não de cada frase. Aqui era o lugar em
+           que o Raoni foi procurar e não achou. */
+        (aResolverDe(c)
+          ? '<div class="row" style="margin-top:12px">' +
+              '<button type="button" class="btn btn--quiet btn--sm" data-resolver-tudo="1" ' +
+                'data-emp="' + U.escAttr(c.id) + '">' + ic("ic-check") +
+                'Marcar conversa como resolvida</button>' +
+              '<span class="text-xs text-muted" style="align-self:center">' +
+                aResolverDe(c) + ' ' + U.plural(aResolverDe(c), "mensagem", "mensagens") +
+                ' do cliente sem providência</span>' +
+            '</div>'
+          : (c.mensagens.length
+              ? '<div class="row" style="margin-top:12px">' +
+                  '<button type="button" class="btn btn--quiet btn--sm" data-resolver-tudo="0" ' +
+                    'data-emp="' + U.escAttr(c.id) + '">Reabrir a conversa</button>' +
+                '</div>'
+              : '')) +
         '<div class="field" style="margin-top:14px">' +
           '<label class="field__label" for="msTexto">Responder</label>' +
           '<textarea class="textarea" id="msTexto" rows="3" maxlength="4000" ' +
             'placeholder="Escreva aqui…"></textarea>' +
         '</div>' +
-        '<button type="button" class="btn btn--primary btn--sm" id="msEnviar">' +
-          ic("ic-send") + 'Enviar</button>' +
+        '<div class="row">' +
+          '<button type="button" class="btn btn--quiet btn--sm" id="msAnexar">' +
+            ic("ic-clipe") + 'Anexar arquivo</button>' +
+          '<button type="button" class="btn btn--primary btn--sm" id="msEnviar">' +
+            ic("ic-send") + 'Enviar</button>' +
+        '</div>' +
+        '<div id="msAnexos" class="anexos-fila"></div>' +
       '</div>';
 
     var voltar = $("#msVoltar");
@@ -1214,10 +1264,15 @@
     var enviar = $("#msEnviar");
     if (enviar) enviar.addEventListener("click", function () {
       var campo = $("#msTexto");
-      if (!campo.value.trim()) { campo.focus(); return; }
+      if (!campo.value.trim() && !anexosPendentes.length) { campo.focus(); return; }
       enviar.disabled = true;
       enviarMensagem(campo.value, "", c).then(function () { desenharConversa(); });
     });
+
+    var anexar = $("#msAnexar");
+    if (anexar) anexar.addEventListener("click", function () { escolherAnexo(); });
+
+    desenharAnexos();
 
     var fim = alvo.querySelector(".conversa");
     if (fim) fim.scrollTop = fim.scrollHeight;
@@ -3611,8 +3666,14 @@
   var anexosPendentes = [];
   var entradaAnexo = null;
 
+  /* A empresa que vai receber o anexo: a ficha aberta ou, quando se
+     trabalha pela caixa de entrada, a conversa aberta. */
+  function alvoDaConversa() { return aberto || conversaAberta; }
+
   function desenharAnexos() {
-    var caixa = $("#clAnexos");
+    /* Os dois lugares onde se escreve para o cliente: a aba Conversa
+       da ficha e a caixa de entrada. Só um existe por vez. */
+    var caixa = $("#clAnexos") || $("#msAnexos");
     if (!caixa) return;
     if (!anexosPendentes.length) { caixa.innerHTML = ""; return; }
     caixa.innerHTML = anexosPendentes.map(function (a, i) {
@@ -3633,13 +3694,13 @@
      falhar, nada foi escrito na conversa — melhor do que uma
      mensagem apontando para arquivo que não chegou. */
   function anexarArquivos(lista) {
-    var c = aberto;
+    var c = alvoDaConversa();
     if (!c || !lista || !lista.length) return;
     var restam = 10 - anexosPendentes.length;
     if (restam <= 0) { UI.toast("Dez arquivos por mensagem é o limite.", "erro"); return; }
 
     var arquivos = Array.prototype.slice.call(lista, 0, restam);
-    var botao = $("#clAnexar");
+    var botao = $("#clAnexar") || $("#msAnexar");
     if (botao) { botao.disabled = true; botao.textContent = "Enviando…"; }
 
     var fila = Promise.resolve();
@@ -3673,10 +3734,32 @@
     });
   }
 
+  /* Uma entrada de arquivo só, criada na primeira vez e reaproveitada
+     pelas duas telas: recriar a cada desenho deixaria entradas soltas
+     no documento a cada troca de aba. */
+  function escolherAnexo() {
+    if (!entradaAnexo) {
+      entradaAnexo = document.createElement("input");
+      entradaAnexo.type = "file";
+      entradaAnexo.multiple = true;
+      entradaAnexo.accept = U.ACCEPT_ATTR;
+      entradaAnexo.style.display = "none";
+      entradaAnexo.addEventListener("change", function () {
+        anexarArquivos(entradaAnexo.files);
+        entradaAnexo.value = "";     /* deixa reescolher o mesmo arquivo */
+      });
+      document.body.appendChild(entradaAnexo);
+    }
+    entradaAnexo.click();
+  }
+
   function enviarMensagem(texto, chave, cliente) {
     var c = cliente || aberto;
     var t = String(texto || "").trim().slice(0, 4000);
-    var anexos = (cliente && cliente !== aberto) ? [] : anexosPendentes.slice();
+    /* Os anexos escolhidos são desta conversa — a que está aberta na
+       ficha ou na caixa de entrada. Mandar para outra empresa seria
+       entregar documento ao cliente errado. */
+    var anexos = (c === alvoDaConversa()) ? anexosPendentes.slice() : [];
     /* Mensagem só de anexo vale — nem sempre há o que escrever
        junto. É a mesma regra do lado do cliente. */
     if (!c || (!t && !anexos.length)) return Promise.resolve(false);
@@ -3698,7 +3781,8 @@
              .collection("mensagens").doc(id).set(msg).then(function () {
       msg.id = id;
       c.mensagens.push(msg);
-      if (aberto === c) { anexosPendentes = []; desenharFicha(); }
+      if (c === alvoDaConversa()) anexosPendentes = [];
+      if (aberto === c) desenharFicha();
       atualizarContadores();
       UI.toast("Mensagem enviada.", "ok");
       return true;
@@ -3959,24 +4043,7 @@
     });
 
     var anexar = $("#clAnexar");
-    if (anexar) anexar.addEventListener("click", function () {
-      /* Uma entrada de arquivo só, criada na primeira vez e
-         reaproveitada: recriar a cada desenho da ficha deixaria
-         entradas soltas no documento a cada troca de aba. */
-      if (!entradaAnexo) {
-        entradaAnexo = document.createElement("input");
-        entradaAnexo.type = "file";
-        entradaAnexo.multiple = true;
-        entradaAnexo.accept = U.ACCEPT_ATTR;
-        entradaAnexo.style.display = "none";
-        entradaAnexo.addEventListener("change", function () {
-          anexarArquivos(entradaAnexo.files);
-          entradaAnexo.value = "";     /* deixa reescolher o mesmo arquivo */
-        });
-        document.body.appendChild(entradaAnexo);
-      }
-      entradaAnexo.click();
-    });
+    if (anexar) anexar.addEventListener("click", function () { escolherAnexo(); });
 
     desenharAnexos();
 

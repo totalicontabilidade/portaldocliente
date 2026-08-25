@@ -180,7 +180,12 @@
      ============================================================ -->
 <header class="app-header dark-surface">
   <button type="button" class="brand" data-aba="inicio" aria-label="Painel da equipe · ir para o início">
-    <img class="brand__logo" src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis" width="220" height="230">
+    <!-- Começa no símbolo porque a tela de entrada é o primeiro que
+         se vê; `mostrarPainel()` (js/painel.js) troca para a logo
+         completa quando alguém entra. -->
+    <img class="brand__logo" id="pnLogo" data-marca="simbolo"
+         src="assets/totali-simbolo.png" alt="Totali Soluções Contábeis"
+         width="220" height="230">
     <span class="brand__divider" aria-hidden="true"></span>
     <span class="brand__text">
       <span class="brand__title">Painel da equipe</span>
@@ -762,8 +767,16 @@
       </section>
     </section>
 
+    <!-- Mesma regra do rodapé do portal: a logo aparece com a pessoa
+         dentro e some na tela de entrada, onde o cartão de login já
+         traz a marca grande. O nome escrito entra no lugar dela, para
+         o rodapé nunca ficar sem assinatura. -->
     <footer class="foot">
-      <strong>Totali Soluções Contábeis</strong><br>
+      <span class="foot__marca">
+        <img src="assets/totali-contabil-branca.png" alt="Totali Soluções Contábeis"
+             width="730" height="277" loading="lazy" decoding="async">
+      </span>
+      <strong class="foot__nome">Totali Soluções Contábeis</strong><br class="foot__nome-br">
       Página de uso interno — não divulgue este endereço.
     </footer>
   </main>

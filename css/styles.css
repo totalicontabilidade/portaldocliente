@@ -1680,7 +1680,37 @@ body.porta-aberta .foot__nome-br{display:inline}
 .campo-senha__ver .ic{width:18px;height:18px}
 
 /* ---------- 26. Mensagens ---------- */
-.chat{display:flex;flex-direction:column;gap:12px}
+/* A CONVERSA ROLA DENTRO DELA MESMA.
+
+   Antes a lista crescia sem limite e quem rolava movia a PÁGINA:
+   o campo de escrever subia e descia junto, e o cabeçalho ia
+   embora. Agora a lista tem altura própria e o resto fica parado.
+
+   `overscroll-behavior:contain` é o que impede o encadeamento —
+   chegando ao fim da lista, a roda do mouse para ali em vez de
+   passar a rolar a página atrás. Era o "a tela rola fora do campo
+   de mensagens" que o Raoni descreveu.
+
+   `dvh` em vez de `vh` por causa do celular: a barra de endereço
+   aparece e some, e com `vh` a conversa ficaria alta demais com a
+   barra visível, empurrando o campo de escrever para fora. */
+.chat{
+  display:flex;flex-direction:column;gap:12px;
+  max-height:52vh;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding-right:4px;
+  scrollbar-width:thin;
+}
+@supports (height: 100dvh) {
+  .chat{ max-height:calc(100dvh - 330px); min-height:220px; }
+}
+@media (min-width:900px){
+  .chat{ max-height:56vh }
+  @supports (height: 100dvh) {
+    .chat{ max-height:calc(100dvh - 300px); min-height:280px; }
+  }
+}
 .chat__dia{
   align-self:center;font-size:11px;font-weight:620;letter-spacing:.04em;
   color:var(--txt-4);background:var(--glass);border:1px solid var(--stroke);
@@ -1982,6 +2012,10 @@ body.tour-aberto{overscroll-behavior:contain}
 .conversa{
   display:flex;flex-direction:column;gap:10px;
   max-height:420px;overflow-y:auto;padding-right:4px;
+  /* Ver a nota em `.chat`: sem isto, chegar ao fim da lista faz a
+     roda do mouse continuar rolando a página atrás dela. */
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
 }
 
 /* Credencial aberta. Fica visível o mínimo de tempo possível e
@@ -2269,6 +2303,13 @@ details.rec:not([open]) > .rec__body{display:none}
 .cliente--novo .cliente__nome{color:var(--txt);font-weight:700}
 
 .conversa--alta{max-height:min(60vh,560px)}
+@supports (height: 100dvh) {
+  .conversa--alta{max-height:min(calc(100dvh - 380px),560px)}
+}
+
+/* Fila de arquivos escolhidos e ainda não enviados, no painel. Só
+   ocupa espaço quando há algo nela. */
+.anexos-fila:not(:empty){display:flex;flex-direction:column;gap:6px;margin-top:10px}
 
 /* Cabeçalho da empresa na lista de pendências */
 .pend__topo{

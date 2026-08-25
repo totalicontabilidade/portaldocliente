@@ -272,11 +272,41 @@
   }
 
   /* ---------- Entrar e sair ---------- */
+  /* A MARCA DO CABEÇALHO, igual ao que já vale no portal do cliente.
+
+     Na tela de entrada fica o SÍMBOLO: o cartão de login logo abaixo
+     já traz a marca grande, e repetir a um palmo de distância não
+     reforça nada. Com a pessoa dentro, o cartão sumiu e o alto da
+     tela vira o único lugar com identidade — aí entra a logo
+     completa da contabilidade.
+
+     Aqui é a marca da TOTALI, não a do Portal do Cliente: este
+     painel é ferramenta interna do escritório, não daquele produto. */
+  var MARCA_SIMBOLO = { src: "assets/totali-simbolo.png", w: 220, h: 230 };
+  var MARCA_CHEIA   = { src: "assets/totali-contabil-branca.png", w: 730, h: 277 };
+
+  function trocarMarca(cheia) {
+    var img = $("#pnLogo");
+    if (!img) return;
+    var qual = cheia ? "cheia" : "simbolo";
+    /* Só mexe se mudou: reatribuir o mesmo `src` faz o navegador
+       repintar e a marca pisca a cada chamada. */
+    if (img.getAttribute("data-marca") === qual) return;
+    var m = cheia ? MARCA_CHEIA : MARCA_SIMBOLO;
+    img.setAttribute("data-marca", qual);
+    img.width = m.w;
+    img.height = m.h;
+    img.src = m.src;
+    img.classList.toggle("brand__logo--cheia", !!cheia);
+  }
+
   function mostrarPainel(dentro) {
     var painel = $("#painel"), porta = $("#pnPorta"), tabbar = $("#pnTabbar");
     if (painel) painel.hidden = !dentro;
     if (porta) porta.hidden = dentro;
     if (tabbar) tabbar.hidden = !dentro;
+    trocarMarca(!!dentro);
+    document.body.classList.toggle("porta-aberta", !dentro);
     if (dentro) { aplicar(abaDaURL(), true); talvezTutorial(); }
   }
 
