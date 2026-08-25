@@ -2243,7 +2243,12 @@
           '<button type="button" class="composer__acao" id="btnCamera" aria-label="Tirar foto">' +
             ic("ic-camera") + '</button>' +
           '<textarea class="textarea" id="msgTexto" rows="1" maxlength="4000" ' +
-            'placeholder="Escreva sua mensagem…" aria-label="Escreva sua mensagem"></textarea>' +
+            /* Texto curto de propósito: no celular o campo divide a
+               linha com o clipe, a câmera e o botão de enviar, e
+               "Escreva sua mensagem…" quebrava em duas linhas com a
+               segunda cortada. O rótulo de acessibilidade continua
+               inteiro para quem usa leitor de tela. */
+            'placeholder="Escreva aqui…" aria-label="Escreva sua mensagem"></textarea>' +
           '<button type="button" class="composer__send" id="btnEnviarMsg" disabled aria-label="Enviar">' +
             ic("ic-send") + '</button>' +
         '</div>' +
