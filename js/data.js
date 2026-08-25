@@ -885,6 +885,23 @@
             c.charAt(0) !== "/" && /\.(png|jpe?g|webp)$/i.test(c)) ? c : "";
   }
 
+  /* MATERIAL DA AULA: o áudio para ouvir no carro e o PDF de
+     acompanhamento. Mesma regra da capa e pelo mesmo motivo — só
+     entra arquivo da pasta `publico/` do NOSSO Storage.
+
+     Aqui a trava pesa ainda mais do que na capa. Uma capa de fora
+     entrega o IP do cliente a quem serve a imagem; um ÁUDIO ou um
+     PDF de fora é um arquivo que a pessoa vai BAIXAR e ABRIR,
+     confiando que veio da Totali. Endereço de terceiro nesse campo
+     seria a Totali assinando conteúdo que não é dela.
+
+     Diferente da capa, não aceito caminho relativo do repositório:
+     este material é sempre enviado pelo painel, nunca commitado. */
+  function materialSeguro(u) {
+    if (typeof u !== "string" || !u) return "";
+    return capaDoNossoStorage(u) ? u : "";
+  }
+
   function aplicaVideoInicio(bruto) {
     if (!bruto || typeof bruto !== "object") return VIDEO_INICIO_PADRAO;
     return {
@@ -917,7 +934,13 @@
             duracao: txt(v.duracao, 20),
             desc: txt(v.desc, 400),
             youtube: ID_YT.test(v.youtube) ? v.youtube : "",
-            capa: capaSegura(v.capa)
+            capa: capaSegura(v.capa),
+            /* Material para levar embora: o áudio da aula, para
+               ouvir no carro, e o PDF de acompanhamento. */
+            audio: materialSeguro(v.audio),
+            audioNome: txt(v.audioNome, 160),
+            pdf: materialSeguro(v.pdf),
+            pdfNome: txt(v.pdfNome, 160)
           };
         }).filter(Boolean)
       };
@@ -1066,6 +1089,10 @@
     /* O portal e o painel precisam do MESMO crivo de capa. Duas
        cópias da mesma regra viram duas regras diferentes na
        primeira vez que alguém mexer numa só. */
-    capaSegura: capaSegura
+    capaSegura: capaSegura,
+    /* O painel usa para saber se já há material naquela aula, e o
+       portal para não montar um link com endereço de fora. Um só
+       julgador para os dois lados, como acontece com a capa. */
+    materialSeguro: materialSeguro
   };
 })(window);

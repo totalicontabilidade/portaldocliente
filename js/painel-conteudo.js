@@ -323,6 +323,118 @@
     }).then(function () { return ref.getDownloadURL(); });
   }
 
+  /* MATERIAL DA AULA: o áudio para ouvir no carro e o PDF de
+     acompanhamento (pedido dele, 2026-08-25).
+
+     Mesma pasta e mesmo cuidado da capa — `publico/academy/`, nome
+     sorteado a cada envio. Nome novo importa aqui pelo mesmo motivo
+     de lá: sobrescrever deixaria o arquivo velho no cache de quem já
+     baixou, e num ÁUDIO isso é pior, porque a pessoa levaria a
+     versão errada para o carro sem perceber.
+
+     Limite maior que o da capa: aula de dez minutos em MP3 passa
+     folgado de 5 MB. Vinte e cinco cobre uma aula longa sem virar
+     desculpa para subir arquivo sem compressão. */
+  var LIMITE_MATERIAL = 25 * 1024 * 1024;
+
+  var TIPOS_AUDIO = {
+    "audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a", "audio/aac": "m4a", "audio/ogg": "ogg",
+    "audio/opus": "opus", "audio/wav": "wav", "audio/x-wav": "wav"
+  };
+
+  function subirMaterial(blob, tipoEsperado) {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.equipe) {
+      return Promise.reject(new Error("Sem conexão com o servidor."));
+    }
+    if (blob.size > LIMITE_MATERIAL) {
+      return Promise.reject(new Error(
+        "O arquivo passa de 25 MB. Comprima o áudio antes de enviar."));
+    }
+
+    var tipo = blob.type || "";
+    var ext;
+    if (tipoEsperado === "pdf") {
+      if (tipo !== "application/pdf") return Promise.reject(new Error("Envie um PDF."));
+      ext = "pdf";
+    } else {
+      ext = TIPOS_AUDIO[tipo];
+      if (!ext) {
+        return Promise.reject(new Error("Envie um áudio em MP3, M4A, OGG, OPUS ou WAV."));
+      }
+    }
+
+    var nome = "publico/academy/" + FB.novoCodigo() + "." + ext;
+    var ref = FB.storage.ref(nome);
+
+    /* BAIXAR, E NÃO ABRIR — e isto tem que ficar no ARQUIVO.
+
+       O atributo `download` do link é IGNORADO quando o endereço é
+       de outro domínio, e o nosso Storage é outro domínio. Sem o
+       cabeçalho abaixo, tocar em "Baixar o áudio" abriria um player
+       no navegador em vez de salvar no aparelho — inútil para quem
+       quer levar a aula para o carro, que é o pedido inteiro.
+
+       O nome vai limpo de aspas, barras e quebras de linha: ele
+       entra num cabeçalho HTTP, e cabeçalho aceita injeção como
+       qualquer outro texto montado por concatenação. */
+    var seguro = String(blob.name || "")
+      .replace(/[\r\n"\\/]+/g, " ")
+      .replace(/[^\x20-\x7E]/g, "")
+      .trim()
+      .slice(0, 120) || ("aula." + ext);
+
+    return ref.put(blob, {
+      contentType: tipo,
+      cacheControl: "public, max-age=31536000, immutable",
+      contentDisposition: 'attachment; filename="' + seguro + '"'
+    }).then(function () { return ref.getDownloadURL(); });
+  }
+
+  /* Grava o material no rascunho. Guarda também o NOME original: é
+     ele que o navegador usa ao salvar, e "aula-3-guias.mp3" na lista
+     do rádio do carro é bem melhor do que um código sorteado. */
+  function definirMaterial(caminho, qual, url, nomeArquivo) {
+    var partes = caminho.split(".");
+    var alvo = C;
+    for (var i = 0; i < partes.length; i++) {
+      alvo = alvo[partes[i]];
+      if (!alvo) return false;
+    }
+    alvo[qual] = url || "";
+    alvo[qual + "Nome"] = url ? String(nomeArquivo || "").slice(0, 160) : "";
+    gravar();
+    desenhar();
+    return true;
+  }
+
+  function trocarMaterial(caminho, qual) {
+    if (qual === "tirar-audio") return definirMaterial(caminho, "audio", "");
+    if (qual === "tirar-pdf") return definirMaterial(caminho, "pdf", "");
+
+    var entrada = document.createElement("input");
+    entrada.type = "file";
+    entrada.accept = qual === "pdf"
+      ? "application/pdf"
+      : "audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/opus,audio/wav";
+    entrada.style.display = "none";
+    entrada.addEventListener("change", function () {
+      var f = entrada.files && entrada.files[0];
+      entrada.remove();
+      if (!f) return;
+      UI.toast("Enviando " + f.name + "…", "ok", 4000);
+      subirMaterial(f, qual).then(function (url) {
+        definirMaterial(caminho, qual, url, f.name);
+        UI.toast(qual === "pdf" ? "PDF enviado." : "Áudio enviado.", "ok");
+      }, function (e) {
+        UI.toast(e.message || "Não foi possível enviar.", "erro", 9000);
+      });
+    });
+    document.body.appendChild(entrada);
+    entrada.click();
+  }
+
   /* Grava a capa no rascunho e redesenha. `caminho` é o mesmo
      endereço usado nos campos: "academy.0.videos.2". */
   function definirCapa(caminho, url) {
@@ -397,6 +509,34 @@
       (tem
         ? '<button type="button" class="ac-mini ac-mini--txt" data-capa="tirar|' +
           U.escAttr(caminho) + '">Tirar</button>'
+        : '') +
+    '</span>';
+  }
+
+  /* O que o cliente pode levar embora desta aula. Fica junto do
+     estado da aula, e não escondido atrás de outro clique: material
+     que ninguém lembra de subir é material que não existe. */
+  function materialBtns(caminho, v) {
+    var temAudio = !!DATA.materialSeguro(v && v.audio);
+    var temPdf = !!DATA.materialSeguro(v && v.pdf);
+    var nome = function (u) { return u ? U.esc(String(u).slice(0, 40)) : ""; };
+
+    return '<span class="ac-material">' +
+      '<button type="button" class="ac-mini ac-mini--txt" data-material="audio|' +
+        U.escAttr(caminho) + '">' + (temAudio ? "Trocar o áudio" : "Enviar áudio") + '</button>' +
+      (temAudio
+        ? '<span class="ac-material__n" title="' + U.escAttr(v.audioNome || "") + '">' +
+            nome(v.audioNome || "áudio enviado") + '</span>' +
+          '<button type="button" class="ac-mini ac-mini--txt" data-material="tirar-audio|' +
+            U.escAttr(caminho) + '">Tirar</button>'
+        : '') +
+      '<button type="button" class="ac-mini ac-mini--txt" data-material="pdf|' +
+        U.escAttr(caminho) + '">' + (temPdf ? "Trocar o PDF" : "Enviar PDF") + '</button>' +
+      (temPdf
+        ? '<span class="ac-material__n" title="' + U.escAttr(v.pdfNome || "") + '">' +
+            nome(v.pdfNome || "PDF enviado") + '</span>' +
+          '<button type="button" class="ac-mini ac-mini--txt" data-material="tirar-pdf|' +
+            U.escAttr(caminho) + '">Tirar</button>'
         : '') +
     '</span>';
   }
@@ -503,6 +643,7 @@
                   (ok
                     ? "Publicada · capa " + (DATA.capaSegura(v.capa) ? "nossa" : "do YouTube")
                     : "Em breve · sem vídeo") + '</span>' +
+                materialBtns("academy." + i + ".videos." + j, v) +
               '</span>' +
               '<button type="button" class="ac-mini ac-mini--x" data-remove="academy.' + i + '.videos:' + j +
                 '" aria-label="Remover aula">&#215;</button></div>';
@@ -858,6 +999,13 @@
       if (capa) {
         var corte = capa.indexOf("|");
         trocarCapa(capa.slice(corte + 1), capa.slice(0, corte));
+        return;
+      }
+
+      var mat = b.getAttribute("data-material");
+      if (mat) {
+        var corteM = mat.indexOf("|");
+        trocarMaterial(mat.slice(corteM + 1), mat.slice(0, corteM));
         return;
       }
 

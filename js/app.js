@@ -2631,8 +2631,67 @@
     '</section>' + rodape();
   }
 
+  /* Acha a aula pelo id do vídeo, em qualquer trilha — inclusive o
+     vídeo de apresentação da tela inicial, que também pode ter
+     material. */
+  function aulaPorYoutube(idYt) {
+    if (!idYt) return null;
+    var achada = null;
+    (DATA.ACADEMY || []).forEach(function (t) {
+      (t.videos || []).forEach(function (v) {
+        if (!achada && v.youtube === idYt) achada = v;
+      });
+    });
+    if (!achada && DATA.VIDEO_INICIO && DATA.VIDEO_INICIO.youtube === idYt) {
+      achada = DATA.VIDEO_INICIO;
+    }
+    return achada;
+  }
+
+  /* MATERIAL PARA LEVAR EMBORA (pedido dele, 2026-08-25).
+
+     A ideia partiu de um uso concreto: ouvir a aula no carro, em
+     viagem. Isso muda o que o botão precisa ser — não é "tocar
+     aqui", é BAIXAR, porque no carro não há internet garantida e
+     ninguém quer depender de sinal na estrada.
+
+     Por isso `download` no link, e não um player embutido: o
+     arquivo desce para o aparelho e vira mais um áudio na lista do
+     rádio. O PDF segue o mesmo caminho, para acompanhar impresso ou
+     no celular.
+
+     O endereço já vem lavado por `DATA.materialSeguro` — só arquivo
+     da pasta `publico/` do nosso Storage entra aqui. */
+  function materialHTML(v) {
+    if (!v) return "";
+    var tem = v.audio || v.pdf;
+    if (!tem) return "";
+
+    var linha = function (url, nome, icone, rotulo, ajuda) {
+      if (!url) return "";
+      return '<a class="material" href="' + U.escAttr(url) + '" download' +
+          (nome ? '="' + U.escAttr(nome) + '"' : '') +
+          ' rel="noopener">' +
+        '<span class="material__ic">' + ic(icone) + '</span>' +
+        '<span class="material__txt">' +
+          '<span class="material__t">' + U.esc(rotulo) + '</span>' +
+          '<span class="material__d">' + U.esc(ajuda) + '</span>' +
+        '</span>' +
+        '<span class="material__baixar">' + ic("ic-download") + '</span>' +
+      '</a>';
+    };
+
+    return '<div class="materiais">' +
+      '<div class="materiais__t">Para levar com você</div>' +
+      linha(v.audio, v.audioNome, "ic-som", "Baixar o áudio da aula",
+            "Para ouvir no carro ou sem internet.") +
+      linha(v.pdf, v.pdfNome, "ic-file", "Baixar o PDF de acompanhamento",
+            "O conteúdo da aula por escrito, para consultar depois.") +
+    '</div>';
+  }
+
   /* Player em janela: só aqui o YouTube é chamado. */
-  function abrirVideo(idYt, titulo) {
+  function abrirVideo(idYt, titulo, aula) {
     if (!idYoutubeValido(idYt)) return;
     var src = "https://www.youtube-nocookie.com/embed/" + idYt +
               "?rel=0&modestbranding=1&playsinline=1&autoplay=1";
@@ -2642,7 +2701,9 @@
         '<iframe src="' + U.escAttr(src) + '" title="' + U.escAttr(titulo || "Vídeo") + '" ' +
         'referrerpolicy="no-referrer" allowfullscreen ' +
         'allow="accelerometer; encrypted-media; picture-in-picture; fullscreen"></iframe>' +
-      '</div>'
+      '</div>' +
+      (aula && aula.desc ? '<p class="player__desc">' + U.esc(aula.desc) + '</p>' : '') +
+      materialHTML(aula)
     });
   }
 
@@ -3994,8 +4055,13 @@
       var tocar = ev.target.closest("[data-tocar]");
       if (tocar) {
         var caixa = tocar.closest("[data-video]") || tocar;
-        if (caixa.getAttribute("data-video")) {
-          abrirVideo(caixa.getAttribute("data-video"), caixa.getAttribute("data-video-titulo"));
+        var idVid = caixa.getAttribute("data-video");
+        if (idVid) {
+          /* A aula vem do catálogo, procurada pelo id do vídeo, e não
+             de atributos no HTML: endereço de arquivo em `data-` é
+             endereço exposto no código-fonte da página, e este aqui
+             aponta para material do cliente. */
+          abrirVideo(idVid, caixa.getAttribute("data-video-titulo"), aulaPorYoutube(idVid));
           return;
         }
       }

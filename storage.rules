@@ -137,11 +137,38 @@ service firebase.storage {
     // reprovava e a equipe nunca conseguia apagar nada. Capa
     // enviada por engano ficava no bucket para sempre, sem jeito
     // de tirar a não ser pelo console.
+    // MATERIAL DA ACADEMY entrou aqui em 2026-08-25: o áudio da aula,
+    // para o cliente ouvir no carro, e o PDF de acompanhamento.
+    //
+    // O que NÃO mudou, e não pode mudar: continua sendo só a equipe
+    // que publica, e a lista de tipos continua fechada. `read: true`
+    // é o que já valia — esta pasta é o conteúdo público do portal,
+    // e o endereço de cada arquivo é sorteado, não adivinhável.
+    //
+    // Limites separados por tipo, de propósito. Imagem continua em
+    // 5 MB porque capa maior que isso é capa mal exportada. Áudio e
+    // PDF vão a 25 MB, que cobre uma aula longa — mas note que o
+    // limite alto vale SÓ para os tipos que precisam dele, e não
+    // para tudo. Um teto único de 25 MB deixaria passar imagem de
+    // 25 MB sem motivo nenhum.
+    //
+    // HTML, SVG e executável continuam fora: esta pasta é servida
+    // com leitura pública, e arquivo que o navegador EXECUTA
+    // servido do nosso domínio é XSS com o nosso endereço.
     match /publico/{arquivo=**} {
       allow read: if true;
       allow create, update: if ehEquipe()
-                            && request.resource.size <= 5 * 1024 * 1024
-                            && request.resource.contentType.matches('image/(jpeg|png|webp)');
+                            && (
+                              (request.resource.size <= 5 * 1024 * 1024
+                               && request.resource.contentType.matches('image/(jpeg|png|webp)'))
+                              ||
+                              (request.resource.size <= 25 * 1024 * 1024
+                               && request.resource.contentType.matches(
+                                    'audio/(mpeg|mp3|mp4|x-m4a|aac|ogg|opus|wav|x-wav)'))
+                              ||
+                              (request.resource.size <= 25 * 1024 * 1024
+                               && request.resource.contentType == 'application/pdf')
+                            );
       allow delete: if ehEquipe();
     }
 

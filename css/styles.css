@@ -1183,6 +1183,43 @@ input[type=checkbox]{accent-color:var(--gold)}
    Não confundir com `.ac-aula*`, mais abaixo, que é do editor de
    conteúdo do painel e continua em uso. */
 
+/* MATERIAL DA AULA — áudio e PDF para baixar, abaixo do vídeo.
+
+   Linha inteira clicável, e não um botão pequeno: quem vai baixar
+   isso muitas vezes está no celular, de pé, antes de entrar no
+   carro. Alvo grande erra menos.
+
+   O ícone de download fica à direita, separado do texto, para a
+   ação ficar clara sem depender de ler. */
+.player__desc{
+  font-size:13.5px;line-height:1.6;color:var(--txt-3);margin:14px 0 0;
+}
+.materiais{margin-top:16px;padding-top:14px;border-top:1px solid var(--stroke)}
+.materiais__t{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:10px;
+}
+.material{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 13px;margin-bottom:8px;border-radius:12px;
+  background:var(--glass);border:1px solid var(--stroke);
+  text-decoration:none;color:inherit;
+  transition:background .18s var(--ease),border-color .18s var(--ease);
+}
+.material:last-child{margin-bottom:0}
+.material:hover{background:var(--glass-2);border-color:var(--stroke-gold)}
+.material__ic{
+  width:36px;height:36px;flex:none;border-radius:11px;display:grid;place-items:center;
+  background:rgba(194,162,80,.14);border:1px solid var(--stroke-gold);color:var(--gold-2);
+}
+.material__ic .ic{width:17px;height:17px}
+.material__txt{flex:1;min-width:0}
+.material__t{display:block;font-size:14px;font-weight:620;color:var(--txt)}
+.material__d{display:block;font-size:12px;color:var(--txt-3);margin-top:2px;line-height:1.45}
+.material__baixar{flex:none;color:var(--txt-4)}
+.material__baixar .ic{width:19px;height:19px}
+.material:hover .material__baixar{color:var(--gold-2)}
+
 /* Player na janela */
 .player{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
 .player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -2329,6 +2366,15 @@ details.rec:not([open]) > .rec__body{display:none}
 /* Fila de arquivos escolhidos e ainda não enviados, no painel. Só
    ocupa espaço quando há algo nela. */
 .anexos-fila:not(:empty){display:flex;flex-direction:column;gap:6px;margin-top:10px}
+
+/* Botões de material da aula, no editor de conteúdo. */
+.ac-material{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;
+}
+.ac-material__n{
+  font-size:11.5px;color:var(--txt-3);max-width:180px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 
 /* Cabeçalho da empresa na lista de pendências */
 .pend__topo{
