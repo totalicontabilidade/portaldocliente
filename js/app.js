@@ -2681,42 +2681,24 @@
       '</a>';
     };
 
+    /* SÓ BAIXAR, sem player aqui (decisão dele, 2026-08-25).
+
+       Cheguei a pôr um tocador ao lado do botão. Ele mesmo notou que
+       sobrava: quem quer ouvir no portal aperta o VÍDEO, que já está
+       na mesma janela, logo acima. O áudio existe para o caso em que
+       o vídeo não serve — no carro, sem internet, com a tela
+       desligada. Para esse caso, tocar aqui não ajuda em nada.
+
+       Some junto a única parte deste recurso que eu não conseguia
+       verificar: se o navegador toca um arquivo servido marcado como
+       anexo. Sem player, a pergunta deixa de existir. */
     return '<div class="materiais">' +
       '<div class="materiais__t">Para levar com você</div>' +
-      /* OUVIR AQUI, ANTES DE BAIXAR (pedido dele, 2026-08-25).
-         Quem só quer conferir do que se trata não precisa gastar
-         5 MB do pacote de dados para descobrir. O player nasce sem
-         carregar nada (`preload="none"`) e só busca o arquivo se
-         alguém apertar tocar. Se o navegador não conseguir tocar,
-         ele se esconde sozinho e o botão de baixar continua ali —
-         ver `ligarMateriais()`. */
-      (v.audio
-        ? '<div class="material-tocar" data-tocador>' +
-            '<audio controls preload="none" src="' + U.escAttr(v.audio) + '"></audio>' +
-          '</div>'
-        : '') +
       linha(v.audio, v.audioNome, "ic-som", "Baixar o áudio da aula",
             "Para ouvir no carro ou sem internet.") +
       linha(v.pdf, v.pdfNome, "ic-file", "Baixar o PDF de acompanhamento",
             "O conteúdo da aula por escrito, para consultar depois.") +
     '</div>';
-  }
-
-  /* O player pode falhar por dois motivos previsíveis: o arquivo é
-     servido marcado como anexo (para o botão de baixar funcionar
-     mesmo sendo outro domínio) e nem todo navegador toca nessa
-     condição; ou o formato não é suportado no aparelho.
-
-     Em qualquer dos casos, um player quebrado na tela é pior do que
-     player nenhum — some, e fica só o que interessa, que é baixar.
-     A promessa do recurso é ouvir NO CARRO; tocar aqui é cortesia. */
-  function ligarMateriais() {
-    $$("[data-tocador] audio").forEach(function (som) {
-      som.addEventListener("error", function () {
-        var caixa = som.closest("[data-tocador]");
-        if (caixa) caixa.remove();
-      });
-    });
   }
 
   /* Player em janela: só aqui o YouTube é chamado. */
@@ -2734,7 +2716,6 @@
       (aula && aula.desc ? '<p class="player__desc">' + U.esc(aula.desc) + '</p>' : '') +
       materialHTML(aula)
     });
-    ligarMateriais();
   }
 
   /* ============================================================
