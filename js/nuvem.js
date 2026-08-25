@@ -542,6 +542,35 @@
        pode mandar apagar o dele. Como a leitura não traz esses
        documentos, a exclusão não sai da comparação — precisa ser
        pedida na hora. */
+    /* ============================================================
+       MENSAGEM VAI SOZINHA, E VAI NA HORA
+
+       Antes ela pegava carona na gravação geral do estado: entrava
+       na fila do debounce de 350ms e subia num lote junto com
+       empresa, sócios, os dezessete documentos, credenciais e
+       eventos — cinquenta e tantos documentos comparados antes de
+       um recado de duas linhas sair do lugar.
+
+       Dois estragos. Demora, que é o que se sente. E, pior, se
+       QUALQUER outra escrita do lote fosse recusada, o lote inteiro
+       caía e a mensagem ia junto, apesar de estar perfeita — o
+       portal dizia "guardada" e o painel nunca recebia. Foi o que o
+       Raoni descreveu em 2026-08-24.
+
+       Um documento, uma escrita. Não passa pelo lote, não espera
+       debounce, e uma falha em outra parte do estado não a
+       derruba. O retrato é fixado aqui mesmo, para a gravação geral
+       seguinte não reescrever o que já subiu. */
+    function gravarMensagem(m) {
+      if (!m || !m.id) return Promise.reject(new Error("mensagem-sem-id"));
+      var caminho = "mensagens/" + m.id;
+      var d = payloadMensagem(m);
+      return raiz.collection("mensagens").doc(m.id).set(d).then(function () {
+        fixar(caminho, d);
+        return true;
+      });
+    }
+
     function removerCredencial(chave) {
       var id = codificar(chave);
       delete retrato["credenciais/" + id];
@@ -588,6 +617,7 @@
       carregar: carregar,
       ouvirMensagens: ouvirMensagens,
       removerCredencial: removerCredencial,
+      gravarMensagem: gravarMensagem,
       salvar: salvar,
       apagar: apagar,
       guardarArquivo: guardarArquivo,

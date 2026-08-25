@@ -37,6 +37,38 @@
     return !!(c && c.apiKey && c.projectId && c.apiKey.indexOf("COLE_") !== 0);
   }
 
+  /* ============================================================
+     CADA PÁGINA TEM A SUA PRÓPRIA SESSÃO
+
+     O portal do cliente e o painel da equipe moram na MESMA origem
+     (totalicontabilidade.github.io). O Firebase guarda a sessão numa
+     chave que inclui o nome do app — e as duas páginas chamavam
+     `initializeApp` sem nome, então as duas usavam `[DEFAULT]` e
+     dividiam a MESMA gaveta de sessão.
+
+     Consequência, que o Raoni descreveu em 2026-08-24: entrar como
+     cliente derrubava a equipe, e entrar como equipe derrubava o
+     cliente. Pior que o logout: quando a troca acontecia no meio de
+     uma gravação, ela saía com a credencial do outro usuário e era
+     recusada. Daí a mensagem que o portal dizia ter guardado e que
+     nunca chegava ao painel, e o "erro no servidor" seguido de "está
+     tudo certo" — o estado local ficava certo, o servidor não
+     recebia nada.
+
+     Nomes separados dão gavetas separadas. As duas páginas passam a
+     conviver abertas, que é exatamente como a equipe trabalha:
+     painel numa aba, portal do cliente na outra para conferir.
+
+     A detecção é pelo endereço porque o CSP proíbe script inline —
+     não dá para a página declarar quem é antes de carregar isto. O
+     GitHub Pages serve o painel em `/equipe` e em `/equipe.html`,
+     por isso os dois casos. */
+  function nomeDoApp() {
+    var caminho = "";
+    try { caminho = String(global.location.pathname || "").toLowerCase(); } catch (e) {}
+    return /\/equipe(\.html)?$/.test(caminho) ? "equipe" : "portal";
+  }
+
   /* ---------- Início ---------- */
   var pronto = (function () {
     if (!temSDK()) {
@@ -48,7 +80,7 @@
       return Promise.resolve(false);
     }
     try {
-      app = global.firebase.initializeApp(global.FIREBASE_CONFIG);
+      app = global.firebase.initializeApp(global.FIREBASE_CONFIG, nomeDoApp());
 
       /* App Check ANTES de auth e firestore: ele precisa estar de
          pé para que as chamadas seguintes já saiam com o token.
@@ -88,15 +120,18 @@
         } catch (eTD) { /* aba privada, segue sem */ }
       }
 
+      /* Daqui para baixo, TUDO recebe `app`. Sem isso o SDK devolve
+         os serviços do app `[DEFAULT]`, que agora nem existe — e a
+         página abriria sem sessão e sem banco, calada. */
       if (global.APP_CHECK_SITE_KEY && global.firebase.appCheck) {
         try {
-          global.firebase.appCheck().activate(global.APP_CHECK_SITE_KEY, true);
+          global.firebase.appCheck(app).activate(global.APP_CHECK_SITE_KEY, true);
         } catch (eAC) { /* segue sem App Check */ }
       }
 
-      auth = global.firebase.auth();
-      db = global.firebase.firestore();
-      if (global.firebase.storage) storage = global.firebase.storage();
+      auth = global.firebase.auth(app);
+      db = global.firebase.firestore(app);
+      if (global.firebase.storage) storage = global.firebase.storage(app);
     } catch (e) {
       erroInicial = "falha-init";
       return Promise.resolve(false);

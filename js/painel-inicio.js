@@ -262,6 +262,86 @@
   var MOSTRAR = 10;
   var mostrandoTudo = false;
 
+  /* ============================================================
+     AVISO DE ROTINA PARADA (pedido dele, 2026-08-24)
+
+     A cobrança automática roda às 10h em dias úteis, sozinha. Se
+     ela parar, os clientes deixam de ser cobrados e ninguém fica
+     sabendo: nada quebra na tela, nada aparece. Falha silenciosa.
+
+     As funções passaram a anotar cada execução em /saude. Aqui a
+     equipe é avisada quando uma delas falhou, ou quando faz tempo
+     demais que não roda.
+
+     QUATRO DIAS, e não dois, porque a rotina só roda em dia útil:
+     de sexta a segunda passam três dias sem execução nenhuma, e um
+     alarme que dispara todo fim de semana é um alarme que a equipe
+     aprende a ignorar. */
+  var LIMITE_SEM_RODAR_MS = 4 * 24 * 60 * 60 * 1000;
+  var ROTINAS = { avisarPendencias: "Cobrança automática por prazo" };
+  var saude = null;
+
+  function lerSaude() {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.db) return;
+    FB.db.collection("saude").get().then(function (snap) {
+      saude = [];
+      snap.forEach(function (d) {
+        var x = d.data() || {};
+        saude.push({
+          id: d.id,
+          ok: x.ok !== false,
+          erro: x.erro || "",
+          em: x.em && x.em.toDate ? x.em.toDate().getTime() : 0
+        });
+      });
+      desenharSaude();
+    }, function () { /* sem permissão ou sem rede: silêncio é melhor que alarme falso */ });
+  }
+
+  function desenharSaude() {
+    var caixa = $("#inSaude");
+    if (!caixa) return;
+    if (!saude) { caixa.innerHTML = ""; return; }
+
+    var agora = Date.now();
+    var problemas = [];
+
+    Object.keys(ROTINAS).forEach(function (id) {
+      var r = null, i;
+      for (i = 0; i < saude.length; i++) if (saude[i].id === id) r = saude[i];
+
+      if (!r) {
+        problemas.push({
+          nome: ROTINAS[id],
+          texto: "nunca registrou execução. Pode ser que ainda não tenha chegado a hora dela, " +
+                 "ou que não esteja publicada."
+        });
+        return;
+      }
+      if (!r.ok) {
+        problemas.push({ nome: ROTINAS[id], texto: "falhou na última execução" +
+          (r.em ? " (" + U.dataCurta(r.em) + ")" : "") + (r.erro ? ": " + r.erro : ".") });
+        return;
+      }
+      if (r.em && agora - r.em > LIMITE_SEM_RODAR_MS) {
+        problemas.push({ nome: ROTINAS[id],
+          texto: "não roda desde " + U.dataCurta(r.em) + "." });
+      }
+    });
+
+    if (!problemas.length) { caixa.innerHTML = ""; return; }
+
+    caixa.innerHTML = '<div class="notice notice--warn" style="margin-bottom:16px">' +
+      '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+      '<span><strong>Uma rotina do servidor precisa de atenção.</strong><br>' +
+      problemas.map(function (p) {
+        return U.esc(p.nome) + " — " + U.esc(p.texto);
+      }).join("<br>") +
+      '<br><span class="text-xs text-muted">Enquanto isso, a cobrança pode ser feita à mão ' +
+      'pela ficha do cliente.</span></span></div>';
+  }
+
   function desenhar() {
     var alvo = $("#inLista");
     if (!alvo) return;
@@ -300,6 +380,8 @@
       if (placarVazio) placarVazio.innerHTML = "";
       return;
     }
+
+    desenharSaude();
 
     /* ---- números ---- */
     var placar = $("#inNumeros");
@@ -402,6 +484,13 @@
     if (global.Painel) global.Painel.aoTrocar(function (aba) {
       if (aba === "inicio") desenhar();
     });
+
+    /* A saúde das rotinas é lida uma vez por sessão: são poucos
+       documentos e o estado muda uma vez por dia. Ler a cada troca
+       de aba seria leitura à toa. */
+    if (global.FB && global.FB.observarSessao) {
+      global.FB.observarSessao(function (quem) { if (quem) lerSaude(); });
+    }
 
     desenhar();
   }

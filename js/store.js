@@ -1187,6 +1187,19 @@
         if (st.mensagens.length > 300) st.mensagens = st.mensagens.slice(-300);
       }, "mensagens");
       Store.avisar({ tipo: "mensagem", mensagem: msg });
+
+      /* A mensagem sobe SOZINHA e AGORA, sem esperar o debounce nem
+         o lote do estado inteiro. Se falhar, não tem problema: ela
+         continua no estado e a gravação geral leva na próxima — mas
+         no caso comum, que é ter internet, ela chega em uma ida ao
+         servidor em vez de esperar por cinquenta documentos. */
+      if (backend.gravarMensagem) {
+        backend.gravarMensagem(msg).catch(function () {
+          /* Falhou o atalho: a mensagem continua no estado, então a
+             gravação geral leva junto — e essa insiste sozinha. */
+          salvarAgora();
+        });
+      }
       return msg;
     },
 

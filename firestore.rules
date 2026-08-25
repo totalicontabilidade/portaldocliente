@@ -451,6 +451,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- Saúde das rotinas do servidor ----------
+    //
+    // Um documento por rotina automática, atualizado por ela a cada
+    // execução. O painel lê e avisa a equipe quando alguma falhou ou
+    // faz dias demais que não roda — antes, uma rotina quebrada era
+    // falha silenciosa: os clientes deixavam de ser cobrados e
+    // ninguém ficava sabendo.
+    //
+    // `write: false` pela mesma razão de /auditoria: quem escreve é
+    // a função, que passa por cima das regras. Equipe que pudesse
+    // escrever aqui poderia "consertar" um alarme sem consertar a
+    // rotina.
+    match /saude/{rotina} {
+      allow read: if ehEquipe();
+      allow write: if false;
+    }
+
     // ---------- Conteúdo do portal ----------
     //
     // Textos, documentos do checklist, trilhas da Academy. Todo

@@ -998,46 +998,57 @@
               ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
           }).join("") + '</div>'
         : '') +
-      /* Só na mensagem do cliente: é dela que sai providência. */
-      (doCliente
+      /* RESOLVER É DA CONVERSA, NÃO DE CADA FRASE (pedido dele,
+         2026-08-24). Antes toda mensagem do cliente vinha com o
+         botão, e uma dúvida contada em quatro mensagens exigia
+         quatro cliques para dizer a mesma coisa: já foi tratado.
+         O botão subiu para o fim da conversa; aqui fica só o selo,
+         para quem relê meses depois saber quem tratou e quando. */
+      (doCliente && m.resolvidaEm
         ? '<div class="msg__resolver">' +
-            (m.resolvidaEm
-              ? '<span class="msg__selo">' + ic("ic-check") + 'Resolvida por ' +
-                  U.esc(m.resolvidaPor || "equipe") + ' em ' +
-                  U.esc(U.dataCurta(m.resolvidaEm)) + '</span>' +
-                '<button type="button" class="btn btn--quiet btn--sm" ' +
-                  'data-resolver="0" data-emp="' + U.escAttr(alvo) +
-                  '" data-msg="' + U.escAttr(m.id) + '">Reabrir</button>'
-              : '<button type="button" class="btn btn--quiet btn--sm" ' +
-                  'data-resolver="1" data-emp="' + U.escAttr(alvo) +
-                  '" data-msg="' + U.escAttr(m.id) + '">' +
-                  ic("ic-check") + 'Marcar como resolvida</button>') +
+            '<span class="msg__selo">' + ic("ic-check") + 'Resolvida por ' +
+              U.esc(m.resolvidaPor || "equipe") + ' em ' +
+              U.esc(U.dataCurta(m.resolvidaEm)) + '</span>' +
           '</div>'
         : '') +
     '</div>';
   }
 
-  function marcarResolvida(c, msgId, resolver) {
-    var m = c.mensagens.filter(function (x) { return x.id === msgId; })[0];
-    if (!m) return;
+  /* Resolve a conversa inteira de uma vez. Num lote só: são poucas
+     mensagens e uma ida ao servidor, em vez de uma por frase. */
+  function marcarConversaResolvida(c, resolver) {
+    var alvos = c.mensagens.filter(function (m) {
+      return m.autor === "cliente" && (resolver ? !m.resolvidaEm : m.resolvidaEm);
+    });
+    if (!alvos.length) {
+      UI.toast(resolver ? "Não há o que resolver nesta conversa." : "Nada a reabrir.", "ok", 2500);
+      return;
+    }
 
     var dados = resolver
       ? { resolvidaEm: Date.now(),
           resolvidaPor: (equipe && (equipe.nome || equipe.email)) || "equipe" }
       : { resolvidaEm: 0, resolvidaPor: "" };
 
-    FB.db.collection("empresas").doc(c.id).collection("mensagens").doc(msgId)
-      .set(dados, { merge: true })
-      .then(function () {
+    var col = FB.db.collection("empresas").doc(c.id).collection("mensagens");
+    var lote = FB.db.batch();
+    alvos.slice(0, 400).forEach(function (m) { lote.set(col.doc(m.id), dados, { merge: true }); });
+
+    lote.commit().then(function () {
+      alvos.forEach(function (m) {
         m.resolvidaEm = dados.resolvidaEm;
         m.resolvidaPor = dados.resolvidaPor;
-        atualizarContadores();
-        if (conversaAberta === c) desenharConversa();
-        if (aberto === c) desenharFicha();
-        UI.toast(resolver ? "Marcada como resolvida." : "Reaberta.", "ok", 2500);
-      }, function (e) {
-        UI.toast("Não foi possível marcar: " + FB.explicar(e), "erro", 9000);
       });
+      atualizarContadores();
+      if (conversaAberta === c) desenharConversa();
+      if (aberto === c) desenharFicha();
+      UI.toast(resolver
+        ? "Conversa resolvida (" + alvos.length + " " +
+          U.plural(alvos.length, "mensagem", "mensagens") + ")."
+        : "Conversa reaberta.", "ok", 3000);
+    }, function (e) {
+      UI.toast("Não foi possível marcar: " + FB.explicar(e), "erro", 9000);
+    });
   }
 
   function ultimaDe(c) {
@@ -1242,6 +1253,9 @@
     var c = empresas.filter(function (x) { return x.id === id; })[0];
     if (!c) return;
     aberto = c;
+    /* Anexo escolhido para um cliente não pode acompanhar a troca
+       para outro — seria mandar documento para a empresa errada. */
+    anexosPendentes = [];
     /* Só "o que falta" nasce aberto: é o motivo de a equipe abrir
        a ficha. O resto fica recolhido, e o selo do cabeçalho diz
        onde tem trabalho esperando. */
@@ -3222,14 +3236,43 @@
           ? '<div class="conversa">' + msgs.slice(-30).map(function (m) { return mensagemHTML(m, c); }).join("") + '</div>'
           : '<p class="text-sm text-muted">Nenhuma mensagem ainda.</p>') +
 
+        /* UM botão para a conversa toda, no fim dela, que é onde se
+           está quando se termina de ler. Marca de uma vez tudo o que
+           o cliente escreveu e ainda não foi tratado. */
+        (aResolver
+          ? '<div class="row" style="margin-top:12px">' +
+              '<button type="button" class="btn btn--quiet btn--sm" data-resolver-tudo="1" ' +
+                'data-emp="' + U.escAttr(c.id) + '">' + ic("ic-check") +
+                'Marcar conversa como resolvida</button>' +
+              '<span class="text-xs text-muted" style="align-self:center">' +
+                aResolver + ' ' + U.plural(aResolver, "mensagem", "mensagens") +
+                ' do cliente sem providência</span>' +
+            '</div>'
+          : (msgs.length
+              ? '<div class="row" style="margin-top:12px">' +
+                  '<button type="button" class="btn btn--quiet btn--sm" data-resolver-tudo="0" ' +
+                    'data-emp="' + U.escAttr(c.id) + '">Reabrir a conversa</button>' +
+                '</div>'
+              : '')) +
+
         '<div class="field" style="margin-top:14px;margin-bottom:8px">' +
           '<label class="field__label" for="clMsg">Escrever para o cliente</label>' +
           '<textarea class="textarea" id="clMsg" rows="4" maxlength="4000" ' +
             'placeholder="Escreva aqui, ou toque em um modelo abaixo…"></textarea>' +
         '</div>' +
         modelosHTML() +
-        '<button type="button" class="btn btn--primary btn--sm" id="clEnviarMsg" ' +
-          'style="margin-top:12px">' + ic("ic-send") + 'Enviar</button>';
+        /* ANEXO TAMBÉM PELA EQUIPE (pedido dele, 2026-08-24). O
+           cliente sempre pôde mandar arquivo pela conversa; a
+           equipe, não — e é comum precisar devolver um documento
+           preenchido, um modelo, um comprovante. A regra do Storage
+           já permitia `equipeOuDono`, então faltava só a tela. */
+        '<div class="row" style="margin-top:12px">' +
+          '<button type="button" class="btn btn--quiet btn--sm" id="clAnexar">' +
+            ic("ic-clipe") + 'Anexar arquivo</button>' +
+          '<button type="button" class="btn btn--primary btn--sm" id="clEnviarMsg">' +
+            ic("ic-send") + 'Enviar</button>' +
+        '</div>' +
+        '<div id="clAnexos" class="anexos-fila"></div>';
       }
     });
   }
@@ -3563,10 +3606,80 @@
     });
   }
 
+  /* Arquivos escolhidos e ainda não enviados, do cliente aberto.
+     Zera ao trocar de cliente e ao enviar. */
+  var anexosPendentes = [];
+  var entradaAnexo = null;
+
+  function desenharAnexos() {
+    var caixa = $("#clAnexos");
+    if (!caixa) return;
+    if (!anexosPendentes.length) { caixa.innerHTML = ""; return; }
+    caixa.innerHTML = anexosPendentes.map(function (a, i) {
+      return '<div class="item" style="padding:8px 10px">' +
+        '<div class="item__main" style="display:flex;align-items:center;gap:9px">' +
+          ic(U.iconePorExtensao(U.extensao(a.nome))) +
+          '<span class="item__name" style="flex:1;min-width:0">' + U.esc(a.nome) + '</span>' +
+          '<span class="text-xs text-muted">' + U.esc(U.bytes(a.tamanho)) + '</span>' +
+          '<button type="button" class="btn btn--quiet btn--sm" data-tirar-anexo="' + i + '" ' +
+            'aria-label="Tirar este arquivo">&#215;</button>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+  }
+
+  /* Sobe o arquivo ANTES de a mensagem existir, e é de propósito:
+     assim a mensagem já nasce com o anexo dentro. Se a subida
+     falhar, nada foi escrito na conversa — melhor do que uma
+     mensagem apontando para arquivo que não chegou. */
+  function anexarArquivos(lista) {
+    var c = aberto;
+    if (!c || !lista || !lista.length) return;
+    var restam = 10 - anexosPendentes.length;
+    if (restam <= 0) { UI.toast("Dez arquivos por mensagem é o limite.", "erro"); return; }
+
+    var arquivos = Array.prototype.slice.call(lista, 0, restam);
+    var botao = $("#clAnexar");
+    if (botao) { botao.disabled = true; botao.textContent = "Enviando…"; }
+
+    var fila = Promise.resolve();
+    arquivos.forEach(function (f) {
+      fila = fila.then(function () {
+        /* A mesma checagem do lado do cliente: tamanho, extensão e
+           conteúdo batendo com a extensão. É conveniência — a
+           barreira de verdade é a regra do Storage. */
+        var erro = U.validaArquivo(f, 0);
+        if (erro) { UI.toast(f.name + ": " + erro, "erro", 8000); return; }
+
+        var id = U.uid();
+        var ref = FB.storage.ref("empresas/" + c.id + "/mensagens/" + id + "/arquivo");
+        /* Celular manda arquivo sem contentType (HEIC, XML, áudio) e
+           a regra recusa — o tipo é deduzido pela extensão. */
+        var tipo = U.mimeDoArquivo(f);
+        return ref.put(f, { contentType: tipo }).then(function () {
+          anexosPendentes.push({
+            id: id, nome: String(f.name || "arquivo").slice(0, 160),
+            tamanho: f.size || 0, tipo: tipo
+          });
+        }, function (e) {
+          UI.toast("Não foi possível anexar " + f.name + ": " + FB.explicar(e), "erro", 9000);
+        });
+      });
+    });
+
+    fila.then(function () {
+      if (botao) { botao.disabled = false; botao.innerHTML = ic("ic-clipe") + "Anexar arquivo"; }
+      desenharAnexos();
+    });
+  }
+
   function enviarMensagem(texto, chave, cliente) {
     var c = cliente || aberto;
     var t = String(texto || "").trim().slice(0, 4000);
-    if (!c || !t) return Promise.resolve(false);
+    var anexos = (cliente && cliente !== aberto) ? [] : anexosPendentes.slice();
+    /* Mensagem só de anexo vale — nem sempre há o que escrever
+       junto. É a mesma regra do lado do cliente. */
+    if (!c || (!t && !anexos.length)) return Promise.resolve(false);
 
     var id = U.uid();
     var msg = {
@@ -3574,7 +3687,9 @@
       autorNome: (equipe && (equipe.nome || equipe.email)) || "Totali",
       texto: t,
       chave: String(chave || ""),
-      anexos: [],
+      anexos: anexos.map(function (a) {
+        return { id: a.id, nome: a.nome, tamanho: a.tamanho, tipo: a.tipo };
+      }),
       em: Date.now(),
       lidaEm: 0
     };
@@ -3583,7 +3698,7 @@
              .collection("mensagens").doc(id).set(msg).then(function () {
       msg.id = id;
       c.mensagens.push(msg);
-      if (aberto === c) desenharFicha();
+      if (aberto === c) { anexosPendentes = []; desenharFicha(); }
       atualizarContadores();
       UI.toast("Mensagem enviada.", "ok");
       return true;
@@ -3837,10 +3952,33 @@
     var enviar = $("#clEnviarMsg");
     if (enviar) enviar.addEventListener("click", function () {
       var campo = $("#clMsg");
-      if (!campo.value.trim()) { campo.focus(); return; }
+      /* Só anexo, sem texto, também vale. */
+      if (!campo.value.trim() && !anexosPendentes.length) { campo.focus(); return; }
       enviar.disabled = true;
       enviarMensagem(campo.value).then(function () { /* redesenha */ });
     });
+
+    var anexar = $("#clAnexar");
+    if (anexar) anexar.addEventListener("click", function () {
+      /* Uma entrada de arquivo só, criada na primeira vez e
+         reaproveitada: recriar a cada desenho da ficha deixaria
+         entradas soltas no documento a cada troca de aba. */
+      if (!entradaAnexo) {
+        entradaAnexo = document.createElement("input");
+        entradaAnexo.type = "file";
+        entradaAnexo.multiple = true;
+        entradaAnexo.accept = U.ACCEPT_ATTR;
+        entradaAnexo.style.display = "none";
+        entradaAnexo.addEventListener("change", function () {
+          anexarArquivos(entradaAnexo.files);
+          entradaAnexo.value = "";     /* deixa reescolher o mesmo arquivo */
+        });
+        document.body.appendChild(entradaAnexo);
+      }
+      entradaAnexo.click();
+    });
+
+    desenharAnexos();
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
@@ -4199,13 +4337,19 @@
       var apn = alvo.closest("[data-apagar-nota]");
       if (apn) { apagarNota(apn.getAttribute("data-apagar-nota")); return; }
 
-      var rsv = alvo.closest("[data-resolver]");
-      if (rsv) {
-        var idEmp = rsv.getAttribute("data-emp");
-        var dono = empresas.filter(function (x) { return x.id === idEmp; })[0];
-        if (dono) {
-          marcarResolvida(dono, rsv.getAttribute("data-msg"),
-                          rsv.getAttribute("data-resolver") === "1");
+      var tirar = alvo.closest("[data-tirar-anexo]");
+      if (tirar) {
+        anexosPendentes.splice(Number(tirar.getAttribute("data-tirar-anexo")), 1);
+        desenharAnexos();
+        return;
+      }
+
+      var rst = alvo.closest("[data-resolver-tudo]");
+      if (rst) {
+        var idConv = rst.getAttribute("data-emp");
+        var donoConv = empresas.filter(function (x) { return x.id === idConv; })[0];
+        if (donoConv) {
+          marcarConversaResolvida(donoConv, rst.getAttribute("data-resolver-tudo") === "1");
         }
         return;
       }

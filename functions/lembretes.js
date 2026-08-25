@@ -122,6 +122,48 @@ exports.avisarPendencias = onSchedule(
   },
   async () => {
     const db = getFirestore();
+    try {
+      const r = await rodarAvisos(db);
+      await anotarSaude(db, "avisarPendencias", { ok: true, detalhe: r });
+    } catch (e) {
+      await anotarSaude(db, "avisarPendencias", {
+        ok: false, erro: String((e && e.message) || e).slice(0, 300)
+      });
+      throw e;      /* o erro precisa continuar aparecendo no log */
+    }
+  }
+);
+
+/* ============================================================
+   SAÚDE DAS ROTINAS DO SERVIDOR
+
+   Esta função roda sozinha, às 10h, sem ninguém olhando. Até agora
+   ela só escrevia no log do Google: se parasse de funcionar, os
+   clientes simplesmente deixavam de ser cobrados e ninguém ficaria
+   sabendo — falha silenciosa, que é a pior espécie.
+
+   Agora cada execução deixa um registro em /saude, e o painel da
+   equipe mostra um aviso quando algo falhou ou quando faz dias
+   demais que a rotina não roda. O documento é sempre o mesmo por
+   rotina, então não acumula.
+
+   Nunca deixar isto derrubar a função: o trabalho dela é avisar os
+   clientes, e falhar em anotar a saúde não pode custar isso. */
+async function anotarSaude(db, rotina, dados) {
+  try {
+    await db.collection("saude").doc(rotina).set({
+      ok: dados.ok !== false,
+      erro: dados.erro || "",
+      detalhe: dados.detalhe || null,
+      em: FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch (e) {
+    console.error("nao consegui anotar a saude de " + rotina, e && e.message);
+  }
+}
+
+async function rodarAvisos(db) {
+  {
     const agora = Date.now();
     let enviados = 0, olhadas = 0, pulados = 0;
 
@@ -191,5 +233,6 @@ exports.avisarPendencias = onSchedule(
 
     console.log("Avisos: " + enviados + " enviados, " + pulados +
                 " pulados, de " + olhadas + " empresa(s).");
+    return { enviados: enviados, pulados: pulados, olhadas: olhadas };
   }
-);
+}
