@@ -642,6 +642,17 @@
     desligarMsgs = null;
   }
 
+  /* Retrato barato da conversa, só para saber se algo mudou. Entram
+     os campos que a tela mostra: quem, quando, o texto, a marca de
+     lida e a de resolvida. Anexo não entra porque não muda depois
+     de enviado. */
+  function retratoDaConversa(lista) {
+    return (lista || []).map(function (m) {
+      return m.id + ":" + (m.lidaEm || 0) + ":" + (m.resolvidaEm || 0) +
+             ":" + (m.texto || "").length;
+    }).join("|");
+  }
+
   function ligarTempoReal() {
     desligarTempoReal();
     if (!backend.ouvirMensagens) return;
@@ -657,10 +668,29 @@
 
       var novas = doServidor.filter(function (m) { return !conhecidas[m.id]; });
 
+      var antes = retratoDaConversa(estado.mensagens);
+
       estado.mensagens = doServidor.map(function (m) {
         if (!m.lidaEm && lidas[m.id]) m.lidaEm = lidas[m.id];
         return m;
       });
+
+      /* SÓ AVISA SE MUDOU DE VERDADE.
+
+         Antes avisava a cada notificação do servidor — inclusive a
+         do ECO da mensagem que este mesmo aparelho acabou de
+         escrever, que já estava na tela. Cada aviso redesenha a
+         conversa inteira, e o redesenho é síncrono: enquanto ele
+         roda, nada mais acontece na página, nem a resposta da
+         gravação que está voltando.
+
+         Com uma conversa de vinte e tantas mensagens isso virava
+         segundos de tela travada por envio, e foi o que o Raoni
+         descreveu como "demora muito a enviar". O painel não sofria
+         do mesmo mal porque só redesenha a ficha quando ela está
+         aberta — e já comparava antes de redesenhar. Aqui faltava
+         essa comparação. */
+      if (retratoDaConversa(estado.mensagens) === antes) return;
 
       notificar("mensagens");
 
