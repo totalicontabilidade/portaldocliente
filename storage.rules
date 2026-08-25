@@ -80,18 +80,39 @@ service firebase.storage {
       allow read: if equipeOuDono(empresaId);
     }
 
+    // ARQUIVO ENVIADO NÃO SE SOBRESCREVE, e `update: if false` NÃO
+    // bastava para garantir isso.
+    //
+    // O Storage é armazenamento de OBJETO, não sistema de arquivos:
+    // gravar por cima de um caminho existente é avaliado como
+    // CREATE, não como update. A regra de update parecia proteger e
+    // não protegia. Sonda no endereço publicado em 2026-08-24:
+    // gravei, confirmei pelos metadados que o objeto existia, gravei
+    // de novo — e passou.
+    //
+    // Isso importa porque o cliente podia trocar o conteúdo de um
+    // documento DEPOIS de a equipe aprovar: o painel continuaria
+    // dizendo "aprovado" e o arquivo seria outro.
+    //
+    // `resource == null` é a trava de verdade — só grava onde não há
+    // nada. Nada legítimo quebra: cada envio gera um id novo
+    // (`U.uid()`), então o portal nunca escreve duas vezes no mesmo
+    // caminho. Para trocar um documento, apaga e envia outro, que
+    // é o fluxo que a tela já oferece.
     match /empresas/{empresaId}/documentos/{chave}/{arquivoId} {
       allow read: if equipeOuDono(empresaId);
-      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk();
-      // Arquivo enviado não se sobrescreve: para trocar, apaga e
-      // envia outro. Evita que uma versão suma sem rastro.
+      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk()
+                    && resource == null;
       allow update: if false;
       allow delete: if ehEquipe() || ehDonoDaEmpresa(empresaId);
     }
 
     match /empresas/{empresaId}/mensagens/{msgId}/{arquivoId} {
       allow read: if equipeOuDono(empresaId);
-      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk();
+      // Anexo de conversa, pela mesma razão: o que foi mandado não
+      // muda de conteúdo depois.
+      allow create: if equipeOuDono(empresaId) && tamanhoOk() && tipoOk()
+                    && resource == null;
       allow update: if false;
       // Anexo de mensagem só some por decisão de admin: faz parte
       // do histórico da conversa.

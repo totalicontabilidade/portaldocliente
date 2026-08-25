@@ -286,7 +286,21 @@ service cloud.firestore {
       // Quem abre é a Cloud Function `abrirCredencial`, e cada
       // abertura vira registro em /auditoria com nome e hora.
       match /credenciais/{chave} {
-        allow read: if ehEquipe() || ehDonoDaEmpresa(empresaId);
+        // LEITURA SÓ DA EQUIPE.
+        //
+        // O dono também podia ler, e isso contradizia o desenho: o
+        // portal NUNCA lê esta coleção — é justamente por não poder
+        // reler que existe o RECIBO em financeiro/geral, dizendo
+        // quais campos foram enviados e quando, sem nada do
+        // conteúdo. A permissão sobrava.
+        //
+        // O que ele obtinha era o envelope cifrado, ilegível sem a
+        // chave privada, então não era vazamento. Mas guardar
+        // permissão que ninguém usa é deixar munição para o dia em
+        // que a chave vazar: com ela, qualquer login de cliente
+        // puxaria o envelope. Conferido em 2026-08-24 com uma sonda
+        // no endereço publicado, e nada quebrou ao fechar.
+        allow read: if ehEquipe();
         allow create, update: if ehDonoDaEmpresa(empresaId)
                               && request.resource.data.pacote is map
                               && request.resource.data.pacote.alg is string
