@@ -4662,6 +4662,68 @@
         if (aba === "clientes" && !aberto) desenharLista();
       });
     }
+
+    ligarAtualizacaoSozinha();
+  }
+
+  /* ============================================================
+     A LISTA SE ATUALIZA SOZINHA (pedido dele, 2026-08-25)
+
+     Dentro de uma conversa aberta já era tempo real. A LISTA não
+     era: documento que chegava só aparecia depois de alguém tocar
+     em Atualizar, e quem deixa o painel aberto o dia todo não tem
+     por que adivinhar que precisa fazer isso.
+
+     Três minutos, e não trinta segundos: cada rodada custa uma
+     leitura por empresa mais as subcoleções, e ninguém precisa
+     saber em trinta segundos que um documento chegou. Com o painel
+     aberto oito horas, isso dá cerca de cento e sessenta rodadas
+     por dia — barato, e nada perto do que um ouvinte em tempo real
+     sobre todas as empresas custaria.
+
+     QUANDO NÃO ATUALIZA, que é o que evita atrapalhar:
+
+     - ficha ou conversa aberta — recarregar por baixo fecharia o
+       que a pessoa está lendo, ou apagaria o recado a meio digitar;
+     - janela aberta (confirmação, cobrança, senha na tela) — a
+       tela mudaria embaixo de uma decisão em curso;
+     - aba escondida — atualizar o que ninguém está olhando é
+       leitura jogada fora. Ao voltar para a frente, se estiver
+       velha, atualiza na hora;
+     - já carregando, ou alguém com anexo escolhido esperando envio.
+
+     Em qualquer desses casos ele apenas pula a vez: o próximo
+     tique tenta de novo. ============================================================ */
+  var INTERVALO_SOZINHA_MS = 3 * 60 * 1000;
+  var relogioSozinha = null;
+
+  function podeAtualizarSozinha() {
+    if (!equipe) return false;                 /* sem sessão, nada a buscar */
+    if (carregando) return false;
+    if (aberto || conversaAberta) return false;
+    if (anexosPendentes.length) return false;
+    if (document.querySelector(".modal, dialog[open]")) return false;
+    if (document.hidden) return false;
+    /* Aba que não mostra lista nenhuma: buscar agora seria só custo,
+       e ao entrar nela a regra dos 30 segundos já busca. */
+    var aba = (location.hash || "").replace("#", "");
+    return ["", "inicio", "clientes", "pendencias", "mensagens"].indexOf(aba) > -1;
+  }
+
+  function ligarAtualizacaoSozinha() {
+    if (relogioSozinha) return;
+    relogioSozinha = setInterval(function () {
+      if (podeAtualizarSozinha()) carregarLista();
+    }, INTERVALO_SOZINHA_MS);
+
+    /* Voltando para a aba depois de um tempo fora, não faz sentido
+       esperar o próximo tique para ver o que chegou. */
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) return;
+      if ((Date.now() - carregadaEm) > INTERVALO_SOZINHA_MS && podeAtualizarSozinha()) {
+        carregarLista();
+      }
+    });
   }
 
   /* =========================================================
