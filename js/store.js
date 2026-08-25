@@ -628,10 +628,33 @@
   };
   var salvarDebounced = null;   /* criado no init, depende de U */
 
+  /* REDE DE SEGURANÇA CONTRA AVISO QUE SE MORDE.
+
+     Um ouvinte que, ao ser avisado, faz algo que dispara o MESMO
+     aviso, cria um laço síncrono que trava a página inteira. Foi o
+     que aconteceu com "mensagens" em 2026-08-24: redesenhar a
+     conversa religava o formulário, que marcava as mensagens como
+     lidas, que avisava de novo.
+
+     A causa daquele caso está corrigida em `marcarLidas`, mas a
+     armadilha é do desenho, não daquele trecho — qualquer ouvinte
+     futuro pode cair nela. Aqui o mesmo aviso não reentra: o
+     pedido de dentro é descartado, e quem estava avisando termina
+     o trabalho. Descartar é certo porque o estado que o segundo
+     aviso mostraria é o mesmo que o primeiro ainda está pintando. */
+  var avisando = {};
+
   function notificar(motivo) {
-    ouvintes.forEach(function (fn) {
-      try { fn(estado, motivo); } catch (e) { /* um ouvinte com erro não derruba os outros */ }
-    });
+    var chave = motivo || "commit";
+    if (avisando[chave]) return;
+    avisando[chave] = true;
+    try {
+      ouvintes.forEach(function (fn) {
+        try { fn(estado, motivo); } catch (e) { /* um ouvinte com erro não derruba os outros */ }
+      });
+    } finally {
+      avisando[chave] = false;
+    }
   }
 
   /* ---------- Ouvinte de mensagens ---------- */
@@ -1245,15 +1268,33 @@
       }).length;
     },
 
+    /* LAÇO QUE COMIA A TELA — a causa da lentidão das mensagens.
+
+       Isto avisava a interface SEMPRE, mesmo quando não havia nada
+       para marcar. E o aviso "mensagens" faz a tela de conversa se
+       redesenhar; o redesenho religa o formulário, que chama
+       `marcarLidas` de novo, que avisa de novo, que redesenha de
+       novo. Um laço que se alimenta sozinho, síncrono, disparado a
+       cada mensagem que chega ou sai.
+
+       Enquanto ele girava, nada mais acontecia na página — nem a
+       resposta da gravação voltando do servidor. Medido no
+       publicado: 25 segundos entre tocar em Enviar e a mensagem
+       aparecer, e escritas em /mensagens levando 6 a 12 segundos
+       contra 89ms pelo painel, que não tem esse caminho.
+
+       A marcação é feita direto no estado e o aviso só sai quando
+       ALGO mudou de verdade. Sem mudança, sem aviso, sem redesenho,
+       sem laço. */
     marcarLidas: function (paraQuem) {
       var deQuem = paraQuem === "equipe" ? "cliente" : "equipe";
       var agora = Date.now(), mudou = false;
-      Store.commit(function (st) {
-        st.mensagens.forEach(function (m) {
-          if (m.autor === deQuem && !m.lidaEm) { m.lidaEm = agora; mudou = true; }
-        });
-      }, "mensagens");
-      return mudou;
+      estado.mensagens.forEach(function (m) {
+        if (m.autor === deQuem && !m.lidaEm) { m.lidaEm = agora; mudou = true; }
+      });
+      if (!mudou) return false;
+      Store.commit(null, "mensagens");
+      return true;
     },
 
     /* =======================================================
