@@ -940,8 +940,14 @@
     return MODELOS[fim] ? MODELOS[fim]() : "";
   }
 
-  /* ---------- Geração do arquivo ---------- */
-  function montarArquivo() {
+  /* ---------- Geração do conteúdo ----------
+
+     UMA montagem só, dois destinos: o servidor (Publicar) e o
+     arquivo de reserva (Baixar cópia). Se cada caminho montasse o
+     seu, os dois divergiriam na primeira vez que alguém mexesse num
+     só — e o defeito apareceria semanas depois, no caminho menos
+     usado, que é o pior lugar para um defeito aparecer. */
+  function montarBlocos() {
     var saida = clonar(C);
     saida.atualizadoEm = Date.now();
     saida.versao = 1;
@@ -953,6 +959,11 @@
       (g.itens || []).forEach(function (it, j) { if (!it.id) it.id = "item-" + (j + 1); });
     });
     (saida.academy || []).forEach(function (t, i) { if (!t.id) t.id = "trilha-" + (i + 1); });
+    return saida;
+  }
+
+  function montarArquivo() {
+    var saida = montarBlocos();
 
     return "/* ============================================================\n" +
       "   Totali · Portal de Onboarding\n" +
@@ -962,6 +973,52 @@
       "   Gerado em " + new Date().toLocaleString("pt-BR") + "\n" +
       "   ============================================================ */\n" +
       "window.CONTEUDO = " + JSON.stringify(saida, null, 2) + ";\n";
+  }
+
+  /* PUBLICAR: o rascunho vai para o servidor e os clientes passam a
+     ver. Sem baixar arquivo, sem substituir nada em `js/`, sem
+     publicar o site — que era o passo que contradizia a regra de
+     "nada por código".
+
+     Guardo em `conteudo/portal`, campo `blocos`, porque o portal já
+     sabe ler dali e a regra do Firestore já permite: leitura livre
+     (é o conteúdo do site) e escrita só da equipe.
+
+     Um documento do Firestore cabe 1 MB. O conteúdo inteiro do
+     portal, só texto e endereços, fica muito abaixo disso — mas
+     confiro antes de mandar, porque estourar o limite daria um erro
+     que ninguém entenderia olhando a tela. */
+  var LIMITE_DOC = 900 * 1024;
+
+  function publicar() {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.equipe) {
+      UI.toast("Sem conexão com o servidor. Tente de novo em instantes.", "erro", 8000);
+      return;
+    }
+
+    var blocos = montarBlocos();
+    var tamanho = JSON.stringify(blocos).length;
+    if (tamanho > LIMITE_DOC) {
+      UI.toast("O conteúdo ficou grande demais para publicar de uma vez (" +
+               Math.round(tamanho / 1024) + " KB). Reduza os textos mais longos.", "erro", 12000);
+      return;
+    }
+
+    var botao = $("#pcPublicar");
+    if (botao) { botao.disabled = true; botao.textContent = "Publicando…"; }
+
+    FB.db.collection("conteudo").doc("portal").set({
+      blocos: blocos,
+      atualizadoEm: Date.now(),
+      atualizadoPor: (FB.equipe && (FB.equipe.nome || FB.equipe.email)) || "equipe"
+    }).then(function () {
+      if (botao) { botao.disabled = false; botao.innerHTML = UI.icone("ic-check") + "Publicar para os clientes"; }
+      UI.toast("Publicado. Os clientes já veem na próxima vez que abrirem o portal.", "ok", 7000);
+    }, function (e) {
+      if (botao) { botao.disabled = false; botao.innerHTML = UI.icone("ic-check") + "Publicar para os clientes"; }
+      UI.toast("Não foi possível publicar: " + FB.explicar(e), "erro", 9000);
+    });
   }
 
   function baixar() {
@@ -1071,6 +1128,7 @@
     });
 
     $("#pcBaixar").addEventListener("click", baixar);
+    $("#pcPublicar").addEventListener("click", publicar);
 
     $("#pcRestaurar").addEventListener("click", function () {
       UI.confirmar({

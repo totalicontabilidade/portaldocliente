@@ -1093,6 +1093,65 @@
     /* O painel usa para saber se já há material naquela aula, e o
        portal para não montar um link com endereço de fora. Um só
        julgador para os dois lados, como acontece com a capa. */
-    materialSeguro: materialSeguro
+    materialSeguro: materialSeguro,
+
+    /* ============================================================
+       CONTEÚDO VINDO DO BANCO, e não mais só do arquivo
+
+       O `conteudo.js` era gerado pelo painel, baixado à mão,
+       substituído em `js/` e publicado. Funcionava, mas custava um
+       DEPLOY DE CÓDIGO a cada texto corrigido — e contradizia a
+       regra que o Raoni fixou: nada se altera por código.
+
+       Ficou tolerável enquanto o conteúdo mudava raramente. Com o
+       material das aulas (áudio e PDF por aula), virou atrito de
+       rotina: gravar a aula, subir o áudio e ainda publicar o site.
+
+       Agora o painel grava em `conteudo/portal` e o portal lê de
+       lá. O arquivo continua existindo como PADRÃO e como reserva:
+       sem servidor, sem internet ou com o documento ausente, o
+       portal abre com ele e nada quebra.
+
+       POR QUE MUTAR NO LUGAR, e não trocar os objetos: o resto do
+       sistema já guardou referências (`DATA.GRUPOS`, `DATA.ACADEMY`
+       e companhia) desde o carregamento. Reatribuir criaria duas
+       verdades — telas velhas apontando para o conteúdo antigo,
+       telas novas para o atual. Esvaziar e repovoar o MESMO array
+       mantém todo mundo olhando para a mesma coisa.
+
+       O que vem do banco é lavado pelos MESMOS saneadores do
+       arquivo. Ser nosso não o torna confiável: o documento é
+       escrito por navegador de gente da equipe, e conta de equipe
+       pode ser comprometida. */
+    aplicarConteudo: function (bruto) {
+      if (!bruto || typeof bruto !== "object") return false;
+
+      var trocarLista = function (alvo, nova) {
+        alvo.length = 0;
+        (nova || []).forEach(function (x) { alvo.push(x); });
+      };
+      var trocarObjeto = function (alvo, novo) {
+        Object.keys(alvo).forEach(function (k) { delete alvo[k]; });
+        Object.keys(novo || {}).forEach(function (k) { alvo[k] = novo[k]; });
+      };
+
+      if (bruto.org) trocarObjeto(ORG, aplicaOrg(bruto.org));
+      if (bruto.videoInicio) trocarObjeto(VIDEO_INICIO, aplicaVideoInicio(bruto.videoInicio));
+      if (bruto.academy) trocarLista(ACADEMY, aplicaAcademy(bruto.academy));
+      if (bruto.grupos) trocarLista(GRUPOS, aplicaGrupos(bruto.grupos));
+      if (bruto.faq) trocarLista(FAQ, aplicaFaq(bruto.faq));
+      if (bruto.compromisso) trocarObjeto(COMPROMISSO, aplicaCompromisso(bruto.compromisso));
+      if (bruto.termo) trocarObjeto(TERMO, aplicaTermo(bruto.termo));
+
+      if (bruto.bancos) {
+        var b = normalizarCatalogo(bruto.bancos, false);
+        if (b.length) trocarLista(BANCOS, b);
+      }
+      if (bruto.maquinetas) {
+        var m = normalizarCatalogo(bruto.maquinetas, true);
+        if (m.length) trocarLista(MAQUINETAS, m);
+      }
+      return true;
+    }
   };
 })(window);

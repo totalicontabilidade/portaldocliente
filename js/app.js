@@ -2683,11 +2683,40 @@
 
     return '<div class="materiais">' +
       '<div class="materiais__t">Para levar com você</div>' +
+      /* OUVIR AQUI, ANTES DE BAIXAR (pedido dele, 2026-08-25).
+         Quem só quer conferir do que se trata não precisa gastar
+         5 MB do pacote de dados para descobrir. O player nasce sem
+         carregar nada (`preload="none"`) e só busca o arquivo se
+         alguém apertar tocar. Se o navegador não conseguir tocar,
+         ele se esconde sozinho e o botão de baixar continua ali —
+         ver `ligarMateriais()`. */
+      (v.audio
+        ? '<div class="material-tocar" data-tocador>' +
+            '<audio controls preload="none" src="' + U.escAttr(v.audio) + '"></audio>' +
+          '</div>'
+        : '') +
       linha(v.audio, v.audioNome, "ic-som", "Baixar o áudio da aula",
             "Para ouvir no carro ou sem internet.") +
       linha(v.pdf, v.pdfNome, "ic-file", "Baixar o PDF de acompanhamento",
             "O conteúdo da aula por escrito, para consultar depois.") +
     '</div>';
+  }
+
+  /* O player pode falhar por dois motivos previsíveis: o arquivo é
+     servido marcado como anexo (para o botão de baixar funcionar
+     mesmo sendo outro domínio) e nem todo navegador toca nessa
+     condição; ou o formato não é suportado no aparelho.
+
+     Em qualquer dos casos, um player quebrado na tela é pior do que
+     player nenhum — some, e fica só o que interessa, que é baixar.
+     A promessa do recurso é ouvir NO CARRO; tocar aqui é cortesia. */
+  function ligarMateriais() {
+    $$("[data-tocador] audio").forEach(function (som) {
+      som.addEventListener("error", function () {
+        var caixa = som.closest("[data-tocador]");
+        if (caixa) caixa.remove();
+      });
+    });
   }
 
   /* Player em janela: só aqui o YouTube é chamado. */
@@ -2705,6 +2734,7 @@
       (aula && aula.desc ? '<p class="player__desc">' + U.esc(aula.desc) + '</p>' : '') +
       materialHTML(aula)
     });
+    ligarMateriais();
   }
 
   /* ============================================================
@@ -4611,8 +4641,35 @@
       }
     });
 
+    /* CONTEÚDO DO PORTAL, DIRETO DO BANCO.
+
+       Textos, trilhas, documentos do checklist e o material das
+       aulas vêm de `conteudo/portal`, escrito pelo painel. O
+       `js/conteudo.js` continua servindo de padrão e de reserva —
+       sem internet ou sem o documento, o portal abre com ele.
+
+       Não espero por esta leitura para pintar a tela: o portal já
+       tem conteúdo válido no primeiro instante, e travar a
+       abertura por um texto que talvez esteja igual seria pagar
+       espera por nada. Chegando algo diferente, redesenho.
+
+       A leitura é pública de propósito — a regra é `read: true`.
+       É o conteúdo do site, não dado de cliente: quem abre o portal
+       vai vê-lo de qualquer jeito. */
+    function buscarConteudo() {
+      var FB = global.FB;
+      if (!FB || !FB.ligado || !FB.db) return;
+      FB.db.collection("conteudo").doc("portal").get().then(function (d) {
+        if (!d.exists) return;
+        var dados = d.data() || {};
+        if (!dados.blocos) return;
+        if (DATA.aplicarConteudo(dados.blocos)) render();
+      }, function () { /* sem rede: seguem os padrões do arquivo */ });
+    }
+
     Store.iniciar().then(function () {
       aplicarConviteDaURL();
+      buscarConteudo();
       if (!location.hash) location.replace("#/inicio");
 
       /* Com servidor no ar, quem decide o que aparece é ele —

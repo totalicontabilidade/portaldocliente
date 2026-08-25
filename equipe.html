@@ -566,17 +566,27 @@
       <div id="pcLista"></div>
 
       <div class="card card--pad" style="margin-top:18px">
+        <!-- PUBLICAR VIRA O CAMINHO PRINCIPAL.
+             Antes só havia "Baixar conteudo.js": cada texto corrigido
+             custava um deploy de código. O botão de baixar fica, mas
+             como cópia de segurança, não como caminho normal. -->
         <div class="row">
-          <button type="button" class="btn btn--primary btn--sm" id="pcBaixar">
-            <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>Baixar conteudo.js
+          <button type="button" class="btn btn--primary btn--sm" id="pcPublicar">
+            <svg class="ic" aria-hidden="true"><use href="#ic-check"></use></svg>Publicar para os clientes
           </button>
           <button type="button" class="btn btn--quiet btn--sm" id="pcRestaurar">
             Descartar rascunho
           </button>
+          <button type="button" class="btn btn--quiet btn--sm" id="pcBaixar">
+            <svg class="ic" aria-hidden="true"><use href="#ic-download"></use></svg>Baixar cópia
+          </button>
         </div>
         <p class="field__hint" style="margin-top:12px;margin-bottom:0">
-          O rascunho fica salvo neste navegador enquanto você trabalha. Ele só vai para o ar depois
-          que você baixar o arquivo, substituir em <code>js/conteudo.js</code> e publicar.
+          O rascunho fica salvo neste navegador enquanto você trabalha. Ao <strong>publicar</strong>,
+          ele vai direto para o servidor e os clientes passam a ver na próxima vez que abrirem o
+          portal — sem mexer em código nem publicar o site.
+          <br>O botão <strong>Baixar cópia</strong> gera o arquivo <code>conteudo.js</code> para
+          guardar fora do sistema. Serve de reserva; não é preciso no dia a dia.
         </p>
       </div>
     </section>
