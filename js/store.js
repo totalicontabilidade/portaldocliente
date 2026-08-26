@@ -1068,6 +1068,25 @@
       return global.Situacao.resumoGeral(Store.dadosSituacao(), global.DATA.GRUPOS);
     },
 
+    /* A equipe dispensou a lista inteira?
+
+       Só a decisão da EQUIPE conta aqui (`naEquipe`), e não o que o
+       cliente marcou sozinho (`na`). São campos separados de
+       propósito: o cliente marcando "não se aplica" por medo de
+       errar não pode se auto-declarar em dia. */
+    equipeDispensouTudo: function () {
+      var itens = estado.itens || {};
+      var chaves = Object.keys(itens);
+      var algumaDispensa = false;
+      for (var i = 0; i < chaves.length; i++) {
+        var r = itens[chaves[i]];
+        if (!r || typeof r.naEquipe !== "boolean") continue;
+        if (!r.naEquipe) return false;   /* a equipe exigiu algo */
+        algumaDispensa = true;
+      }
+      return algumaDispensa;
+    },
+
     /* =======================================================
        6. Revisão pela equipe da Totali
        Estes métodos são a base do painel interno. Hoje rodam
@@ -1499,7 +1518,22 @@
         "cadastro": !!(e.razaoSocial && e.cnpj && e.responsavelNome &&
                        e.responsavelEmail && e.responsavelTelefone &&
                        estado.socios.length > 0),
-        "documentos": r.total > 0 && r.pendentesObrigatorios === 0 && r.pendencias === 0,
+        /* Lista vazia tem dois significados opostos, e tratá-los
+           igual prende o cliente.
+
+           Vazia porque nada foi definido ainda NÃO é etapa cumprida
+           — é o caso dos documentos de sócio antes de haver sócio,
+           e foi para isso que o `total > 0` entrou aqui.
+
+           Vazia porque a EQUIPE disse que nada se aplica é o
+           contrário: está cumprida, e não há o que enviar. Acontece
+           com quem já mandou tudo por e-mail pela contabilidade
+           anterior. Sem esta segunda metade, esse cliente ficava
+           preso em 0%, com as etapas seguintes bloqueadas e sem
+           nunca ver a Academy subir para o topo do Início. */
+        "documentos": r.total > 0
+          ? (r.pendentesObrigatorios === 0 && r.pendencias === 0)
+          : Store.equipeDispensouTudo(),
         "financeiro": !!estado.financeiro.concluidoEm,
         "analise": estado.etapa === "analise-ok" || estado.etapa === "ativo",
         "ativo": estado.etapa === "ativo"

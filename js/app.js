@@ -3514,6 +3514,10 @@
     var meta = ROTAS.filter(function (r) { return r.id === rota; })[0];
     document.title = (meta ? meta.titulo + " · " : "") + "Portal do Cliente · " + DATA.ORG.curto;
 
+    /* Antes de atualizarNav, para a marca sumir já nesta pintura e
+       não piscar mais uma vez na próxima. */
+    if (rota === "academy") anotarQueViuAcademy();
+
     atualizarCabecalho();
     atualizarNav(rota);
     ligarCredenciais();
@@ -3670,6 +3674,44 @@
       if (v > 0 && !gate) { n.hidden = false; n.textContent = v > 99 ? "99+" : String(v); }
       else n.hidden = true;
     });
+
+    var marcar = mostrarMarcaAcademy(resumo, gate);
+    $$("[data-marca-academy]").forEach(function (n) { n.hidden = !marcar; });
+  }
+
+  /* Quando a Academy deixa de ser um extra e vira o motivo de estar
+     aqui: o cliente não tem documento nenhum esperando por ele.
+
+     Acontece nos dois extremos do onboarding — quem já enviou tudo,
+     e quem nunca vai enviar nada porque a equipe dispensou a lista
+     (documentação veio por e-mail da contabilidade anterior).
+
+     A marca sai sozinha depois que ele abre a Academy uma vez. Uma
+     marca que nunca apaga vira parte do desenho e para de ser
+     lida — e aí não sobra jeito de chamar atenção quando importar.
+     Fica no aparelho de propósito: é lembrete de interface, não
+     dado do cliente, e não vale uma escrita no servidor. */
+  var CHAVE_VIU_ACADEMY = "totali.onboarding.viuacademy";
+
+  function empresaAtual() {
+    return (Store.estado.empresa && Store.estado.empresa.id) || "sem-empresa";
+  }
+
+  function jaViuAcademy() {
+    try { return localStorage.getItem(CHAVE_VIU_ACADEMY + "." + empresaAtual()) === "1"; }
+    catch (e) { return false; }   /* navegador sem storage: mostra a marca */
+  }
+
+  function anotarQueViuAcademy() {
+    try { localStorage.setItem(CHAVE_VIU_ACADEMY + "." + empresaAtual(), "1"); }
+    catch (e) { /* modo privado: a marca reaparece, e tudo bem */ }
+  }
+
+  function mostrarMarcaAcademy(resumo, gate) {
+    if (gate) return false;
+    if (!DATA.ACADEMY || !DATA.ACADEMY.length) return false;
+    if (resumo.pendentes > 0) return false;
+    return !jaViuAcademy();
   }
 
   /* ============================================================

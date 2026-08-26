@@ -473,6 +473,23 @@ body.porta-aberta .shell{
   box-shadow:0 2px 8px rgba(224,85,76,.5);
 }
 
+/* Marca da Academy no menu.
+
+   NÃO é o mesmo objeto que o badge ao lado. O badge é vermelho e
+   conta pendência: é cobrança, e some quando a pessoa resolve. Esta
+   marca é dourada, não tem número e não cobra nada — ela só diz
+   "tem coisa sua aqui" para o cliente que não tem documento nenhum
+   para enviar, e cujo único motivo de abrir o portal é a Academy.
+
+   Vermelho aqui seria mentira: não há nada atrasado. */
+.tabbar__marca{
+  position:absolute;top:6px;left:calc(50% + 9px);
+  width:7px;height:7px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--gold-2));
+  box-shadow:0 0 8px var(--gold-glow);
+}
+.tabbar--8 .tabbar__marca{left:calc(50% + 5px);width:6px;height:6px}
+
 /* ---------- 7. Superfícies de vidro ---------- */
 /* Cor chapada, uma borda, uma sombra difusa. Nada mais.
 
@@ -1469,6 +1486,14 @@ body.porta-aberta .foot__nome-br{display:inline}
   }
   .sidenav__item[aria-current="page"] .sidenav__badge{
     background:rgba(194,162,80,.2);color:var(--gold-3);border-color:var(--stroke-gold);
+  }
+  /* No menu lateral cabe a frase inteira; na barra de baixo, só o
+     ponto. Ver o comentário em .tabbar__marca. */
+  .sidenav__marca{
+    margin-left:auto;padding:3px 9px;border-radius:9px;
+    background:rgba(194,162,80,.14);color:var(--gold-3);
+    border:1px solid var(--stroke-gold);
+    font-size:10.5px;font-weight:680;letter-spacing:.01em;white-space:nowrap;
   }
   .sidenav__card{
     position:relative;overflow:hidden;
