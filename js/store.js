@@ -436,7 +436,15 @@
               })
             : [],
           em: typeof m.em === "number" ? m.em : 0,
-          lidaEm: typeof m.lidaEm === "number" ? m.lidaEm : 0
+          lidaEm: typeof m.lidaEm === "number" ? m.lidaEm : 0,
+          /* Estes quatro precisam sobreviver ao saneamento. O que
+             não é copiado aqui some do estado — e some da tela: uma
+             mensagem apagada voltaria a aparecer com o texto que já
+             não existe mais no servidor. */
+          autorUid: typeof m.autorUid === "string" ? m.autorUid.slice(0, 60) : "",
+          apagadaEm: typeof m.apagadaEm === "number" ? m.apagadaEm : 0,
+          apagadaPor: typeof m.apagadaPor === "string" ? m.apagadaPor.slice(0, 120) : "",
+          editadaEm: typeof m.editadaEm === "number" ? m.editadaEm : 0
         };
       });
     }
@@ -669,6 +677,17 @@
 
   /* ---------- Ouvinte de mensagens ---------- */
   var desligarMsgs = null;
+
+  /* Quem está logado agora, para carimbar a autoria da mensagem.
+     Sem servidor não há uid, e devolver "" é a resposta honesta —
+     mensagem sem autoria simplesmente não poderá ser apagada nem
+     corrigida por ninguém além de um administrador. */
+  function uidAtual() {
+    try {
+      var u = global.FB && global.FB.auth && global.FB.auth.currentUser;
+      return (u && u.uid) || "";
+    } catch (e) { return ""; }
+  }
 
   function desligarTempoReal() {
     if (desligarMsgs) { try { desligarMsgs(); } catch (e) {} }
@@ -1285,6 +1304,10 @@
         id: global.U.uid(),
         autor: o.autor === "equipe" ? "equipe" : "cliente",
         autorNome: String(o.autorNome || "").slice(0, 120),
+        /* Identidade de quem escreveu. É o que permite ao servidor
+           dizer "esta mensagem é sua" na hora de apagar ou corrigir
+           — `autorNome` é rótulo de tela e não serve para isso. */
+        autorUid: uidAtual(),
         texto: t,
         chave: String(o.chave || "").slice(0, 160),
         anexos: anexos,
@@ -1315,6 +1338,55 @@
     mensagens: function (chave) {
       if (!chave) return estado.mensagens.slice();
       return estado.mensagens.filter(function (m) { return m.chave === chave; });
+    },
+
+    /* ---------- Apagar e corrigir ----------
+
+       As MESMAS travas do servidor, repetidas aqui. Não é
+       desconfiança da regra: é que a tela precisa saber ANTES se a
+       opção deve aparecer. Oferecer "apagar" e tomar um erro de
+       permissão depois é pior do que não oferecer.
+
+       Quem manda continua sendo o servidor. Isto aqui é para não
+       mostrar botão que não funciona. */
+    JANELA_APAGAR_MS: 15 * 60 * 1000,
+    JANELA_EDITAR_MS: 5 * 60 * 1000,
+
+    podeMexerNaMensagem: function (m, acao) {
+      if (!m || !Store.noServidor) return false;
+      if (m.apagadaEm) return false;              /* lápide não volta atrás */
+      if (!m.autorUid || m.autorUid !== uidAtual()) return false;
+      var limite = acao === "editar" ? Store.JANELA_EDITAR_MS : Store.JANELA_APAGAR_MS;
+      return (Date.now() - (m.em || 0)) < limite;
+    },
+
+    apagarMensagem: function (id, quem) {
+      var msg = estado.mensagens.filter(function (m) { return m.id === id; })[0];
+      if (!msg || !backend.mexerNaMensagem) return Promise.resolve(false);
+      var lapide = {
+        texto: "", anexos: [],
+        apagadaEm: Date.now(),
+        apagadaPor: String(quem || msg.autorNome || "").slice(0, 120)
+      };
+      return backend.mexerNaMensagem(id, lapide).then(function () {
+        Store.commit(function () {
+          msg.texto = ""; msg.anexos = [];
+          msg.apagadaEm = lapide.apagadaEm; msg.apagadaPor = lapide.apagadaPor;
+        }, "mensagens");
+        return true;
+      }, function () { return false; });
+    },
+
+    editarMensagem: function (id, texto) {
+      var t = String(texto || "").trim().slice(0, 4000);
+      if (!t) return Promise.resolve(false);
+      var msg = estado.mensagens.filter(function (m) { return m.id === id; })[0];
+      if (!msg || !backend.mexerNaMensagem) return Promise.resolve(false);
+      var agora = Date.now();
+      return backend.mexerNaMensagem(id, { texto: t, editadaEm: agora }).then(function () {
+        Store.commit(function () { msg.texto = t; msg.editadaEm = agora; }, "mensagens");
+        return true;
+      }, function () { return false; });
     },
 
     naoLidas: function (paraQuem) {

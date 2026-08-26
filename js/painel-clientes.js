@@ -1011,16 +1011,23 @@
        mesmo tempo — deduzir "de quem é esta mensagem" pelo que
        está aberto acerta quase sempre, e o quase é o problema. */
     var alvo = (c && c.id) || "";
+    var apagada = !!m.apagadaEm;
     return '<div class="msg msg--' + (doCliente ? "dele" : "minha") +
-        (doCliente && m.resolvidaEm ? " msg--resolvida" : "") + '">' +
+        (doCliente && m.resolvidaEm ? " msg--resolvida" : "") +
+        (apagada ? " msg--apagada" : "") + ' msg--pressionavel"' +
+        ' data-msg="' + U.escAttr(m.id || "") + '"' +
+        ' data-msg-empresa="' + U.escAttr(alvo) + '">' +
       '<div class="msg__autor">' +
         U.esc(doCliente ? "Cliente" : (m.autorNome || "Totali")) +
         /* Quem escreveu importa ao reler a conversa meses depois:
            uma cobrança do sistema e uma cobrança de uma pessoa
            pesam diferente numa conversa com o cliente. */
         (m.automatico ? ' <span class="msg__auto">automático</span>' : '') + '</div>' +
-      '<div>' + U.esc(m.texto) + '</div>' +
-      '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) + '</div>' +
+      '<div>' + (apagada
+        ? U.esc("Mensagem apagada" + (m.apagadaPor ? " por " + m.apagadaPor : ""))
+        : U.esc(m.texto)) + '</div>' +
+      '<div class="msg__hora">' + U.esc(U.dataHora(m.em)) +
+        (!apagada && m.editadaEm ? '<span class="msg__editada">editada</span>' : '') + '</div>' +
       ((m.anexos || []).length
         ? '<div class="arqs">' + m.anexos.map(function (a) {
             return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
@@ -1042,6 +1049,151 @@
           '</div>'
         : '') +
     '</div>';
+  }
+
+  /* ============================================================
+     APAGAR E CORRIGIR MENSAGEM
+
+     As mesmas travas do servidor, repetidas aqui só para a tela
+     saber o que oferecer. Quem decide continua sendo a regra do
+     Firestore — isto evita mostrar uma opção que daria erro.
+
+     Apagar não é delete: vira lápide, com quem apagou e quando.
+     Corrigir tem prazo mais curto e NÃO tem exceção para admin:
+     apagar tira algo do registro, editar põe palavra na boca de
+     quem escreveu. Ninguém edita mensagem alheia.
+     ============================================================ */
+  var JANELA_APAGAR_MS = 15 * 60 * 1000;
+  var JANELA_EDITAR_MS = 5 * 60 * 1000;
+
+  function meuUid() {
+    return (FB && FB.auth && FB.auth.currentUser && FB.auth.currentUser.uid) || "";
+  }
+  function souAdministrador() { return !!(equipe && equipe.papel === "admin"); }
+  function minhaMensagem(m) { return !!(m && m.autorUid && m.autorUid === meuUid()); }
+
+  function podeApagarMensagem(m) {
+    if (!m || m.apagadaEm) return false;
+    if (souAdministrador()) return true;
+    return minhaMensagem(m) && (Date.now() - (m.em || 0)) < JANELA_APAGAR_MS;
+  }
+  function podeEditarMensagem(m) {
+    if (!m || m.apagadaEm) return false;
+    return minhaMensagem(m) && (Date.now() - (m.em || 0)) < JANELA_EDITAR_MS;
+  }
+
+  function refMensagem(empresaId, id) {
+    return FB.db.collection("empresas").doc(empresaId).collection("mensagens").doc(id);
+  }
+
+  function acharMensagem(empresaId, id) {
+    var c = (empresas || []).filter(function (x) { return x.id === empresaId; })[0];
+    if (!c) return null;
+    return { cliente: c, msg: (c.mensagens || []).filter(function (m) { return m.id === id; })[0] };
+  }
+
+  function apagarMensagem(empresaId, id) {
+    var achado = acharMensagem(empresaId, id);
+    if (!achado || !achado.msg) return;
+    var m = achado.msg;
+    UI.confirmar({
+      titulo: "Apagar esta mensagem",
+      mensagem: "O texto sai da conversa para os dois lados, e no lugar dele fica " +
+                "\"Mensagem apagada\" com o seu nome. Não dá para desfazer.",
+      confirmar: "Apagar",
+      perigo: true
+    }).then(function (ok) {
+      if (!ok) return;
+      var lapide = {
+        texto: "", anexos: [],
+        apagadaEm: Date.now(),
+        apagadaPor: (equipe && (equipe.nome || equipe.email)) || "Totali"
+      };
+      refMensagem(empresaId, id).set(lapide, { merge: true }).then(function () {
+        m.texto = ""; m.anexos = [];
+        m.apagadaEm = lapide.apagadaEm; m.apagadaPor = lapide.apagadaPor;
+        redesenharConversas();
+        UI.toast("Mensagem apagada.", "ok", 3000);
+      }, function (e) {
+        UI.toast("Não foi possível apagar: " + FB.explicar(e), "erro", 8000);
+      });
+    });
+  }
+
+  function editarMensagem(empresaId, id) {
+    var achado = acharMensagem(empresaId, id);
+    if (!achado || !achado.msg) return;
+    var m = achado.msg;
+    var mo = UI.modal({
+      titulo: "Corrigir mensagem",
+      corpoHTML:
+        '<p style="font-size:13px;line-height:1.6;color:var(--txt-3);margin-bottom:10px">' +
+          'A conversa vai mostrar que esta mensagem foi editada — corrigir um erro de ' +
+          'digitação é uma coisa, fingir que a frase sempre foi outra é outra.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="edMsg">Texto</label>' +
+          '<textarea class="textarea" id="edMsg" rows="5" data-focus maxlength="4000"></textarea>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            var campo = $("#edMsg", mo.caixa);
+            var t = String(campo && campo.value || "").trim().slice(0, 4000);
+            if (!t) { if (campo) campo.focus(); return; }
+            if (t === m.texto) { UI.fecharModal(); return; }
+            var b = $('[data-acao="1"]', mo.caixa);
+            if (b) { b.disabled = true; b.textContent = "Salvando…"; }
+            var agora = Date.now();
+            refMensagem(empresaId, id).set({ texto: t, editadaEm: agora }, { merge: true })
+              .then(function () {
+                m.texto = t; m.editadaEm = agora;
+                UI.fecharModal();
+                redesenharConversas();
+                UI.toast("Mensagem corrigida.", "ok", 3000);
+              }, function (e) {
+                if (b) { b.disabled = false; b.textContent = "Salvar"; }
+                UI.toast("Não foi possível corrigir: " + FB.explicar(e), "erro", 8000);
+              });
+          }
+        }
+      ]
+    });
+    var campo = $("#edMsg", mo.caixa);
+    if (campo) { campo.value = m.texto || ""; }
+  }
+
+  /* A conversa aparece em duas telas — a ficha e a caixa de
+     entrada — e qualquer uma pode estar montada. Redesenha a que
+     estiver. */
+  function redesenharConversas() {
+    if (conversaAberta) desenharConversa();
+    if (aberto) desenharFicha();
+  }
+
+  function ligarMenuDasMensagens() {
+    UI.ligarMenuDeContexto(document.body, "[data-msg]", function (alvo) {
+      var id = alvo.getAttribute("data-msg");
+      var empresaId = alvo.getAttribute("data-msg-empresa");
+      var achado = acharMensagem(empresaId, id);
+      if (!achado || !achado.msg) return null;
+      var m = achado.msg;
+      var itens = [];
+      if (podeEditarMensagem(m)) {
+        itens.push({
+          rotulo: "Corrigir mensagem", icone: "ic-lapis",
+          onClick: function () { editarMensagem(empresaId, id); }
+        });
+      }
+      if (podeApagarMensagem(m)) {
+        itens.push({
+          rotulo: "Apagar mensagem", icone: "ic-trash", perigo: true,
+          onClick: function () { apagarMensagem(empresaId, id); }
+        });
+      }
+      return itens;
+    });
   }
 
   /* Resolve a conversa inteira de uma vez. Num lote só: são poucas
@@ -3833,6 +3985,10 @@
     var msg = {
       autor: "equipe",
       autorNome: (equipe && (equipe.nome || equipe.email)) || "Totali",
+      /* Quem escreveu, de verdade. `autorNome` é rótulo de tela e
+         pode se repetir; a regra que decide se alguém pode apagar a
+         PRÓPRIA mensagem precisa de identidade, não de nome. */
+      autorUid: (FB.auth && FB.auth.currentUser && FB.auth.currentUser.uid) || "",
       texto: t,
       chave: String(chave || ""),
       anexos: anexos.map(function (a) {
@@ -4844,6 +5000,7 @@
     }
 
     ligarGlobais();
+    ligarMenuDasMensagens();
 
     FB.observarSessao(function (quem) {
       equipe = quem;

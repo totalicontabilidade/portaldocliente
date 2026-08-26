@@ -1050,6 +1050,43 @@ input[type=checkbox]{accent-color:var(--gold)}
   box-shadow:inset 0 0 0 1.5px var(--info);
 }
 
+/* ---------- 13b. Menu de contexto ---------- */
+.menuctx{
+  position:fixed;z-index:130;min-width:186px;padding:6px;
+  border-radius:13px;border:1px solid var(--stroke-2);
+  background:var(--bg-1);
+  box-shadow:0 18px 48px rgba(0,0,0,.55);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.menuctx__i{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:10px 11px;border-radius:9px;
+  font-size:13.5px;font-weight:560;color:var(--txt-2);text-align:left;
+  background:transparent;border:0;cursor:pointer;
+}
+.menuctx__i .ic{width:17px;height:17px;color:var(--txt-4);flex:none}
+.menuctx__i:hover,.menuctx__i:focus-visible{background:var(--glass-2);color:var(--txt);outline:none}
+.menuctx__i--perigo{color:var(--danger)}
+.menuctx__i--perigo .ic{color:var(--danger)}
+.menuctx__i--perigo:hover,.menuctx__i--perigo:focus-visible{background:var(--danger-bg);color:var(--danger)}
+
+/* Mensagem apagada: fica a marca, não o texto.
+
+   Itálico e apagado de propósito — ela precisa ser lida como
+   "havia algo aqui" e não confundida com uma frase que alguém
+   escreveu. */
+.msg--apagada > div:not(.msg__autor):not(.msg__hora){
+  font-style:italic;color:var(--txt-4);
+}
+.msg__editada{
+  font-style:normal;font-size:11px;color:var(--txt-4);margin-left:6px;
+}
+
+/* Segurar o dedo numa bolha não pode selecionar o texto: no
+   celular a seleção abre a lupa e a alça azul por cima do menu. */
+.chat .msg{-webkit-touch-callout:none}
+.chat .msg.msg--pressionavel{-webkit-user-select:none;user-select:none}
+
 /* ---------- 14. Avisos ---------- */
 .notice{
   display:flex;gap:12px;padding:14px 15px;border-radius:13px;

@@ -1419,6 +1419,90 @@
     });
   }
 
+  /* Apagar e corrigir a própria mensagem: clique direito no
+     computador, toque longo no celular.
+
+     O cliente só alcança o que ELE escreveu, e só por pouco tempo.
+     Quem decide de verdade é a regra do servidor; aqui só evitamos
+     oferecer uma opção que daria erro de permissão. */
+  function ligarMenuDasMensagens() {
+    UI.ligarMenuDeContexto(document.body, "[data-msg]", function (alvo) {
+      var id = alvo.getAttribute("data-msg");
+      var m = Store.mensagens().filter(function (x) { return x.id === id; })[0];
+      if (!m) return null;
+      var itens = [];
+      if (Store.podeMexerNaMensagem(m, "editar")) {
+        itens.push({
+          rotulo: "Corrigir mensagem", icone: "ic-lapis",
+          onClick: function () { abrirCorrecaoDeMensagem(m); }
+        });
+      }
+      if (Store.podeMexerNaMensagem(m, "apagar")) {
+        itens.push({
+          rotulo: "Apagar mensagem", icone: "ic-trash", perigo: true,
+          onClick: function () { confirmarApagarMensagem(m); }
+        });
+      }
+      return itens;
+    });
+  }
+
+  function confirmarApagarMensagem(m) {
+    UI.confirmar({
+      titulo: "Apagar esta mensagem",
+      mensagem: "O texto sai da conversa para você e para a Totali, e no lugar dele fica " +
+                "\"Mensagem apagada\". Não dá para desfazer.",
+      confirmar: "Apagar",
+      perigo: true
+    }).then(function (ok) {
+      if (!ok) return;
+      var quem = Store.estado.empresa.responsavelNome || "";
+      Store.apagarMensagem(m.id, quem).then(function (deu) {
+        if (deu) { render(); UI.toast("Mensagem apagada.", "ok", 3000); }
+        else UI.toast("Não foi possível apagar agora. Tente de novo.", "erro", 7000);
+      });
+    });
+  }
+
+  function abrirCorrecaoDeMensagem(m) {
+    var mo = UI.modal({
+      titulo: "Corrigir mensagem",
+      corpoHTML:
+        '<p style="font-size:13px;line-height:1.6;color:var(--txt-3);margin-bottom:10px">' +
+          'A conversa vai mostrar que esta mensagem foi editada.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="edMsgCli">Texto</label>' +
+          '<textarea class="textarea" id="edMsgCli" rows="5" data-focus maxlength="4000"></textarea>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            var campo = $("#edMsgCli", mo.caixa);
+            var t = String(campo && campo.value || "").trim();
+            if (!t) { if (campo) campo.focus(); return; }
+            if (t === m.texto) { UI.fecharModal(); return; }
+            var b = $('[data-acao="1"]', mo.caixa);
+            if (b) { b.disabled = true; b.textContent = "Salvando…"; }
+            Store.editarMensagem(m.id, t).then(function (deu) {
+              if (deu) {
+                UI.fecharModal();
+                render();
+                UI.toast("Mensagem corrigida.", "ok", 3000);
+              } else {
+                if (b) { b.disabled = false; b.textContent = "Salvar"; }
+                UI.toast("Não foi possível corrigir agora. Tente de novo.", "erro", 7000);
+              }
+            });
+          }
+        }
+      ]
+    });
+    var campo = $("#edMsgCli", mo.caixa);
+    if (campo) campo.value = m.texto || "";
+  }
+
   /* O botão Atualizar da tela de documentos.
 
      Sem servidor não há o que buscar — o botão some em vez de
@@ -2340,17 +2424,24 @@
         }
         var doc = m.chave ? nomeDoItem(m.chave) : "";
         /* Aqui quem olha é o CLIENTE: mensagem dele à direita. */
+        var apagada = !!m.apagadaEm;
         html += '<div class="msg msg--' + (m.autor === "equipe" ? "dele" : "minha") +
-                (m.autor === "equipe" && !m.lidaEm ? " msg--nova" : "") + '">' +
+                (m.autor === "equipe" && !m.lidaEm ? " msg--nova" : "") +
+                (apagada ? " msg--apagada" : "") + ' msg--pressionavel"' +
+                ' data-msg="' + U.escAttr(m.id || "") + '">' +
           (m.autor === "equipe"
             ? '<div class="msg__autor">' + U.esc(m.autorNome || org.curto) + '</div>' : '') +
-          (doc
+          (doc && !apagada
             ? '<button type="button" class="msg__ref" data-rota="documentos" data-grupo="' +
               U.escAttr(String(m.chave).split("/")[0]) + '">' + ic("ic-file") + U.esc(doc) + '</button>'
             : '') +
-          (m.anexos && m.anexos.length ? anexosHTML(m.anexos) : '') +
-          (m.texto ? '<div>' + U.esc(m.texto).replace(/\n/g, "<br>") + '</div>' : '') +
-          '<div class="msg__hora">' + U.esc(U.dataHora(m.em).split(" às ")[1] || "") + '</div>' +
+          (!apagada && m.anexos && m.anexos.length ? anexosHTML(m.anexos) : '') +
+          (apagada
+            ? '<div>' + U.esc("Mensagem apagada" +
+                (m.apagadaPor ? " por " + m.apagadaPor : "")) + '</div>'
+            : (m.texto ? '<div>' + U.esc(m.texto).replace(/\n/g, "<br>") + '</div>' : '')) +
+          '<div class="msg__hora">' + U.esc(U.dataHora(m.em).split(" às ")[1] || "") +
+            (!apagada && m.editadaEm ? '<span class="msg__editada">editada</span>' : '') + '</div>' +
         '</div>';
       });
       html += '</div>';
@@ -4719,6 +4810,7 @@
 
     ligarEventosGlobais();
     ligarRecargaAoVoltar();
+    ligarMenuDasMensagens();
 
     /* Avisos ao cliente. Só notificamos o que veio da Totali —
        ninguém precisa ser avisado da própria ação. */

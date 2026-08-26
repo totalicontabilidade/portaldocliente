@@ -358,8 +358,79 @@ service cloud.firestore {
                       && ((ehEquipe() && request.resource.data.autor == 'equipe')
                           || (ehDonoDaEmpresa(empresaId) && request.resource.data.autor == 'cliente'));
 
+        // ---------- Apagar a mensagem ----------
+        //
+        // NÃO É DELETE, é uma lápide: o texto e os anexos saem, e
+        // fica registrado quem apagou e quando. A conversa é o
+        // registro do que o cliente pediu e do que a Totali
+        // respondeu — sumir sem deixar rastro abriria espaço para
+        // reescrever o histórico de uma cobrança.
+        //
+        // Por isso as travas abaixo são todas sobre o VALOR final,
+        // e não sobre a intenção de quem escreve: o texto TEM que
+        // virar vazio. Sem isso, "permitir editar `texto` ao
+        // apagar" seria só permitir editar `texto`.
+        //
+        // `apagadaEm` não pode existir antes: lápide não se
+        // reescreve, senão o segundo apagão apaga o primeiro.
+        //
+        // A JANELA USA `request.time`, E NÃO O RELÓGIO DE QUEM
+        // PEDE. Confiar no horário mandado pelo navegador seria
+        // deixar a trava de 15 minutos ser desligada mudando a
+        // hora do computador.
+        function virandoLapide() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['texto', 'anexos', 'apagadaEm', 'apagadaPor'])
+                 && request.resource.data.texto == ''
+                 && request.resource.data.anexos.size() == 0
+                 && request.resource.data.apagadaEm is number
+                 && !('apagadaEm' in resource.data);
+        }
+
+        // Mensagem antiga não tem `autorUid` — e não precisa ter:
+        // ela já está fora da janela de 15 minutos de qualquer
+        // jeito, então só admin a alcança.
+        function ehAutorDaMensagem() {
+          return resource.data.get('autorUid', '') == request.auth.uid;
+        }
+
+        function dentroDaJanela(minutos) {
+          return request.time.toMillis() - resource.data.em < minutos * 60 * 1000;
+        }
+
+        // ---------- Corrigir a mensagem ----------
+        //
+        // Prazo mais curto que o de apagar, e SEM exceção para
+        // admin — de propósito. Apagar tira algo do registro;
+        // editar põe palavras na boca de quem escreveu. Ninguém
+        // edita mensagem alheia, nem administrador.
+        //
+        // `editadaEm` fica no documento e a tela mostra "editada":
+        // corrigir um erro de digitação é legítimo, fingir que a
+        // frase sempre foi aquela não é.
+        //
+        // Lápide não volta a ser mensagem: com `apagadaEm` no
+        // documento, editar deixa de ser permitido.
+        function corrigindo() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['texto', 'editadaEm'])
+                 && textoAte(request.resource.data.texto, 4000)
+                 && request.resource.data.texto != ''
+                 && request.resource.data.editadaEm is number
+                 && resource.data.get('apagadaEm', 0) == 0;
+        }
+
         allow update: if (ehEquipe() && soEstesCampos(['lidaEm', 'resolvidaEm', 'resolvidaPor']))
-                      || (ehDonoDaEmpresa(empresaId) && soEstesCampos(['lidaEm']));
+                      || (ehDonoDaEmpresa(empresaId) && soEstesCampos(['lidaEm']))
+                      || (virandoLapide()
+                          && (ehAdmin()
+                              || (equipeOuDono(empresaId)
+                                  && ehAutorDaMensagem()
+                                  && dentroDaJanela(15))))
+                      || (corrigindo()
+                          && equipeOuDono(empresaId)
+                          && ehAutorDaMensagem()
+                          && dentroDaJanela(5));
         allow delete: if ehAdmin();
       }
 

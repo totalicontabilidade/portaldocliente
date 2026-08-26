@@ -126,6 +126,11 @@
       return {
         autor: m.autor === "equipe" ? "equipe" : "cliente",
         autorNome: txt(m.autorNome, 120),
+        /* Identidade de quem escreveu, para a regra do servidor
+           saber de quem é a mensagem na hora de apagar. Mensagem
+           antiga não tem, e não precisa: ela já está fora da janela
+           de 15 minutos. */
+        autorUid: txt(m.autorUid, 60),
         texto: txt(m.texto, 4000),
         chave: txt(m.chave, 160),
         anexos: (m.anexos || []).map(function (a) {
@@ -135,7 +140,15 @@
           };
         }),
         em: num(m.em),
-        lidaEm: num(m.lidaEm)
+        lidaEm: num(m.lidaEm),
+        /* A lápide de uma mensagem apagada, e a marca de editada.
+           Sobem zeradas nas novas e precisam constar aqui: o retrato
+           do servidor passa por esta função, e campo ausente daqui
+           viraria "mudou" a cada comparação, reescrevendo a mensagem
+           para sempre. */
+        apagadaEm: num(m.apagadaEm),
+        apagadaPor: txt(m.apagadaPor, 120),
+        editadaEm: num(m.editadaEm)
       };
     }
 
@@ -611,6 +624,20 @@
       }, function () { /* sem rede: segue com o que já está na tela */ });
     }
 
+    /* Apagar e corrigir vão DIRETO ao documento, fora do lote.
+
+       O lote só sabe escrever `lidaEm` numa mensagem que já existe
+       — e é assim de propósito, porque foi o que garantiu por muito
+       tempo que mensagem enviada não se reescrevia. Abrir o lote
+       para estes dois campos faria toda gravação do portal carregar
+       o poder de mexer no texto de qualquer mensagem. Aqui o
+       alcance é uma mensagem, uma vez, quando alguém pede. */
+    function mexerNaMensagem(id, campos) {
+      return db.collection("empresas").doc(empresaId)
+               .collection("mensagens").doc(String(id))
+               .set(campos, { merge: true });
+    }
+
     return {
       nome: "nuvem",
       empresaId: empresaId,
@@ -618,6 +645,7 @@
       ouvirMensagens: ouvirMensagens,
       removerCredencial: removerCredencial,
       gravarMensagem: gravarMensagem,
+      mexerNaMensagem: mexerNaMensagem,
       salvar: salvar,
       apagar: apagar,
       guardarArquivo: guardarArquivo,

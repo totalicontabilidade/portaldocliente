@@ -140,6 +140,138 @@
     return { fechar: fecharModal, caixa: caixa };
   }
 
+  /* ============================================================
+     MENU DE CONTEXTO
+
+     Clique direito no computador, toque longo no celular. Existe
+     porque as duas telas de conversa precisam da mesma coisa, e
+     duplicar isso significaria consertar toque longo duas vezes.
+
+     TOQUE LONGO É MAIS CHATO DO QUE PARECE, e as três medidas
+     abaixo saem de erros clássicos:
+
+       • rolar a conversa com o dedo em cima de uma bolha NÃO pode
+         abrir menu — por isso o movimento cancela;
+       • depois que o menu abre, o navegador ainda dispara o clique
+         do dedo, que fecharia o menu na mesma hora — por isso o
+         `engolirProximoClique`;
+       • o menu do próprio navegador (copiar, colar) apareceria por
+         cima no clique direito — por isso o preventDefault.
+     ============================================================ */
+  var menuAberto = null;
+
+  function fecharMenu() {
+    if (!menuAberto) return;
+    var n = menuAberto;
+    menuAberto = null;
+    document.removeEventListener("keydown", n.onKey, true);
+    if (n.el.parentNode) n.el.parentNode.removeChild(n.el);
+  }
+
+  /* opcoes = { x, y, itens: [{ rotulo, icone, perigo, onClick }] } */
+  function menu(opcoes) {
+    fecharMenu();
+    var itens = (opcoes.itens || []).filter(Boolean);
+    if (!itens.length) return null;
+
+    var el = document.createElement("div");
+    el.className = "menuctx";
+    el.setAttribute("role", "menu");
+    el.innerHTML = itens.map(function (it, i) {
+      return '<button type="button" role="menuitem" class="menuctx__i' +
+        (it.perigo ? " menuctx__i--perigo" : "") + '" data-i="' + i + '">' +
+        (it.icone ? icone(it.icone) : "") + U.esc(it.rotulo) + '</button>';
+    }).join("");
+    document.body.appendChild(el);
+
+    /* Encostar na borda deixaria metade do menu fora da tela. */
+    var larg = el.offsetWidth, alt = el.offsetHeight;
+    var x = Math.min(opcoes.x, window.innerWidth - larg - 8);
+    var y = Math.min(opcoes.y, window.innerHeight - alt - 8);
+    el.style.left = Math.max(8, x) + "px";
+    el.style.top = Math.max(8, y) + "px";
+
+    $$("[data-i]", el).forEach(function (b) {
+      b.addEventListener("click", function () {
+        var it = itens[Number(b.getAttribute("data-i"))];
+        fecharMenu();
+        if (it && typeof it.onClick === "function") it.onClick();
+      });
+    });
+
+    var onKey = function (ev) { if (ev.key === "Escape") fecharMenu(); };
+    document.addEventListener("keydown", onKey, true);
+    menuAberto = { el: el, onKey: onKey };
+
+    setTimeout(function () {
+      document.addEventListener("pointerdown", function fora(ev) {
+        if (menuAberto && menuAberto.el.contains(ev.target)) return;
+        document.removeEventListener("pointerdown", fora, true);
+        fecharMenu();
+      }, true);
+    }, 0);
+
+    var primeiro = el.querySelector("button");
+    if (primeiro) { try { primeiro.focus(); } catch (e) {} }
+    return { fechar: fecharMenu };
+  }
+
+  /* Liga clique direito e toque longo num container, para os
+     elementos que casarem com `seletor`. `montar(alvo)` devolve a
+     lista de itens — ou nada, e aí nenhum menu abre. */
+  function ligarMenuDeContexto(container, seletor, montar) {
+    if (!container) return;
+    var TEMPO_TOQUE_MS = 500;
+    var TOLERANCIA_PX = 10;
+    var relogio = null, partiu = null, engolirProximoClique = false;
+
+    function cancelar() {
+      if (relogio) { clearTimeout(relogio); relogio = null; }
+      partiu = null;
+    }
+
+    function abrirEm(alvo, x, y) {
+      var itens = montar(alvo);
+      if (itens && itens.length) menu({ x: x, y: y, itens: itens });
+    }
+
+    container.addEventListener("contextmenu", function (ev) {
+      var alvo = ev.target.closest(seletor);
+      if (!alvo || !container.contains(alvo)) return;
+      ev.preventDefault();
+      abrirEm(alvo, ev.clientX, ev.clientY);
+    });
+
+    container.addEventListener("touchstart", function (ev) {
+      var alvo = ev.target.closest(seletor);
+      if (!alvo || ev.touches.length !== 1) return;
+      var t = ev.touches[0];
+      partiu = { x: t.clientX, y: t.clientY };
+      relogio = setTimeout(function () {
+        relogio = null;
+        engolirProximoClique = true;
+        abrirEm(alvo, partiu.x, partiu.y);
+      }, TEMPO_TOQUE_MS);
+    }, { passive: true });
+
+    container.addEventListener("touchmove", function (ev) {
+      if (!partiu || !relogio) return;
+      var t = ev.touches[0];
+      if (Math.abs(t.clientX - partiu.x) > TOLERANCIA_PX ||
+          Math.abs(t.clientY - partiu.y) > TOLERANCIA_PX) cancelar();
+    }, { passive: true });
+
+    container.addEventListener("touchend", cancelar, { passive: true });
+    container.addEventListener("touchcancel", cancelar, { passive: true });
+
+    container.addEventListener("click", function (ev) {
+      if (!engolirProximoClique) return;
+      engolirProximoClique = false;
+      ev.preventDefault();
+      ev.stopPropagation();
+    }, true);
+  }
+
   /* ---------- Confirmação ---------- */
   function confirmar(opcoes) {
     return new Promise(function (resolve) {
@@ -233,6 +365,9 @@
     toast: toast,
     modal: modal,
     fecharModal: fecharModal,
+    menu: menu,
+    fecharMenu: fecharMenu,
+    ligarMenuDeContexto: ligarMenuDeContexto,
     confirmar: confirmar,
     progresso: progresso
   };
