@@ -1066,6 +1066,75 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .menuctx__i .ic{width:17px;height:17px;color:var(--txt-4);flex:none}
 .menuctx__i:hover,.menuctx__i:focus-visible{background:var(--glass-2);color:var(--txt);outline:none}
+/* ---------- Fila de conferência (ficha e pendências) ----------
+
+   SEM MOLDURA DE CARTÃO, e essa é a decisão inteira. Este bloco
+   estava desenhado igual aos setores que ele comanda — mesmo
+   cartão, mesmo ícone, mesmo peso — e por isso ninguém sabia que
+   o trabalho começa por ele. A diferença de FORMA é o que resolve;
+   cor e tamanho sozinhos não resolveriam. */
+.fila{margin:0 0 22px}
+.fila__cab{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:0 2px 11px;margin-bottom:14px;
+  border:0;border-bottom:1px solid var(--stroke);
+  background:transparent;text-align:left;cursor:pointer;
+}
+.fila__txt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.fila__titulo{
+  font-size:16px;font-weight:680;color:var(--txt);letter-spacing:-.01em;
+}
+.fila__resumo{font-size:12.5px;color:var(--txt-4)}
+.fila__chev{
+  flex:none;color:var(--txt-4);display:grid;place-items:center;
+  transition:transform .24s var(--ease);
+}
+.fila[data-open="true"] .fila__chev{transform:rotate(180deg)}
+.fila__cab:hover .fila__titulo{color:var(--gold-3)}
+
+/* A tabela rola dentro dela mesma: sem isto, no celular ela
+   empurraria a página inteira para o lado. */
+.tabela-rolo{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.conf{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
+.conf thead th{
+  text-align:left;padding:0 10px 8px;
+  font-size:10.5px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--txt-4);border-bottom:1px solid var(--stroke);white-space:nowrap;
+}
+.conf tbody td{
+  padding:13px 10px;border-bottom:1px solid var(--stroke);
+  color:var(--txt-2);vertical-align:top;
+}
+.conf tbody tr:last-child td{border-bottom:0}
+.conf tbody tr:hover td{background:var(--glass)}
+.conf__dir{text-align:right}
+.conf__n{display:block;font-size:13.5px;font-weight:620;color:var(--txt);line-height:1.4}
+.conf__s{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
+.conf__vazio{color:var(--txt-4)}
+.conf__acoes{display:inline-flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.arq--linha{max-width:190px}
+.arq--linha .arq__n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Selo que também é botão: só o "Respondido", que guarda o texto
+   do cliente atrás dele. */
+.badge--btn{cursor:pointer;border-style:solid}
+.badge--btn .ic{width:13px;height:13px;margin-left:5px;opacity:.75}
+.badge--btn:hover{filter:brightness(1.15)}
+
+/* ---------- Balão de leitura ---------- */
+.balao{
+  position:fixed;z-index:130;max-width:min(320px,calc(100vw - 20px));
+  padding:12px 14px;border-radius:12px;
+  background:var(--bg-1);border:1px solid var(--stroke-2);
+  box-shadow:0 18px 46px rgba(0,0,0,.55);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.balao__t{
+  font-size:10.5px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--gold-2);margin-bottom:6px;
+}
+.balao__c{font-size:13px;line-height:1.55;color:var(--txt-2)}
+
 .chat__dica{
   align-self:center;text-align:center;
   padding:8px 12px 2px;line-height:1.5;max-width:min(100%,420px);

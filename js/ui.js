@@ -216,6 +216,48 @@
     return { fechar: fecharMenu };
   }
 
+  /* Balão de leitura: um texto que não cabe na linha e não merece
+     uma janela inteira.
+
+     É CLIQUE, e não passar o mouse, de propósito: no celular não
+     existe passar o mouse, e uma dica que só funciona no
+     computador é meia dica. Clique funciona nos dois, e a mesma
+     peça serve para as duas telas.
+
+     Reaproveita o posicionamento do menu — inclusive a correção de
+     borda, que é onde esse tipo de coisa costuma vazar da tela. */
+  function balao(opcoes) {
+    fecharMenu();
+    var el = document.createElement("div");
+    el.className = "balao";
+    el.setAttribute("role", "dialog");
+    el.innerHTML =
+      (opcoes.titulo ? '<div class="balao__t">' + U.esc(opcoes.titulo) + '</div>' : '') +
+      '<div class="balao__c">' + U.esc(opcoes.texto || "") + '</div>';
+    document.body.appendChild(el);
+
+    var larg = el.offsetWidth, alt = el.offsetHeight;
+    var x = Math.min(opcoes.x - larg / 2, window.innerWidth - larg - 10);
+    var y = opcoes.y - alt - 12;
+    /* Sem espaço em cima, abre para baixo em vez de sair da tela. */
+    if (y < 10) y = opcoes.y + 20;
+    el.style.left = Math.max(10, x) + "px";
+    el.style.top = Math.min(y, window.innerHeight - alt - 10) + "px";
+
+    var onKey = function (ev) { if (ev.key === "Escape") fecharMenu(); };
+    document.addEventListener("keydown", onKey, true);
+    menuAberto = { el: el, onKey: onKey };
+
+    setTimeout(function () {
+      document.addEventListener("pointerdown", function fora(ev) {
+        if (menuAberto && menuAberto.el.contains(ev.target)) return;
+        document.removeEventListener("pointerdown", fora, true);
+        fecharMenu();
+      }, true);
+    }, 0);
+    return { fechar: fecharMenu };
+  }
+
   /* Liga clique direito e toque longo num container, para os
      elementos que casarem com `seletor`. `montar(alvo)` devolve a
      lista de itens — ou nada, e aí nenhum menu abre. */
@@ -366,6 +408,7 @@
     modal: modal,
     fecharModal: fecharModal,
     menu: menu,
+    balao: balao,
     fecharMenu: fecharMenu,
     ligarMenuDeContexto: ligarMenuDeContexto,
     confirmar: confirmar,

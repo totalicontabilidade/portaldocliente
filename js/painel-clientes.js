@@ -950,29 +950,12 @@
             : '') +
           '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
         '</button>' +
-        (fechado ? '' : s.itens.map(function (p) {
-          return '<div class="item"><div class="item__top">' +
-            '<div class="item__main">' +
-              '<div class="item__name">' + U.esc(p.item.nome) +
-                (p.socio ? ' <span class="text-xs text-muted">· ' +
-                  U.esc(p.socio.nome || "sócio") + '</span>' : '') + '</div>' +
-              '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
-                (p.item.obrigatorio
-                  ? '<span class="text-xs text-muted">obrigatório</span>' : '') +
-                combinadoHTML(c, p.chave) +
-              '</div>' +
-              /* Mesmas peças de "O que falta": esta aba é a outra
-                 tela em que a equipe decide sobre um documento, e
-                 decidir sem ver o arquivo nem a resposta obrigava a
-                 abrir a ficha por fora. */
-              respostaDoCliente(c, p.chave) +
-              arquivosDoItem(c, p.chave) +
-              (acoesDeRevisao(c, p.chave, p.sit)
-                ? '<div class="item__actions">' + acoesDeRevisao(c, p.chave, p.sit) + '</div>'
-                : '') +
-            '</div>' +
-          '</div></div>';
-        }).join("")) +
+        /* A MESMA TABELA DA FICHA. Esta aba é a outra tela em que a
+           equipe decide sobre um documento — decidir sem ver o
+           arquivo nem a resposta obrigava a abrir a ficha por fora,
+           e duas listas diferentes para o mesmo trabalho é como uma
+           delas fica para trás. */
+        (fechado ? '' : tabelaDeConferencia(c, s.itens)) +
       '</div>';
     }).join("");
   }
@@ -1630,26 +1613,84 @@
      agora "O que falta" e a aba Pendências usam as mesmas peças,
      porque é nessas duas telas que a conferência acontece.
      ============================================================ */
-  function respostaDoCliente(c, chave) {
+
+  /* O selo da situação numa linha de tabela.
+
+     Quando o cliente respondeu, o selo vira BOTÃO e a resposta sai
+     num balão. Numa célula a resposta não cabe: ou ela quebra a
+     grade que faz a tabela valer a pena, ou é cortada e vira uma
+     frase pela metade, que é pior que não mostrar. Guardada no
+     balão, ela está a um toque de distância e a linha continua
+     lendo-se de um golpe. */
+  function seloDaLinha(c, chave, sit) {
     var reg = (c.dados.itens || {})[chave] || {};
-    if (!reg.obs) return "";
-    return '<div class="notice notice--info" style="margin-top:8px;padding:9px 11px;font-size:12.5px">' +
-      '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
-      '<span><strong>O cliente respondeu:</strong> ' + U.esc(reg.obs) + '</span></div>';
+    if (sit === "pendencia" && reg.obs) {
+      return '<button type="button" class="badge badge--analise badge--btn" ' +
+        'data-resposta="' + U.escAttr(chave) + '" data-emp="' + U.escAttr(c.id) + '" ' +
+        'title="Ver o que o cliente respondeu">' +
+        '<span class="dot"></span>Respondido' + ic("ic-chat") + '</button>';
+    }
+    return badge(ROTULO_SITUACAO, sit);
   }
 
-  function arquivosDoItem(c, chave) {
-    var reg = (c.dados.itens || {})[chave] || {};
-    var arquivos = reg.arquivos || [];
-    if (!arquivos.length) return "";
-    return '<div class="arqs" style="margin-top:8px">' + arquivos.map(function (a) {
-      return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) + '" ' +
-        'data-emp="' + U.escAttr(c.id) + '" ' +
-        'data-nome="' + U.escAttr(a.nome) + '">' +
-        ic(U.iconePorExtensao(U.extensao(a.nome))) +
-        '<span class="arq__n">' + U.esc(a.nome) + '</span>' +
-        '<span class="arq__t">' + U.esc(U.bytes(a.tamanho)) + '</span></button>';
-    }).join("") + '</div>';
+  /* Cabeçalho da fila. Sem moldura de cartão de propósito: é a
+     diferença de forma que separa a fila dos setores. Recolher
+     continua existindo — só que aqui é a fila inteira, e ela nasce
+     aberta porque é o motivo de a ficha ser aberta. */
+  function blocoFila(o) {
+    var aberto = abertosFicha[o.id] !== false;
+    return '<section class="fila" data-open="' + (aberto ? "true" : "false") + '">' +
+      '<button type="button" class="fila__cab" data-bloco="' + U.escAttr(o.id) + '" ' +
+          'aria-expanded="' + (aberto ? "true" : "false") + '">' +
+        '<span class="fila__txt">' +
+          '<span class="fila__titulo">' + U.esc(o.titulo) + '</span>' +
+          '<span class="fila__resumo">' + U.esc(o.resumo || "") + '</span>' +
+        '</span>' +
+        (o.selo
+          ? '<span class="badge ' + (o.seloCls || "badge--pendente") + '">' +
+            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
+          : '') +
+        '<span class="fila__chev">' + ic("ic-chevron-down") + '</span>' +
+      '</button>' +
+      (aberto ? '<div class="fila__corpo">' + o.corpo() + '</div>' : '') +
+    '</section>';
+  }
+
+  /* Uma linha por documento. As ações à direita, e o arquivo numa
+     coluna própria — as três coisas que a conferência precisa,
+     lado a lado, sem abrir nada. */
+  function tabelaDeConferencia(c, pendentes) {
+    return '<div class="tabela-rolo"><table class="conf">' +
+      '<thead><tr>' +
+        '<th>Documento</th><th>Situação</th><th>Arquivo</th><th class="conf__dir">Ação</th>' +
+      '</tr></thead><tbody>' +
+      pendentes.map(function (p) {
+        var reg = (c.dados.itens || {})[p.chave] || {};
+        var arquivos = reg.arquivos || [];
+        return '<tr>' +
+          '<td><span class="conf__n">' + U.esc(p.item.nome) + '</span>' +
+            '<span class="conf__s">' + U.esc(p.grupo.titulo) +
+              (p.socio ? ' · ' + U.esc(p.socio.nome || "sócio") : '') +
+              (p.item.obrigatorio ? ' · obrigatório' : '') + '</span>' +
+            combinadoHTML(c, p.chave) + '</td>' +
+          '<td>' + seloDaLinha(c, p.chave, p.sit) + '</td>' +
+          '<td>' + (arquivos.length
+            ? arquivos.map(function (a) {
+                return '<button type="button" class="arq arq--linha" data-abrir="' +
+                  U.escAttr(a.id) + '" data-emp="' + U.escAttr(c.id) + '" ' +
+                  'data-nome="' + U.escAttr(a.nome) + '">' +
+                  ic(U.iconePorExtensao(U.extensao(a.nome))) +
+                  '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
+              }).join("")
+            : '<span class="conf__vazio">—</span>') + '</td>' +
+          '<td class="conf__dir"><div class="conf__acoes">' +
+            acoesDeRevisao(c, p.chave, p.sit) +
+            '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
+              U.escAttr(p.chave) + '">Cobrar</button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join("") +
+      '</tbody></table></div>';
   }
 
   /* Só oferece decidir sobre o que chegou. Documento que nunca foi
@@ -1770,14 +1811,27 @@
              é o motivo de a equipe abrir esta ficha. ---- */
       '';
 
+    /* ============================================================
+       A FILA DE CONFERÊNCIA (modelo C, escolhido em 26/08/2026)
+
+       Antes isto era um `bloco()` — o mesmo cartão de Societário,
+       Contábil e Fiscal, com a mesma moldura e o mesmo ícone. O
+       bloco que comanda a ficha tinha exatamente o peso visual dos
+       que ele deveria comandar, e quem abria a tela para trabalhar
+       não tinha por onde saber que se começa ali.
+
+       Agora não tem moldura: é uma tabela solta, com cabeçalho
+       próprio e um botão de recolher. Uma linha por documento,
+       ações à direita. A forma diferente é o que diz quem manda.
+       ============================================================ */
     function faltaHTML(c, pendentes, est) {
-      return bloco({
-        id: "falta", icone: "ic-alert", titulo: "O que falta",
+      return blocoFila({
+        id: "falta", titulo: "Precisa de você",
         resumo: pendentes.length
           ? "Correções pedidas primeiro, depois os obrigatórios"
           : "Tudo o que era obrigatório já chegou",
         selo: pendentes.length ? pendentes.length + " " +
-          U.plural(pendentes.length, "item", "itens") : "",
+          U.plural(pendentes.length, "documento", "documentos") : "",
         seloCls: est.resumo.pendencias ? "badge--pendencia" : "badge--pendente",
         corpo: function () {
           if (!pendentes.length) {
@@ -1803,40 +1857,7 @@
               'style="margin-bottom:6px">' + ic("ic-send") + 'Cobrar tudo o que falta</button>' +
             '<p class="text-xs text-muted" style="margin:0 0 14px">Portal, WhatsApp ou e-mail — ' +
               'você escolhe na próxima tela.</p>' +
-            pendentes.map(function (p) {
-              return '<div class="item"><div class="item__top">' +
-                '<span class="group__icon">' + ic(p.grupo.icone) + '</span>' +
-                '<div class="item__main">' +
-                  '<div class="item__name">' + U.esc(p.item.nome) +
-                    (p.socio ? ' <span class="text-xs text-muted">· ' +
-                      U.esc(p.socio.nome || "sócio") + '</span>' : '') + '</div>' +
-                  '<div class="item__row">' + badge(ROTULO_SITUACAO, p.sit) +
-                    '<span class="text-xs text-muted">' + U.esc(p.grupo.titulo) + '</span>' +
-                    /* O cliente marcou dia para voltar neste
-                       documento. Cobrar antes disso é desfazer um
-                       combinado que ele cumpriu até agora. */
-                    combinadoHTML(c, p.chave) + '</div>' +
-                  /* O QUE ESTE BLOCO ESCONDIA.
-
-                     Ele listava o nome do documento e um botão de
-                     cobrar, e mais nada. Para ver o arquivo que o
-                     cliente mandou, o que ele respondeu sobre a
-                     correção, ou para aprovar, era preciso descer
-                     até a lista de grupos e abrir o setor certo —
-                     e é AQUI que a equipe trabalha.
-
-                     Agora o que decide a conferência está no mesmo
-                     lugar em que a decisão é tomada. */
-                  respostaDoCliente(c, p.chave) +
-                  arquivosDoItem(c, p.chave) +
-                  '<div class="item__actions">' +
-                    acoesDeRevisao(c, p.chave, p.sit) +
-                    '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
-                      U.escAttr(p.chave) + '">Cobrar só este</button>' +
-                  '</div>' +
-                '</div>' +
-              '</div></div>';
-            }).join("");
+            tabelaDeConferencia(c, pendentes);
         }
       });
     }
@@ -3662,7 +3683,22 @@
       em: Date.now()
     };
 
-    return doc.set({ revisao: revisao }, { merge: true }).then(function () {
+    /* PEDIDO NOVO APAGA A RESPOSTA VELHA, e sem isto o cliente
+       ficava sem saber que havia um pedido novo.
+
+       A resposta dele é o que faz o portal mostrar "Respondido" no
+       lugar de "Precisa corrigir". Se a equipe devolve o documento
+       uma segunda vez e a resposta da PRIMEIRA continua ali, o
+       cliente segue lendo "Respondido", o selo do setor não conta a
+       correção, e o pedido novo não existe para ele.
+
+       A resposta antiga não se perde: ela também virou mensagem na
+       conversa, com link para este documento. */
+    var campos = { revisao: revisao };
+    if (status === "pendencia") campos.obs = "";
+
+    return doc.set(campos, { merge: true }).then(function () {
+      if (status === "pendencia" && c.dados.itens[chave]) c.dados.itens[chave].obs = "";
       /* Espelha na memória para a tela responder na hora, sem
          recarregar o cliente inteiro do servidor. */
       if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
@@ -4894,6 +4930,22 @@
           pedirAprovacaoEmLote(paraConferir(aberto, grupoAlvo),
                                "em " + grupoAlvo.titulo);
         }
+        return;
+      }
+
+      var resposta = alvo.closest("[data-resposta]");
+      if (resposta) {
+        var chaveR = resposta.getAttribute("data-resposta");
+        var cR = (empresas || []).filter(function (x) {
+          return x.id === resposta.getAttribute("data-emp");
+        })[0];
+        var regR = cR ? (cR.dados.itens || {})[chaveR] || {} : {};
+        var cx = resposta.getBoundingClientRect();
+        UI.balao({
+          x: cx.left + cx.width / 2, y: cx.top,
+          titulo: "O cliente respondeu",
+          texto: regR.obs || "Sem texto."
+        });
         return;
       }
 
