@@ -961,6 +961,15 @@
                   ? '<span class="text-xs text-muted">obrigatório</span>' : '') +
                 combinadoHTML(c, p.chave) +
               '</div>' +
+              /* Mesmas peças de "O que falta": esta aba é a outra
+                 tela em que a equipe decide sobre um documento, e
+                 decidir sem ver o arquivo nem a resposta obrigava a
+                 abrir a ficha por fora. */
+              respostaDoCliente(c, p.chave) +
+              arquivosDoItem(c, p.chave) +
+              (acoesDeRevisao(c, p.chave, p.sit)
+                ? '<div class="item__actions">' + acoesDeRevisao(c, p.chave, p.sit) + '</div>'
+                : '') +
             '</div>' +
           '</div></div>';
         }).join("")) +
@@ -1612,6 +1621,53 @@
     '</section>';
   }
 
+  /* ============================================================
+     PEÇAS DE UM DOCUMENTO, REAPROVEITADAS
+
+     As três coisas que a equipe precisa para decidir sobre um
+     documento: o que o cliente respondeu, o arquivo em si, e os
+     botões de aprovar e devolver. Ficavam só na aba Documentos —
+     agora "O que falta" e a aba Pendências usam as mesmas peças,
+     porque é nessas duas telas que a conferência acontece.
+     ============================================================ */
+  function respostaDoCliente(c, chave) {
+    var reg = (c.dados.itens || {})[chave] || {};
+    if (!reg.obs) return "";
+    return '<div class="notice notice--info" style="margin-top:8px;padding:9px 11px;font-size:12.5px">' +
+      '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
+      '<span><strong>O cliente respondeu:</strong> ' + U.esc(reg.obs) + '</span></div>';
+  }
+
+  function arquivosDoItem(c, chave) {
+    var reg = (c.dados.itens || {})[chave] || {};
+    var arquivos = reg.arquivos || [];
+    if (!arquivos.length) return "";
+    return '<div class="arqs" style="margin-top:8px">' + arquivos.map(function (a) {
+      return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) + '" ' +
+        'data-emp="' + U.escAttr(c.id) + '" ' +
+        'data-nome="' + U.escAttr(a.nome) + '">' +
+        ic(U.iconePorExtensao(U.extensao(a.nome))) +
+        '<span class="arq__n">' + U.esc(a.nome) + '</span>' +
+        '<span class="arq__t">' + U.esc(U.bytes(a.tamanho)) + '</span></button>';
+    }).join("") + '</div>';
+  }
+
+  /* Só oferece decidir sobre o que chegou. Documento que nunca foi
+     enviado não tem o que aprovar — ali o caminho é cobrar. */
+  function acoesDeRevisao(c, chave, sit) {
+    if (["enviado", "analise", "aprovado", "pendencia"].indexOf(sit) === -1) return "";
+    /* `data-emp` viaja junto porque estes botões agora aparecem
+       fora da ficha, onde não há "cliente aberto" para deduzir. */
+    var emp = ' data-emp="' + U.escAttr(c.id) + '"';
+    return (sit !== "aprovado"
+        ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar="' +
+          U.escAttr(chave) + '"' + emp + '>Aprovar</button>' : '') +
+      '<button type="button" class="btn btn--ghost btn--sm" data-pendencia="' +
+        U.escAttr(chave) + '"' + emp + '>' +
+        (sit === "pendencia" ? "Trocar o motivo" : "Pedir correção") +
+      '</button>';
+  }
+
   /* O que este grupo tem esperando a equipe. É o que aparece no
      cabeçalho quando o bloco está fechado. */
   function atencaoDoGrupo(c, g) {
@@ -1760,10 +1816,21 @@
                        documento. Cobrar antes disso é desfazer um
                        combinado que ele cumpriu até agora. */
                     combinadoHTML(c, p.chave) + '</div>' +
-                  /* Cobrar UM documento: o texto vai preso a ele, e
-                     no portal do cliente vira link direto para o
-                     item — muito mais preciso que "faltam 11". */
+                  /* O QUE ESTE BLOCO ESCONDIA.
+
+                     Ele listava o nome do documento e um botão de
+                     cobrar, e mais nada. Para ver o arquivo que o
+                     cliente mandou, o que ele respondeu sobre a
+                     correção, ou para aprovar, era preciso descer
+                     até a lista de grupos e abrir o setor certo —
+                     e é AQUI que a equipe trabalha.
+
+                     Agora o que decide a conferência está no mesmo
+                     lugar em que a decisão é tomada. */
+                  respostaDoCliente(c, p.chave) +
+                  arquivosDoItem(c, p.chave) +
                   '<div class="item__actions">' +
+                    acoesDeRevisao(c, p.chave, p.sit) +
                     '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
                       U.escAttr(p.chave) + '">Cobrar só este</button>' +
                   '</div>' +
@@ -3561,9 +3628,22 @@
   /* =========================================================
      Ações
      ========================================================= */
-  function revisar(chave, status, motivo) {
-    var c = aberto;
-    if (!c) return Promise.resolve(false);
+  /* `empresaId` chegou junto com os botões de aprovar e devolver
+     na aba Pendências.
+
+     Antes isto era só `var c = aberto` — a ficha aberta. Na ficha
+     acerta sempre; fora dela, `aberto` é nulo e a função devolvia
+     `false` CALADA. Os botões novos não fariam nada e ninguém
+     saberia por quê. Quando o botão diz de quem é o documento, não
+     há o que deduzir. */
+  function revisar(chave, status, motivo, empresaId) {
+    var c = empresaId
+      ? (empresas || []).filter(function (x) { return x.id === empresaId; })[0]
+      : aberto;
+    if (!c) {
+      UI.toast("Não encontrei este cliente. Recarregue a página e tente de novo.", "erro", 8000);
+      return Promise.resolve(false);
+    }
 
     return conferindoForaDaArea([chave]).then(function (ok) {
       if (!ok) return false;
@@ -3587,7 +3667,12 @@
          recarregar o cliente inteiro do servidor. */
       if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
       c.dados.itens[chave].revisao = revisao;
+      /* Aprovar e devolver agora acontecem em três telas. Redesenhar
+         só a ficha deixava as outras duas mostrando o estado
+         antigo — e quem clicou concluiria que o botão falhou. */
       desenharFicha();
+      atualizarContadores();
+      if ((location.hash || "").indexOf("pendencias") > -1) desenharPendencias();
       return true;
     }, function (e) {
       UI.toast("Não foi possível gravar: " + FB.explicar(e), "erro", 9000);
@@ -4041,9 +4126,18 @@
       "Qualquer dúvida, responda por aqui mesmo.";
   }
 
-  function abrirArquivo(id, nome, tipo) {
-    var c = aberto;
-    if (!c) return;
+  /* `empresaId` pelo mesmo motivo de `revisar`: o arquivo passou a
+     poder ser aberto da aba Pendências, onde não há ficha aberta.
+     Sem ele, a função saía calada — clicar no arquivo não fazia
+     nada e nem erro aparecia. */
+  function abrirArquivo(id, nome, tipo, empresaId) {
+    var c = empresaId
+      ? (empresas || []).filter(function (x) { return x.id === empresaId; })[0]
+      : aberto;
+    if (!c) {
+      UI.toast("Não encontrei este cliente. Recarregue a página e tente de novo.", "erro", 8000);
+      return;
+    }
     var pasta = tipo === "mensagem" ? "mensagens" : "documentos";
     var caminho = "empresas/" + c.id + "/" + pasta + "/" + id + "/arquivo";
 
@@ -4774,7 +4868,7 @@
       var arq = alvo.closest("[data-abrir]");
       if (arq) {
         abrirArquivo(arq.getAttribute("data-abrir"), arq.getAttribute("data-nome"),
-                     arq.getAttribute("data-tipo"));
+                     arq.getAttribute("data-tipo"), arq.getAttribute("data-emp") || "");
         return;
       }
 
@@ -4804,7 +4898,11 @@
       }
 
       var aprovar = alvo.closest("[data-aprovar]");
-      if (aprovar) { revisar(aprovar.getAttribute("data-aprovar"), "aprovado"); return; }
+      if (aprovar) {
+        revisar(aprovar.getAttribute("data-aprovar"), "aprovado", "",
+                aprovar.getAttribute("data-emp") || "");
+        return;
+      }
 
       var limpar = alvo.closest("[data-limpar]");
       if (limpar) { revisar(limpar.getAttribute("data-limpar"), ""); return; }
@@ -4821,6 +4919,7 @@
       var pend = alvo.closest("[data-pendencia]");
       if (pend) {
         var chave = pend.getAttribute("data-pendencia");
+        var empPend = pend.getAttribute("data-emp") || "";
         var m = UI.modal({
           titulo: "Pedir correção",
           corpoHTML:
@@ -4836,7 +4935,7 @@
               rotulo: "Pedir correção", classe: "btn--primary",
               onClick: function () {
                 var motivo = $("#pdMotivo", m.caixa).value.trim();
-                revisar(chave, "pendencia", motivo).then(function (ok) {
+                revisar(chave, "pendencia", motivo, empPend).then(function (ok) {
                   if (ok) UI.toast("Correção pedida. O cliente vê no portal.", "ok");
                 });
               }
@@ -4878,9 +4977,34 @@
       desenharLista();
     }, 200));
 
+    /* SEM RETORNO, O BOTÃO PARECIA QUEBRADO.
+
+       Ele buscava tudo de novo e redesenhava — só que, quando nada
+       mudou no servidor, a tela fica idêntica. Quem clicava não
+       tinha como saber se a busca aconteceu, e a conclusão natural
+       era "não funciona". Foi o que o Raoni relatou em 26/08/2026.
+
+       O botão agora diz que está buscando e avisa quando terminou.
+       Custa duas linhas e devolve a única coisa que faltava: a
+       certeza de que o clique valeu. */
     ["#clAtualizar", "#pdAtualizar", "#msAtualizar"].forEach(function (sel) {
       var b = $(sel);
-      if (b) b.addEventListener("click", function () { carregarLista(); });
+      if (!b) return;
+      b.addEventListener("click", function () {
+        if (b.disabled) return;
+        var rotulo = b.innerHTML;
+        b.disabled = true;
+        b.textContent = "Atualizando…";
+        function devolver(msg, tipo) {
+          b.disabled = false;
+          b.innerHTML = rotulo;
+          UI.toast(msg, tipo || "ok", 2600);
+        }
+        Promise.resolve(carregarLista()).then(
+          function () { devolver("Lista atualizada."); },
+          function () { devolver("Não foi possível atualizar agora.", "erro"); }
+        );
+      });
     });
 
     var csv = $("#clCSV");

@@ -371,8 +371,18 @@ service cloud.firestore {
         // virar vazio. Sem isso, "permitir editar `texto` ao
         // apagar" seria só permitir editar `texto`.
         //
-        // `apagadaEm` não pode existir antes: lápide não se
-        // reescreve, senão o segundo apagão apaga o primeiro.
+        // Lápide não se reescreve, senão o segundo apagão apaga o
+        // primeiro. O que decide isso é o VALOR de `apagadaEm`, e
+        // não a presença do campo.
+        //
+        // ERRO QUE ESTAVA AQUI: a checagem era `!('apagadaEm' in
+        // resource.data)`. Só que a mensagem do CLIENTE nasce com
+        // `apagadaEm: 0` — o payload do portal grava todos os
+        // campos, inclusive os zerados. Resultado: o campo existia,
+        // a regra lia "esta mensagem já foi apagada" e recusava
+        // TODA mensagem de cliente, para o cliente e para o admin.
+        // As antigas, sem o campo, continuavam apagáveis, o que
+        // deixou o sintoma confuso.
         //
         // A JANELA USA `request.time`, E NÃO O RELÓGIO DE QUEM
         // PEDE. Confiar no horário mandado pelo navegador seria
@@ -384,7 +394,8 @@ service cloud.firestore {
                  && request.resource.data.texto == ''
                  && request.resource.data.anexos.size() == 0
                  && request.resource.data.apagadaEm is number
-                 && !('apagadaEm' in resource.data);
+                 && request.resource.data.apagadaEm > 0
+                 && resource.data.get('apagadaEm', 0) == 0;
         }
 
         // Mensagem antiga não tem `autorUid` — e não precisa ter:

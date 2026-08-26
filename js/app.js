@@ -936,7 +936,18 @@
         '<div class="item__main">' +
           '<div class="item__name">' + U.esc(item.nome) +
             (item.obrigatorio ? '' : ' <span class="opt">opcional</span>') + '</div>' +
-          '<div class="item__row">' + badgeSituacao(sit) +
+          /* RESPONDIDO É DIFERENTE DE PENDENTE, para quem olha.
+
+             Para a equipe o documento segue em correção até alguém
+             decidir — e segue mesmo. Mas o cliente que já explicou
+             não tem mais nada a fazer, e continuar lendo "Precisa
+             corrigir" faz ele achar que a resposta não chegou. É a
+             mesma situação com dois nomes, cada um verdadeiro para
+             quem lê. */
+          '<div class="item__row">' +
+            (sit === "pendencia" && reg.obs
+              ? '<span class="badge badge--analise"><span class="dot"></span>Respondido</span>'
+              : badgeSituacao(sit)) +
             '<button type="button" class="help-btn" data-ajuda="' + U.escAttr(grupo.id + "|" + item.id) + '">' +
               ic("ic-info") + 'Entenda este documento</button>' +
           '</div>' +
@@ -970,8 +981,8 @@
         html += '<div class="notice notice--info" style="margin-top:8px;padding:11px 13px;font-size:12.5px">' +
             '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
             '<span><strong>Você respondeu:</strong> ' + U.esc(reg.obs) +
-            '<br><span class="text-xs" style="opacity:.75">A Totali vai olhar de novo.</span>' +
-            '</span></div>';
+            '<br><span class="text-xs" style="opacity:.75">Está com a Totali — você não precisa ' +
+            'fazer mais nada por aqui.</span></span></div>';
       }
       html += '<div class="row" style="margin-top:9px">' +
           '<button type="button" class="btn btn--ghost btn--sm" data-justificar="' +
@@ -1257,6 +1268,18 @@
        que ainda falta, em vez de varrer tudo com o mesmo peso. */
     var pronto = (resumo.completo && !resumo.vazio) || grupoNA;
 
+    /* Quantas correções deste grupo ainda dependem do cliente —
+       ou seja, as que ele ainda não respondeu nem reenviou. */
+    var aguardandoCliente = 0;
+    (grupo.escopo === "socio" ? socios.map(function (s) { return s.id; }) : [null])
+      .forEach(function (socioId) {
+        grupo.itens.forEach(function (it) {
+          if (Store.situacao(grupo, it, socioId) !== "pendencia") return;
+          var r = Store.estado.itens[Store.chaveItem(grupo.id, it.id, socioId)] || {};
+          if (!r.obs) aguardandoCliente++;
+        });
+      });
+
     var html = '<section class="card group' + (pronto ? " group--pronto" : "") +
                '" data-open="' + (aberto ? "true" : "false") +
                '" data-grupo="' + U.escAttr(grupo.id) + '">' +
@@ -1276,13 +1299,19 @@
 
            Vem antes do "Completo" porque os dois nunca coexistem:
            grupo com pendência não está completo. */
-        (!grupoNA && resumo.pendencias
+        /* Só conta a correção que ainda espera ELE. A que já foi
+           respondida está com a Totali, e um selo vermelho ali
+           mandaria o cliente procurar trabalho que não existe. */
+        (!grupoNA && aguardandoCliente
           ? '<span class="badge badge--pendencia"><span class="dot"></span>' +
-            resumo.pendencias + " " +
-            U.plural(resumo.pendencias, "correção", "correções") + '</span>'
-          : resumo.completo && !grupoNA
-            ? '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>'
-            : '') +
+            aguardandoCliente + " " +
+            U.plural(aguardandoCliente, "correção", "correções") + '</span>'
+          : !grupoNA && resumo.pendencias
+            ? '<span class="badge badge--analise"><span class="dot"></span>' +
+              U.plural(resumo.pendencias, "Respondido", "Respondidos") + '</span>'
+            : resumo.completo && !grupoNA
+              ? '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>'
+              : '') +
         '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
       '</button>';
 
