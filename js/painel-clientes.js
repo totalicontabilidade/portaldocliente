@@ -1022,7 +1022,12 @@
         (!apagada && m.editadaEm ? '<span class="msg__editada">editada</span>' : '') + '</div>' +
       ((m.anexos || []).length
         ? '<div class="arqs">' + m.anexos.map(function (a) {
+            /* `alvo` era calculado com um comentário explicando por
+               que ele existe, e depois não era usado em lugar
+               nenhum. O anexo aberto pela caixa de entrada caía no
+               "cliente aberto" — que ali é nulo — e não abria. */
             return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) +
+              '" data-emp="' + U.escAttr(alvo) +
               '" data-nome="' + U.escAttr(a.nome) + '" data-tipo="mensagem">' +
               ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
           }).join("") + '</div>'
@@ -2374,7 +2379,7 @@
           (f.termo && f.termo.id
             ? '<div class="row" style="margin-top:12px">' +
               '<button type="button" class="btn btn--ghost btn--sm" data-abrir="' +
-                U.escAttr(f.termo.id) + '" data-nome="' +
+                U.escAttr(f.termo.id) + '" data-emp="' + U.escAttr(c.id) + '" data-nome="' +
                 U.escAttr(f.termo.nome || "termo.pdf") + '">' +
                 ic("ic-download") + 'Abrir termo de compromisso</button></div>'
             : '');
