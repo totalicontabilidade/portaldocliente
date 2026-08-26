@@ -652,13 +652,38 @@
     var empresaNome = st.empresa.nomeFantasia || st.empresa.razaoSocial;
     var passo = proximoPasso();
 
-    var html = '' +
+    var passos = Store.trilha();
+    var enviouTudo = passos.filter(function (p) {
+      return (p.id === "documentos" || p.id === "financeiro") && p.situacao === "concluida";
+    }).length === 2;
+
+    /* Lista vazia porque a equipe dispensou tudo — a documentação
+       veio por outro caminho. Diferente de lista vazia porque nada
+       foi cadastrado ainda, e o texto abaixo não pode confundir as
+       duas: mandar esse cliente "cadastrar a empresa" é pedir uma
+       coisa que ele já fez. */
+    var dispensado = resumo.total === 0 && Store.equipeDispensouTudo();
+
+    var html = '';
+
+    /* A Academy ANTES do painel de progresso, não depois.
+
+       Um anel de progresso parado em 100% (ou em 0%, no cliente que
+       teve a lista dispensada) não é informação: é enfeite ocupando
+       o lugar mais nobre da tela. Quando não há mais nada a enviar,
+       quem tem que estar no topo é a única coisa que ainda serve
+       para alguma coisa. */
+    if (enviouTudo) html += academyDestaqueHTML();
+
+    html += '' +
     '<section class="hero">' +
       '<div class="hero__greeting">' + U.esc(U.saudacao()) + (nome ? ", " + U.esc(nome) : "") + '</div>' +
       '<h1 class="hero__title">' + (empresaNome ? U.esc(empresaNome) : "Vamos organizar sua migração") + '</h1>' +
       '<p class="hero__desc">' +
         (resumo.total === 0
-          ? "Comece cadastrando os dados da empresa. Em seguida a lista de documentos aparece aqui."
+          ? (dispensado
+              ? "Sua documentação já está com a nossa equipe — não há nada para enviar por aqui."
+              : "Comece cadastrando os dados da empresa. Em seguida a lista de documentos aparece aqui.")
           : resumo.pendentes === 0
             ? "Documentação completa. Nossa equipe já pode conferir tudo."
             : "Faltam " + resumo.pendentes + " " + U.plural(resumo.pendentes, "documento", "documentos") +
@@ -759,11 +784,6 @@
       '</section>';
     }
 
-    var passos = Store.trilha();
-    var enviouTudo = passos.filter(function (p) {
-      return (p.id === "documentos" || p.id === "financeiro") && p.situacao === "concluida";
-    }).length === 2;
-
     /* Vídeo de apresentação do portal. Enquanto não houver vídeo
        publicado, o espaço só é ocupado durante o onboarding — depois
        dele, não faz sentido manter um "em breve" na tela inicial. */
@@ -782,9 +802,6 @@
         '</div>' +
       '</section>';
     }
-
-    /* Envio concluído: a Academy sobe para o topo da tela. */
-    if (enviouTudo) html += academyDestaqueHTML();
 
     /* Próximos passos */
     var pendentes = proximosPendentes(4);
@@ -3517,10 +3534,6 @@
     var meta = ROTAS.filter(function (r) { return r.id === rota; })[0];
     document.title = (meta ? meta.titulo + " · " : "") + "Portal do Cliente · " + DATA.ORG.curto;
 
-    /* Antes de atualizarNav, para a marca sumir já nesta pintura e
-       não piscar mais uma vez na próxima. */
-    if (rota === "academy") anotarQueViuAcademy();
-
     atualizarCabecalho();
     atualizarNav(rota);
     ligarCredenciais();
@@ -3689,32 +3702,29 @@
      e quem nunca vai enviar nada porque a equipe dispensou a lista
      (documentação veio por e-mail da contabilidade anterior).
 
-     A marca sai sozinha depois que ele abre a Academy uma vez. Uma
-     marca que nunca apaga vira parte do desenho e para de ser
-     lida — e aí não sobra jeito de chamar atenção quando importar.
-     Fica no aparelho de propósito: é lembrete de interface, não
-     dado do cliente, e não vale uma escrita no servidor. */
-  var CHAVE_VIU_ACADEMY = "totali.onboarding.viuacademy";
+     DUAS COISAS QUE JÁ ERREI AQUI, e que a marca não pode repetir:
 
-  function empresaAtual() {
-    return (Store.estado.empresa && Store.estado.empresa.id) || "sem-empresa";
-  }
+     1. Ela sumia depois da primeira visita, gravada no aparelho. A
+        chave saía com o id da empresa — que NÃO EXISTE em
+        `estado.empresa` — então virava "sem-empresa" e valia para
+        todas as empresas do aparelho ao mesmo tempo. Uma visita
+        minha, num teste, apagou a marca do cliente. Some daqui: se
+        for para esconder depois de visto, tem que ser por dado do
+        servidor, não por lembrete local com chave errada.
 
-  function jaViuAcademy() {
-    try { return localStorage.getItem(CHAVE_VIU_ACADEMY + "." + empresaAtual()) === "1"; }
-    catch (e) { return false; }   /* navegador sem storage: mostra a marca */
-  }
-
-  function anotarQueViuAcademy() {
-    try { localStorage.setItem(CHAVE_VIU_ACADEMY + "." + empresaAtual(), "1"); }
-    catch (e) { /* modo privado: a marca reaparece, e tudo bem */ }
+     2. Ela aparecia sem haver aula NENHUMA publicada. Convidar o
+        cliente para uma sala vazia é pior do que não convidar: ele
+        vai uma vez, não encontra nada e não volta. */
+  function temAulaPublicada() {
+    return (DATA.ACADEMY || []).some(function (t) {
+      return (t.aulas || []).some(function (a) { return idYoutubeValido(a.youtube); });
+    });
   }
 
   function mostrarMarcaAcademy(resumo, gate) {
     if (gate) return false;
-    if (!DATA.ACADEMY || !DATA.ACADEMY.length) return false;
-    if (resumo.pendentes > 0) return false;
-    return !jaViuAcademy();
+    if (!temAulaPublicada()) return false;
+    return resumo.pendentes === 0;
   }
 
   /* ============================================================

@@ -450,6 +450,16 @@
     else if (resumo.pendencias > 0) chave = "correcao";
     else if (resumo.pendentesObrigatorios > 0) chave = "faltando";
     else if (naoConferidos(c).length) chave = "conferir";
+    /* "Em dia" era dito cedo demais, e isso deixava o cliente
+       parado sem ninguém perceber.
+
+       Documento em ordem não quer dizer migração encerrada: o
+       portal do cliente segue mostrando a etapa "análise pela
+       Totali" até a EQUIPE dizer que acabou. Enquanto essa palavra
+       final não vem, quem deve alguma coisa somos nós — e um selo
+       verde de "em dia" faz exatamente o contrário de avisar
+       isso. */
+    else if (e.etapa !== "ativo") chave = "concluir";
     else chave = "emdia";
 
     return { chave: chave, resumo: resumo, cadastroOk: cadastroOk };
@@ -483,6 +493,7 @@
     correcao:  { texto: "Aguardando correção", cls: "badge--pendencia" },
     faltando:  { texto: "Faltam documentos", cls: "badge--pendente" },
     conferir:  { texto: "Para conferir", cls: "badge--analise" },
+    concluir:  { texto: "Concluir migração", cls: "badge--pendente" },
     emdia:     { texto: "Em dia", cls: "badge--aprovado" },
     arquivada: { texto: "Arquivada", cls: "badge--na" }
   };
@@ -643,7 +654,8 @@
     });
     var ativas = empresas.filter(function (c) { return !arquivada(c); }).length;
 
-    var ordem = ["correcao", "conferir", "faltando", "cadastro", "naoentrou", "emdia", "arquivada"];
+    var ordem = ["correcao", "conferir", "faltando", "concluir", "cadastro", "naoentrou",
+                 "emdia", "arquivada"];
     placar.innerHTML =
       '<button type="button" class="filtro' + (filtro.situacao === "todos" ? " filtro--on" : "") +
         '" data-filtro="todos">Todos <b>' + ativas + '</b></button>' +
@@ -1561,8 +1573,21 @@
         seloCls: est.resumo.pendencias ? "badge--pendencia" : "badge--pendente",
         corpo: function () {
           if (!pendentes.length) {
-            return '<p class="text-sm text-muted">Nada pendente. Tudo o que era obrigatório ' +
-              'já chegou.</p>';
+            /* Aqui o trabalho passou a ser NOSSO, e é o único ponto
+               da ficha em que isso fica visível. Sem este botão a
+               `etapa` da empresa nunca saía de "boas-vindas" e o
+               cliente ficava para sempre na tela "em análise pela
+               Totali", esperando uma palavra que ninguém tinha como
+               dar. */
+            if (c.empresa.etapa === "ativo") {
+              return '<p class="text-sm text-muted">Nada pendente, e a migração já foi ' +
+                'concluída. O cliente vê o portal como ativo.</p>';
+            }
+            return '<p class="text-sm text-muted" style="margin-top:0">Nada pendente — tudo o ' +
+                'que era obrigatório já chegou ou foi dispensado. Enquanto a migração não for ' +
+                'concluída, o cliente continua vendo <strong>"em análise pela Totali"</strong>.</p>' +
+              '<button type="button" class="btn btn--primary btn--sm" id="clConcluir">' +
+                ic("ic-check") + 'Concluir migração</button>';
           }
           /* Um botão só, que abre as três vias. Antes dizia
              "Cobrar pelo portal" e escondia que havia outras. */
@@ -2552,6 +2577,40 @@
       }, function (e) {
         UI.toast("Não foi possível arquivar: " + FB.explicar(e), "erro", 9000);
       });
+    });
+  }
+
+  /* Encerrar a migração: a única coisa que faz a `etapa` da empresa
+     sair de "boas-vindas".
+
+     Vai direto para "ativo", e não para "analise-ok" antes. O
+     estado intermediário existe no modelo, mas ninguém tem o que
+     fazer nele: quando a equipe chega aqui, a análise já aconteceu
+     — foi ela que aprovou os documentos. Um botão a mais só faria
+     a pessoa clicar duas vezes para dizer a mesma coisa. */
+  function concluirMigracao(c) {
+    UI.confirmar({
+      titulo: "Concluir a migração de " + nomeDe(c),
+      mensagem: "O cliente passa a ver a migração como encerrada e o portal como ativo. " +
+                "Faça isso quando a documentação já tiver sido conferida — é a palavra final " +
+                "da Totali, e é ela que o cliente está esperando.",
+      confirmar: "Concluir migração"
+    }).then(function (ok) {
+      if (!ok) return;
+      FB.db.collection("empresas").doc(c.id)
+        .set({ etapa: "ativo", atualizadoEm: Date.now() }, { merge: true })
+        .then(function () {
+          UI.toast("Migração de " + nomeDe(c) + " concluída. O cliente já vê o portal ativo.",
+                   "ok", 8000);
+          return carregarCliente(c.id).then(function (novo) {
+            empresas = empresas.map(function (x) { return x.id === c.id ? novo : x; });
+            aberto = novo;
+            desenharFicha();
+            carregarLista();
+          }, function () { /* a gravação valeu; a tela se recompõe no próximo carregamento */ });
+        }, function (e) {
+          UI.toast("Não foi possível concluir: " + FB.explicar(e), "erro", 9000);
+        });
     });
   }
 
@@ -4049,6 +4108,12 @@
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+
+    var concluir = $("#clConcluir");
+    if (concluir) concluir.addEventListener("click", function () {
+      if (!aberto) return;
+      concluirMigracao(aberto);
+    });
 
     var dossie = $("#clDossie");
     if (dossie) dossie.addEventListener("click", function () {

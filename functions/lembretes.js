@@ -116,7 +116,15 @@ async function faltamObrigatorios(empresaRef) {
 
 exports.avisarPendencias = onSchedule(
   {
-    schedule: "0 13 * * 1-5",        /* 10h em Brasília, dias úteis */
+    /* 10h em Brasília, dias úteis.
+
+       ERRO QUE ESTAVA AQUI: dizia "0 13" com esta MESMA timeZone.
+       O 13 tinha sido calculado como se fosse UTC (10h BRT = 13h
+       UTC), mas o Cloud Scheduler lê o cron no fuso que a gente
+       informa — então virava 13h de Brasília, três horas depois do
+       que o comentário e o painel prometiam. Ou se escreve a hora
+       local, ou se tira a timeZone. Não os dois. */
+    schedule: "0 10 * * 1-5",
     timeZone: "America/Sao_Paulo",
     region: REGIAO
   },
