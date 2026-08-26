@@ -1087,8 +1087,13 @@ input[type=checkbox]{accent-color:var(--gold)}
 .fila__resumo{font-size:12.5px;color:var(--txt-4)}
 .fila__chev{
   flex:none;color:var(--txt-4);display:grid;place-items:center;
+  /* O tamanho precisa ser explícito: sem ele o SVG dentro do grid
+     esticava para a largura que sobrasse e empurrava a linha
+     inteira — 300px de seta num cabeçalho de 375. */
+  width:20px;height:20px;
   transition:transform .24s var(--ease);
 }
+.fila__chev .ic{width:18px;height:18px}
 .fila[data-open="true"] .fila__chev{transform:rotate(180deg)}
 .fila__cab:hover .fila__titulo{color:var(--gold-3)}
 
