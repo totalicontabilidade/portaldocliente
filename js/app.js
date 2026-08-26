@@ -1240,7 +1240,23 @@
           '<span class="group__title">' + U.esc(grupo.titulo) + '</span>' +
           '<span class="group__meta">' + U.esc(meta) + '</span>' +
         '</span>' +
-        (resumo.completo && !grupoNA ? '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>' : '') +
+        /* CORREÇÃO PEDIDA APARECE NO CARTÃO FECHADO.
+
+           Antes, quando a equipe devolvia um documento, o cartão do
+           setor continuava igual a qualquer outro: o cliente só
+           descobria se expandisse. Um pedido de correção é a coisa
+           mais urgente desta tela — é ela que trava a migração — e
+           estava sendo a única sem aviso nenhum.
+
+           Vem antes do "Completo" porque os dois nunca coexistem:
+           grupo com pendência não está completo. */
+        (!grupoNA && resumo.pendencias
+          ? '<span class="badge badge--pendencia"><span class="dot"></span>' +
+            resumo.pendencias + " " +
+            U.plural(resumo.pendencias, "correção", "correções") + '</span>'
+          : resumo.completo && !grupoNA
+            ? '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>'
+            : '') +
         '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
       '</button>';
 
@@ -1315,7 +1331,14 @@
         '<h1 class="section__title" style="font-size:20px;margin-top:4px">Envio de documentos</h1>' +
         '<p class="section__desc">Toque em um grupo para abrir a lista. Cada item explica o que é, ' +
           'onde conseguir e como enviar.</p>' +
-      '</div></div>' +
+      '</div>' +
+      /* O tempo real do portal cobre só a conversa. Quando a equipe
+         aprova um documento ou pede correção, esta tela continua
+         mostrando o estado antigo até a página ser recarregada — e
+         o cliente não tem como saber que precisa fazer isso. */
+      '<button type="button" class="btn btn--ghost btn--sm" id="docAtualizar">' +
+        ic("ic-refresh") + 'Atualizar</button>' +
+      '</div>' +
       '<div class="card card--pad" style="margin-bottom:16px">' +
         '<div class="row" style="justify-content:space-between;margin-bottom:9px">' +
           '<span class="text-sm" style="font-weight:600">Progresso geral</span>' +
@@ -1340,6 +1363,30 @@
     '</section>';
 
     return html + rodape();
+  }
+
+  /* O botão Atualizar da tela de documentos.
+
+     Sem servidor não há o que buscar — o botão some em vez de
+     mentir que tentou. */
+  function ligarAtualizarDocs() {
+    var b = $("#docAtualizar");
+    if (!b) return;
+    if (!Store.noServidor) { b.hidden = true; return; }
+    b.addEventListener("click", function () {
+      b.disabled = true;
+      b.textContent = "Atualizando…";
+      Store.recarregar().then(function (ok) {
+        if (!ok) {
+          b.disabled = false;
+          b.innerHTML = ic("ic-refresh") + "Atualizar";
+          UI.toast("Não foi possível atualizar agora. Verifique a internet.", "erro");
+          return;
+        }
+        render();
+        UI.toast("Lista atualizada.", "ok", 2500);
+      });
+    });
   }
 
   /* ---------- Modal de ajuda de um item ---------- */
@@ -3537,7 +3584,7 @@
     atualizarCabecalho();
     atualizarNav(rota);
     ligarCredenciais();
-    if (rota === "documentos") irAteODocumento();
+    if (rota === "documentos") { irAteODocumento(); ligarAtualizarDocs(); }
     if (rota === "boas-vindas") bindBoasVindas();
     if (rota === "empresa") bindEmpresa();
     if (rota === "financeiro") bindFinanceiro();

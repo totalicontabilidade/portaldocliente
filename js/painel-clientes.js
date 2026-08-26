@@ -1700,6 +1700,12 @@
     if (vistaFicha === "documentos") {
       html += faltaHTML(c, pendentes, est) +
         '<div class="ficha__titulo">Documentos' +
+          /* A ficha é carregada uma vez e fica parada. Documento que
+             o cliente envia agora só aparece aqui depois de recarregar
+             a página inteira — e quem está conferindo não tem por que
+             adivinhar que precisa fazer isso. */
+          '<button type="button" class="btn btn--quiet btn--sm" id="clRecarregar">' +
+            ic("ic-refresh") + 'Atualizar</button>' +
           '<button type="button" class="btn btn--quiet btn--sm" id="clAplicacao">' +
             'Quais se aplicam</button>' +
         '</div>' +
@@ -4108,6 +4114,23 @@
 
     var cobrar = $("#clCobrar");
     if (cobrar) cobrar.addEventListener("click", function () { abrirCobranca(aberto); });
+
+    var recarregar = $("#clRecarregar");
+    if (recarregar) recarregar.addEventListener("click", function () {
+      if (!aberto) return;
+      recarregar.disabled = true;
+      recarregar.textContent = "Atualizando…";
+      carregarCliente(aberto.id).then(function (novo) {
+        empresas = empresas.map(function (x) { return x.id === novo.id ? novo : x; });
+        aberto = novo;
+        desenharFicha();
+        UI.toast("Ficha atualizada.", "ok", 2500);
+      }, function (e) {
+        recarregar.disabled = false;
+        recarregar.innerHTML = ic("ic-refresh") + "Atualizar";
+        UI.toast("Não foi possível atualizar: " + FB.explicar(e), "erro", 8000);
+      });
+    });
 
     var concluir = $("#clConcluir");
     if (concluir) concluir.addEventListener("click", function () {

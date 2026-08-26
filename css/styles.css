@@ -2359,7 +2359,12 @@ details.rec:not([open]) > .rec__body{display:none}
 .ficha__titulo{
   font-size:11px;font-weight:750;letter-spacing:.14em;text-transform:uppercase;
   color:var(--txt-4);margin:26px 0 10px;
+  /* Passou a carregar dois botões, e em linha eles empurravam o
+     título. Em tela estreita a linha quebra em vez de espremer. */
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
 }
+.ficha__titulo .btn{letter-spacing:0;text-transform:none}
+.ficha__titulo .btn:first-of-type{margin-left:auto}
 
 /* A marca completa na tela de entrada. É o único lugar com espaço
    para ela inteira; no cabeçalho entra só o símbolo, que continua

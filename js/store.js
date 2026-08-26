@@ -774,11 +774,20 @@
        veio do outro lado. */
     ligarTempoReal: function () { ligarTempoReal(); },
 
-    usarServidor: function (empresaId) {
+    /* `forcar` existe para o botão Atualizar da tela de documentos.
+
+       Sem ele, esta função sai na porta quando já está na empresa
+       certa — o que é o comportamento correto para ABRIR a sessão,
+       e inútil para RECARREGAR. Reaproveitar o caminho inteiro em
+       vez de escrever uma recarga própria não é preguiça: é aqui
+       que moram a restauração das senhas presas no aparelho e a
+       religada do tempo real, e uma segunda via disso tudo ficaria
+       para trás na primeira mudança. */
+    usarServidor: function (empresaId, forcar) {
       if (!global.Nuvem || !global.FB || !global.FB.ligado || !empresaId) {
         return Promise.resolve(false);
       }
-      if (backend.nome === "nuvem" && backend.empresaId === empresaId) {
+      if (!forcar && backend.nome === "nuvem" && backend.empresaId === empresaId) {
         return Promise.resolve(true);
       }
       var novo = global.Nuvem.criar(empresaId, Arquivos);
@@ -841,6 +850,24 @@
         notificar("saiu");
         return true;
       });
+    },
+
+    /* Buscar de novo o que está no servidor.
+
+       SOBE ANTES DE DESCER, e essa ordem não é detalhe: recarregar
+       troca o estado inteiro pelo do servidor, então o que ainda
+       não subiu daqui morreria. O flush primeiro garante que o
+       documento recém-anexado não evapore porque alguém apertou
+       Atualizar um segundo depois de enviá-lo. */
+    recarregar: function () {
+      if (backend.nome !== "nuvem" || !estado.empresaId) return Promise.resolve(false);
+      var id = estado.empresaId;
+      return Store.flush().then(function () {
+        return Store.usarServidor(id, true);
+      }).then(function (ok) {
+        if (ok) notificar("recarregado");
+        return !!ok;
+      }, function () { return false; });
     },
 
     get estado() { return estado; },
