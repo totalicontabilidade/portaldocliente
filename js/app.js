@@ -13,11 +13,14 @@
 
   /* ---------- Rotas ---------- */
   var ROTAS = [
+    /* A ordem aqui acompanha a do menu no index.html, que é quem
+       manda de verdade — esta lista só resolve título e validação.
+       Mantidas iguais para não mentir para quem vier depois. */
     { id: "inicio",      titulo: "Início",     icone: "ic-home",     nav: true },
+    { id: "academy",     titulo: "Academy",    icone: "ic-play",     nav: true },
     { id: "documentos",  titulo: "Documentos", icone: "ic-folder",   nav: true },
     { id: "financeiro",  titulo: "Bancos e maquininhas", icone: "ic-card", nav: true },
     { id: "mensagens",   titulo: "Mensagens",  icone: "ic-chat",     nav: true },
-    { id: "academy",     titulo: "Academy",    icone: "ic-play",     nav: true },
     { id: "empresa",     titulo: "Empresa",    icone: "ic-building", nav: true },
     { id: "ajuda",       titulo: "Ajuda",      icone: "ic-help",     nav: true },
     { id: "privacidade", titulo: "Privacidade e segurança", icone: "ic-shield", nav: false },
