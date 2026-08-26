@@ -158,7 +158,13 @@
       titulo: "Conferir o que chegou",
       texto: "A lista vem ordenada por quem está parado há mais tempo, não por nome. Abra um " +
              "cliente e você vê os documentos dele: aprovar, pedir correção com o motivo, ou " +
-             "tirar a marcação se errou. O que você aprova fica no nome de quem aprovou." },
+             "tirar a marcação se errou. O que você aprova fica no nome de quem aprovou. " +
+             "Documento que você devolveu continua ali para abrir e aprovar depois." },
+    { alvo: '.sidenav__item[data-aba="clientes"]',
+      titulo: "E encerrar quando acabar",
+      texto: "Quando não sobrar nada pendente, aparece Concluir migração na ficha. É esse " +
+             "botão que diz ao cliente que terminou — sem ele, o portal dele segue mostrando " +
+             "\"em análise pela Totali\" para sempre, esperando uma palavra que ninguém deu." },
     { alvo: '.sidenav__item[data-aba="pendencias"]',
       titulo: "Cobrar o que falta",
       texto: "Aqui está tudo o que ainda não chegou, empresa por empresa. O botão Cobrar monta " +
@@ -168,6 +174,12 @@
       titulo: "Responder quem escreveu",
       texto: "Todas as conversas em um lugar, com filtro de não lidas e de a resolver. Quando " +
              "terminar de tratar uma, marque como resolvida para ela sair da sua frente." },
+    { alvo: '.sidenav__item[data-aba="mensagens"]',
+      titulo: "Errou ao mandar?",
+      texto: "Clique com o botão direito na sua mensagem — no celular, segure o dedo nela. Dá " +
+             "para corrigir o texto nos primeiros 5 minutos e apagar nos primeiros 15. Só a " +
+             "sua, e apagada ela vira \"Mensagem apagada\" no seu nome: a conversa é o " +
+             "registro do que foi combinado, e nada some sem deixar rastro." },
     { alvo: '.sidenav__item[data-aba="novo"]',
       titulo: "Entrar um cliente novo",
       texto: "Preencha razão social e CNPJ e o painel devolve um link. O cliente abre o link, " +
@@ -186,8 +198,8 @@
   var PASSOS_ADMIN = [
     { alvo: null,
       titulo: "Você é administrador",
-      texto: "A rotina é a mesma de todo mundo. O que muda são três poderes que só você tem, e " +
-             "que ninguém da equipe consegue usar. Vou mostrar quais são." },
+      texto: "A rotina é a mesma de todo mundo. O que muda são quatro poderes que só você tem, " +
+             "e que ninguém da equipe consegue usar. Vou mostrar quais são." },
     { alvo: '.sidenav__item[data-aba="usuarios"]',
       titulo: "1. Quem entra no painel",
       texto: "Só administrador cria, remove ou muda o papel de alguém. Ao desligar uma pessoa, " +
@@ -196,16 +208,24 @@
     { alvo: '.sidenav__item[data-aba="usuarios"]',
       titulo: "Administrador ou equipe?",
       texto: "Quem é da equipe faz a rotina inteira: confere documento, cobra, responde, cria " +
-             "cliente e abre senha de maquininha. O que ele NÃO faz é mexer nesta lista nem " +
-             "excluir cliente definitivamente. Na dúvida, cadastre como equipe." },
+             "cliente e abre senha de maquininha. O que ele NÃO faz é mexer nesta lista, " +
+             "excluir cliente definitivamente nem apagar mensagem de outra pessoa. Na dúvida, " +
+             "cadastre como equipe." },
     { alvo: '.sidenav__item[data-aba="clientes"]',
       titulo: "2. Excluir um cliente de vez",
       texto: "Dentro da ficha, em Encerrar cliente, só você vê o botão de excluir. Ele apaga " +
              "documentos, mensagens, senhas e o acesso — sem volta e sem backup. Para encerrar " +
              "atendimento, arquivar resolve e preserva tudo; documento de cliente tem prazo de " +
              "guarda." },
+    { alvo: '.sidenav__item[data-aba="mensagens"]',
+      titulo: "3. Apagar qualquer mensagem",
+      texto: "Cada um apaga a própria mensagem, e só nos primeiros 15 minutos. Você apaga " +
+             "qualquer uma, inclusive do cliente, a qualquer tempo — é a saída para algo " +
+             "indevido que ninguém descobre em 15 minutos. Nada some de vez: fica " +
+             "\"Mensagem apagada\" no seu nome. E editar mensagem alheia ninguém faz, nem " +
+             "você: apagar tira algo do registro, editar põe palavra na boca dos outros." },
     { alvo: '.sidenav__item[data-aba="seguranca"]',
-      titulo: "3. As chaves do canal seguro",
+      titulo: "4. As chaves do canal seguro",
       texto: "É o par de chaves que deixa o cliente mandar senha sem ela ficar legível. Já está " +
              "funcionando; você só volta aqui se precisar trocar. Perder a chave privada torna " +
              "ilegível tudo o que os clientes já enviaram." },

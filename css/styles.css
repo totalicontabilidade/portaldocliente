@@ -1066,6 +1066,11 @@ input[type=checkbox]{accent-color:var(--gold)}
 }
 .menuctx__i .ic{width:17px;height:17px;color:var(--txt-4);flex:none}
 .menuctx__i:hover,.menuctx__i:focus-visible{background:var(--glass-2);color:var(--txt);outline:none}
+.chat__dica{
+  align-self:center;text-align:center;
+  padding:8px 12px 2px;line-height:1.5;max-width:min(100%,420px);
+}
+
 .menuctx__i--perigo{color:var(--danger)}
 .menuctx__i--perigo .ic{color:var(--danger)}
 .menuctx__i--perigo:hover,.menuctx__i--perigo:focus-visible{background:var(--danger-bg);color:var(--danger)}

@@ -1488,6 +1488,11 @@
               chave: chave,
               autorNome: Store.estado.empresa.responsavelNome || ""
             });
+            /* A mensagem sobe sozinha na hora, mas o `obs` esperaria
+               a gravação em lote. Dizer "enviada" e deixar a resposta
+               só no aparelho é a mesma promessa vazia que já custou
+               uma senha perdida aqui. */
+            Store.flush();
             UI.fecharModal();
             render();
             UI.toast("Resposta enviada. A Totali vai olhar de novo.", "ok", 6000);
@@ -2524,6 +2529,18 @@
             (!apagada && m.editadaEm ? '<span class="msg__editada">editada</span>' : '') + '</div>' +
         '</div>';
       });
+      /* SEM ESTA LINHA A OPÇÃO NÃO EXISTE NA PRÁTICA.
+
+         Clique direito e toque longo não têm nada na tela que os
+         anuncie: quem não souber que dá, nunca tenta. A dica só
+         aparece quando há mensagem sua e recente o bastante para
+         ainda dar tempo — dizer "segure o dedo" sobre algo que já
+         passou do prazo seria pior que não dizer nada. */
+      if (msgs.some(function (m) { return Store.podeMexerNaMensagem(m, "apagar"); })) {
+        html += '<div class="chat__dica text-xs text-muted">' +
+          'Errou ao enviar? Segure o dedo na sua mensagem — no computador, clique com o ' +
+          'botão direito.</div>';
+      }
       html += '</div>';
     }
 

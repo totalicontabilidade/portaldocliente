@@ -175,8 +175,16 @@
       '<div class="field">' +
         '<label class="field__label" for="mbPapel">Papel</label>' +
         '<select class="select" id="mbPapel">' +
-          '<option value="equipe">Equipe — vê clientes, confere documentos, conversa e cobra</option>' +
-          '<option value="admin">Administrador — tudo isso, mais abrir senhas e gerenciar a equipe</option>' +
+          /* "Mais abrir senhas" estava errado e enganava na hora de
+             escolher o papel: abrir senha de maquininha é da EQUIPE
+             inteira desde sempre — ver functions/senhas.js, que só
+             exige estar em /usuarios. O que é exclusivo do admin é
+             gerir a equipe, excluir cliente de vez e apagar
+             mensagem de outra pessoa. */
+          '<option value="equipe">Equipe — vê clientes, confere documentos, conversa, cobra e ' +
+            'abre senhas</option>' +
+          '<option value="admin">Administrador — tudo isso, mais gerenciar a equipe, excluir ' +
+            'cliente e apagar qualquer mensagem</option>' +
         '</select></div>' +
       '<div class="field">' +
         '<span class="field__label">Departamentos</span>' +
