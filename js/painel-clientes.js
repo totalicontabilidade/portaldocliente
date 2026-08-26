@@ -1405,6 +1405,11 @@
                     'data-emp="' + U.escAttr(c.id) + '">Reabrir a conversa</button>' +
                 '</div>'
               : '')) +
+        /* Os modelos existiam só na aba Conversa da ficha. Quem
+           responde pela caixa de entrada — que é o caminho curto, e
+           por isso o mais usado — digitava tudo à mão. Mesma peça,
+           os dois lugares. */
+        modelosHTML() +
         '<div class="field" style="margin-top:14px">' +
           '<label class="field__label" for="msTexto">Responder</label>' +
           '<textarea class="textarea" id="msTexto" rows="3" maxlength="4000" ' +
@@ -3925,7 +3930,11 @@
           return '<button type="button" class="chip-modelo" data-modelo="' + i + '">' +
             U.esc(m.titulo) + '</button>';
         }).join("") +
-        '<button type="button" class="chip-modelo chip-modelo--edit" id="clModelos">' +
+        /* `data-` em vez de `id`: o bloco agora existe em duas telas,
+           e id repetido em duas telas é o começo de um bug chato de
+           achar. Quem trata é o clique delegado, que não depende de
+           alguém lembrar de ligar o botão na tela nova. */
+        '<button type="button" class="chip-modelo chip-modelo--edit" data-modelos-editar="1">' +
           'Editar modelos</button>' +
       '</span>' +
     '</div>';
@@ -4559,8 +4568,6 @@
       pedirAprovacaoEmLote(paraConferir(aberto), "nesta empresa");
     });
 
-    var gerenciar = $("#clModelos");
-    if (gerenciar) gerenciar.addEventListener("click", abrirGerenciadorModelos);
   }
 
   /* Número no formato que o WhatsApp entende: só dígitos, com o
@@ -5024,15 +5031,24 @@
 
       /* Modelo escolhido: o texto entra no campo, e a pessoa
          ainda revisa antes de enviar. Nada sai sozinho. */
+      /* Vale nos DOIS lugares onde se escreve para o cliente: a aba
+         Conversa da ficha e a caixa de entrada. `alvoDaConversa()`
+         já sabe qual dos dois está em pé, e o campo é o que existir
+         na tela — só um dos dois existe por vez. */
+      if (alvo.closest("[data-modelos-editar]")) { abrirGerenciadorModelos(); return; }
+
       var mod = alvo.closest("[data-modelo]");
-      if (mod && aberto) {
+      if (mod) {
+        var cMod = alvoDaConversa();
         var escolhido = modelos[Number(mod.getAttribute("data-modelo"))];
-        var campoMsg = $("#clMsg");
-        if (escolhido && campoMsg) {
-          campoMsg.value = preencherModelo(escolhido.texto, aberto);
-          campoMsg.focus();
-          campoMsg.setSelectionRange(campoMsg.value.length, campoMsg.value.length);
+        var campoMsg = $("#clMsg") || $("#msTexto");
+        if (!cMod || !escolhido || !campoMsg) {
+          UI.toast("Abra uma conversa para usar um modelo.", "erro", 6000);
+          return;
         }
+        campoMsg.value = preencherModelo(escolhido.texto, cMod);
+        campoMsg.focus();
+        campoMsg.setSelectionRange(campoMsg.value.length, campoMsg.value.length);
         return;
       }
 
