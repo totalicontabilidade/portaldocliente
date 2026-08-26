@@ -4651,11 +4651,19 @@
         }
       }
       if (motivo === "erro-persistencia") {
-        UI.toast(Store.noServidor
-          ? "Não conseguimos salvar no servidor agora. Verifique a internet — o que você digitou " +
-            "não se perde, tentamos de novo sozinhos."
-          : "Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
-            "o navegador está em modo privado.", "erro", 9000);
+        /* Mandar "verifique a internet" para quem está com a
+           internet boa faz a pessoa perder tempo no lugar errado e
+           duvidar do aviso na próxima vez. Quando o servidor RECUSA,
+           tentar de novo não resolve — só a Totali resolve. */
+        var recusa = Store.ultimoErro === "permission-denied";
+        UI.toast(!Store.noServidor
+          ? "Não foi possível salvar neste aparelho. O armazenamento pode estar cheio ou " +
+            "o navegador está em modo privado."
+          : recusa
+            ? "O servidor não aceitou este envio. Não é a sua internet, e não adianta tentar de " +
+              "novo — avise a Totali pelas Mensagens. O que você enviou não se perde."
+            : "Não conseguimos salvar no servidor agora. Verifique a internet — o que você " +
+              "digitou não se perde, tentamos de novo sozinhos.", "erro", 11000);
       }
       /* A recuperação também precisa de voz. Quem viu o erro fica
          sem saber se pode fechar a página; sem este aviso, a única

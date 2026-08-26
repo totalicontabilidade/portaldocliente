@@ -613,10 +613,20 @@
         notificar(tinhaPresa ? "credencial-chegou" : "salvo-depois-do-erro");
       }
       erroPersistencia = false;
+      Store.ultimoErro = null;
       return true;
-    }, function () {
+    }, function (e) {
       reenviando = false;
       emCurso = null;
+      /* O ERRO ERA JOGADO FORA AQUI, e a tela então culpava a
+         internet em todo caso.
+
+         Em 26/08/2026 o servidor passou a recusar o envio de
+         documento por uma regra do Firestore, e o cliente via
+         "verifique a internet" — com a internet perfeita. A causa
+         real, `permission-denied`, existia e estava sendo
+         descartada nesta linha. Guardar custa uma variável. */
+      Store.ultimoErro = (e && e.code) || "";
       if (!erroPersistencia) {
         erroPersistencia = true;
         notificar("erro-persistencia");

@@ -248,6 +248,23 @@ service cloud.firestore {
                            'arquivos', 'valor', 'na', 'forma',
                            'obs', 'atualizadoEm', 'lembrete'
                          ]));
+        // A trava do `na` proibia QUALQUER toque no campo, e isso
+        // quebrou o envio de documento por inteiro.
+        //
+        // Quando a equipe decide, o painel cria o documento com um
+        // único campo: `naEquipe`. O `na` não existe ali. Aí o
+        // cliente envia um arquivo, o portal grava os sete campos
+        // dele, e o `na: false` NASCE — o que conta como alteração.
+        // Resultado: recusa. O arquivo subia para o Storage, o
+        // registro nunca era criado, e no refresh o documento sumia
+        // e voltava a pendente.
+        //
+        // O que precisa ser impedido não é tocar no campo: é o
+        // cliente se declarar "não se aplica" por cima da decisão
+        // da equipe. Então o que vale agora é o VALOR — ele pode
+        // escrever `na` à vontade, desde que não fique `true`. Se
+        // já era `true` de antes da equipe decidir, também segue
+        // valendo: `naEquipe` ganha do `na` de qualquer jeito.
         allow update: if ehEquipe()
                       || (ehDonoDaEmpresa(empresaId)
                           && soEstesCampos([
@@ -255,7 +272,9 @@ service cloud.firestore {
                                'obs', 'atualizadoEm', 'lembrete'
                              ])
                           && (!('naEquipe' in resource.data)
-                              || !('na' in request.resource.data.diff(resource.data).affectedKeys())));
+                              || request.resource.data.get('na', false) == false
+                              || request.resource.data.get('na', false)
+                                 == resource.data.get('na', false)));
         allow delete: if ehAdmin();
       }
 
