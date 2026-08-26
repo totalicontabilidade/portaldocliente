@@ -1120,6 +1120,22 @@ input[type=checkbox]{accent-color:var(--gold)}
 .arq--linha{max-width:190px}
 .arq--linha .arq__n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* Arquivo e o botão de apagar andam juntos: a lixeira é DAQUELE
+   arquivo, não do documento. Num item com três anexos, a diferença
+   é qual deles some. */
+.arq-par{display:inline-flex;align-items:stretch;gap:4px;max-width:100%}
+.arq-x{
+  flex:none;display:grid;place-items:center;
+  width:32px;border-radius:9px;
+  border:1px solid var(--stroke);background:transparent;
+  color:var(--txt-4);cursor:pointer;
+  transition:color .18s var(--ease),border-color .18s var(--ease),background .18s var(--ease);
+}
+.arq-x .ic{width:15px;height:15px}
+.arq-x:hover,.arq-x:focus-visible{
+  color:var(--danger);border-color:var(--danger-br);background:var(--danger-bg);outline:none;
+}
+
 /* Selo que também é botão: só o "Respondido", que guarda o texto
    do cliente atrás dele. */
 .badge--btn{cursor:pointer;border-style:solid}

@@ -1676,21 +1676,98 @@
           '<td>' + seloDaLinha(c, p.chave, p.sit) + '</td>' +
           '<td>' + (arquivos.length
             ? arquivos.map(function (a) {
-                return '<button type="button" class="arq arq--linha" data-abrir="' +
-                  U.escAttr(a.id) + '" data-emp="' + U.escAttr(c.id) + '" ' +
-                  'data-nome="' + U.escAttr(a.nome) + '">' +
-                  ic(U.iconePorExtensao(U.extensao(a.nome))) +
-                  '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
+                /* Apagar fica COLADO no arquivo, e não na coluna de
+                   ações. Ação de coluna vale para o documento; esta
+                   vale para um arquivo específico, e num item com
+                   três anexos a diferença é qual deles some. */
+                return '<span class="arq-par">' +
+                  '<button type="button" class="arq arq--linha" data-abrir="' +
+                    U.escAttr(a.id) + '" data-emp="' + U.escAttr(c.id) + '" ' +
+                    'data-nome="' + U.escAttr(a.nome) + '">' +
+                    ic(U.iconePorExtensao(U.extensao(a.nome))) +
+                    '<span class="arq__n">' + U.esc(a.nome) + '</span></button>' +
+                  '<button type="button" class="arq-x" data-remover-doc="' + U.escAttr(p.chave) +
+                    '" data-arq="' + U.escAttr(a.id) + '" data-emp="' + U.escAttr(c.id) +
+                    '" data-nome="' + U.escAttr(a.nome) + '" ' +
+                    'title="Apagar este arquivo" aria-label="Apagar ' + U.escAttr(a.nome) + '">' +
+                    ic("ic-trash") + '</button>' +
+                '</span>';
               }).join("")
             : '<span class="conf__vazio">—</span>') + '</td>' +
           '<td class="conf__dir"><div class="conf__acoes">' +
             acoesDeRevisao(c, p.chave, p.sit) +
             '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
-              U.escAttr(p.chave) + '">Cobrar</button>' +
+              U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>' +
           '</div></td>' +
         '</tr>';
       }).join("") +
       '</tbody></table></div>';
+  }
+
+  /* ============================================================
+     APAGAR UM DOCUMENTO DO CLIENTE
+
+     Existe porque acontece: o cliente manda a foto errada, manda
+     duas vezes, ou manda o documento de outra empresa. Até aqui só
+     ele podia remover — e pedir "apaga aquele arquivo e manda de
+     novo" é uma ida e volta que trava a conferência por dias.
+
+     PERGUNTA ANTES, SEMPRE, e a pergunta diz o nome do arquivo.
+     "Tem certeza?" sozinho não é aviso: quem clicou já achava que
+     tinha certeza. O que faz alguém parar é ler o nome do que vai
+     sumir e perceber que não era aquele.
+
+     Apaga o arquivo no Storage E o registro no documento. Se o
+     Storage falhar, o registro NÃO sai: melhor um arquivo órfão no
+     servidor, que ninguém vê, do que um documento apontando para
+     um arquivo que não existe mais — este último a equipe clica,
+     não abre, e não entende por quê.
+     ============================================================ */
+  function removerDocumento(empresaId, chave, arquivoId, nome) {
+    var c = (empresas || []).filter(function (x) { return x.id === empresaId; })[0];
+    if (!c) {
+      UI.toast("Não encontrei este cliente. Recarregue a página e tente de novo.", "erro", 8000);
+      return;
+    }
+    UI.confirmar({
+      titulo: "Apagar este arquivo",
+      mensagem: "Vai sair do servidor o arquivo \"" + (nome || "sem nome") + "\", que o cliente " +
+                "enviou. Ele volta a ver o documento como pendente e vai precisar enviar de novo. " +
+                "Não dá para desfazer.",
+      confirmar: "Apagar arquivo",
+      perigo: true
+    }).then(function (ok) {
+      if (!ok) return;
+      UI.toast("Apagando…", "", 4000);
+      var caminho = "empresas/" + c.id + "/documentos/" + arquivoId + "/arquivo";
+      FB.storage.ref(caminho).delete().catch(function (e) {
+        /* Arquivo que já não existe não é erro: o registro ainda
+           precisa sair, senão a tela segue mostrando o que não há. */
+        if (e && e.code === "storage/object-not-found") return null;
+        throw e;
+      }).then(function () {
+        var reg = c.dados.itens[chave] || {};
+        var restantes = (reg.arquivos || []).filter(function (a) { return a.id !== arquivoId; });
+        return FB.db.collection("empresas").doc(c.id)
+          .collection("itens").doc(global.Nuvem.codificar(chave))
+          .set({ arquivos: restantes, atualizadoEm: Date.now() }, { merge: true })
+          .then(function () {
+            c.dados.itens[chave] = reg;
+            reg.arquivos = restantes;
+            /* A trilha de auditoria não é escrita aqui: a função
+               `auditarItem` observa a gravação acima e registra
+               sozinha, com poder de administrador. Anotar daqui
+               seria uma segunda versão do mesmo fato, e a de cá
+               poderia falhar calada. */
+            desenharFicha();
+            atualizarContadores();
+            if ((location.hash || "").indexOf("pendencias") > -1) desenharPendencias();
+            UI.toast("Arquivo apagado. O cliente vê o documento como pendente.", "ok", 7000);
+          });
+      }).catch(function (e) {
+        UI.toast("Não foi possível apagar: " + FB.explicar(e), "erro", 9000);
+      });
+    });
   }
 
   /* Só oferece decidir sobre o que chegou. Documento que nunca foi
@@ -2163,11 +2240,18 @@
     var corpo = "";
     if (arquivos.length) {
       corpo += '<div class="arqs">' + arquivos.map(function (a) {
-        return '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) + '" ' +
-          'data-nome="' + U.escAttr(a.nome) + '">' +
-          ic(U.iconePorExtensao(U.extensao(a.nome))) +
-          '<span class="arq__n">' + U.esc(a.nome) + '</span>' +
-          '<span class="arq__t">' + U.esc(U.bytes(a.tamanho)) + '</span></button>';
+        return '<span class="arq-par">' +
+          '<button type="button" class="arq" data-abrir="' + U.escAttr(a.id) + '" ' +
+            'data-emp="' + U.escAttr(c.id) + '" data-nome="' + U.escAttr(a.nome) + '">' +
+            ic(U.iconePorExtensao(U.extensao(a.nome))) +
+            '<span class="arq__n">' + U.esc(a.nome) + '</span>' +
+            '<span class="arq__t">' + U.esc(U.bytes(a.tamanho)) + '</span></button>' +
+          '<button type="button" class="arq-x" data-remover-doc="' + U.escAttr(chave) +
+            '" data-arq="' + U.escAttr(a.id) + '" data-emp="' + U.escAttr(c.id) +
+            '" data-nome="' + U.escAttr(a.nome) + '" ' +
+            'title="Apagar este arquivo" aria-label="Apagar ' + U.escAttr(a.nome) + '">' +
+            ic("ic-trash") + '</button>' +
+        '</span>';
       }).join("") + '</div>';
     }
     if (reg.valor) {
@@ -4846,8 +4930,33 @@
       var exc = alvo.closest("[data-excluir]");
       if (exc) { var ex = acharEmpresa("data-excluir", exc); if (ex) pedirExclusao(ex); return; }
 
+      /* A QUARTA SAÍDA CALADA DA MESMA FAMÍLIA.
+
+         Era `if (ci && aberto)`. Na aba Pendências não há ficha
+         aberta, então o botão Cobrar existia na tela e não fazia
+         nada — nem erro. Como nas outras três, a correção é o botão
+         dizer de quem é o documento em vez de a função adivinhar. */
       var ci = alvo.closest("[data-cobrar-item]");
-      if (ci && aberto) { cobrarItem(aberto, ci.getAttribute("data-cobrar-item")); return; }
+      if (ci) {
+        var cCob = ci.getAttribute("data-emp")
+          ? (empresas || []).filter(function (x) { return x.id === ci.getAttribute("data-emp"); })[0]
+          : aberto;
+        if (!cCob) {
+          UI.toast("Não encontrei este cliente. Recarregue a página e tente de novo.", "erro", 8000);
+          return;
+        }
+        cobrarItem(cCob, ci.getAttribute("data-cobrar-item"));
+        return;
+      }
+
+      var rmDoc = alvo.closest("[data-remover-doc]");
+      if (rmDoc) {
+        removerDocumento(rmDoc.getAttribute("data-emp"),
+                         rmDoc.getAttribute("data-remover-doc"),
+                         rmDoc.getAttribute("data-arq"),
+                         rmDoc.getAttribute("data-nome"));
+        return;
+      }
 
       var vinc = alvo.closest("[data-vincular]");
       if (vinc) {
