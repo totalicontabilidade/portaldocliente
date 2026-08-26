@@ -245,3 +245,30 @@ Regras do Firestore e do Storage, Cloud Functions, App Check, o
 segredo `chave-privada-credenciais` no Secret Manager e o par de
 chaves em `js/chave-publica.js`. Nada disso é dado de cliente, e
 refazer sem precisar só cria chance de quebrar o que funciona.
+
+## gerar-manual-backup.js — o PDF do backup
+
+A única ferramenta desta pasta que **não** roda no Cloud Shell e
+não encosta em dado nenhum. Roda na máquina e escreve um arquivo:
+
+```
+node ferramentas/gerar-manual-backup.js
+```
+
+Gera `Backup do Portal do Cliente.pdf` na raiz do projeto — o
+passo a passo de como recuperar o que foi apagado por engano. O
+`.gitignore` já barra `*.pdf`, então ele não sobe para o site.
+
+Use o jsPDF que já está em `lib/`, sem instalar nada.
+
+### Ao editar o texto
+
+O jsPDF escreve em **Latin-1**. Acento do português cabe nessa
+tabela e sai perfeito; o que não cabe é pontuação tipográfica —
+travessão, reticências como um caractere só, aspas curvas. Esses
+viram quadradinho preto no meio da frase.
+
+O script tem uma trava no fim: varre o próprio arquivo e se
+recusa a gerar o PDF se achar qualquer caractere acima de 255.
+Se ele reclamar, troque o travessão por hífen e as reticências
+por três pontos separados.
