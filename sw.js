@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v98";
+var VERSAO = "v99";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -148,7 +148,20 @@ self.addEventListener("fetch", function (ev) {
   if (req.mode === "navigate") {
     var pagina = paginaDe(req.url);
     ev.respondWith(
-      fetch(req).then(function (resp) {
+      /* O `no-cache` aqui é o mesmo remédio já aplicado ao código
+         mais abaixo, e pelo mesmo motivo.
+
+         "Rede primeiro" não bastava: o GitHub Pages manda guardar
+         por 10 minutos, então a busca na rede era atendida pelo
+         cache do próprio navegador e a página vinha VELHA mesmo com
+         a versão nova publicada. Depois de um deploy, o portal
+         continuava mostrando a tela antiga por até 10 minutos — e
+         quem testa logo depois de publicar conclui que o deploy
+         falhou. Aconteceu aqui, em 26 de agosto de 2026.
+
+         Com o `no-cache` o servidor responde 304 quando não mudou
+         nada, que é curto, e manda o arquivo quando mudou. */
+      fetch(new Request(req, { cache: "no-cache" })).then(function (resp) {
         if (guardavel(resp)) {
           var copia = resp.clone();
           caches.open(CACHE).then(function (c) { c.put(pagina, copia); });
