@@ -1365,6 +1365,60 @@
     return html + rodape();
   }
 
+  /* ============================================================
+     RECARGA AO VOLTAR PARA A ABA
+
+     Vale para o portal inteiro, não só para os documentos: o
+     cliente deixa a aba aberta, a equipe aprova ou pede correção
+     algum tempo depois, e quando ele volta a tela precisa estar
+     certa sem ele fazer nada.
+
+     Não é tempo real, e é de propósito. Conferência de documento
+     leva minutos, não segundos — um ouvinte permanente traria
+     risco de derrubar envio em andamento em troca de um ganho que
+     quase ninguém veria. A conversa continua sendo a exceção: ela
+     tem ouvinte próprio, porque ali segundo importa.
+
+     AS TRAVAS EXISTEM PORQUE RECARREGAR APAGA A TELA. Cada uma
+     delas cobre um jeito de a pessoa perder trabalho:
+     ============================================================ */
+  var enviandoArquivos = false;
+  var ultimaRecarga = 0;
+  var ESPERA_ENTRE_RECARGAS_MS = 20000;
+
+  function podeRecarregarSozinho() {
+    if (!Store.noServidor) return false;          /* sem servidor, nada a buscar */
+    if (document.hidden) return false;
+    if (enviandoArquivos) return false;           /* upload em curso morreria */
+    if (Store.temErroDePersistencia) return false;/* há coisa não salva aqui */
+    if (document.querySelector(".modal-backdrop")) return false;   /* janela aberta */
+
+    /* Digitando: recarregar apagaria o que a pessoa escreveu. Vale
+       para senha de banco, observação, mensagem — qualquer campo. */
+    var foco = document.activeElement;
+    if (foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return false;
+
+    /* Troca rápida de aba não é "voltar depois de um tempo". Sem
+       isto, alternar entre janelas dispararia uma busca a cada
+       clique. */
+    if (Date.now() - ultimaRecarga < ESPERA_ENTRE_RECARGAS_MS) return false;
+    return true;
+  }
+
+  function ligarRecargaAoVoltar() {
+    document.addEventListener("visibilitychange", function () {
+      if (!podeRecarregarSozinho()) return;
+      ultimaRecarga = Date.now();
+      Store.recarregar().then(function (ok) {
+        /* Silencioso quando dá certo: a pessoa não pediu nada, e um
+           aviso a cada volta de aba viraria ruído. Se falhar, também
+           cala — ela não perdeu nada, e o botão Atualizar continua
+           ali para quem quiser insistir. */
+        if (ok && !document.hidden) render();
+      });
+    });
+  }
+
   /* O botão Atualizar da tela de documentos.
 
      Sem servidor não há o que buscar — o botão some em vez de
@@ -3877,6 +3931,11 @@
     var fila = Promise.resolve();
     var enviados = 0, erros = 0;
 
+    /* A recarga automática precisa saber que há envio em curso: ela
+       troca o estado inteiro pelo do servidor, e no meio de um
+       upload isso derrubaria o que ainda não subiu. */
+    enviandoArquivos = true;
+
     /* Barra de progresso real, no lugar do aviso genérico. Em 4G
        ruim, um PDF de 15 MB parecia travamento — e travamento faz
        a pessoa tocar de novo e mandar o mesmo documento duas
@@ -3909,6 +3968,7 @@
     });
 
     fila.then(function () {
+      enviandoArquivos = false;
       if (barra) barra.fechar();
       if (enviados) {
         Store.flush();
@@ -4658,6 +4718,7 @@
     document.body.appendChild(inputFoto);
 
     ligarEventosGlobais();
+    ligarRecargaAoVoltar();
 
     /* Avisos ao cliente. Só notificamos o que veio da Totali —
        ninguém precisa ser avisado da própria ação. */
