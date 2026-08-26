@@ -952,6 +952,32 @@
             ? ' <span class="text-xs" style="opacity:.75">— ' + U.esc(U.dataCurta(reg.revisao.em)) + '</span>'
             : '') +
           '</span></div>';
+
+      /* NEM TODA CORREÇÃO PEDIDA É UM DOCUMENTO ERRADO.
+
+         Às vezes o documento está certo e quem pediu a correção é
+         que não tinha o contexto — e o cliente ficava sem saída:
+         ou reenviava o mesmo arquivo, o que não explica nada, ou
+         ia para as Mensagens e a conversa perdia o vínculo com o
+         documento.
+
+         Aqui ele responde SEM reenviar. A resposta fica colada ao
+         item, e a equipe recebe o recado na conversa, com o link
+         para este documento. A pendência continua de pé até a
+         equipe decidir: o cliente explica, quem aprova é a
+         Totali. */
+      if (reg.obs) {
+        html += '<div class="notice notice--info" style="margin-top:8px;padding:11px 13px;font-size:12.5px">' +
+            '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
+            '<span><strong>Você respondeu:</strong> ' + U.esc(reg.obs) +
+            '<br><span class="text-xs" style="opacity:.75">A Totali vai olhar de novo.</span>' +
+            '</span></div>';
+      }
+      html += '<div class="row" style="margin-top:9px">' +
+          '<button type="button" class="btn btn--ghost btn--sm" data-justificar="' +
+            U.escAttr(chave) + '">' + ic("ic-chat") +
+            (reg.obs ? 'Editar minha resposta' : 'Responder sem reenviar') + '</button>' +
+        '</div>';
     }
     if (sit === "aprovado" && reg.revisao && reg.revisao.em) {
       html += '<div class="item__desc" style="color:var(--ok)">Conferido pela Totali em ' +
@@ -1417,6 +1443,60 @@
         if (ok && !document.hidden) render();
       });
     });
+  }
+
+  /* Responder a uma correção sem reenviar o documento.
+
+     A resposta vai a DOIS lugares de propósito: fica em `obs`, que
+     é do item e a equipe vê ao abrir o documento, e vira mensagem
+     amarrada à `chave`, que é o que faz o recado chegar de verdade
+     — item no painel ninguém abre sem motivo, mensagem aparece com
+     contador.
+
+     O que ela NÃO faz é tirar a pendência. O cliente não pode
+     aprovar o próprio documento, e a regra do servidor nem
+     permitiria: `revisao` não está na lista de campos dele. Ele
+     explica; quem decide continua sendo a Totali. */
+  function abrirResposta(chave) {
+    var reg = Store.item(chave);
+    var nome = nomeDoItem(chave) || "este documento";
+    var mo = UI.modal({
+      titulo: "Responder à Totali",
+      corpoHTML:
+        '<p style="font-size:13px;line-height:1.6;color:var(--txt-3);margin-bottom:12px">' +
+          'Sobre <strong>' + U.esc(nome) + '</strong>. Use quando o documento já está certo e ' +
+          'o que falta é explicar — não precisa enviar de novo.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="respTxt">Sua resposta</label>' +
+          '<textarea class="textarea" id="respTxt" rows="5" data-focus maxlength="1000" ' +
+            'placeholder="Ex.: este é o contrato mais recente, a última alteração foi em 2019."' +
+            '></textarea>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Enviar resposta", classe: "btn--primary", fecharAntes: false,
+          onClick: function () {
+            var campo = $("#respTxt", mo.caixa);
+            var t = String(campo && campo.value || "").trim().slice(0, 1000);
+            if (!t) { if (campo) campo.focus(); return; }
+            Store.commit(function () {
+              Store.item(chave).obs = t;
+              Store.item(chave).atualizadoEm = Date.now();
+            }, "obs");
+            Store.enviarMensagem("Sobre " + nome + ": " + t, {
+              chave: chave,
+              autorNome: Store.estado.empresa.responsavelNome || ""
+            });
+            UI.fecharModal();
+            render();
+            UI.toast("Resposta enviada. A Totali vai olhar de novo.", "ok", 6000);
+          }
+        }
+      ]
+    });
+    var campo = $("#respTxt", mo.caixa);
+    if (campo && reg && reg.obs) campo.value = reg.obs;
   }
 
   /* Apagar e corrigir a própria mensagem: clique direito no
@@ -4182,6 +4262,12 @@
       if (ajuda) {
         var p = ajuda.getAttribute("data-ajuda").split("|");
         abrirAjudaItem(p[0], p[1]);
+        return;
+      }
+
+      var justificar = ev.target.closest("[data-justificar]");
+      if (justificar) {
+        abrirResposta(justificar.getAttribute("data-justificar"));
         return;
       }
 

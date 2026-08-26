@@ -2094,6 +2094,15 @@
       corpo += '<div class="text-xs" style="margin-top:6px;color:var(--danger)">Correção pedida: ' +
         U.esc(rev.motivo) + '</div>';
     }
+    /* A resposta do cliente a uma correção, quando ele diz que o
+       documento já está certo em vez de reenviar. Fica em destaque
+       porque é a informação que decide se a correção procede — e
+       quem abre este item está justamente decidindo isso. */
+    if (reg.obs) {
+      corpo += '<div class="notice notice--info" style="margin-top:8px;padding:10px 12px;font-size:12.5px">' +
+        '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
+        '<span><strong>O cliente respondeu:</strong> ' + U.esc(reg.obs) + '</span></div>';
+    }
     if (rev.por && rev.em) {
       corpo += '<div class="text-xs text-muted" style="margin-top:4px">' +
         U.esc(rev.por) + ' · ' + U.esc(U.dataHora(rev.em)) + '</div>';
