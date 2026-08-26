@@ -96,6 +96,53 @@
     { v: "auto", rot: "Deixar com ele", dica: "O cliente decide, como era antes" }
   ];
 
+  /* Os atalhos do topo, que resolvem a lista inteira de uma vez.
+
+     "Marcar tudo como não se aplica" é diferente dos outros dois:
+     ele ESVAZIA a lista do cliente. Os outros deixam trabalho para
+     alguém fazer; esse faz o portal daquela empresa não pedir mais
+     nada. Por isso, e só ele, pergunta antes. */
+  var TODOS = [
+    { v: "auto", rot: "Deixar tudo com o cliente" },
+    { v: "sim",  rot: "Marcar tudo como necessário" },
+    { v: "nao",  rot: "Marcar tudo como não se aplica", pergunta: true }
+  ];
+
+  function barraTodosHTML() {
+    return TODOS.map(function (t) {
+      return '<button type="button" class="btn btn--quiet btn--sm" data-aplic-todos="' +
+        U.escAttr(t.v) + '">' + U.esc(t.rot) + '</button>';
+    }).join("");
+  }
+
+  /* A pergunta mora DENTRO desta janela, e não numa por cima.
+
+     UI.confirmar() abre um modal novo, e UI.modal() começa fechando
+     o que já estiver aberto — só existe um `modalAberto`. Chamar de
+     dentro daqui derrubaria esta tela e levaria junto tudo o que a
+     pessoa marcou e ainda não salvou. */
+  function certezaHTML(quantos, semSocios) {
+    var doc = quantos === 1 ? "documento" : "documentos";
+    return '<div class="notice notice--warn" style="display:block">' +
+      '<div class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:12px">' +
+        '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
+        '<span>Isso tira <strong>os ' + quantos + ' ' + doc + ' desta lista</strong> da tela ' +
+        'do cliente. Ele abre o portal e não encontra documento nenhum para enviar.' +
+        (semSocios
+          ? ' Os documentos de sócio ficam de fora desta marcação: eles ainda não existem, ' +
+            'e vão aparecer quando ele cadastrar os sócios.'
+          : '') +
+        ' Tem certeza?</span>' +
+      '</div>' +
+      '<div class="row" style="margin-top:12px">' +
+        '<button type="button" class="btn btn--ghost btn--sm" data-aplic-certeza="nao">' +
+          'Cancelar</button>' +
+        '<button type="button" class="btn btn--danger btn--sm" data-aplic-certeza="sim">' +
+          'Sim, tirar todos</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function linhaHTML(linha, valor, i) {
     return '<div class="aplic">' +
       '<div class="aplic__cab">' +
@@ -163,11 +210,8 @@
               '<span>Os documentos de sócio ainda não aparecem aqui: eles só existem depois que ' +
               'o cliente cadastrar os sócios. Você define esses na ficha dele.</span></div>'
           : '') +
-        '<div class="row" style="margin-bottom:12px">' +
-          '<button type="button" class="btn btn--quiet btn--sm" data-aplic-todos="auto">' +
-            'Deixar tudo com o cliente</button>' +
-          '<button type="button" class="btn btn--quiet btn--sm" data-aplic-todos="sim">' +
-            'Marcar tudo como necessário</button>' +
+        '<div class="row" id="aplicTodos" style="margin-bottom:12px">' +
+          barraTodosHTML() +
         '</div>' +
         '<div class="aplics" id="aplicLista">' +
           linhas.map(function (l, i) { return linhaHTML(l, escolha[i], i); }).join("") +
@@ -190,16 +234,53 @@
       }
     }
 
+    /* Troca a barra de atalhos pela pergunta, e vice-versa.
+
+       `focar` só é verdadeiro quando a troca É a resposta ao clique.
+       Quando ela acontece de lado — a pessoa mexeu num item e a
+       pergunta foi embora junto — puxar o foco para cá tiraria o
+       cursor de onde ela está trabalhando. */
+    function barra(html, focar) {
+      var alvo = $("#aplicTodos", m.caixa);
+      if (!alvo) return;
+      alvo.innerHTML = html;
+      if (!focar) return;
+      var primeiro = alvo.querySelector("button");
+      if (primeiro) { try { primeiro.focus(); } catch (e) { /* sem foco, segue */ } }
+    }
+
+    function aplicarATodos(v) {
+      escolha = escolha.map(function () { return v; });
+      redesenhar();
+    }
+
     m.caixa.addEventListener("click", function (ev) {
+      var certeza = ev.target.closest("[data-aplic-certeza]");
+      if (certeza) {
+        if (certeza.getAttribute("data-aplic-certeza") === "sim") {
+          aplicarATodos("nao");
+          UI.toast("Todos marcados como “não se aplica”. Nada foi gravado ainda — " +
+                   "confirme em Salvar.", "ok", 6000);
+        }
+        barra(barraTodosHTML(), true);
+        return;
+      }
+
       var todos = ev.target.closest("[data-aplic-todos]");
       if (todos) {
         var v = todos.getAttribute("data-aplic-todos");
-        escolha = escolha.map(function () { return v; });
-        redesenhar();
+        var pede = TODOS.some(function (t) { return t.v === v && t.pergunta; });
+        if (pede) { barra(certezaHTML(linhas.length, semSocios), true); return; }
+        aplicarATodos(v);
         return;
       }
+
       var b = ev.target.closest("[data-aplic]");
       if (!b) return;
+      /* Mexer num item sozinho enquanto a pergunta está na tela
+         deixaria uma confirmação órfã, sobre uma lista que já
+         mudou. Some com ela. */
+      if ($("[data-aplic-certeza]", m.caixa)) barra(barraTodosHTML());
       escolha[Number(b.getAttribute("data-aplic"))] = b.getAttribute("data-valor");
       redesenhar();
     });
