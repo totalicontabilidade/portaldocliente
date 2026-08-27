@@ -327,6 +327,12 @@
       carregando = false;
       totalAcarregar = 0;
       desenharTudo();
+      /* A conversa que alguém pediu enquanto a lista carregava. */
+      if (conversaPedida) {
+        var pedida = conversaPedida;
+        conversaPedida = "";
+        abrirConversa(pedida);
+      }
     }, function (e) {
       carregando = false;
       empresas = [];
@@ -1338,9 +1344,31 @@
     }).join("") + '</div>';
   }
 
+  /* CLICAR E NÃO ACONTECER NADA era o que dava aqui.
+
+     A lista de conversas é desenhada com o que está na memória. A
+     lista de clientes se recarrega sozinha de tempos em tempos, e
+     durante a recarga `empresas` fica vazia por alguns instantes.
+     Quem clicasse numa conversa nessa janela caía no `if (!c)
+     return` e não via nada acontecer — nem a conversa, nem erro.
+
+     Agora o clique fica GUARDADO: quando a lista termina de
+     chegar, a conversa abre sozinha. Para quem está usando, a
+     única diferença é que demorou um segundo. */
+  var conversaPedida = "";
+
   function abrirConversa(id) {
     var c = empresas.filter(function (x) { return x.id === id; })[0];
-    if (!c) return;
+    if (!c) {
+      if (carregando) {
+        conversaPedida = id;
+        UI.toast("Abrindo a conversa…", "", 2500);
+      } else {
+        UI.toast("Não encontrei este cliente. Toque em Atualizar e tente de novo.", "erro", 8000);
+      }
+      return;
+    }
+    conversaPedida = "";
     conversaAberta = c;
     anexosPendentes = [];
     /* Sem isto a conversa da caixa de entrada ficava congelada: só
