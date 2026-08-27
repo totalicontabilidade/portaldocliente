@@ -1836,7 +1836,7 @@
               ic("ic-chevron-right") + '</button>'
             : '<div class="conf__acoes">' +
                 acoesDeRevisao(c, p.chave, p.sit) +
-                '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
+                '<button type="button" class="btn btn--ghost btn--sm" data-cobrar-item="' +
                   U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>' +
               '</div>') + '</td>' +
         '</tr>';
@@ -1915,10 +1915,18 @@
   function acoesDeRevisao(c, chave, sit) {
     if (["enviado", "analise", "aprovado", "pendencia"].indexOf(sit) === -1) return "";
     /* `data-emp` viaja junto porque estes botões agora aparecem
-       fora da ficha, onde não há "cliente aberto" para deduzir. */
+       fora da ficha, onde não há "cliente aberto" para deduzir.
+
+       PESO IGUAL ENTRE OS TRÊS (pedido dele). Aprovar era dourado
+       cheio, Pedir correção tinha contorno e Cobrar não tinha nada
+       — três aparências para três coisas que, nesta tela, são
+       igualmente possíveis. Numa LISTA a hierarquia não ajuda: ela
+       sugere um caminho antes de a pessoa ter lido a linha. Na
+       ficha, onde se decide um documento por vez, o Aprovar
+       continua sendo o botão principal. */
     var emp = ' data-emp="' + U.escAttr(c.id) + '"';
     return (sit !== "aprovado"
-        ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar="' +
+        ? '<button type="button" class="btn btn--ghost btn--sm" data-aprovar="' +
           U.escAttr(chave) + '"' + emp + '>Aprovar</button>' : '') +
       '<button type="button" class="btn btn--ghost btn--sm" data-pendencia="' +
         U.escAttr(chave) + '"' + emp + '>' +
@@ -2457,9 +2465,21 @@
               U.escAttr(chave) + '">Aprovar</button>' : '') +
           '<button type="button" class="btn btn--ghost btn--sm" data-pendencia="' +
             U.escAttr(chave) + '">Pedir correção</button>' +
+          /* "TIRAR MARCAÇÃO" NÃO DIZIA O QUE ACONTECE.
+
+             Marcação de quê, e para onde vai? O botão apaga a
+             decisão que alguém tomou — aprovado ou correção pedida
+             — e o documento volta para a fila de quem confere.
+             "Voltar para conferir" é isso dito em voz alta: fala do
+             DESTINO, que é o que a pessoa precisa saber antes de
+             clicar, e não do mecanismo interno.
+
+             O título explica o outro lado, o que o cliente vê. */
           (sit !== "pendente"
             ? '<button type="button" class="btn btn--quiet btn--sm" data-limpar="' +
-              U.escAttr(chave) + '">Tirar marcação</button>' : '') +
+              U.escAttr(chave) + '" title="Apaga a aprovação ou o pedido de correção. ' +
+              'O documento volta para a fila de conferência e o cliente deixa de ver a marca.">' +
+              'Voltar para conferir</button>' : '') +
         '</div>'
       : '';
 
