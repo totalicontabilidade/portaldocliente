@@ -1264,6 +1264,10 @@
 
     $("#msTopo").hidden = false;
     $("#msConversa").hidden = true;
+    /* Volta para a lista de conversas: os modelos não têm o que
+       fazer ali, e sem esta linha ficariam soltos no fim da tela. */
+    var mm = $("#msModelos");
+    if (mm) { mm.hidden = true; mm.innerHTML = ""; }
     caixa.hidden = false;
 
     if (carregando) {
@@ -1364,26 +1368,21 @@
   function ajustarAlturaDaConversa() {
     var cx = $("#msConversa");
     if (!cx || cx.hidden) return;
+    /* A conta é só esta: do topo do bloco até o pé da janela.
+
+       Havia aqui um segundo passo que descontava a rolagem que
+       sobrasse na página. Ele existia quando TUDO morava dentro
+       desta caixa. Agora os modelos ficam abaixo dela de
+       propósito, e a página rolar é o comportamento desejado —
+       descontar essa rolagem encolheria a conversa exatamente
+       pelo tamanho do que foi tirado dela. */
     var topo = cx.getBoundingClientRect().top;
     var alvo = Math.max(320, global.innerHeight - topo - 8);
     cx.style.height = alvo + "px";
 
-    var sobra = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    if (sobra > 0) {
-      alvo = Math.max(320, alvo - sobra);
-      cx.style.height = alvo + "px";
-    }
-
-    /* PISO PARA A LISTA, e o motivo de ele existir.
-
-       Numa janela baixa, o que sobra depois do cabeçalho, dos
-       modelos e do campo de resposta pode virar uma conversa de
-       130 pixels — três linhas. Aí a tela "não rola", mas também
-       não serve para conversar.
-
-       Quando isso acontece, prefiro devolver a rolagem da página:
-       rolar um pouco é um incômodo; ler a conversa por uma fresta
-       é um impedimento. Em tela normal isto nunca dispara. */
+    /* Piso para a lista: numa janela baixa, o que sobra depois do
+       cabeçalho e do campo de resposta pode virar uma conversa de
+       três linhas. Ler por uma fresta é pior que rolar um pouco. */
     var lista = cx.querySelector(".conversa");
     if (!lista) return;
     var falta = LISTA_MINIMA - lista.clientHeight;
@@ -1458,14 +1457,6 @@
           '<button type="button" class="btn btn--primary btn--sm" id="msEnviar">' +
             ic("ic-send") + 'Enviar</button>' +
         '</div>' +
-        /* OS MODELOS DESCERAM PARA DEPOIS DO ENVIAR (pedido dele).
-
-           Entre a conversa e o campo de resposta, eles empurravam
-           as duas coisas que importam para longe uma da outra — e
-           numa tela de altura fixa isso sai direto do tamanho da
-           conversa. Aqui embaixo continuam a um toque e param de
-           dividir a tela ao meio. */
-        modelosHTML() +
         '<div id="msAnexos" class="anexos-fila"></div>' +
       '</div>';
 
@@ -1484,6 +1475,19 @@
     if (anexar) anexar.addEventListener("click", function () { escolherAnexo(); });
 
     desenharAnexos();
+
+    /* OS MODELOS MORAM FORA DA CAIXA (pedido dele).
+
+       Dentro dela, cada pixel que eles ocupavam saía do tamanho da
+       conversa — e o que ele quer é conversa grande, com o Anexar e
+       o Enviar sempre na tela. Aqui embaixo eles aparecem quando a
+       pessoa rola, que é quando ela está procurando por eles. */
+    var caixaModelos = $("#msModelos");
+    if (caixaModelos) {
+      var mHTML = modelosHTML();
+      caixaModelos.innerHTML = mHTML;
+      caixaModelos.hidden = !mHTML;
+    }
 
     /* Antes de rolar para o fim: a altura precisa estar certa,
        senão o `scrollTop` mira num tamanho que ainda vai mudar e a

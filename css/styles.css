@@ -1222,8 +1222,20 @@ input[type=checkbox]{accent-color:var(--gold)}
   background:transparent;border:0;padding:4px 0;cursor:pointer;
   font-size:12.5px;font-weight:600;color:var(--gold-2);white-space:nowrap;
 }
-.conf__ir .ic{width:15px;height:15px;transition:transform .18s var(--ease)}
-.conf__ir:hover .ic,.conf__ir:focus-visible .ic{transform:translateX(3px)}
+.conf__ir .ic{width:15px;height:15px}
+/* A SETA NÃO ANDA MAIS NO HOVER, e o motivo é um laço.
+
+   Ela deslizava 3px para a direita. Como esta é a última coluna e
+   ela não tem respiro à direita, os 3px estouravam a largura e
+   faziam nascer uma barra de rolagem horizontal. A barra ocupa
+   altura, o layout sobe, o ponteiro deixa de estar sobre o botão,
+   o hover cai, a seta volta, a barra some, o layout desce — e o
+   ponteiro está sobre o botão de novo. A tela pisca sozinha
+   enquanto o mouse ficar parado ali.
+
+   Movimento que muda o tamanho de quem rola é sempre esse risco.
+   A cor já diz que está sob o ponteiro. */
+.conf__ir:hover,.conf__ir:focus-visible{color:var(--gold-3)}
 .conf__ir:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px;border-radius:6px}
 
 /* Chegar no lugar certo e não saber qual linha é a sua é chegar
@@ -2401,6 +2413,11 @@ body.tour-aberto{overscroll-behavior:contain}
 
    Cada elo do caminho precisa poder encolher: o `.card` também é
    coluna flex, e só a lista cresce. */
+/* Os modelos, agora fora da caixa. Um respiro para não parecerem
+   colados no rodapé da conversa. */
+#msModelos{margin-top:16px}
+#msModelos[hidden]{display:none}
+
 #msConversa > .card{
   flex:1 1 auto;min-height:0;
   display:flex;flex-direction:column;
