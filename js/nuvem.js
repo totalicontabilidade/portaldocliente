@@ -117,6 +117,10 @@
         na: r.na === true,
         forma: txt(r.forma, 60),
         obs: txt(r.obs, 1000),
+        /* Quando o cliente respondeu a uma correção. Precisa vir no
+           payload, senão a hora fica só no aparelho dele e a linha
+           do tempo do documento nasce sem ela na próxima abertura. */
+        obsEm: num(r.obsEm),
         atualizadoEm: num(r.atualizadoEm),
         lembrete: num(r.lembrete)
       };

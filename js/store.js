@@ -205,6 +205,10 @@
   function registroVazio() {
     return {
       arquivos: [], valor: "", na: false, obs: "", forma: "",
+      /* Quando o cliente respondeu a uma correção sem reenviar o
+         documento. É o que dá ordem à linha do tempo: sem hora, a
+         resposta e o pedido ficam do mesmo tamanho no tempo. */
+      obsEm: 0,
       atualizadoEm: 0,
       /* Definição da Totali sobre este documento se aplicar ou
          não a esta empresa. `null` = a equipe não opinou, e vale
@@ -336,6 +340,7 @@
         var novo = registroVazio();
         novo.valor = typeof r.valor === "string" ? r.valor.slice(0, 400) : "";
         novo.obs = typeof r.obs === "string" ? r.obs.slice(0, 1000) : "";
+        novo.obsEm = typeof r.obsEm === "number" ? r.obsEm : 0;
         novo.forma = typeof r.forma === "string" ? r.forma.slice(0, 60) : "";
         novo.na = r.na === true;
         novo.atualizadoEm = typeof r.atualizadoEm === "number" ? r.atualizadoEm : 0;

@@ -592,7 +592,14 @@
      pendentes estiverem adiados, mostramos o primeiro mesmo
      assim — melhor que uma tela sem próximo passo. */
   function proximoPasso() {
-    var l = global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS);
+    var l = global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS)
+      /* Pelo mesmo motivo do aviso lá em cima: documento já
+         respondido não é "o próximo passo" dele — é o próximo
+         passo da Totali. Apontar para ele manda o cliente fazer
+         algo que ele já fez. */
+      .filter(function (p) {
+        return !(p.sit === "pendencia" && (Store.estado.itens[p.chave] || {}).obs);
+      });
     if (!l.length) return null;
     var agora = Date.now();
     var livre = l.filter(function (p) {
@@ -607,7 +614,21 @@
      gera uma mensagem perguntando o porquê. */
   function correcoesPedidas() {
     return global.Situacao.pendencias(Store.dadosSituacao(), DATA.GRUPOS)
-      .filter(function (p) { return p.sit === "pendencia"; })
+      .filter(function (p) {
+        if (p.sit !== "pendencia") return false;
+        /* JÁ RESPONDIDO SAI DA TELA INICIAL.
+
+           O aviso diz "precisa que você envie de novo" — e quem já
+           respondeu não precisa fazer mais nada: a bola está com a
+           Totali. Continuar mostrando isso todo dia faz o cliente
+           achar que a resposta não chegou, e ele responde outra vez
+           ou liga para perguntar.
+
+           O documento segue em correção na lista, com o selo
+           "Respondido". O que sai daqui é a COBRANÇA, não o
+           registro. */
+        return !((Store.estado.itens[p.chave] || {}).obs);
+      })
       .map(function (p) {
         var rev = (Store.estado.itens[p.chave] || {}).revisao || {};
         p.motivo = rev.motivo || "";
@@ -985,15 +1006,19 @@
     if (sit === "pendencia") {
       html += '<div class="troca">' +
         '<div class="troca__i">' +
+          /* Data E HORA nos dois lados (pedido dele). Numa troca do
+             mesmo dia, só a data não diz o que veio antes — e a
+             ordem é metade do que uma linha do tempo tem a dizer. */
           '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) + ' pediu correção' +
-            (reg.revisao && reg.revisao.em ? ' · ' + U.esc(U.dataCurta(reg.revisao.em)) : '') +
+            (reg.revisao && reg.revisao.em ? ' · ' + U.esc(U.dataHora(reg.revisao.em)) : '') +
           '</span>' +
           (reg.revisao && reg.revisao.motivo
             ? '<span class="troca__t">' + U.esc(reg.revisao.motivo) + '</span>' : '') +
         '</div>' +
         (reg.obs
           ? '<div class="troca__i">' +
-              '<span class="troca__q troca__q--eu">Você respondeu</span>' +
+              '<span class="troca__q troca__q--eu">Você respondeu' +
+                (reg.obsEm ? ' · ' + U.esc(U.dataHora(reg.obsEm)) : '') + '</span>' +
               '<span class="troca__t">' + U.esc(reg.obs) + '</span>' +
               '<span class="troca__d">Está com a ' + U.esc(DATA.ORG.curto) +
                 ' — não precisa fazer mais nada.</span>' +
@@ -1600,18 +1625,28 @@
             var campo = $("#respTxt", mo.caixa);
             var t = String(campo && campo.value || "").trim().slice(0, 1000);
             if (!t) { if (campo) campo.focus(); return; }
+            /* A RESPOSTA NÃO VIRA MAIS MENSAGEM (decisão dele,
+               27/08/2026), e o motivo é de arquitetura.
+
+               Ela virava, e com isso passava a ser resolvida na aba
+               Mensagens — marcar "resolvida" lá fazia o aviso sumir
+               sem que ninguém tivesse decidido nada sobre o
+               documento. Assunto de documento se resolve na tela de
+               documento; a conversa é para o que começa como
+               conversa e para as cobranças.
+
+               O cliente também não precisa da mensagem: ele vê o
+               andamento no próprio documento e na tela inicial. E a
+               equipe fica sabendo pelo aviso do Início, que agora
+               conta a resposta como tarefa de documento. */
             Store.commit(function () {
               Store.item(chave).obs = t;
+              Store.item(chave).obsEm = Date.now();
               Store.item(chave).atualizadoEm = Date.now();
             }, "obs");
-            Store.enviarMensagem("Sobre " + nome + ": " + t, {
-              chave: chave,
-              autorNome: Store.estado.empresa.responsavelNome || ""
-            });
-            /* A mensagem sobe sozinha na hora, mas o `obs` esperaria
-               a gravação em lote. Dizer "enviada" e deixar a resposta
-               só no aparelho é a mesma promessa vazia que já custou
-               uma senha perdida aqui. */
+            /* Sobe na hora: dizer "enviada" e deixar a resposta só
+               no aparelho é a mesma promessa vazia que já custou uma
+               senha perdida aqui. */
             Store.flush();
             UI.fecharModal();
             render();

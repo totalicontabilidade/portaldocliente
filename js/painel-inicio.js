@@ -146,6 +146,51 @@
         });
       }
 
+      /* 2b. O cliente respondeu a uma correção, e a bola voltou.
+
+         ISTO ERA UMA MENSAGEM, e estava errado. A resposta virava
+         recado na conversa, aparecia como "mensagem sem
+         providência" e sumia quando alguém marcava a CONVERSA como
+         resolvida — sem que ninguém tivesse decidido nada sobre o
+         documento. Assunto de documento se resolve na tela de
+         documento.
+
+         Agora é tarefa de documento e leva para a ficha. Só sai
+         daqui quando a equipe aprovar, trocar o motivo ou devolver
+         para conferência — ou seja, quando a decisão existir. */
+      var respondidos = [];
+      global.DATA.GRUPOS.forEach(function (g) {
+        if (!daMinhaArea(g.id)) return;
+        var alvos = g.escopo === "socio"
+          ? (c.dados.socios || []).map(function (s) { return s.id; })
+          : [null];
+        alvos.forEach(function (socioId) {
+          g.itens.forEach(function (item) {
+            if (global.Situacao.de(c.dados, g, item, socioId) !== "pendencia") return;
+            var chave = global.Situacao.chaveItem(g.id, item.id, socioId);
+            var reg = (c.dados.itens || {})[chave] || {};
+            if (reg.obs) respondidos.push({ item: item, reg: reg });
+          });
+        });
+      });
+      if (respondidos.length) {
+        var maisAntiga = respondidos.reduce(function (a, x) {
+          var t = PC.emMs(x.reg.obsEm) || PC.emMs(x.reg.atualizadoEm) || 0;
+          return (!a || (t && t < a)) ? t : a;
+        }, 0);
+        linhas.push({
+          peso: PESO.conferir, em: maisAntiga,
+          cliente: c, icone: "ic-chat", acao: "ficha",
+          titulo: respondidos.length === 1
+            ? nome + " respondeu sobre um documento"
+            : nome + " respondeu sobre " + respondidos.length + " documentos",
+          detalhe: respondidos.slice(0, 2).map(function (x) {
+            return x.item.nome + ": " + String(x.reg.obs || "").slice(0, 60);
+          }).join(" · "),
+          selo: "Decidir", seloCls: "badge--analise"
+        });
+      }
+
       /* 3. Lida, mas ninguém tomou providência. Só conta o que
             NÃO está na faixa 1 — senão o mesmo cliente apareceria
             duas vezes pela mesma conversa. */

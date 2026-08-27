@@ -1011,7 +1011,9 @@
     var alvo = (c && c.id) || "";
     var apagada = !!m.apagadaEm;
     return '<div class="msg msg--' + (doCliente ? "dele" : "minha") +
-        (doCliente && m.resolvidaEm ? " msg--resolvida" : "") +
+        /* O apagamento por mensagem saiu junto com o selo: com a
+           conversa inteira resolvida, TODAS ficavam apagadas, e uma
+           conversa inteira meio invisível não é sinal de nada. */
         (apagada ? " msg--apagada" : "") + ' msg--pressionavel"' +
         ' data-msg="' + U.escAttr(m.id || "") + '"' +
         ' data-msg-empresa="' + U.escAttr(alvo) + '">' +
@@ -1038,19 +1040,17 @@
               ic("ic-clipe") + '<span class="arq__n">' + U.esc(a.nome) + '</span></button>';
           }).join("") + '</div>'
         : '') +
-      /* RESOLVER É DA CONVERSA, NÃO DE CADA FRASE (pedido dele,
-         2026-08-24). Antes toda mensagem do cliente vinha com o
-         botão, e uma dúvida contada em quatro mensagens exigia
-         quatro cliques para dizer a mesma coisa: já foi tratado.
-         O botão subiu para o fim da conversa; aqui fica só o selo,
-         para quem relê meses depois saber quem tratou e quando. */
-      (doCliente && m.resolvidaEm
-        ? '<div class="msg__resolver">' +
-            '<span class="msg__selo">' + ic("ic-check") + 'Resolvida por ' +
-              U.esc(m.resolvidaPor || "equipe") + ' em ' +
-              U.esc(U.dataCurta(m.resolvidaEm)) + '</span>' +
-          '</div>'
-        : '') +
+      /* RESOLVER É DA CONVERSA, E SÓ DELA (pedido dele, 27/08/2026).
+
+         O botão já tinha subido para o fim da conversa, mas o SELO
+         continuava em cada frase: uma dúvida contada em quatro
+         mensagens virava quatro carimbos iguais, um embaixo do
+         outro, dizendo a mesma coisa sobre a mesma conversa.
+
+         O estado agora mora num lugar só. Quem quiser saber se
+         ainda há providência pendente olha o rodapé da conversa —
+         e ela volta a pendente sozinha quando o cliente escreve de
+         novo, porque mensagem nova nasce sem a marca. */
     '</div>';
   }
 
@@ -2450,21 +2450,39 @@
       corpo += '<div class="text-sm" style="margin-top:6px">Forma escolhida: <strong>' +
         U.esc(reg.forma) + '</strong></div>';
     }
-    if (rev.status === "pendencia" && rev.motivo) {
-      corpo += '<div class="text-xs" style="margin-top:6px;color:var(--danger)">Correção pedida: ' +
-        U.esc(rev.motivo) + '</div>';
-    }
-    /* A resposta do cliente a uma correção, quando ele diz que o
-       documento já está certo em vez de reenviar. Fica em destaque
-       porque é a informação que decide se a correção procede — e
-       quem abre este item está justamente decidindo isso. */
-    if (reg.obs) {
-      corpo += '<div class="notice notice--info" style="margin-top:8px;padding:10px 12px;font-size:12.5px">' +
-        '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
-        '<span><strong>O cliente respondeu:</strong> ' + U.esc(reg.obs) + '</span></div>';
-    }
-    if (rev.por && rev.em) {
-      corpo += '<div class="text-xs text-muted" style="margin-top:4px">' +
+    /* A MESMA LINHA DO TEMPO DO PORTAL (pedido dele, 27/08/2026).
+
+       Aqui as três peças estavam soltas: o motivo numa linha
+       vermelha, a resposta do cliente numa caixa com moldura, e a
+       assinatura de quem decidiu numa terceira linha, sem ligação
+       visível entre elas. Do outro lado o cliente já via a mesma
+       coisa como troca.
+
+       Duas telas contando o mesmo fato de dois jeitos custa caro na
+       hora em que a equipe e o cliente falam por telefone: cada um
+       está lendo um desenho diferente do mesmo documento. */
+    if (rev.status === "pendencia" || reg.obs) {
+      corpo += '<div class="troca">' +
+        (rev.status === "pendencia"
+          ? '<div class="troca__i">' +
+              '<span class="troca__q troca__q--eles">' +
+                U.esc(rev.por || "A equipe") + ' pediu correção' +
+                (rev.em ? ' · ' + U.esc(U.dataHora(rev.em)) : '') + '</span>' +
+              (rev.motivo ? '<span class="troca__t">' + U.esc(rev.motivo) + '</span>' : '') +
+            '</div>'
+          : '') +
+        (reg.obs
+          ? '<div class="troca__i">' +
+              '<span class="troca__q troca__q--eu">O cliente respondeu' +
+                (reg.obsEm ? ' · ' + U.esc(U.dataHora(reg.obsEm)) : '') + '</span>' +
+              '<span class="troca__t">' + U.esc(reg.obs) + '</span>' +
+            '</div>'
+          : '') +
+      '</div>';
+    } else if (rev.por && rev.em) {
+      /* Aprovado ou sem marcação: sobra a assinatura de quem
+         decidiu, que continua valendo por si. */
+      corpo += '<div class="text-xs text-muted" style="margin-top:6px">' +
         U.esc(rev.por) + ' · ' + U.esc(U.dataHora(rev.em)) + '</div>';
     }
 

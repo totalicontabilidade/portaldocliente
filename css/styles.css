@@ -2961,24 +2961,11 @@ details.rec:not([open]) > .rec__body{display:none}
   display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;
 }
 
-/* ============================================================
-   Mensagem resolvida e anotações internas (painel da equipe)
-
-   Resolvida RECUA, não some: some viraria histórico apagado, e a
-   conversa precisa continuar inteira para quem chegar depois.
-   ============================================================ */
-.msg__resolver{
-  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
-  margin-top:9px;padding-top:8px;
-  border-top:1px solid var(--stroke-fraco);
-}
-.msg__selo{
-  display:inline-flex;align-items:center;gap:6px;
-  font-size:11.5px;font-weight:600;color:var(--ok);
-}
-.msg__selo .ic{width:13px;height:13px;flex:none}
-.msg--resolvida{opacity:.66}
-.msg--resolvida:hover,.msg--resolvida:focus-within{opacity:1}
+/* O selo e o apagamento POR MENSAGEM saíram em 27/08/2026: resolver
+   é da conversa inteira, e carimbar cada frase repetia a mesma
+   informação quatro vezes numa dúvida contada em quatro mensagens.
+   As classes `.msg__resolver`, `.msg__selo` e `.msg--resolvida`
+   foram embora junto — ninguém mais as escreve. */
 
 /* ============================================================
    Tela de início do painel
