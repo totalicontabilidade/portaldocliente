@@ -2860,10 +2860,47 @@ details.rec:not([open]) > .rec__body{display:none}
    alteraçõesSocietário"). Já aconteceu neste projeto — três vezes.
    ============================================================ */
 .aplics{display:grid;gap:10px;max-height:52vh;overflow-y:auto;padding-right:4px}
-.aplic{
-  padding:11px 13px;border-radius:12px;
-  border:1px solid var(--stroke);background:var(--surf-2);
+/* ---------- Setores do "Quais se aplicam" ----------
+
+   Eram 26 linhas soltas, cada uma repetindo o nome do setor em
+   letra miúda. O agrupamento tira essa repetição e devolve a
+   informação que a pessoa procura ao abrir a janela: quanto de
+   cada setor já foi decidido.
+
+   O cartão do setor tem moldura; a linha do documento, dentro
+   dele, NÃO tem — senão viraria caixa dentro de caixa, que é o
+   ruído que se queria tirar. O que separa as linhas é uma régua
+   fina, e nada mais. */
+.aplic-setor{
+  border:1px solid var(--stroke);border-radius:14px;
+  background:var(--surf-2);overflow:hidden;
 }
+/* O espaçamento vem do `gap` da `.aplics`; margem aqui somaria. */
+.aplic-setor__cab{
+  display:flex;align-items:center;gap:11px;width:100%;
+  padding:12px 13px;background:transparent;border:0;
+  text-align:left;cursor:pointer;
+}
+.aplic-setor__cab:hover{background:var(--glass)}
+.aplic-setor__cab .group__icon{flex:none;width:32px;height:32px}
+.aplic-setor__cab .group__icon .ic{width:16px;height:16px}
+.aplic-setor__txt{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.aplic-setor__n{font-size:13.5px;font-weight:640;color:var(--txt)}
+.aplic-setor__m{font-size:11.5px;color:var(--txt-4)}
+.aplic-setor__chev{
+  flex:none;width:20px;height:20px;display:grid;place-items:center;color:var(--txt-4);
+  transition:transform .24s var(--ease);
+}
+.aplic-setor__chev .ic{width:17px;height:17px}
+.aplic-setor[data-open="true"] .aplic-setor__chev{transform:rotate(180deg);color:var(--gold-2)}
+.aplic-setor[data-open="true"]{border-color:var(--stroke-2)}
+.aplic-setor__corpo{border-top:1px solid var(--stroke)}
+
+.aplic{
+  padding:11px 13px;
+  border-bottom:1px solid var(--stroke);
+}
+.aplic:last-child{border-bottom:0}
 .aplic__cab{display:flex;align-items:flex-start;gap:10px}
 .aplic__cab .group__icon{flex:none;width:32px;height:32px}
 .aplic__cab .group__icon .ic{width:16px;height:16px}

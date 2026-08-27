@@ -1826,18 +1826,53 @@
   /* O que este grupo tem esperando a equipe. É o que aparece no
      cabeçalho quando o bloco está fechado. */
   function atencaoDoGrupo(c, g) {
-    var conferir = 0, correcao = 0;
+    var conferir = 0, correcao = 0, respondida = 0;
     var alvos = g.escopo === "socio"
       ? c.dados.socios.map(function (s) { return s.id; })
       : [null];
     alvos.forEach(function (socioId) {
       g.itens.forEach(function (item) {
+        var chave = global.Situacao.chaveItem(g.id, item.id, socioId);
         var sit = global.Situacao.de(c.dados, g, item, socioId);
         if (sit === "enviado") conferir++;
-        if (sit === "pendencia") correcao++;
+        if (sit === "pendencia") {
+          /* Correção respondida não espera mais o cliente: espera
+             NÓS. Contar as duas juntas escondia trabalho nosso
+             dentro de um número que parecia ser dele. */
+          if (((c.dados.itens || {})[chave] || {}).obs) respondida++;
+          else correcao++;
+        }
       });
     });
-    return { conferir: conferir, correcao: correcao };
+    return { conferir: conferir, correcao: correcao, respondida: respondida };
+  }
+
+  /* UM SELO SÓ, COM AS QUANTIDADES.
+
+     Mostrava um estado por vez: com dois documentos para conferir e
+     um devolvido, aparecia só "2 para conferir" e a correção sumia
+     do cabeçalho. Com um documento acertava por sorte; com dois,
+     escondia metade.
+
+     Dois ou três selos lado a lado resolveriam e encheriam a linha.
+     Um selo com os números resolve no mesmo espaço. */
+  function seloDeAtencao(atencao, resumo) {
+    var partes = [];
+    if (atencao.conferir) partes.push(atencao.conferir + " para conferir");
+    if (atencao.respondida) partes.push(atencao.respondida + " respondido" +
+      (atencao.respondida > 1 ? "s" : ""));
+    if (atencao.correcao) partes.push(atencao.correcao + " aguardando");
+
+    if (partes.length) {
+      /* Vermelho só quando o que sobra é do cliente. Enquanto
+         houver coisa nossa na fila, o selo é azul: é trabalho, não
+         cobrança. */
+      var soDoCliente = !atencao.conferir && !atencao.respondida;
+      return { texto: partes.join(" · "),
+               cls: soDoCliente ? "badge--pendencia" : "badge--analise" };
+    }
+    if (resumo.completo) return { texto: "Completo", cls: "badge--aprovado" };
+    return { texto: "", cls: "badge--analise" };
   }
 
   /* Erro ao montar a ficha não pode virar "cliquei e não
@@ -2100,16 +2135,8 @@
 
     /* O selo é a razão de o bloco poder ficar fechado: recolhido
        sem aviso, esconderia trabalho. */
-    var selo = "", seloCls = "badge--analise";
-    if (atencao.conferir) {
-      selo = atencao.conferir + " para conferir";
-    } else if (atencao.correcao) {
-      selo = atencao.correcao + " " + U.plural(atencao.correcao, "correção", "correções");
-      seloCls = "badge--pendencia";
-    } else if (resumo.completo) {
-      selo = "Completo";
-      seloCls = "badge--aprovado";
-    }
+    var s = seloDeAtencao(atencao, resumo);
+    var selo = s.texto, seloCls = s.cls;
 
     return bloco({
       id: "grupo:" + g.id, icone: g.icone, titulo: g.titulo,

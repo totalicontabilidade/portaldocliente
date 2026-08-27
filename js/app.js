@@ -1253,6 +1253,34 @@
     N.lembreteDoCliente(vencidos[0].item.nome, vencidos.length, estadoUI.rota);
   }
 
+  /* UM SELO SÓ, COM AS QUANTIDADES.
+
+     Antes ele mostrava um estado por vez: com uma correção
+     aguardando e outra já respondida, aparecia só "1 correção" — e
+     o cliente não via que havia coisa dele parada, ou via o
+     contrário e achava que estava tudo resolvido. Com um documento
+     dava certo por sorte; com dois, mentia.
+
+     Dois selos lado a lado resolveriam e encheriam o cabeçalho. Um
+     selo com dois números resolve e não ocupa mais espaço do que o
+     de antes. A cor é a do estado mais urgente que existir, porque
+     é ela que decide se o cliente precisa parar aqui. */
+  function seloDoGrupo(aguardando, respondidos, resumo) {
+    var partes = [];
+    if (aguardando) partes.push(aguardando + " a corrigir");
+    if (respondidos) partes.push(respondidos + " respondido" + (respondidos > 1 ? "s" : ""));
+
+    if (partes.length) {
+      var cls = aguardando ? "badge--pendencia" : "badge--analise";
+      return '<span class="badge ' + cls + '"><span class="dot"></span>' +
+        U.esc(partes.join(" · ")) + '</span>';
+    }
+    if (resumo.completo) {
+      return '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>';
+    }
+    return "";
+  }
+
   function grupoHTML(grupo) {
     var resumo = Store.resumoGrupo(grupo);
     var aberto = !!estadoUI.gruposAbertos[grupo.id];
@@ -1268,15 +1296,15 @@
        que ainda falta, em vez de varrer tudo com o mesmo peso. */
     var pronto = (resumo.completo && !resumo.vazio) || grupoNA;
 
-    /* Quantas correções deste grupo ainda dependem do cliente —
-       ou seja, as que ele ainda não respondeu nem reenviou. */
-    var aguardandoCliente = 0;
+    /* As correções deste grupo, separadas por quem tem a bola:
+       as que ainda esperam o cliente e as que ele já respondeu. */
+    var aguardandoCliente = 0, jaRespondidos = 0;
     (grupo.escopo === "socio" ? socios.map(function (s) { return s.id; }) : [null])
       .forEach(function (socioId) {
         grupo.itens.forEach(function (it) {
           if (Store.situacao(grupo, it, socioId) !== "pendencia") return;
           var r = Store.estado.itens[Store.chaveItem(grupo.id, it.id, socioId)] || {};
-          if (!r.obs) aguardandoCliente++;
+          if (r.obs) jaRespondidos++; else aguardandoCliente++;
         });
       });
 
@@ -1299,19 +1327,7 @@
 
            Vem antes do "Completo" porque os dois nunca coexistem:
            grupo com pendência não está completo. */
-        /* Só conta a correção que ainda espera ELE. A que já foi
-           respondida está com a Totali, e um selo vermelho ali
-           mandaria o cliente procurar trabalho que não existe. */
-        (!grupoNA && aguardandoCliente
-          ? '<span class="badge badge--pendencia"><span class="dot"></span>' +
-            aguardandoCliente + " " +
-            U.plural(aguardandoCliente, "correção", "correções") + '</span>'
-          : !grupoNA && resumo.pendencias
-            ? '<span class="badge badge--analise"><span class="dot"></span>' +
-              U.plural(resumo.pendencias, "Respondido", "Respondidos") + '</span>'
-            : resumo.completo && !grupoNA
-              ? '<span class="badge badge--aprovado"><span class="dot"></span>Completo</span>'
-              : '') +
+        (grupoNA ? '' : seloDoGrupo(aguardandoCliente, jaRespondidos, resumo)) +
         '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
       '</button>';
 

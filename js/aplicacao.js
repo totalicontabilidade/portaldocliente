@@ -143,15 +143,17 @@
     '</div>';
   }
 
+  /* O ícone e o nome do setor saíram da linha: agora eles estão no
+     cabeçalho do setor, uma vez, em vez de repetidos em cada uma
+     das 26 linhas. O que sobra na linha é só o que a diferencia. */
   function linhaHTML(linha, valor, i) {
     return '<div class="aplic">' +
       '<div class="aplic__cab">' +
-        '<span class="group__icon">' + ic(linha.grupo.icone) + '</span>' +
         '<span class="aplic__txt">' +
           '<span class="aplic__nome">' + U.esc(linha.nome) +
             (linha.obrigatorio ? '' : ' <span class="opt">opcional</span>') + '</span>' +
-          '<span class="aplic__grupo">' + U.esc(linha.grupo.titulo) +
-            (linha.porSocio ? ' · vale para todos os sócios' : '') + '</span>' +
+          (linha.porSocio
+            ? '<span class="aplic__grupo">vale para todos os sócios</span>' : '') +
         '</span>' +
       '</div>' +
       '<div class="aplic__opcoes" role="radiogroup" aria-label="' + U.escAttr(linha.nome) + '">' +
@@ -172,6 +174,71 @@
     return "auto";
   }
 
+  /* ============================================================
+     OS DOCUMENTOS AGRUPADOS POR SETOR
+
+     Eram 26 linhas soltas, cada uma repetindo o nome do setor em
+     letra miúda embaixo do documento. Para saber onde a Contábil
+     terminava e a Fiscal começava, era preciso ler todas.
+
+     Agora cada setor é um cartão que abre e fecha, e o nome dele é
+     dito uma vez, no cabeçalho. O cabeçalho também mostra quantos
+     daquele setor já foram dispensados — que é a informação que a
+     pessoa está procurando quando abre esta tela.
+
+     SETOR JÁ RESOLVIDO NASCE FECHADO. Quem abre esta janela quer
+     decidir o que ainda não decidiu; o que já está inteiro numa
+     escolha só ocupa espaço e rolagem.
+     ============================================================ */
+  var setoresFechados = {};
+
+  function porSetor(linhas) {
+    var ordem = [], indice = {};
+    linhas.forEach(function (l, i) {
+      var g = l.grupo.id;
+      if (!indice[g]) { indice[g] = { grupo: l.grupo, itens: [] }; ordem.push(indice[g]); }
+      indice[g].itens.push({ linha: l, i: i });
+    });
+    return ordem;
+  }
+
+  function setoresHTML(linhas, escolha) {
+    return porSetor(linhas).map(function (s) {
+      var nao = 0, sim = 0;
+      s.itens.forEach(function (x) {
+        if (escolha[x.i] === "nao") nao++;
+        if (escolha[x.i] === "sim") sim++;
+      });
+      var decidido = nao + sim === s.itens.length;
+      /* A primeira pintura decide quem nasce aberto; depois disso
+         quem manda é o que a pessoa clicou. */
+      if (setoresFechados[s.grupo.id] === undefined) setoresFechados[s.grupo.id] = decidido;
+      var aberto = !setoresFechados[s.grupo.id];
+
+      var resumo = nao
+        ? nao + " de " + s.itens.length + " " + U.plural(nao, "dispensado", "dispensados")
+        : s.itens.length + " " + U.plural(s.itens.length, "documento", "documentos");
+
+      return '<section class="aplic-setor" data-open="' + (aberto ? "true" : "false") + '">' +
+        '<button type="button" class="aplic-setor__cab" data-setor="' +
+            U.escAttr(s.grupo.id) + '" aria-expanded="' + (aberto ? "true" : "false") + '">' +
+          '<span class="group__icon">' + ic(s.grupo.icone) + '</span>' +
+          '<span class="aplic-setor__txt">' +
+            '<span class="aplic-setor__n">' + U.esc(s.grupo.titulo) + '</span>' +
+            '<span class="aplic-setor__m">' + U.esc(resumo) + '</span>' +
+          '</span>' +
+          (nao ? '<span class="badge badge--na"><span class="dot"></span>' + nao + '</span>' : '') +
+          '<span class="aplic-setor__chev">' + ic("ic-chevron-down") + '</span>' +
+        '</button>' +
+        (aberto
+          ? '<div class="aplic-setor__corpo">' +
+              s.itens.map(function (x) { return linhaHTML(x.linha, escolha[x.i], x.i); }).join("") +
+            '</div>'
+          : '') +
+      '</section>';
+    }).join("");
+  }
+
   /* Abre o editor.
 
      opcoes = {
@@ -185,6 +252,12 @@
     var o = opcoes || {};
     var itens = o.itens || {};
     var socios = o.socios || [];
+
+    /* Recomeça a cada abertura. Sem isto, os setores que a pessoa
+       recolheu no cliente anterior nasceriam recolhidos no
+       próximo — e ela abriria a janela achando que aquele cliente
+       já estava decidido. */
+    setoresFechados = {};
 
     /* Documento de sócio só ganha chave depois que o sócio
        existe, e quem cadastra sócio é o cliente. Antes disso a
@@ -213,9 +286,7 @@
         '<div class="row" id="aplicTodos" style="margin-bottom:12px">' +
           barraTodosHTML() +
         '</div>' +
-        '<div class="aplics" id="aplicLista">' +
-          linhas.map(function (l, i) { return linhaHTML(l, escolha[i], i); }).join("") +
-        '</div>',
+        '<div class="aplics" id="aplicLista">' + setoresHTML(linhas, escolha) + '</div>',
       acoes: [
         { rotulo: "Cancelar", classe: "btn--ghost" },
         {
@@ -227,11 +298,7 @@
 
     function redesenhar() {
       var lista = $("#aplicLista", m.caixa);
-      if (lista) {
-        lista.innerHTML = linhas.map(function (l, i) {
-          return linhaHTML(l, escolha[i], i);
-        }).join("");
-      }
+      if (lista) lista.innerHTML = setoresHTML(linhas, escolha);
     }
 
     /* Troca a barra de atalhos pela pergunta, e vice-versa.
@@ -255,6 +322,19 @@
     }
 
     m.caixa.addEventListener("click", function (ev) {
+      var setor = ev.target.closest("[data-setor]");
+      if (setor) {
+        var id = setor.getAttribute("data-setor");
+        setoresFechados[id] = !setoresFechados[id];
+        redesenhar();
+        /* Devolve o foco ao cabeçalho que foi clicado: sem isto,
+           quem navega por teclado volta para o começo do modal a
+           cada vez que abre um setor. */
+        var novo = m.caixa.querySelector('[data-setor="' + id.replace(/"/g, '\\"') + '"]');
+        if (novo) { try { novo.focus(); } catch (e) {} }
+        return;
+      }
+
       var certeza = ev.target.closest("[data-aplic-certeza]");
       if (certeza) {
         if (certeza.getAttribute("data-aplic-certeza") === "sim") {
