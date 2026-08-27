@@ -2231,6 +2231,43 @@ body.tour-aberto{overscroll-behavior:contain}
   scrollbar-width:thin;
 }
 
+/* ---------- A conversa da caixa de entrada não rola a página ----------
+
+   Antes a tela inteira rolava: para chegar ao campo de resposta era
+   preciso descer a página, e ao descer o cabeçalho da conversa
+   sumia — quem responde perdia de vista de qual cliente se trata.
+
+   Agora a tela ocupa a altura da janela e quem rola é só a lista de
+   mensagens. O `min-height:0` no filho é o que faz isso funcionar:
+   sem ele, um item flex se recusa a encolher abaixo do próprio
+   conteúdo e a lista empurra o campo de resposta para fora da tela,
+   que é o mesmo problema com outra aparência.
+
+   O `[hidden]` precisa ser dito de novo aqui: `display:flex` é mais
+   específico que o `display:none` do navegador, e sem esta linha a
+   conversa apareceria por cima da lista de conversas. */
+#msConversa{display:flex;flex-direction:column;min-height:340px}
+#msConversa[hidden]{display:none}
+#msConversa > .conversa{flex:1 1 auto;min-height:0;max-height:none}
+
+/* A ALTURA VEM DO JAVASCRIPT, e não daqui, de propósito.
+
+   Um `calc(100dvh - X)` obriga a acertar o X, e o X é a soma do
+   cabeçalho, da folga da página e da barra de baixo — que mudam
+   entre o computador e o celular, e mudariam de novo no dia em que
+   alguém acrescentar uma linha ao cabeçalho. Errar o X para mais
+   deixa a página rolando; para menos, corta a conversa.
+
+   O `ajustarAlturaDaConversa` mede a posição real do bloco e depois
+   confere se ainda sobrou rolagem, corrigindo o que sobrou. Não há
+   número para acertar.
+
+   Este valor é só o piso, para o caso de o JavaScript não rodar. */
+#msConversa{height:calc(100vh - 160px)}
+@supports (height: 100dvh) {
+  #msConversa{height:calc(100dvh - 160px)}
+}
+
 /* Credencial aberta. Fica visível o mínimo de tempo possível e
    nunca é gravada em lugar nenhum. */
 .cred__saida{

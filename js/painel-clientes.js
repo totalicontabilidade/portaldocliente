@@ -1348,6 +1348,28 @@
     marcarLidas(c);
   }
 
+  /* Deixa a conversa exatamente do tamanho do que sobra da janela.
+
+     Duas passadas de propósito. A primeira usa a posição real do
+     bloco, o que já resolve o cabeçalho e qualquer coisa acima
+     dele. A segunda olha se AINDA sobrou rolagem na página — o que
+     acontece por causa do respiro que a `.shell` reserva embaixo,
+     diferente no computador e no celular — e desconta o que sobrou.
+
+     É por isso que não há constante para acertar aqui: o valor sai
+     da tela em que a pessoa está, não de uma medição minha num
+     tamanho que talvez ela nunca use. */
+  function ajustarAlturaDaConversa() {
+    var cx = $("#msConversa");
+    if (!cx || cx.hidden) return;
+    var topo = cx.getBoundingClientRect().top;
+    var alvo = Math.max(320, global.innerHeight - topo - 8);
+    cx.style.height = alvo + "px";
+
+    var sobra = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    if (sobra > 0) cx.style.height = Math.max(320, alvo - sobra) + "px";
+  }
+
   function fecharConversa() {
     conversaAberta = null;
     anexosPendentes = [];
@@ -1439,6 +1461,11 @@
     if (anexar) anexar.addEventListener("click", function () { escolherAnexo(); });
 
     desenharAnexos();
+
+    /* Antes de rolar para o fim: a altura precisa estar certa,
+       senão o `scrollTop` mira num tamanho que ainda vai mudar e a
+       conversa abre no meio. */
+    ajustarAlturaDaConversa();
 
     var fim = alvo.querySelector(".conversa");
     if (fim) fim.scrollTop = fim.scrollHeight;
@@ -5316,6 +5343,13 @@
 
     ligarGlobais();
     ligarMenuDasMensagens();
+
+    /* Girar o celular ou mexer na janela muda o que sobra de tela.
+       Sem isto a conversa fica com a altura da orientação anterior:
+       ou sobra faixa vazia, ou o campo de resposta sai da vista. */
+    global.addEventListener("resize", U.debounce
+      ? U.debounce(ajustarAlturaDaConversa, 150)
+      : ajustarAlturaDaConversa);
 
     FB.observarSessao(function (quem) {
       equipe = quem;
