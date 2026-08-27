@@ -1003,16 +1003,25 @@
        Uma troca lida melhor como troca: um trilho, quem falou, o
        que disse e quando. Ocupa menos altura que duas caixas e diz
        mais, porque a ordem passa a significar alguma coisa. */
-    if (sit === "pendencia") {
+    /* A linha do tempo sobrevive à aprovação QUANDO HOUVE TROCA.
+
+       Antes ela existia só enquanto a pendência estava aberta:
+       aprovado o documento, o pedido e a resposta do cliente
+       sumiam da tela e sobrava uma frase solta em verde. Quem
+       tinha escrito uma explicação ficava sem saber se ela chegou
+       a ser lida — e sem como reler o que combinou. */
+    var houveTroca = sit === "pendencia" || (sit === "aprovado" && reg.obs);
+    if (houveTroca) {
       html += '<div class="troca">' +
         '<div class="troca__i">' +
           /* Data E HORA nos dois lados (pedido dele). Numa troca do
              mesmo dia, só a data não diz o que veio antes — e a
              ordem é metade do que uma linha do tempo tem a dizer. */
           '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) + ' pediu correção' +
-            (reg.revisao && reg.revisao.em ? ' · ' + U.esc(U.dataHora(reg.revisao.em)) : '') +
+            (sit === "pendencia" && reg.revisao && reg.revisao.em
+              ? ' · ' + U.esc(U.dataHora(reg.revisao.em)) : '') +
           '</span>' +
-          (reg.revisao && reg.revisao.motivo
+          (sit === "pendencia" && reg.revisao && reg.revisao.motivo
             ? '<span class="troca__t">' + U.esc(reg.revisao.motivo) + '</span>' : '') +
         '</div>' +
         (reg.obs
@@ -1020,13 +1029,23 @@
               '<span class="troca__q troca__q--eu">Você respondeu' +
                 (reg.obsEm ? ' · ' + U.esc(U.dataHora(reg.obsEm)) : '') + '</span>' +
               '<span class="troca__t">' + U.esc(reg.obs) + '</span>' +
-              '<span class="troca__d">Está com a ' + U.esc(DATA.ORG.curto) +
-                ' — não precisa fazer mais nada.</span>' +
+              (sit === "pendencia"
+                ? '<span class="troca__d">Está com a ' + U.esc(DATA.ORG.curto) +
+                  ' — não precisa fazer mais nada.</span>'
+                : '') +
+            '</div>'
+          : '') +
+        /* O fecho: a resposta foi aceita. É a única linha que
+           encerra a conversa sem deixar dúvida. */
+        (sit === "aprovado" && reg.revisao && reg.revisao.em
+          ? '<div class="troca__i">' +
+              '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) +
+                ' aprovou · ' + U.esc(U.dataHora(reg.revisao.em)) + '</span>' +
             '</div>'
           : '') +
       '</div>';
     }
-    if (sit === "aprovado" && reg.revisao && reg.revisao.em) {
+    if (sit === "aprovado" && !reg.obs && reg.revisao && reg.revisao.em) {
       html += '<div class="item__desc" style="color:var(--ok)">Conferido pela Totali em ' +
               U.esc(U.dataCurta(reg.revisao.em)) + '.</div>';
     }

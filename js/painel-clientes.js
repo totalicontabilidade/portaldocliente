@@ -875,8 +875,10 @@
       .then(function () {
         if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
         c.dados.itens[chave].revisao = revisao;
-        desenharPendencias();
-        atualizarContadores();
+        /* Mesma razão de `gravarRevisao`: a lista de clientes e o
+           Início também mudam quando um documento é aprovado. */
+        desenharTudo();
+        if (aberto === c) desenharFicha();
         UI.toast("Aprovado.", "ok", 2500);
       }, function (e) {
         UI.toast("Não foi possível aprovar: " + FB.explicar(e), "erro", 9000);
@@ -886,10 +888,42 @@
   /* Cada empresa é um cartão que abre e fecha; dentro dela, um
      bloco por setor. Com dez clientes na tela, a lista aberta de
      uma vez viraria uma página impossível de percorrer. */
+  /* Correção que o cliente JÁ RESPONDEU não é mais pendência dele.
+
+     Esta aba mostrava as duas juntas como "N correções", em
+     vermelho, com o botão "Cobrar" em destaque. Quem abrisse a
+     tela para cobrar cobraria justamente quem tinha respondido —
+     e a resposta ficava escondida até alguém abrir a empresa. */
+  function separarPendencias(c, itens) {
+    var respondidas = 0, aguardando = 0, faltando = 0;
+    itens.forEach(function (p) {
+      if (p.sit !== "pendencia") { faltando++; return; }
+      if (((c.dados.itens || {})[p.chave] || {}).obs) respondidas++;
+      else aguardando++;
+    });
+    return { respondidas: respondidas, aguardando: aguardando, faltando: faltando };
+  }
+
+  /* O mesmo selo da ficha, com os números lado a lado. Azul
+     enquanto houver trabalho nosso; vermelho só quando o que
+     sobra depende do cliente. */
+  function seloDaPendencia(sep) {
+    var partes = [];
+    if (sep.respondidas) partes.push(sep.respondidas + " respondido" +
+      (sep.respondidas > 1 ? "s" : ""));
+    if (sep.aguardando) partes.push(sep.aguardando + " aguardando");
+    if (!partes.length) return "";
+    return '<span class="badge ' + (sep.respondidas ? "badge--analise" : "badge--pendencia") +
+      '"><span class="dot"></span>' + partes.join(" · ") + '</span>';
+  }
+
   function cartaoPendencia(g) {
     var c = g.cliente;
     var abertoEmp = !!abertosPend["emp:" + c.id];
-    var correcoes = g.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+    var sep = separarPendencias(c, g.itens);
+    /* Só se cobra o que ainda depende dele. Sem nada a cobrar, o
+       botão sai da linha em vez de ficar lá convidando ao erro. */
+    var aCobrar = sep.aguardando + sep.faltando;
 
     return '<div class="card pend" data-open="' + (abertoEmp ? "true" : "false") + '" ' +
         'style="margin-bottom:12px">' +
@@ -903,17 +937,16 @@
               (c.empresa.responsavelNome ? ' · ' + U.esc(c.empresa.responsavelNome) : '') +
             '</span>' +
           '</span>' +
-          (correcoes
-            ? '<span class="badge badge--pendencia"><span class="dot"></span>' + correcoes + ' ' +
-              U.plural(correcoes, "correção", "correções") + '</span>'
-            : '') +
+          seloDaPendencia(sep) +
           '<span class="cliente__chev">' + ic("ic-chevron-down") + '</span>' +
         '</button>' +
         '<span class="pend__acoes">' +
-          '<button type="button" class="btn btn--primary btn--sm" data-cobrar="' +
-            U.escAttr(c.id) + '">' + ic("ic-send") + 'Cobrar</button>' +
-          '<button type="button" class="btn btn--ghost btn--sm" data-cliente="' +
-            U.escAttr(c.id) + '">Abrir ficha</button>' +
+          (aCobrar
+            ? '<button type="button" class="btn btn--primary btn--sm" data-cobrar="' +
+              U.escAttr(c.id) + '">' + ic("ic-send") + 'Cobrar</button>'
+            : '') +
+          '<button type="button" class="btn btn--' + (aCobrar ? "ghost" : "primary") +
+            ' btn--sm" data-cliente="' + U.escAttr(c.id) + '">Abrir ficha</button>' +
         '</span>' +
       '</div>' +
       (abertoEmp ? setoresHTML(c, g.itens) : '') +
@@ -938,7 +971,7 @@
     return porSetor.map(function (s) {
       var chave = c.id + "|" + s.grupo.id;
       var fechado = !!fechadosSetor[chave];
-      var correcoes = s.itens.filter(function (p) { return p.sit === "pendencia"; }).length;
+      var sepSetor = separarPendencias(c, s.itens);
 
       return '<div class="pend__setor" data-open="' + (fechado ? "false" : "true") + '">' +
         '<button type="button" class="group__head group__head--selo pend__setorCab" ' +
@@ -950,10 +983,7 @@
             '<span class="group__meta" style="display:block">' + s.itens.length + ' ' +
               U.plural(s.itens.length, "pendência", "pendências") + '</span>' +
           '</span>' +
-          (correcoes
-            ? '<span class="badge badge--pendencia"><span class="dot"></span>' + correcoes + ' ' +
-              U.plural(correcoes, "correção", "correções") + '</span>'
-            : '') +
+          seloDaPendencia(sepSetor) +
           '<span class="group__chev">' + ic("ic-chevron-down") + '</span>' +
         '</button>' +
         /* A MESMA TABELA DA FICHA. Esta aba é a outra tela em que a
@@ -1903,8 +1933,7 @@
                seria uma segunda versão do mesmo fato, e a de cá
                poderia falhar calada. */
             desenharFicha();
-            atualizarContadores();
-            if ((location.hash || "").indexOf("pendencias") > -1) desenharPendencias();
+            desenharTudo();
             UI.toast("Arquivo apagado. O cliente vê o documento como pendente.", "ok", 7000);
           });
       }).catch(function (e) {
@@ -2476,6 +2505,21 @@
               '<span class="troca__q troca__q--eu">O cliente respondeu' +
                 (reg.obsEm ? ' · ' + U.esc(U.dataHora(reg.obsEm)) : '') + '</span>' +
               '<span class="troca__t">' + U.esc(reg.obs) + '</span>' +
+            '</div>'
+          : '') +
+        /* A DECISÃO FECHA A LINHA DO TEMPO.
+
+           Aprovado um documento que tinha resposta do cliente, a
+           linha parava na fala dele: pedido, resposta, e nada. A
+           assinatura de quem decidiu existia — mas no ramo de
+           baixo, que só roda quando NÃO há resposta nenhuma. Quem
+           lia a ficha via a conversa morrer no ar justamente no
+           caso em que houve conversa. */
+        (rev.status === "aprovado" && rev.em
+          ? '<div class="troca__i">' +
+              '<span class="troca__q troca__q--eles">' +
+                U.esc(rev.por || "A equipe") + ' aprovou · ' +
+                U.esc(U.dataHora(rev.em)) + '</span>' +
             '</div>'
           : '') +
       '</div>';
@@ -3869,7 +3913,10 @@
         else c.dados.itens[t.chave].naEquipe = t.valor;
       });
       if (aberto === c) desenharFicha();
-      atualizarContadores();
+      /* Dispensar documentos muda o total do cliente: sem
+         redesenhar a lista, o cartão continuaria cobrando o que
+         acabou de deixar de ser exigido. */
+      desenharTudo();
       UI.toast(mudancas.length === 1
         ? "Documento atualizado."
         : mudancas.length + " documentos atualizados.", "ok", 4000);
@@ -4041,10 +4088,16 @@
       c.dados.itens[chave].revisao = revisao;
       /* Aprovar e devolver agora acontecem em três telas. Redesenhar
          só a ficha deixava as outras duas mostrando o estado
-         antigo — e quem clicou concluiria que o botão falhou. */
+         antigo — e quem clicou concluiria que o botão falhou.
+
+         `desenharTudo` e não a lista de telas escrita à mão: a
+         versão anterior redesenhava Pendências só quando a aba
+         estava aberta e nunca redesenhava a LISTA de clientes.
+         Aprovado o último documento, o cartão do cliente seguia
+         dizendo "faltam 1 · Aguardando correção" e o filtro do
+         topo continuava contando — até recarregar a página. */
       desenharFicha();
-      atualizarContadores();
-      if ((location.hash || "").indexOf("pendencias") > -1) desenharPendencias();
+      desenharTudo();
       return true;
     }, function (e) {
       UI.toast("Não foi possível gravar: " + FB.explicar(e), "erro", 9000);
@@ -4310,7 +4363,7 @@
         c.dados.itens[chave].revisao = revisao;
       });
       desenharFicha();
-      atualizarContadores();
+      desenharTudo();
       return chaves.length;
     }, function (e) {
       UI.toast("Não foi possível aprovar: " + FB.explicar(e), "erro", 9000);

@@ -89,6 +89,32 @@
     return global.Departamentos.cuida(souDe(), grupoId);
   }
 
+  /* Documentos em que o cliente respondeu a uma correção sem
+     reenviar arquivo — a bola está com a equipe.
+
+     Mora aqui fora porque duas telas precisam da MESMA conta: a
+     lista de tarefas e o contador do topo. Quando a conta estava
+     escrita só dentro da lista, o topo dizia "0 documentos a
+     conferir" com uma tarefa logo abaixo. */
+  function respondidosDe(c) {
+    var fora = [];
+    global.DATA.GRUPOS.forEach(function (g) {
+      if (!daMinhaArea(g.id)) return;
+      var alvos = g.escopo === "socio"
+        ? (c.dados.socios || []).map(function (s) { return s.id; })
+        : [null];
+      alvos.forEach(function (socioId) {
+        g.itens.forEach(function (item) {
+          if (global.Situacao.de(c.dados, g, item, socioId) !== "pendencia") return;
+          var chave = global.Situacao.chaveItem(g.id, item.id, socioId);
+          var reg = (c.dados.itens || {})[chave] || {};
+          if (reg.obs) fora.push({ item: item, reg: reg });
+        });
+      });
+    });
+    return fora;
+  }
+
   function reunir() {
     var PC = global.PainelClientes;
     if (!PC) return [];
@@ -158,21 +184,7 @@
          Agora é tarefa de documento e leva para a ficha. Só sai
          daqui quando a equipe aprovar, trocar o motivo ou devolver
          para conferência — ou seja, quando a decisão existir. */
-      var respondidos = [];
-      global.DATA.GRUPOS.forEach(function (g) {
-        if (!daMinhaArea(g.id)) return;
-        var alvos = g.escopo === "socio"
-          ? (c.dados.socios || []).map(function (s) { return s.id; })
-          : [null];
-        alvos.forEach(function (socioId) {
-          g.itens.forEach(function (item) {
-            if (global.Situacao.de(c.dados, g, item, socioId) !== "pendencia") return;
-            var chave = global.Situacao.chaveItem(g.id, item.id, socioId);
-            var reg = (c.dados.itens || {})[chave] || {};
-            if (reg.obs) respondidos.push({ item: item, reg: reg });
-          });
-        });
-      });
+      var respondidos = respondidosDe(c);
       if (respondidos.length) {
         var maisAntiga = respondidos.reduce(function (a, x) {
           var t = PC.emMs(x.reg.obsEm) || PC.emMs(x.reg.atualizadoEm) || 0;
@@ -302,9 +314,13 @@
 
     var conferir = 0, naoLidas = 0, aResolver = 0, parados = 0;
     ativos.forEach(function (c) {
+      /* "A conferir" é tudo que espera decisão da equipe: o que o
+         cliente acabou de enviar E o que ele respondeu sem
+         reenviar. Os dois viram tarefa na lista abaixo; se só o
+         primeiro contasse, o número brigaria com a lista. */
       conferir += PC.naoConferidos(c).filter(function (x) {
         return daMinhaArea(x.grupo.id);
-      }).length;
+      }).length + respondidosDe(c).length;
       naoLidas += PC.naoLidasDe(c);
       aResolver += c.mensagens.filter(function (m) {
         return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm;
