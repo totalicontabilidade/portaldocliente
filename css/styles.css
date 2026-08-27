@@ -1157,11 +1157,16 @@ input[type=checkbox]{accent-color:var(--gold)}
    o trabalho começa por ele. A diferença de FORMA é o que resolve;
    cor e tamanho sozinhos não resolveriam. */
 .fila{margin:0 0 22px}
-.fila__cab{
-  display:flex;align-items:center;gap:12px;width:100%;
+/* Título, ação e seta na mesma linha. A ação SAI do botão de abrir:
+   botão dentro de botão não existe em HTML. */
+.fila__linha{
+  display:flex;align-items:center;gap:10px;
   padding:0 2px 11px;margin-bottom:14px;
-  border:0;border-bottom:1px solid var(--stroke);
-  background:transparent;text-align:left;cursor:pointer;
+  border-bottom:1px solid var(--stroke);
+}
+.fila__cab{
+  display:flex;align-items:center;gap:12px;flex:1;min-width:0;
+  padding:0;border:0;background:transparent;text-align:left;cursor:pointer;
 }
 .fila__txt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
 .fila__titulo{
@@ -1173,9 +1178,11 @@ input[type=checkbox]{accent-color:var(--gold)}
   /* O tamanho precisa ser explícito: sem ele o SVG dentro do grid
      esticava para a largura que sobrasse e empurrava a linha
      inteira — 300px de seta num cabeçalho de 375. */
-  width:20px;height:20px;
-  transition:transform .24s var(--ease);
+  width:26px;height:26px;
+  border:0;background:transparent;cursor:pointer;border-radius:8px;
+  transition:transform .24s var(--ease),background .18s var(--ease);
 }
+.fila__chev:hover{background:var(--glass)}
 .fila__chev .ic{width:18px;height:18px}
 .fila[data-open="true"] .fila__chev{transform:rotate(180deg)}
 .fila__cab:hover .fila__titulo{color:var(--gold-3)}
@@ -1194,6 +1201,12 @@ input[type=checkbox]{accent-color:var(--gold)}
   color:var(--txt-2);vertical-align:top;
 }
 .conf tbody tr:last-child td{border-bottom:0}
+/* No resumo a tabela é uma lista, não um quadro: sem cabeçalho,
+   a primeira linha não precisa de régua em cima e o respiro
+   lateral some — a coluna do documento começa junto do título. */
+.conf--resumo{min-width:380px}
+.conf--resumo tbody td{padding-left:0}
+.conf--resumo tbody td:last-child{padding-right:0}
 .conf tbody tr:hover td{background:var(--glass)}
 .conf__dir{text-align:right}
 .conf__n{display:block;font-size:13.5px;font-weight:620;color:var(--txt);line-height:1.4}
@@ -1999,9 +2012,24 @@ body.porta-aberta .foot__nome-br{display:inline}
   max-height:52vh;
   overflow-y:auto;
   overscroll-behavior:contain;
-  padding-right:4px;
+  padding:2px 4px 0 0;
   scrollbar-width:thin;
 }
+/* O RESPIRO DE BAIXO NÃO É ENFEITE, e não pode ser `padding`.
+
+   Sem ele a última bolha encosta na borda do container e a quina
+   arredondada fica cortada — quem lê não sabe se a conversa
+   acabou ali ou se falta mais um pedaço, e num chat essa dúvida é
+   justamente a pior.
+
+   NEM `padding-bottom` NO CONTAINER NEM `margin-bottom` NO ÚLTIMO
+   FILHO resolvem: em caixa flex com rolagem, os dois são
+   descartados no fim da rolagem. Medi os dois aqui, e a folga
+   abaixo da última bolha continuou zero nas duas tentativas.
+
+   O que funciona é um ITEM de verdade no fim — um `::after` é
+   item flex como qualquer outro, e item ocupa espaço. */
+.chat::after{content:"";flex:0 0 10px}
 /* Os descontos saíram de medição, não de chute: no celular sobram
    o cabeçalho, o título da seção, o campo de escrever e a barra de
    abas; no computador não há barra de abas e o título é menor.
@@ -2330,12 +2358,15 @@ body.tour-aberto{overscroll-behavior:contain}
 /* Conversa dentro da ficha */
 .conversa{
   display:flex;flex-direction:column;gap:10px;
-  max-height:420px;overflow-y:auto;padding-right:4px;
+  max-height:420px;overflow-y:auto;
+  padding:2px 4px 0 0;
   /* Ver a nota em `.chat`: sem isto, chegar ao fim da lista faz a
      roda do mouse continuar rolando a página atrás dela. */
   overscroll-behavior:contain;
   scrollbar-width:thin;
 }
+/* Mesmo respiro do `.chat`, e pelo mesmo motivo — ver a nota lá. */
+.conversa::after{content:"";flex:0 0 10px}
 
 /* ---------- A conversa da caixa de entrada não rola a página ----------
 

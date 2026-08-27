@@ -1447,11 +1447,6 @@
                     'data-emp="' + U.escAttr(c.id) + '">Reabrir a conversa</button>' +
                 '</div>'
               : '')) +
-        /* Os modelos existiam só na aba Conversa da ficha. Quem
-           responde pela caixa de entrada — que é o caminho curto, e
-           por isso o mais usado — digitava tudo à mão. Mesma peça,
-           os dois lugares. */
-        modelosHTML() +
         '<div class="field" style="margin-top:14px">' +
           '<label class="field__label" for="msTexto">Responder</label>' +
           '<textarea class="textarea" id="msTexto" rows="3" maxlength="4000" ' +
@@ -1463,6 +1458,14 @@
           '<button type="button" class="btn btn--primary btn--sm" id="msEnviar">' +
             ic("ic-send") + 'Enviar</button>' +
         '</div>' +
+        /* OS MODELOS DESCERAM PARA DEPOIS DO ENVIAR (pedido dele).
+
+           Entre a conversa e o campo de resposta, eles empurravam
+           as duas coisas que importam para longe uma da outra — e
+           numa tela de altura fixa isso sai direto do tamanho da
+           conversa. Aqui embaixo continuam a um toque e param de
+           dividir a tela ao meio. */
+        modelosHTML() +
         '<div id="msAnexos" class="anexos-fila"></div>' +
       '</div>';
 
@@ -1694,21 +1697,37 @@
      diferença de forma que separa a fila dos setores. Recolher
      continua existindo — só que aqui é a fila inteira, e ela nasce
      aberta porque é o motivo de a ficha ser aberta. */
+  /* A AÇÃO SOBE PARA O CABEÇALHO, e isso é o que enxuga o bloco.
+
+     "Cobrar tudo o que falta" era um botão dourado grande com uma
+     linha de explicação embaixo — juntos, mais altura que as duas
+     linhas de documento que eles acompanhavam. A explicação some:
+     a próxima tela já pergunta por qual via enviar, então dizer
+     isso antes é avisar sobre uma pergunta que vai ser feita.
+
+     São dois botões irmãos, e não um dentro do outro: o cabeçalho
+     inteiro é o gatilho de abrir e fechar, e botão dentro de botão
+     não existe em HTML. */
   function blocoFila(o) {
     var aberto = abertosFicha[o.id] !== false;
     return '<section class="fila" data-open="' + (aberto ? "true" : "false") + '">' +
-      '<button type="button" class="fila__cab" data-bloco="' + U.escAttr(o.id) + '" ' +
-          'aria-expanded="' + (aberto ? "true" : "false") + '">' +
-        '<span class="fila__txt">' +
-          '<span class="fila__titulo">' + U.esc(o.titulo) + '</span>' +
-          '<span class="fila__resumo">' + U.esc(o.resumo || "") + '</span>' +
-        '</span>' +
-        (o.selo
-          ? '<span class="badge ' + (o.seloCls || "badge--pendente") + '">' +
-            '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
-          : '') +
-        '<span class="fila__chev">' + ic("ic-chevron-down") + '</span>' +
-      '</button>' +
+      '<div class="fila__linha">' +
+        '<button type="button" class="fila__cab" data-bloco="' + U.escAttr(o.id) + '" ' +
+            'aria-expanded="' + (aberto ? "true" : "false") + '">' +
+          '<span class="fila__txt">' +
+            '<span class="fila__titulo">' + U.esc(o.titulo) + '</span>' +
+            '<span class="fila__resumo">' + U.esc(o.resumo || "") + '</span>' +
+          '</span>' +
+          (o.selo
+            ? '<span class="badge ' + (o.seloCls || "badge--pendente") + '">' +
+              '<span class="dot"></span>' + U.esc(o.selo) + '</span>'
+            : '') +
+        '</button>' +
+        (o.acao || '') +
+        '<button type="button" class="fila__chev" data-bloco="' + U.escAttr(o.id) + '" ' +
+            'aria-label="' + (aberto ? "Recolher" : "Abrir") + '">' +
+          ic("ic-chevron-down") + '</button>' +
+      '</div>' +
       (aberto ? '<div class="fila__corpo">' + o.corpo() + '</div>' : '') +
     '</section>';
   }
@@ -1729,12 +1748,16 @@
      documento. */
   function tabelaDeConferencia(c, pendentes, modo) {
     var resumo = modo === "resumo";
-    return '<div class="tabela-rolo"><table class="conf">' +
-      '<thead><tr>' +
-        '<th>Documento</th><th>Situação</th>' +
-        (resumo ? '' : '<th>Arquivo</th>') +
-        '<th class="conf__dir">' + (resumo ? '' : 'Ação') + '</th>' +
-      '</tr></thead><tbody>' +
+    /* Sem cabeçalho no resumo: com duas ou três linhas, "DOCUMENTO
+       / SITUAÇÃO" não ensina nada que o conteúdo já não diga, e
+       ocupa uma faixa inteira. Na aba Pendências ele fica, porque
+       lá são quatro colunas e a lista é longa. */
+    return '<div class="tabela-rolo"><table class="conf' +
+      (resumo ? ' conf--resumo' : '') + '">' +
+      (resumo ? '' :
+        '<thead><tr><th>Documento</th><th>Situação</th>' +
+        '<th>Arquivo</th><th class="conf__dir">Ação</th></tr></thead>') +
+      '<tbody>' +
       pendentes.map(function (p) {
         var reg = (c.dados.itens || {})[p.chave] || {};
         var arquivos = reg.arquivos || [];
@@ -2024,6 +2047,11 @@
         selo: pendentes.length ? pendentes.length + " " +
           U.plural(pendentes.length, "documento", "documentos") : "",
         seloCls: est.resumo.pendencias ? "badge--pendencia" : "badge--pendente",
+        acao: pendentes.length
+          ? '<button type="button" class="btn btn--quiet btn--sm" id="clCobrar" ' +
+            'title="Portal, WhatsApp ou e-mail — você escolhe na próxima tela">' +
+            ic("ic-send") + 'Cobrar tudo</button>'
+          : '',
         corpo: function () {
           if (!pendentes.length) {
             /* Aqui o trabalho passou a ser NOSSO, e é o único ponto
@@ -2044,11 +2072,7 @@
           }
           /* Um botão só, que abre as três vias. Antes dizia
              "Cobrar pelo portal" e escondia que havia outras. */
-          return '<button type="button" class="btn btn--primary btn--sm" id="clCobrar" ' +
-              'style="margin-bottom:6px">' + ic("ic-send") + 'Cobrar tudo o que falta</button>' +
-            '<p class="text-xs text-muted" style="margin:0 0 14px">Portal, WhatsApp ou e-mail — ' +
-              'você escolhe na próxima tela.</p>' +
-            tabelaDeConferencia(c, pendentes, "resumo");
+          return tabelaDeConferencia(c, pendentes, "resumo");
         }
       });
     }

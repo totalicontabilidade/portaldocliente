@@ -2747,6 +2747,16 @@
     });
   }
 
+  /* A ALTURA DA CONVERSA, MEDIDA — não calculada por constante.
+
+     Ela era `calc(100dvh - 470px)`, e os 470 saíram de uma medição
+     minha em dois tamanhos de tela. Funciona nesses dois e erra nos
+     outros: a última mensagem ficava meio centímetro por baixo do
+     campo de escrever, e quem lê não sabe se acabou ou se falta.
+
+     Aqui a conta é feita com o que existe na tela: da base da lista
+     até o topo do campo de escrever. Não há número para acertar, e
+     não erra quando alguém acrescenta uma linha ao cabeçalho. */
   function bindMensagens() {
     var campo = $("#msgTexto"), botao = $("#btnEnviarMsg");
     if (!campo || !botao) return;
@@ -5053,6 +5063,7 @@
     ligarEventosGlobais();
     ligarRecargaAoVoltar();
     ligarMenuDasMensagens();
+
 
     /* Avisos ao cliente. Só notificamos o que veio da Totali —
        ninguém precisa ser avisado da própria ação. */
