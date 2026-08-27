@@ -2482,16 +2482,22 @@
              Marcação de quê, e para onde vai? O botão apaga a
              decisão que alguém tomou — aprovado ou correção pedida
              — e o documento volta para a fila de quem confere.
-             "Voltar para conferir" é isso dito em voz alta: fala do
-             DESTINO, que é o que a pessoa precisa saber antes de
+             "Voltar para conferência" é isso dito em voz alta: fala
+             do DESTINO, que é o que a pessoa precisa saber antes de
              clicar, e não do mecanismo interno.
+
+             "Conferência" e não "conferir" porque a FILA DE
+             CONFERÊNCIA já existe com esse nome na aba Pendências.
+             O rótulo aponta para um lugar que a equipe reconhece,
+             em vez de descrever uma ação — que, no infinitivo,
+             ainda podia ser lida como ordem para quem clica.
 
              O título explica o outro lado, o que o cliente vê. */
           (sit !== "pendente"
             ? '<button type="button" class="btn btn--quiet btn--sm" data-limpar="' +
               U.escAttr(chave) + '" title="Apaga a aprovação ou o pedido de correção. ' +
               'O documento volta para a fila de conferência e o cliente deixa de ver a marca.">' +
-              'Voltar para conferir</button>' : '') +
+              'Voltar para conferência</button>' : '') +
         '</div>'
       : '';
 
@@ -5328,7 +5334,7 @@
             else UI.toast("Não encontrei este cliente. Recarregue a página.", "erro", 8000);
           } });
         if (sitM !== "pendente") {
-          itens.push({ rotulo: "Voltar para conferir", icone: "ic-refresh",
+          itens.push({ rotulo: "Voltar para conferência", icone: "ic-refresh",
             onClick: function () { revisar(chaveM, "", "", empM); } });
         }
 
