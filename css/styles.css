@@ -983,6 +983,65 @@ input[type=checkbox]{accent-color:var(--gold)}
   100%{background:rgba(220,196,135,.1)}
 }
 .item__top{display:flex;align-items:flex-start;gap:12px}
+
+/* ---------- O documento abre e fecha ----------
+
+   A lista crescia e nunca encolhia: documento aprovado ocupava a
+   mesma altura de um que ainda precisa de alguma coisa. Fechado,
+   ele vira uma linha; a tela encolhe conforme o cliente avança. */
+.item__top[data-item-toggle]{cursor:pointer;user-select:none}
+.item__top[data-item-toggle]:focus-visible{
+  outline:2px solid var(--gold-2);outline-offset:3px;border-radius:10px;
+}
+.item__chev{
+  flex:none;width:20px;height:20px;display:grid;place-items:center;
+  color:var(--txt-4);margin-top:2px;
+  transition:transform .24s var(--ease);
+}
+.item__chev .ic{width:17px;height:17px}
+.item[data-open="true"] .item__chev{transform:rotate(180deg)}
+.item__corpo{padding-left:34px;animation:fadeIn .25s var(--ease-out)}
+@media (max-width:520px){.item__corpo{padding-left:0;margin-top:10px}}
+.item__resumo{font-size:11.5px;color:var(--txt-4)}
+
+/* ---------- A troca sobre o documento ----------
+
+   O pedido da equipe e a resposta do cliente eram duas caixas com
+   moldura, empilhadas, do mesmo peso do aviso permanente e do
+   arquivo. Uma troca lê melhor como troca: um trilho, quem falou,
+   o que disse. Ocupa menos altura que duas caixas e diz mais,
+   porque a ordem passa a significar alguma coisa. */
+.troca{
+  display:flex;flex-direction:column;gap:12px;
+  border-left:2px solid var(--stroke-2);
+  padding-left:13px;margin:12px 0 4px;
+}
+.troca__i{display:flex;flex-direction:column;gap:2px}
+.troca__q{font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
+.troca__q--eles{color:var(--warn)}
+.troca__q--eu{color:var(--info)}
+.troca__t{font-size:13.5px;color:var(--txt-2);line-height:1.55}
+.troca__d{font-size:11.5px;color:var(--txt-4)}
+
+/* ---------- Rodapé de ações secundárias ----------
+
+   Eram botões empilhados com moldura, cada um numa linha,
+   disputando atenção com o arquivo e com o pedido de correção.
+   Em texto quieto continuam a um toque e param de competir. */
+.item__rodape{
+  display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;
+  margin-top:14px;padding-top:11px;border-top:1px solid var(--stroke);
+}
+.item__pe{
+  background:transparent;border:0;padding:0;cursor:pointer;
+  font-size:12px;font-weight:560;color:var(--txt-3);
+  text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--stroke-2);
+}
+.item__pe:hover,.item__pe:focus-visible{color:var(--gold-2);outline:none}
+.item__pe--nota{
+  cursor:default;text-decoration:none;color:var(--txt-4);font-weight:450;
+}
 /* Quadradinho de situação.
 
    Enquanto o item está pendente ele fica só como um traço: antes era

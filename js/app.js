@@ -29,6 +29,9 @@
 
   var estadoUI = {
     gruposAbertos: {},
+    /* Documentos que o cliente abriu ou fechou à mão. Fica só na
+       memória da aba: é preferência do momento, não dado dele. */
+    itensAbertos: {},
     trilhaAberta: "",
     faqAberta: {},
     /* Quais explicações do Informativo estão abertas. */
@@ -928,10 +931,17 @@
       ? ''
       : '<button type="button" class="btn btn--quiet btn--sm" data-na="1">Não se aplica</button>';
 
+    var aberto = itemAberto(chave, sit, reg);
+
     var html = '<div class="item ' + (pronto ? "item--done " : "") +
                (sit === "na" ? "item--na " : "") + (sit === "pendencia" ? "item--pendencia" : "") +
-               '" data-chave="' + U.escAttr(chave) + '">' +
-      '<div class="item__top">' +
+               '" data-chave="' + U.escAttr(chave) + '" data-open="' + (aberto ? "true" : "false") + '">' +
+      /* O cabeçalho abre e fecha o documento. É `div` e não
+         `button` porque tem um botão dentro ("Entenda este
+         documento") — botão dentro de botão não existe em HTML, e
+         o navegador desmonta a página quando encontra um. */
+      '<div class="item__top" data-item-toggle="' + U.escAttr(chave) + '" role="button" ' +
+          'tabindex="0" aria-expanded="' + (aberto ? "true" : "false") + '">' +
         '<span class="item__mark" aria-hidden="true">' + ic("ic-check") + '</span>' +
         '<div class="item__main">' +
           '<div class="item__name">' + U.esc(item.nome) +
@@ -948,47 +958,48 @@
             (sit === "pendencia" && reg.obs
               ? '<span class="badge badge--analise"><span class="dot"></span>Respondido</span>'
               : badgeSituacao(sit)) +
-            '<button type="button" class="help-btn" data-ajuda="' + U.escAttr(grupo.id + "|" + item.id) + '">' +
-              ic("ic-info") + 'Entenda este documento</button>' +
+            /* Com o documento fechado, a linha resume o que há lá
+               dentro — sem isso, fechar esconderia informação em
+               vez de arrumá-la. */
+            (!aberto ? resumoFechado(reg, sit) : '') +
           '</div>' +
-          (item.resumo ? '<div class="item__desc">' + U.esc(item.resumo) + '</div>' : '');
+        '</div>' +
+        '<span class="item__chev">' + ic("ic-chevron-down") + '</span>' +
+      '</div>';
 
-    /* Recado da equipe quando o documento voltou para correção. */
+    if (!aberto) return html + '</div>';
+
+    html += '<div class="item__corpo"><div class="item__main">' +
+      (item.resumo ? '<div class="item__desc">' + U.esc(item.resumo) + '</div>' : '');
+
+    /* A CONVERSA SOBRE ESTE DOCUMENTO, EM ORDEM.
+
+       Eram duas caixas com moldura, uma embaixo da outra, do mesmo
+       tamanho do resto: o pedido da Totali e a resposta do cliente
+       pesavam igual ao aviso permanente e ao arquivo. Nada dizia o
+       que era urgente, o que era histórico e o que era contexto.
+
+       Uma troca lida melhor como troca: um trilho, quem falou, o
+       que disse e quando. Ocupa menos altura que duas caixas e diz
+       mais, porque a ordem passa a significar alguma coisa. */
     if (sit === "pendencia") {
-      html += '<div class="notice notice--warn" style="margin-top:10px;padding:11px 13px;font-size:12.5px">' +
-          '<span class="notice__icon">' + ic("ic-alert") + '</span>' +
-          '<span><strong>A Totali pediu uma correção.</strong>' +
-          (reg.revisao && reg.revisao.motivo ? ' ' + U.esc(reg.revisao.motivo) : '') +
-          (reg.revisao && reg.revisao.em
-            ? ' <span class="text-xs" style="opacity:.75">— ' + U.esc(U.dataCurta(reg.revisao.em)) + '</span>'
-            : '') +
-          '</span></div>';
-
-      /* NEM TODA CORREÇÃO PEDIDA É UM DOCUMENTO ERRADO.
-
-         Às vezes o documento está certo e quem pediu a correção é
-         que não tinha o contexto — e o cliente ficava sem saída:
-         ou reenviava o mesmo arquivo, o que não explica nada, ou
-         ia para as Mensagens e a conversa perdia o vínculo com o
-         documento.
-
-         Aqui ele responde SEM reenviar. A resposta fica colada ao
-         item, e a equipe recebe o recado na conversa, com o link
-         para este documento. A pendência continua de pé até a
-         equipe decidir: o cliente explica, quem aprova é a
-         Totali. */
-      if (reg.obs) {
-        html += '<div class="notice notice--info" style="margin-top:8px;padding:11px 13px;font-size:12.5px">' +
-            '<span class="notice__icon">' + ic("ic-chat") + '</span>' +
-            '<span><strong>Você respondeu:</strong> ' + U.esc(reg.obs) +
-            '<br><span class="text-xs" style="opacity:.75">Está com a Totali — você não precisa ' +
-            'fazer mais nada por aqui.</span></span></div>';
-      }
-      html += '<div class="row" style="margin-top:9px">' +
-          '<button type="button" class="btn btn--ghost btn--sm" data-justificar="' +
-            U.escAttr(chave) + '">' + ic("ic-chat") +
-            (reg.obs ? 'Editar minha resposta' : 'Responder sem reenviar') + '</button>' +
-        '</div>';
+      html += '<div class="troca">' +
+        '<div class="troca__i">' +
+          '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) + ' pediu correção' +
+            (reg.revisao && reg.revisao.em ? ' · ' + U.esc(U.dataCurta(reg.revisao.em)) : '') +
+          '</span>' +
+          (reg.revisao && reg.revisao.motivo
+            ? '<span class="troca__t">' + U.esc(reg.revisao.motivo) + '</span>' : '') +
+        '</div>' +
+        (reg.obs
+          ? '<div class="troca__i">' +
+              '<span class="troca__q troca__q--eu">Você respondeu</span>' +
+              '<span class="troca__t">' + U.esc(reg.obs) + '</span>' +
+              '<span class="troca__d">Está com a ' + U.esc(DATA.ORG.curto) +
+                ' — não precisa fazer mais nada.</span>' +
+            '</div>'
+          : '') +
+      '</div>';
     }
     if (sit === "aprovado" && reg.revisao && reg.revisao.em) {
       html += '<div class="item__desc" style="color:var(--ok)">Conferido pela Totali em ' +
@@ -998,16 +1009,22 @@
     /* A Totali definiu. Vale tanto para tirar da lista quanto
        para devolver: "não precisa" e "precisa sim" são as duas
        respostas que o cliente não tem como saber sozinho. */
-    if (travado && !grupoNA) {
-      html += reg.naEquipe
-        ? '<div class="notice notice--ok" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
-            '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
-            '<span><strong>A ' + U.esc(DATA.ORG.curto) + ' verificou: este documento não se ' +
-            'aplica à sua empresa.</strong> Você não precisa enviar nada aqui.</span></div>'
-        : '<div class="notice notice--info" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
-            '<span class="notice__icon">' + ic("ic-info") + '</span>' +
-            '<span>A ' + U.esc(DATA.ORG.curto) + ' confirmou que este documento é necessário ' +
-            'para a sua empresa. Se você acha que não se aplica, fale pelas Mensagens.</span></div>';
+    /* "NÃO SE APLICA" CONTINUA CAIXA; "É NECESSÁRIO" VIROU LINHA.
+
+       Os dois eram avisos do mesmo tamanho, e não são a mesma
+       coisa. Saber que a Totali dispensou o documento MUDA o que a
+       pessoa faz: ela para de procurar o papel. Saber que ele é
+       necessário não muda nada — é a situação normal de todos os
+       outros itens da lista, e estava ocupando uma caixa inteira
+       ao lado do pedido de correção, que é urgente.
+
+       Agora é a última linha do rodapé, em letra miúda, junto das
+       outras ações. Continua ali para quem procurar. */
+    if (travado && !grupoNA && reg.naEquipe) {
+      html += '<div class="notice notice--ok" style="margin-top:10px;padding:10px 12px;font-size:12.5px">' +
+          '<span class="notice__icon">' + ic("ic-check-circle") + '</span>' +
+          '<span><strong>A ' + U.esc(DATA.ORG.curto) + ' verificou: este documento não se ' +
+          'aplica à sua empresa.</strong> Você não precisa enviar nada aqui.</span></div>';
     }
 
     if (grupoNA) {
@@ -1114,8 +1131,65 @@
       html += lembreteHTML(chave, reg.lembrete || 0);
     }
 
+    /* O RODAPÉ: tudo o que é ação secundária, numa linha só.
+
+       Eram botões empilhados, cada um numa linha, com a mesma
+       moldura do resto — "Editar minha resposta", "Entenda este
+       documento" e o aviso de necessário disputavam atenção com o
+       arquivo e com o pedido de correção. Aqui embaixo, em texto
+       quieto, eles continuam a um toque de distância e param de
+       competir com o que importa. */
+    var rodape = [];
+    if (sit === "pendencia") {
+      rodape.push('<button type="button" class="item__pe" data-justificar="' +
+        U.escAttr(chave) + '">' +
+        (reg.obs ? 'Editar minha resposta' : 'Responder sem reenviar') + '</button>');
+    }
+    if (item.ajuda) {
+      rodape.push('<button type="button" class="item__pe" data-ajuda="' +
+        U.escAttr(grupo.id + "|" + item.id) + '">Entenda este documento</button>');
+    }
+    if (travado && !grupoNA && !reg.naEquipe) {
+      rodape.push('<span class="item__pe item__pe--nota">A ' + U.esc(DATA.ORG.curto) +
+        ' confirmou que este documento é necessário</span>');
+    }
+    if (rodape.length) html += '<div class="item__rodape">' + rodape.join("") + '</div>';
+
     html += '</div></div></div>';
     return html;
+  }
+
+  /* QUEM NASCE ABERTO, E POR QUÊ.
+
+     A lista cresce e nunca encolhe: cada documento resolvido
+     continuava ocupando a mesma altura de um que ainda precisa de
+     alguma coisa. Com quatro ou cinco, a tela vira parede — foi o
+     que o Raoni apontou.
+
+     A regra é simples: fica aberto o que ainda depende do cliente.
+     O que já está resolvido — enviado, em análise, aprovado,
+     dispensado ou coberto por outro documento — fecha numa linha.
+     Assim a tela ENCOLHE conforme ele avança, em vez de crescer.
+
+     Quem tocou no cabeçalho manda mais que a regra: a escolha dele
+     vale enquanto a tela estiver aberta. */
+  function itemAberto(chave, sit, reg) {
+    if (estadoUI.itensAbertos[chave] !== undefined) return estadoUI.itensAbertos[chave];
+    return ["enviado", "analise", "aprovado", "na", "substituido"].indexOf(sit) === -1;
+  }
+
+  /* O que a linha diz quando o documento está fechado. Sem isto,
+     recolher esconderia informação em vez de organizá-la. */
+  function resumoFechado(reg, sit) {
+    var n = (reg.arquivos || []).length;
+    if (n) {
+      return '<span class="item__resumo">' + n + " " +
+        U.plural(n, "arquivo", "arquivos") + '</span>';
+    }
+    if (sit === "enviado" && reg.valor) {
+      return '<span class="item__resumo">' + U.esc(String(reg.valor).slice(0, 40)) + '</span>';
+    }
+    return "";
   }
 
   /* ============================================================
@@ -4330,6 +4404,25 @@
       var justificar = ev.target.closest("[data-justificar]");
       if (justificar) {
         abrirResposta(justificar.getAttribute("data-justificar"));
+        return;
+      }
+
+      /* Abrir e fechar um documento. Vem DEPOIS dos botões
+         específicos de propósito: o cabeçalho inteiro é a área de
+         toque, e sem esta ordem tocar em "Entenda este documento"
+         abriria a explicação e recolheria o item na mesma batida.
+
+         A rolagem é recomposta porque redesenhar a tela toda muda a
+         altura acima do item — sem isso, fechar um documento no meio
+         da lista faz a página saltar sob o dedo. */
+      var toggleItem = ev.target.closest("[data-item-toggle]");
+      if (toggleItem && !ev.target.closest("button, a, input, select, textarea")) {
+        var ch = toggleItem.getAttribute("data-item-toggle");
+        var antesTop = toggleItem.getBoundingClientRect().top;
+        estadoUI.itensAbertos[ch] = !(toggleItem.getAttribute("aria-expanded") === "true");
+        render();
+        var novo = $('[data-item-toggle="' + ch.replace(/"/g, '\\"') + '"]');
+        if (novo) global.scrollBy(0, novo.getBoundingClientRect().top - antesTop);
         return;
       }
 
