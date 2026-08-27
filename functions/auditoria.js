@@ -94,7 +94,35 @@ exports.auditarItem = onDocumentWritten(
     const depois = event.data.after.exists ? event.data.after.data() : null;
     if (!depois) return;                       /* exclusão: a empresa toda saiu */
 
+    /* QUEM MEXEU, quando quem mexeu foi o cliente.
+
+       Um gatilho do Firestore não recebe o usuário que gravou, e
+       por isso "item:enviado" e "item:removido" nasciam sem autor:
+       a trilha sabia que um documento saiu, não quem o tirou. Numa
+       empresa com mais de uma pessoa no portal, é justamente essa
+       a pergunta que se faz depois.
+
+       O portal passa a assinar o registro, e a regra do Firestore
+       exige que o `porUid` seja o uid de quem está gravando — não
+       é declaração, é assinatura. O nome vem junto só para a
+       trilha ser legível sem consultar a lista de acessos.
+
+       Registros gravados antes disso não têm os campos, e seguem
+       na trilha sem autor: inventar um seria pior que admitir que
+       não se sabe.
+
+       Fica FORA do `base` de propósito: aprovar e definir "se
+       aplica" são atos da equipe, e esses eventos já dizem quem
+       foi pelo `revisao.por`. Carimbar neles o uid do cliente
+       daria um registro que se contradiz — assinado por um, feito
+       por outro. */
     const base = { chave: chaveLegivel(chave) };
+    const assinatura = {};
+    const quem = texto(depois.porUid, 60);
+    if (quem) {
+      assinatura.uid = quem;
+      assinatura.por = texto(depois.porNome, 120);
+    }
 
     /* Arquivos: quantos entraram, quantos saíram. Os nomes vão
        junto porque é o que identifica o documento numa conferência
@@ -104,19 +132,19 @@ exports.auditarItem = onDocumentWritten(
     if (nDepois > nAntes) {
       const novos = (depois.arquivos || []).slice(nAntes);
       await anotar(empresaId, "item:enviado", {
-        ...base,
+        ...base, ...assinatura,
         arquivos: novos.map((a) => texto(a && a.nome, 160)),
         total: nDepois
       });
     } else if (nDepois < nAntes) {
-      await anotar(empresaId, "item:removido", { ...base, total: nDepois });
+      await anotar(empresaId, "item:removido", { ...base, ...assinatura, total: nDepois });
     }
 
     /* Valor digitado (número de inscrição, por exemplo). */
     const vAntes = texto(antes && antes.valor, 400);
     const vDepois = texto(depois.valor, 400);
     if (vDepois && vDepois !== vAntes) {
-      await anotar(empresaId, "item:valor", { ...base, valor: vDepois });
+      await anotar(empresaId, "item:valor", { ...base, ...assinatura, valor: vDepois });
     }
 
     /* Revisão da equipe. É o fato mais importante da trilha: é

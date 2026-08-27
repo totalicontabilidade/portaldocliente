@@ -252,8 +252,21 @@ service cloud.firestore {
                               data e a resposta sem nenhuma — e uma
                               troca sem ordem no tempo deixa de ser
                               troca. */
-                           'obs', 'obsEm', 'atualizadoEm', 'lembrete'
-                         ]));
+                           'obs', 'obsEm', 'atualizadoEm', 'lembrete',
+                           /* `porUid` é quem mexeu, e a condição
+                              abaixo exige que seja ele mesmo — o
+                              campo não serviria de nada se o
+                              cliente pudesse escrever o uid de
+                              outra pessoa. É o que faz a trilha de
+                              auditoria poder dizer quem tirou um
+                              documento. `porNome` é só para ela
+                              ficar legível; esse ele escreve à
+                              vontade, porque quem identifica é o
+                              uid. */
+                           'porUid', 'porNome'
+                         ])
+                          && request.resource.data.get('porUid', request.auth.uid)
+                             == request.auth.uid);
         // A trava do `na` proibia QUALQUER toque no campo, e isso
         // quebrou o envio de documento por inteiro.
         //
@@ -275,8 +288,11 @@ service cloud.firestore {
                       || (ehDonoDaEmpresa(empresaId)
                           && soEstesCampos([
                                'arquivos', 'valor', 'na', 'forma',
-                               'obs', 'obsEm', 'atualizadoEm', 'lembrete'
+                               'obs', 'obsEm', 'atualizadoEm', 'lembrete',
+                               'porUid', 'porNome'
                              ])
+                          && request.resource.data.get('porUid', request.auth.uid)
+                             == request.auth.uid
                           && (!('naEquipe' in resource.data)
                               || request.resource.data.get('na', false) == false
                               || request.resource.data.get('na', false)
