@@ -1212,12 +1212,20 @@ input[type=checkbox]{accent-color:var(--gold)}
 .conf__n{display:block;font-size:13.5px;font-weight:620;color:var(--txt);line-height:1.4}
 .conf__s{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
 .conf__vazio{color:var(--txt-4)}
-/* Os três botões cabem lado a lado e não quebram linha: com o peso
-   igual, um deles caindo sozinho para baixo recriaria a hierarquia
-   que se quis tirar. A coluna tem largura mínima para isso. */
-.conf__acoes{display:inline-flex;gap:7px;flex-wrap:nowrap;justify-content:flex-end}
-.conf__acoes .btn{white-space:nowrap}
-.conf:not(.conf--resumo) td.conf__dir{min-width:290px}
+/* EMPILHADOS, e não lado a lado.
+
+   Em linha, os três somavam quase 300px e a coluna de ação ficava
+   mais larga que a do nome do documento — o que a pessoa lê
+   primeiro passava a ser o que ela pode fazer, e não sobre o quê.
+   Empilhados eles cabem em 150px, e a linha volta a ser lida da
+   esquerda para a direita: o documento, a situação, o arquivo, e
+   só então o que fazer. */
+.conf__acoes{
+  display:flex;flex-direction:column;align-items:stretch;gap:6px;
+  min-width:132px;
+}
+.conf__acoes .btn{white-space:nowrap;justify-content:center}
+.conf:not(.conf--resumo) td.conf__dir{width:1%}
 
 /* Na ficha a tabela é resumo, e a única ação é descer até o
    documento — que está logo abaixo, inteiro. Botão cheio aqui

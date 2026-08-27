@@ -1917,16 +1917,14 @@
     /* `data-emp` viaja junto porque estes botões agora aparecem
        fora da ficha, onde não há "cliente aberto" para deduzir.
 
-       PESO IGUAL ENTRE OS TRÊS (pedido dele). Aprovar era dourado
-       cheio, Pedir correção tinha contorno e Cobrar não tinha nada
-       — três aparências para três coisas que, nesta tela, são
-       igualmente possíveis. Numa LISTA a hierarquia não ajuda: ela
-       sugere um caminho antes de a pessoa ter lido a linha. Na
-       ficha, onde se decide um documento por vez, o Aprovar
-       continua sendo o botão principal. */
+       O APROVAR VOLTOU A SER DOURADO. Eu tinha nivelado os três por
+       baixo, e o problema nunca foi o Aprovar se destacar: era o
+       Cobrar sem contorno nenhum, que não parecia clicável. Com os
+       outros dois delimitados, o dourado volta a significar "este
+       é o caminho comum" em vez de gritar. */
     var emp = ' data-emp="' + U.escAttr(c.id) + '"';
     return (sit !== "aprovado"
-        ? '<button type="button" class="btn btn--ghost btn--sm" data-aprovar="' +
+        ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar="' +
           U.escAttr(chave) + '"' + emp + '>Aprovar</button>' : '') +
       '<button type="button" class="btn btn--ghost btn--sm" data-pendencia="' +
         U.escAttr(chave) + '"' + emp + '>' +
