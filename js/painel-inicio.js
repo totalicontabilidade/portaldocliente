@@ -227,6 +227,28 @@
      correção pedida é fila do CLIENTE, não minha — eu já fiz a
      parte de pedir; e "clientes ativos" não muda de semana em
      semana, então vira número que ninguém mais lê. */
+  /* Quantos documentos estão esperando o CLIENTE — o outro lado do
+     número desta tela. */
+  function comOsClientes() {
+    var PC = global.PainelClientes;
+    var n = 0;
+    (PC.empresas || []).forEach(function (c) {
+      if (PC.arquivada(c)) return;
+      n += global.Situacao.pendencias(c.dados, global.DATA.GRUPOS).length;
+    });
+    return n;
+  }
+
+  function avisoDoOutroLado() {
+    var n = comOsClientes();
+    return '<p class="empty__nota">' +
+      '<strong>' + n + ' ' + U.plural(n, "documento está", "documentos estão") +
+      ' com ' + U.plural(n, "o cliente", "os clientes") + '</strong> — ' +
+      'esperando ele enviar ou corrigir, não você. ' +
+      '<button type="button" class="empty__link" data-ir="pendencias">Ver quem cobrar</button>' +
+    '</p>';
+  }
+
   function numeros() {
     var PC = global.PainelClientes;
     var ativos = PC.empresas.filter(function (c) { return !PC.arquivada(c); });
@@ -467,6 +489,16 @@
                 '. Toque em “Todos os departamentos” para ver o resto do escritório.'
               : 'Toda mensagem foi respondida, todo documento que chegou já foi conferido e ' +
                 'ninguém está parado. Bom dia de trabalho.') + '</div>' +
+        /* "NADA ESPERANDO POR VOCÊ" AO LADO DE "PENDÊNCIAS 2" parece
+           contradição para quem não conhece a regra da casa: esta
+           tela conta o que espera a EQUIPE, e documento que falta
+           chegar já é fila do cliente.
+
+           Quem não sabe disso lê os dois números e conclui que um
+           deles está errado — ou pior, que o sistema perdeu alguma
+           coisa. Dizer onde está o resto custa uma linha e fecha a
+           pergunta antes de ela ser feita. */
+        (comOsClientes() ? avisoDoOutroLado() : '') +
       '</div></div>';
       return;
     }
@@ -513,6 +545,15 @@
       var PC = global.PainelClientes;
       if (!PC) return;
       var id = b.getAttribute("data-alvo");
+
+      /* Nem todo `data-ir` aponta para um cliente: o aviso do
+         "nada esperando por você" leva para uma ABA. Sem isto ele
+         cairia no caminho de baixo e tentaria abrir a ficha de um
+         cliente sem id — de novo o clique que não faz nada. */
+      if (!id) {
+        if (global.Painel) global.Painel.abrir(b.getAttribute("data-ir"));
+        return;
+      }
 
       if (b.getAttribute("data-ir") === "conversa") {
         if (global.Painel) global.Painel.abrir("mensagens");

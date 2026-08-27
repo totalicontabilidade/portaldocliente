@@ -2413,6 +2413,22 @@ body.tour-aberto{overscroll-behavior:contain}
 
    Cada elo do caminho precisa poder encolher: o `.card` também é
    coluna flex, e só a lista cresce. */
+/* A nota que explica onde está o resto do trabalho, no Início
+   vazio. Fica visivelmente abaixo do texto principal: é resposta a
+   uma pergunta, não outro aviso disputando atenção. */
+.empty__nota{
+  margin:16px auto 0;max-width:44ch;
+  padding-top:14px;border-top:1px solid var(--stroke);
+  font-size:13px;line-height:1.6;color:var(--txt-3);
+}
+.empty__nota strong{color:var(--txt-2);font-weight:640}
+.empty__link{
+  background:transparent;border:0;padding:0;cursor:pointer;
+  font-size:13px;font-weight:640;color:var(--gold-2);
+  text-decoration:underline;text-underline-offset:3px;
+}
+.empty__link:hover,.empty__link:focus-visible{color:var(--gold-3);outline:none}
+
 /* Os modelos, agora fora da caixa. Um respiro para não parecerem
    colados no rodapé da conversa. */
 #msModelos{margin-top:16px}
