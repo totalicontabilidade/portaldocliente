@@ -1013,17 +1013,27 @@
     var houveTroca = sit === "pendencia" || (sit === "aprovado" && reg.obs);
     if (houveTroca) {
       html += '<div class="troca">' +
-        '<div class="troca__i">' +
-          /* Data E HORA nos dois lados (pedido dele). Numa troca do
-             mesmo dia, só a data não diz o que veio antes — e a
-             ordem é metade do que uma linha do tempo tem a dizer. */
-          '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) + ' pediu correção' +
-            (sit === "pendencia" && reg.revisao && reg.revisao.em
-              ? ' · ' + U.esc(U.dataHora(reg.revisao.em)) : '') +
-          '</span>' +
-          (sit === "pendencia" && reg.revisao && reg.revisao.motivo
-            ? '<span class="troca__t">' + U.esc(reg.revisao.motivo) + '</span>' : '') +
-        '</div>' +
+        /* O PEDIDO SÓ APARECE ENQUANTO EXISTE.
+           Aprovar sobrescreve `revisao` inteira: o motivo e a hora
+           do pedido deixam de existir no documento. Mantê-lo na
+           linha do tempo depois disso rendia um título sozinho —
+           "Totali pediu correção" sem data e sem motivo — que não
+           informava nada e parecia falha de carregamento. */
+        (sit === "pendencia"
+          ? '<div class="troca__i">' +
+              /* Data E HORA nos dois lados (pedido dele). Numa troca
+                 do mesmo dia, só a data não diz o que veio antes — e
+                 a ordem é metade do que uma linha do tempo tem a
+                 dizer. */
+              '<span class="troca__q troca__q--eles">' + U.esc(DATA.ORG.curto) +
+                ' pediu correção' +
+                (reg.revisao && reg.revisao.em
+                  ? ' · ' + U.esc(U.dataHora(reg.revisao.em)) : '') +
+              '</span>' +
+              (reg.revisao && reg.revisao.motivo
+                ? '<span class="troca__t">' + U.esc(reg.revisao.motivo) + '</span>' : '') +
+            '</div>'
+          : '') +
         (reg.obs
           ? '<div class="troca__i">' +
               '<span class="troca__q troca__q--eu">Você respondeu' +

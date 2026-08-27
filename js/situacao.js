@@ -34,6 +34,50 @@
        analise     — entregue, a equipe está conferindo
        enviado     — entregue, ainda sem revisão
        pendente    — nada entregue                                 */
+  /* UMA APROVAÇÃO VALE PARA O ARQUIVO QUE FOI APROVADO.
+
+     O cliente continua podendo mexer nos arquivos depois de a
+     equipe aprovar — e deve mesmo, é documento dele. Mas as regras
+     do Firestore só o deixam escrever `arquivos`; `revisao` é da
+     equipe. O resultado era que trocar o PDF depois do aprovado
+     não mudava nada do lado de cá: o painel seguia verde,
+     ninguém era chamado a olhar o arquivo novo, e o cliente via
+     "Enviado" enquanto a equipe via "Aprovado" — os dois lendo a
+     mesma tela e discordando.
+
+     Não dá para consertar gravando: o cliente não pode escrever
+     `revisao`, e deixar que pudesse seria deixá-lo se aprovar
+     sozinho. Então a validade é CALCULADA, dos dois lados, a
+     partir do que já está gravado:
+
+       - arquivo mais novo que a aprovação  → volta para conferir
+       - documento de arquivo que ficou sem nenhum → volta a pendente
+
+     Só arquivos entram na conta: `atualizadoEm` sobe também quando
+     o cliente escreve uma observação ou marca um lembrete, e isso
+     derrubaria aprovações sem nada ter mudado no documento. */
+  function aprovacaoVencida(r, item) {
+    if (item.kind !== "arquivo") return false;
+    var arquivos = r.arquivos || [];
+    if (!arquivos.length) return true;
+
+    var aprovadoEm = (r.revisao && r.revisao.em) || 0;
+    if (!aprovadoEm) return false;
+
+    /* Remoção não deixa data em lugar nenhum: o arquivo some do
+       vetor e pronto. Por isso a equipe anota QUANTOS arquivos
+       havia quando aprovou — se o número mudou, a aprovação não
+       fala mais do mesmo conjunto. Registros aprovados antes deste
+       campo existir não têm o número, e aí só vale a data. */
+    var quantos = r.revisao && r.revisao.arquivos;
+    if (typeof quantos === "number" && quantos !== arquivos.length) return true;
+
+    for (var i = 0; i < arquivos.length; i++) {
+      if ((arquivos[i].em || 0) > aprovadoEm) return true;
+    }
+    return false;
+  }
+
   function de(dados, grupo, item, socioId) {
     var itens = dados.itens || {};
     if ((dados.gruposNA || {})[grupo.id]) return "na";
@@ -64,7 +108,7 @@
 
     var rev = (r.revisao && r.revisao.status) || "";
     if (rev === "pendencia") return "pendencia";
-    if (rev === "aprovado") return "aprovado";
+    if (rev === "aprovado" && !aprovacaoVencida(r, item)) return "aprovado";
     if (rev === "analise") return "analise";
 
     if (item.kind === "arquivo" && r.arquivos && r.arquivos.length) return "enviado";

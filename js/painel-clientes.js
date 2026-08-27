@@ -866,7 +866,8 @@
     var revisao = {
       status: "aprovado", motivo: "",
       por: (equipe && (equipe.nome || equipe.email)) || "equipe",
-      em: Date.now()
+      em: Date.now(),
+      arquivos: quantosArquivos(c, chave)
     };
 
     FB.db.collection("empresas").doc(c.id).collection("itens")
@@ -4055,6 +4056,16 @@
     });
   }
 
+  /* Quantos arquivos havia no momento da decisão.
+
+     `Situacao.aprovacaoVencida` usa este número para saber que o
+     cliente mexeu nos arquivos depois de aprovado — uma remoção
+     não deixa data nenhuma, só muda a contagem. Sem isso, trocar
+     o PDF depois do "Aprovado" passava despercebido. */
+  function quantosArquivos(c, chave) {
+    return (((c.dados.itens || {})[chave] || {}).arquivos || []).length;
+  }
+
   function gravarRevisao(c, chave, status, motivo) {
     var doc = FB.db.collection("empresas").doc(c.id)
                 .collection("itens").doc(global.Nuvem.codificar(chave));
@@ -4063,7 +4074,8 @@
       status: status,
       motivo: status === "pendencia" ? String(motivo || "").slice(0, 600) : "",
       por: (equipe && (equipe.nome || equipe.email)) || "equipe",
-      em: Date.now()
+      em: Date.now(),
+      arquivos: quantosArquivos(c, chave)
     };
 
     /* PEDIDO NOVO APAGA A RESPOSTA VELHA, e sem isto o cliente
@@ -4343,24 +4355,30 @@
   }
 
   function gravarLote(c, chaves) {
-    var revisao = {
-      status: "aprovado",
-      motivo: "",
-      por: (equipe && (equipe.nome || equipe.email)) || "equipe",
-      em: Date.now()
-    };
+    var quando = Date.now();
+    var porQuem = (equipe && (equipe.nome || equipe.email)) || "equipe";
+    /* Uma revisão POR CHAVE, não uma para todas: a contagem de
+       arquivos é diferente em cada documento, e um objeto só
+       carimbaria em todos o número do primeiro. */
+    var revisoes = {};
+    chaves.forEach(function (chave) {
+      revisoes[chave] = {
+        status: "aprovado", motivo: "", por: porQuem, em: quando,
+        arquivos: quantosArquivos(c, chave)
+      };
+    });
 
     var lote = FB.db.batch();
     chaves.forEach(function (chave) {
       lote.set(FB.db.collection("empresas").doc(c.id)
                  .collection("itens").doc(global.Nuvem.codificar(chave)),
-               { revisao: revisao }, { merge: true });
+               { revisao: revisoes[chave] }, { merge: true });
     });
 
     return lote.commit().then(function () {
       chaves.forEach(function (chave) {
         if (!c.dados.itens[chave]) c.dados.itens[chave] = {};
-        c.dados.itens[chave].revisao = revisao;
+        c.dados.itens[chave].revisao = revisoes[chave];
       });
       desenharFicha();
       desenharTudo();

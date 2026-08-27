@@ -353,6 +353,12 @@
           novo.revisao.motivo = typeof r.revisao.motivo === "string" ? r.revisao.motivo.slice(0, 600) : "";
           novo.revisao.por = typeof r.revisao.por === "string" ? r.revisao.por.slice(0, 120) : "";
           novo.revisao.em = typeof r.revisao.em === "number" ? r.revisao.em : 0;
+          /* Quantos arquivos havia quando a equipe decidiu. É o que
+             deixa `Situacao.aprovacaoVencida` perceber que o
+             cliente mexeu nos arquivos depois — jogar fora aqui
+             faria o portal e o painel calcularem situações
+             diferentes para o mesmo documento. */
+          if (typeof r.revisao.arquivos === "number") novo.revisao.arquivos = r.revisao.arquivos;
         }
         if (Array.isArray(r.arquivos)) {
           novo.arquivos = r.arquivos.slice(0, 40).filter(function (a) {
@@ -1010,9 +1016,21 @@
           r.arquivos.push(meta);
           r.na = false;
           r.atualizadoEm = Date.now();
-          /* Documento reenviado volta para a fila de conferência:
-             uma pendência anterior não pode continuar valendo. */
-          r.revisao = revisaoVazia();
+          /* NÃO se apaga a revisão aqui.
+
+             A intenção era certa — documento reenviado volta para a
+             fila de conferência —, mas o jeito era impossível: as
+             regras do Firestore só deixam o cliente escrever
+             `arquivos`, `valor`, `na`, `forma`, `obs` e `lembrete`.
+             `revisao` é da equipe. Apagar aqui mudava só a cópia
+             local: a tela do cliente dizia "Enviado", o painel
+             continuava dizendo "Aprovado", e na primeira recarga a
+             revisão voltava do servidor.
+
+             Quem faz o documento voltar para a fila agora é
+             `Situacao.aprovacaoVencida`, que compara a data do
+             arquivo novo com a da aprovação. Vale nos dois lados,
+             sem ninguém precisar escrever nada. */
         }, "arquivos");
         Store.registrarEvento("arquivo:anexou", chave, meta.nome);
         return meta;
