@@ -583,7 +583,7 @@
       var falta = est.resumo.pendentesObrigatorios;
       var conferir = naoConferidos(c).length;
       var naoLidas = c.mensagens.filter(function (m) {
-        return m.autor === "cliente" && !m.lidaEm;
+        return m.autor === "cliente" && !m.lidaEm && viva(m);
       }).length;
 
       /* O tempo parado é o motivo da ordem da lista. Se não
@@ -1007,9 +1007,24 @@
   var filtroMensagem = "todas";
   var conversaAberta = null;
 
+  /* MENSAGEM APAGADA NÃO COBRA NINGUÉM.
+
+     Apagar deixa uma lápide no lugar do texto — a linha continua
+     na conversa dizendo "Mensagem apagada", que é o certo: some o
+     conteúdo, não o fato. Mas a lápide não tem `lidaEm`, e por
+     isso continuava contando como mensagem nova: o painel chamava
+     a equipe para ler uma mensagem que não existe mais, e a tarefa
+     não saía do Início porque abrir a conversa não marca lápide
+     como lida.
+
+     Vale para as duas contas — nova e sem providência: não há o
+     que responder nem o que providenciar num texto que o cliente
+     retirou. */
+  function viva(m) { return !m.apagadaEm; }
+
   function naoLidasDe(c) {
     return c.mensagens.filter(function (m) {
-      return m.autor === "cliente" && !m.lidaEm;
+      return m.autor === "cliente" && !m.lidaEm && viva(m);
     }).length;
   }
 
@@ -1026,7 +1041,7 @@
      interno de quem já tratou o quê. */
   function aResolverDe(c) {
     return c.mensagens.filter(function (m) {
-      return m.autor === "cliente" && !m.resolvidaEm;
+      return m.autor === "cliente" && !m.resolvidaEm && viva(m);
     }).length;
   }
 
@@ -1568,7 +1583,7 @@
      leitura — nada mais da mensagem se reescreve. */
   function marcarLidas(c) {
     var pendentes = c.mensagens.filter(function (m) {
-      return m.autor === "cliente" && !m.lidaEm;
+      return m.autor === "cliente" && !m.lidaEm && viva(m);
     });
     if (!pendentes.length) return;
 
@@ -3942,7 +3957,7 @@
   function mensagensHTML(c) {
     var msgs = c.mensagens;
     var naoLidas = msgs.filter(function (m) {
-      return m.autor === "cliente" && !m.lidaEm;
+      return m.autor === "cliente" && !m.lidaEm && viva(m);
     }).length;
     var aResolver = aResolverDe(c);
 

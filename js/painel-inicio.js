@@ -126,8 +126,10 @@
       var nome = PC.nomeDe(c);
 
       /* 1. Mensagem que o cliente mandou e ninguém abriu. */
+      /* Lápide de mensagem apagada não vira tarefa: não há o que
+         ler nem o que responder. Ver a nota em `naoLidasDe`. */
       var naoLidas = c.mensagens.filter(function (m) {
-        return m.autor === "cliente" && !m.lidaEm;
+        return m.autor === "cliente" && !m.lidaEm && !m.apagadaEm;
       });
       if (naoLidas.length) {
         var maisAntiga = naoLidas.reduce(function (a, m) {
@@ -207,7 +209,7 @@
             NÃO está na faixa 1 — senão o mesmo cliente apareceria
             duas vezes pela mesma conversa. */
       var aResolver = c.mensagens.filter(function (m) {
-        return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm;
+        return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm && !m.apagadaEm;
       });
       if (aResolver.length && !naoLidas.length) {
         var velha = aResolver.reduce(function (a, m) {
@@ -323,7 +325,7 @@
       }).length + respondidosDe(c).length;
       naoLidas += PC.naoLidasDe(c);
       aResolver += c.mensagens.filter(function (m) {
-        return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm;
+        return m.autor === "cliente" && m.lidaEm && !m.resolvidaEm && !m.apagadaEm;
       }).length;
       var d = PC.diasParado(c);
       if (d !== null && d >= 7 && PC.estadoDoCliente(c).chave !== "emdia") parados++;

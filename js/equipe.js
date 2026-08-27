@@ -718,7 +718,18 @@
         "guardar às claras.");
     }
 
-    $("#kGerar").addEventListener("click", function () {
+    /* TROCAR A CHAVE COM O CANAL ATIVO APAGA O PASSADO.
+
+       Gerar um par aqui não publica nada — o par novo só vale
+       depois que alguém cola a chave pública no código e sobe. Mas
+       o botão fica em primeiro lugar numa tela que diz "canal
+       ativo", e quem seguir o caminho até o fim torna ilegível
+       TODA senha que os clientes já enviaram: elas foram trancadas
+       com a chave antiga, e só a chave antiga abre.
+
+       Não dá para desfazer nem para avisar depois. Então avisa
+       antes, uma vez, e só quando já existe canal. */
+    function gerarPar() {
       var b = $("#kGerar");
       b.disabled = true;
       b.textContent = "Gerando…";
@@ -738,6 +749,26 @@
         b.disabled = false;
         b.textContent = "Gerar par de chaves";
         UI.toast("Não foi possível gerar o par de chaves.", "erro");
+      });
+    }
+
+    $("#kGerar").addEventListener("click", function () {
+      if (!C.configurada) { gerarPar(); return; }
+      UI.modal({
+        titulo: "Já existe um canal seguro",
+        corpoHTML:
+          '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2)">' +
+            'As senhas que os clientes já enviaram foram trancadas com a chave atual, e ' +
+            '<strong>só ela abre</strong>. Se você publicar uma chave nova no lugar, essas ' +
+            'senhas deixam de poder ser lidas — não há como desfazer.</p>' +
+          '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-top:10px">' +
+            'Gerar aqui não muda nada sozinho: o par novo só passa a valer quando alguém ' +
+            'cola a chave pública no código e publica. Siga só se for isso mesmo que você ' +
+            'quer fazer.</p>',
+        acoes: [
+          { rotulo: "Cancelar", classe: "btn--ghost" },
+          { rotulo: "Gerar mesmo assim", classe: "btn--primary", onClick: gerarPar }
+        ]
       });
     });
 
