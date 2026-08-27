@@ -241,10 +241,12 @@
 
   function avisoDoOutroLado() {
     var n = comOsClientes();
+    /* A explicação saiu (pedido dele). "Estão com os clientes" já
+       diz de quem é a vez — quem lê isso logo abaixo de "nada
+       esperando por você" não precisa da mesma ideia duas vezes. */
     return '<p class="empty__nota">' +
       '<strong>' + n + ' ' + U.plural(n, "documento está", "documentos estão") +
-      ' com ' + U.plural(n, "o cliente", "os clientes") + '</strong> — ' +
-      'esperando ele enviar ou corrigir, não você. ' +
+      ' com ' + U.plural(n, "o cliente", "os clientes") + '.</strong> ' +
       '<button type="button" class="empty__link" data-ir="pendencias">Ver quem cobrar</button>' +
     '</p>';
   }
