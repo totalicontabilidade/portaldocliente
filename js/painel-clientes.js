@@ -1474,10 +1474,16 @@
                     'data-emp="' + U.escAttr(c.id) + '">Reabrir a conversa</button>' +
                 '</div>'
               : '')) +
-        '<div class="field" style="margin-top:14px">' +
-          '<label class="field__label" for="msTexto">Responder</label>' +
+        /* Sem rótulo "Responder": o campo já diz "Escreva aqui" e
+           está logo abaixo da conversa — a palavra só repetia o
+           óbvio e cobrava uma linha inteira da tela, que numa caixa
+           de altura fixa sai direto do tamanho da conversa.
+
+           O nome continua existindo para quem usa leitor de tela,
+           no `aria-label`. Tirar da vista não é tirar de todos. */
+        '<div class="field" style="margin-top:12px;margin-bottom:10px">' +
           '<textarea class="textarea" id="msTexto" rows="3" maxlength="4000" ' +
-            'placeholder="Escreva aqui…"></textarea>' +
+            'aria-label="Responder ao cliente" placeholder="Escreva aqui…"></textarea>' +
         '</div>' +
         '<div class="row">' +
           '<button type="button" class="btn btn--quiet btn--sm" id="msAnexar">' +
