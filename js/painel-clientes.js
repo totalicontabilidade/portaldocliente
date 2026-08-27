@@ -1834,10 +1834,13 @@
             ? '<button type="button" class="conf__ir" data-ir-doc="' + U.escAttr(p.chave) +
               '" data-grupo="' + U.escAttr(p.grupo.id) + '">Ver documento' +
               ic("ic-chevron-right") + '</button>'
+            /* Documento que nunca chegou não tem o que aprovar nem
+               o que devolver: sobra cobrar, e uma ação só não
+               merece menu. */
             : '<div class="conf__acoes">' +
-                acoesDeRevisao(c, p.chave, p.sit) +
-                '<button type="button" class="btn btn--ghost btn--sm" data-cobrar-item="' +
-                  U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>' +
+                (acoesDeRevisao(c, p.chave, p.sit) ||
+                  '<button type="button" class="btn btn--ghost btn--sm" data-cobrar-item="' +
+                    U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>') +
               '</div>') + '</td>' +
         '</tr>';
       }).join("") +
@@ -1917,19 +1920,30 @@
     /* `data-emp` viaja junto porque estes botões agora aparecem
        fora da ficha, onde não há "cliente aberto" para deduzir.
 
-       O APROVAR VOLTOU A SER DOURADO. Eu tinha nivelado os três por
-       baixo, e o problema nunca foi o Aprovar se destacar: era o
-       Cobrar sem contorno nenhum, que não parecia clicável. Com os
-       outros dois delimitados, o dourado volta a significar "este
-       é o caminho comum" em vez de gritar. */
+       UM BOTÃO À VISTA, O RESTO NUM MENU.
+
+       Lado a lado, os três ocupavam mais largura que o nome do
+       documento. Empilhados, ocupavam 130px de ALTURA por linha —
+       numa lista de dez documentos, isso é uma tela inteira gasta
+       em botões repetidos.
+
+       Agora aparece só o que se faz quase sempre, e as outras
+       opções ficam a um toque. Não é esconder: é parar de mostrar
+       a mesma escolha dez vezes para quem já sabe qual é.
+
+       O APROVAR VOLTOU A SER DOURADO. O problema nunca foi ele se
+       destacar: era o Cobrar sem contorno nenhum, que não parecia
+       clicável. */
     var emp = ' data-emp="' + U.escAttr(c.id) + '"';
-    return (sit !== "aprovado"
-        ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar="' +
-          U.escAttr(chave) + '"' + emp + '>Aprovar</button>' : '') +
-      '<button type="button" class="btn btn--ghost btn--sm" data-pendencia="' +
-        U.escAttr(chave) + '"' + emp + '>' +
-        (sit === "pendencia" ? "Trocar o motivo" : "Pedir correção") +
-      '</button>';
+    var principal = sit !== "aprovado"
+      ? '<button type="button" class="btn btn--primary btn--sm" data-aprovar="' +
+        U.escAttr(chave) + '"' + emp + '>Aprovar</button>'
+      : '';
+    return principal +
+      '<button type="button" class="conf__mais" data-mais-acoes="' + U.escAttr(chave) + '"' +
+        emp + ' data-sit="' + U.escAttr(sit) + '" ' +
+        'title="Outras ações para este documento" aria-label="Outras ações">' +
+        ic("ic-mais") + '</button>';
   }
 
   /* O que este grupo tem esperando a equipe. É o que aparece no
@@ -3943,6 +3957,33 @@
     });
   }
 
+  /* Estava dentro do clique, e agora o menu de "outras ações"
+     também precisa dela. Uma janela, dois caminhos até ela. */
+  function abrirPedidoDeCorrecao(chave, empresaId) {
+    var m = UI.modal({
+      titulo: "Pedir correção",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
+          'Diga ao cliente o que está errado. O texto aparece no documento, no portal dele.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<textarea class="textarea" id="pdMotivo" rows="3" maxlength="600" data-focus ' +
+            'placeholder="Ex.: a foto cortou o rodapé do documento."></textarea>' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Pedir correção", classe: "btn--primary",
+          onClick: function () {
+            var motivo = $("#pdMotivo", m.caixa).value.trim();
+            revisar(chave, "pendencia", motivo, empresaId).then(function (ok) {
+              if (ok) UI.toast("Correção pedida. O cliente vê no portal.", "ok");
+            });
+          }
+        }
+      ]
+    });
+  }
+
   function gravarRevisao(c, chave, status, motivo) {
     var doc = FB.db.collection("empresas").doc(c.id)
                 .collection("itens").doc(global.Nuvem.codificar(chave));
@@ -5261,6 +5302,40 @@
         return;
       }
 
+      /* As outras ações do documento. Mesmo menu do clique direito
+         nas mensagens — uma peça, dois usos. */
+      var mais = alvo.closest("[data-mais-acoes]");
+      if (mais) {
+        var chaveM = mais.getAttribute("data-mais-acoes");
+        var empM = mais.getAttribute("data-emp") || "";
+        var sitM = mais.getAttribute("data-sit") || "";
+        var r = mais.getBoundingClientRect();
+        var itens = [];
+
+        if (sitM === "aprovado") {
+          itens.push({ rotulo: "Aprovar de novo", icone: "ic-check",
+            onClick: function () { revisar(chaveM, "aprovado", "", empM); } });
+        }
+        itens.push({
+          rotulo: sitM === "pendencia" ? "Trocar o motivo" : "Pedir correção",
+          icone: "ic-alert",
+          onClick: function () { abrirPedidoDeCorrecao(chaveM, empM); }
+        });
+        itens.push({ rotulo: "Cobrar este documento", icone: "ic-send",
+          onClick: function () {
+            var cCob = (empresas || []).filter(function (x) { return x.id === empM; })[0] || aberto;
+            if (cCob) cobrarItem(cCob, chaveM);
+            else UI.toast("Não encontrei este cliente. Recarregue a página.", "erro", 8000);
+          } });
+        if (sitM !== "pendente") {
+          itens.push({ rotulo: "Voltar para conferir", icone: "ic-refresh",
+            onClick: function () { revisar(chaveM, "", "", empM); } });
+        }
+
+        UI.menu({ x: r.right, y: r.bottom + 6, itens: itens });
+        return;
+      }
+
       var resposta = alvo.closest("[data-resposta]");
       if (resposta) {
         var chaveR = resposta.getAttribute("data-resposta");
@@ -5298,30 +5373,8 @@
 
       var pend = alvo.closest("[data-pendencia]");
       if (pend) {
-        var chave = pend.getAttribute("data-pendencia");
-        var empPend = pend.getAttribute("data-emp") || "";
-        var m = UI.modal({
-          titulo: "Pedir correção",
-          corpoHTML:
-            '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:10px">' +
-              'Diga ao cliente o que está errado. O texto aparece no documento, no portal dele.</p>' +
-            '<div class="field" style="margin-bottom:0">' +
-              '<textarea class="textarea" id="pdMotivo" rows="3" maxlength="600" data-focus ' +
-                'placeholder="Ex.: a foto cortou o rodapé do documento."></textarea>' +
-            '</div>',
-          acoes: [
-            { rotulo: "Cancelar", classe: "btn--ghost" },
-            {
-              rotulo: "Pedir correção", classe: "btn--primary",
-              onClick: function () {
-                var motivo = $("#pdMotivo", m.caixa).value.trim();
-                revisar(chave, "pendencia", motivo, empPend).then(function (ok) {
-                  if (ok) UI.toast("Correção pedida. O cliente vê no portal.", "ok");
-                });
-              }
-            }
-          ]
-        });
+        abrirPedidoDeCorrecao(pend.getAttribute("data-pendencia"),
+                              pend.getAttribute("data-emp") || "");
         return;
       }
 
