@@ -1141,13 +1141,14 @@
        competir com o que importa. */
     var rodape = [];
     if (sit === "pendencia") {
-      rodape.push('<button type="button" class="item__pe" data-justificar="' +
-        U.escAttr(chave) + '">' +
+      rodape.push('<button type="button" class="item__pe item__pe--acao" data-justificar="' +
+        U.escAttr(chave) + '">' + ic("ic-chat") +
         (reg.obs ? 'Editar minha resposta' : 'Responder sem reenviar') + '</button>');
     }
     if (item.ajuda) {
       rodape.push('<button type="button" class="item__pe" data-ajuda="' +
-        U.escAttr(grupo.id + "|" + item.id) + '">Entenda este documento</button>');
+        U.escAttr(grupo.id + "|" + item.id) + '">' + ic("ic-info") +
+        'Entenda este documento</button>');
     }
     if (travado && !grupoNA && !reg.naEquipe) {
       rodape.push('<span class="item__pe item__pe--nota">A ' + U.esc(DATA.ORG.curto) +

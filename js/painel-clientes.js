@@ -1359,6 +1359,8 @@
      É por isso que não há constante para acertar aqui: o valor sai
      da tela em que a pessoa está, não de uma medição minha num
      tamanho que talvez ela nunca use. */
+  var LISTA_MINIMA = 200;
+
   function ajustarAlturaDaConversa() {
     var cx = $("#msConversa");
     if (!cx || cx.hidden) return;
@@ -1367,7 +1369,25 @@
     cx.style.height = alvo + "px";
 
     var sobra = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    if (sobra > 0) cx.style.height = Math.max(320, alvo - sobra) + "px";
+    if (sobra > 0) {
+      alvo = Math.max(320, alvo - sobra);
+      cx.style.height = alvo + "px";
+    }
+
+    /* PISO PARA A LISTA, e o motivo de ele existir.
+
+       Numa janela baixa, o que sobra depois do cabeçalho, dos
+       modelos e do campo de resposta pode virar uma conversa de
+       130 pixels — três linhas. Aí a tela "não rola", mas também
+       não serve para conversar.
+
+       Quando isso acontece, prefiro devolver a rolagem da página:
+       rolar um pouco é um incômodo; ler a conversa por uma fresta
+       é um impedimento. Em tela normal isto nunca dispara. */
+    var lista = cx.querySelector(".conversa");
+    if (!lista) return;
+    var falta = LISTA_MINIMA - lista.clientHeight;
+    if (falta > 0) cx.style.height = (alvo + falta) + "px";
   }
 
   function fecharConversa() {
@@ -1696,10 +1716,24 @@
   /* Uma linha por documento. As ações à direita, e o arquivo numa
      coluna própria — as três coisas que a conferência precisa,
      lado a lado, sem abrir nada. */
-  function tabelaDeConferencia(c, pendentes) {
+  /* `modo` decide o que a tabela faz, e a diferença não é estética.
+
+     Na FICHA ela é um RESUMO: o documento inteiro está logo
+     abaixo, com o arquivo, a resposta do cliente e os botões. Ter
+     tudo isso duas vezes na mesma tela era o que a deixava
+     poluída. Aqui a única ação é ir até o cartão do documento.
+
+     Na aba PENDÊNCIAS não existe cartão nenhum embaixo — é a lista
+     de todos os clientes. Lá a tabela precisa mesmo carregar as
+     ações, senão a equipe teria que abrir a ficha para cada
+     documento. */
+  function tabelaDeConferencia(c, pendentes, modo) {
+    var resumo = modo === "resumo";
     return '<div class="tabela-rolo"><table class="conf">' +
       '<thead><tr>' +
-        '<th>Documento</th><th>Situação</th><th>Arquivo</th><th class="conf__dir">Ação</th>' +
+        '<th>Documento</th><th>Situação</th>' +
+        (resumo ? '' : '<th>Arquivo</th>') +
+        '<th class="conf__dir">' + (resumo ? '' : 'Ação') + '</th>' +
       '</tr></thead><tbody>' +
       pendentes.map(function (p) {
         var reg = (c.dados.itens || {})[p.chave] || {};
@@ -1708,9 +1742,13 @@
           '<td><span class="conf__n">' + U.esc(p.item.nome) + '</span>' +
             '<span class="conf__s">' + U.esc(p.grupo.titulo) +
               (p.socio ? ' · ' + U.esc(p.socio.nome || "sócio") : '') +
-              (p.item.obrigatorio ? ' · obrigatório' : '') + '</span>' +
+              (p.item.obrigatorio ? ' · obrigatório' : '') +
+              (resumo && arquivos.length
+                ? ' · ' + arquivos.length + " " +
+                  U.plural(arquivos.length, "arquivo", "arquivos") : '') + '</span>' +
             combinadoHTML(c, p.chave) + '</td>' +
           '<td>' + seloDaLinha(c, p.chave, p.sit) + '</td>' +
+          (resumo ? '' :
           '<td>' + (arquivos.length
             ? arquivos.map(function (a) {
                 /* Apagar fica COLADO no arquivo, e não na coluna de
@@ -1730,12 +1768,16 @@
                     ic("ic-trash") + '</button>' +
                 '</span>';
               }).join("")
-            : '<span class="conf__vazio">—</span>') + '</td>' +
-          '<td class="conf__dir"><div class="conf__acoes">' +
-            acoesDeRevisao(c, p.chave, p.sit) +
-            '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
-              U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>' +
-          '</div></td>' +
+            : '<span class="conf__vazio">—</span>') + '</td>') +
+          '<td class="conf__dir">' + (resumo
+            ? '<button type="button" class="conf__ir" data-ir-doc="' + U.escAttr(p.chave) +
+              '" data-grupo="' + U.escAttr(p.grupo.id) + '">Ver documento' +
+              ic("ic-chevron-right") + '</button>'
+            : '<div class="conf__acoes">' +
+                acoesDeRevisao(c, p.chave, p.sit) +
+                '<button type="button" class="btn btn--quiet btn--sm" data-cobrar-item="' +
+                  U.escAttr(p.chave) + '" data-emp="' + U.escAttr(c.id) + '">Cobrar</button>' +
+              '</div>') + '</td>' +
         '</tr>';
       }).join("") +
       '</tbody></table></div>';
@@ -2006,7 +2048,7 @@
               'style="margin-bottom:6px">' + ic("ic-send") + 'Cobrar tudo o que falta</button>' +
             '<p class="text-xs text-muted" style="margin:0 0 14px">Portal, WhatsApp ou e-mail — ' +
               'você escolhe na próxima tela.</p>' +
-            tabelaDeConferencia(c, pendentes);
+            tabelaDeConferencia(c, pendentes, "resumo");
         }
       });
     }
@@ -2359,7 +2401,8 @@
         '</div>'
       : '';
 
-    return '<div class="item"><div class="item__top">' +
+    /* `data-item` é a âncora de "Ver documento", lá no resumo. */
+    return '<div class="item" data-item="' + U.escAttr(chave) + '"><div class="item__top">' +
       '<span class="group__icon">' + ic(g.icone) + '</span>' +
       '<div class="item__main">' +
         '<div class="item__name">' + U.esc(item.nome) + '</div>' +
@@ -5113,6 +5156,27 @@
         if (grupoAlvo) {
           pedirAprovacaoEmLote(paraConferir(aberto, grupoAlvo),
                                "em " + grupoAlvo.titulo);
+        }
+        return;
+      }
+
+      /* Do resumo até o documento. Abre o setor, redesenha e leva a
+         página até o item — sem isso, "Ver documento" mandaria a
+         pessoa procurar sozinha num setor que talvez esteja
+         fechado, e o botão seria só uma promessa. */
+      var irDoc = alvo.closest("[data-ir-doc]");
+      if (irDoc) {
+        abertosFicha["grupo:" + irDoc.getAttribute("data-grupo")] = true;
+        var chaveIr = irDoc.getAttribute("data-ir-doc");
+        desenharFicha();
+        var destino = document.querySelector('[data-item="' + chaveIr.replace(/"/g, '\\"') + '"]');
+        if (destino) {
+          destino.scrollIntoView({ block: "center", behavior: "smooth" });
+          /* Um piscar curto: numa lista longa, chegar no lugar
+             certo e não saber qual das linhas é a sua é chegar
+             quase lá. */
+          destino.classList.add("item--achado");
+          setTimeout(function () { destino.classList.remove("item--achado"); }, 1600);
         }
         return;
       }

@@ -1032,16 +1032,40 @@ input[type=checkbox]{accent-color:var(--gold)}
   display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;
   margin-top:14px;padding-top:11px;border-top:1px solid var(--stroke);
 }
+/* PASSEI DA MEDIDA NA PRIMEIRA VERSÃO: sublinhado cinza em corpo
+   12 deixou "Responder sem reenviar" indistinguível de legenda.
+   Ele é ação, e numa correção pendente é A ação — tirar peso não
+   podia significar tirar visibilidade.
+
+   Agora tem contorno, tamanho de botão pequeno e a cor da marca.
+   Continua mais leve que o botão de enviar arquivo, que é o
+   caminho principal, mas se lê como coisa em que se clica. */
 .item__pe{
-  background:transparent;border:0;padding:0;cursor:pointer;
-  font-size:12px;font-weight:560;color:var(--txt-3);
-  text-decoration:underline;text-underline-offset:3px;
-  text-decoration-color:var(--stroke-2);
+  display:inline-flex;align-items:center;gap:6px;
+  background:transparent;cursor:pointer;
+  padding:6px 12px;border-radius:9px;
+  border:1px solid var(--stroke-2);
+  font-size:12.5px;font-weight:620;color:var(--txt-2);
+  transition:color .18s var(--ease),border-color .18s var(--ease),background .18s var(--ease);
 }
-.item__pe:hover,.item__pe:focus-visible{color:var(--gold-2);outline:none}
+.item__pe .ic{width:15px;height:15px;color:var(--txt-4)}
+.item__pe:hover,.item__pe:focus-visible{
+  color:var(--gold-2);border-color:var(--stroke-gold);background:var(--glass);outline:none;
+}
+.item__pe:hover .ic,.item__pe:focus-visible .ic{color:var(--gold-2)}
+
+/* O de correção pendente puxa mais: é o que a pessoa veio fazer. */
+.item--pendencia .item__pe--acao{
+  border-color:var(--stroke-gold);color:var(--gold-3);
+}
+.item--pendencia .item__pe--acao .ic{color:var(--gold-2)}
+
+/* A nota não é botão e não pode parecer um. */
 .item__pe--nota{
-  cursor:default;text-decoration:none;color:var(--txt-4);font-weight:450;
+  border:0;padding:0;cursor:default;
+  color:var(--txt-4);font-weight:450;font-size:12px;
 }
+.item__pe--nota:hover{color:var(--txt-4);background:transparent}
 /* Quadradinho de situação.
 
    Enquanto o item está pendente ele fica só como um traço: antes era
@@ -1176,6 +1200,29 @@ input[type=checkbox]{accent-color:var(--gold)}
 .conf__s{display:block;font-size:11.5px;color:var(--txt-4);margin-top:2px}
 .conf__vazio{color:var(--txt-4)}
 .conf__acoes{display:inline-flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+
+/* Na ficha a tabela é resumo, e a única ação é descer até o
+   documento — que está logo abaixo, inteiro. Botão cheio aqui
+   competiria com o botão de verdade que existe lá. */
+.conf__ir{
+  display:inline-flex;align-items:center;gap:5px;
+  background:transparent;border:0;padding:4px 0;cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--gold-2);white-space:nowrap;
+}
+.conf__ir .ic{width:15px;height:15px;transition:transform .18s var(--ease)}
+.conf__ir:hover .ic,.conf__ir:focus-visible .ic{transform:translateX(3px)}
+.conf__ir:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px;border-radius:6px}
+
+/* Chegar no lugar certo e não saber qual linha é a sua é chegar
+   quase lá. O piscar dura pouco de propósito. */
+.item--achado{animation:achado 1.6s var(--ease-out)}
+@keyframes achado{
+  0%,100%{background:transparent}
+  15%,60%{background:rgba(194,162,80,.14)}
+}
+@media (prefers-reduced-motion: reduce){
+  .item--achado{animation:none;background:rgba(194,162,80,.14)}
+}
 .arq--linha{max-width:190px}
 .arq--linha .arq__n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -2307,7 +2354,27 @@ body.tour-aberto{overscroll-behavior:contain}
    conversa apareceria por cima da lista de conversas. */
 #msConversa{display:flex;flex-direction:column;min-height:340px}
 #msConversa[hidden]{display:none}
-#msConversa > .conversa{flex:1 1 auto;min-height:0;max-height:none}
+
+/* A CADEIA PRECISA IR ATÉ A LISTA, e foi aqui que eu errei.
+
+   A regra era `#msConversa > .conversa`. Só que a lista não é
+   filha direta: ela mora dentro de um `.card`, junto com o campo
+   de resposta e os botões. O seletor nunca casou.
+
+   O efeito foi pior que "não funcionou": o `.card` não conseguia
+   encolher (todo item flex tem `min-height:auto` por padrão),
+   então ele manteve a altura natural e empurrou o campo de
+   resposta para FORA da caixa de altura fixa. Como a página
+   deixou de rolar no mesmo movimento, o Enviar ficou inalcançável
+   — quem abria a conversa não conseguia mais responder.
+
+   Cada elo do caminho precisa poder encolher: o `.card` também é
+   coluna flex, e só a lista cresce. */
+#msConversa > .card{
+  flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column;
+}
+#msConversa .conversa{flex:1 1 auto;min-height:0;max-height:none}
 
 /* A ALTURA VEM DO JAVASCRIPT, e não daqui, de propósito.
 
