@@ -713,7 +713,31 @@
     }
 
     desenharOutras();
-    if (global.PainelClientes) global.PainelClientes.aoAtualizar(desenharOutras);
+
+    /* O OUVINTE PRECISA ESPERAR O MÓDULO EXISTIR.
+
+       Era `if (global.PainelClientes) ...aoAtualizar(...)`, e a
+       condição nunca era verdadeira: no equipe.html este arquivo
+       vem ANTES de painel-clientes.js, então na hora em que esta
+       linha roda o módulo ainda não nasceu. O ouvinte não era
+       registrado, e quem abria o painel direto em "Novo cliente"
+       ficava com "Carregando as empresas…" para sempre — a lista
+       chegava e ninguém redesenhava.
+
+       Trocar a ordem dos <script> resolveria e quebraria outra
+       coisa qualquer daqui a seis meses; esperar o módulo aparecer
+       é local e não depende de ordem nenhuma. */
+    var tentativas = 0;
+    (function ligarNaLista() {
+      if (global.PainelClientes) {
+        global.PainelClientes.aoAtualizar(desenharOutras);
+        desenharOutras();
+        return;
+      }
+      if (++tentativas > 25) return;   /* ~5s: passou disso, não vem */
+      setTimeout(ligarNaLista, 200);
+    })();
+
     if (global.Painel) global.Painel.aoTrocar(function (aba) {
       if (aba === "novo") desenharOutras();
     });
