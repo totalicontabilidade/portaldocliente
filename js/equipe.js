@@ -506,6 +506,17 @@
         $("#cWhats").href = "https://wa.me/?text=" + encodeURIComponent(campoMsg.value);
         resultado.hidden = false;
         resultado.scrollIntoView({ behavior: "smooth", block: "start" });
+
+        /* LIMPA A BUSCA DAS EMPRESAS EXTRAS.
+
+           O formulário não se apaga depois de gerar um link — os
+           campos ficam de pé, e sempre foi assim. O que não pode
+           ficar é um filtro ativo: quem cadastrar o próximo
+           cliente veria uma lista curta, sem enxergar as empresas
+           que continuam marcadas fora do filtro, e mandaria para
+           ele um acesso que não era para ele. Sem filtro, o que
+           está escolhido está à vista. */
+        limparBuscaDeOutras();
       };
 
       var botao = $("#cGerar");
@@ -627,6 +638,12 @@
     }
 
     var buscaOutras = "";
+
+    function limparBuscaDeOutras() {
+      if (!buscaOutras) return;
+      buscaOutras = "";
+      desenharOutras();
+    }
 
     function desenharOutras() {
       var caixa = $("#cOutras");
