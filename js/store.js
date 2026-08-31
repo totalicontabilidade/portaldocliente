@@ -707,6 +707,26 @@
     } catch (e) { return ""; }
   }
 
+  /* Como chamar, na trilha, quem está usando o portal agora.
+
+     Vem do LOGIN, e não de `empresa.responsavelNome`: o
+     responsável é o contato da empresa, e quando duas pessoas têm
+     acesso ao mesmo portal ele diria o mesmo nome para as duas —
+     que é exatamente a confusão que a trilha existe para evitar.
+
+     `estado.usuario` continua vazio no portal (quem preenche é o
+     painel), então o e-mail da conta costuma ser o que sobra. É
+     pouco elegante e é honesto: identifica a conta que agiu. Quem
+     identifica de verdade é o uid, que a regra do servidor obriga
+     a ser verdadeiro; o nome é só para a trilha ser legível. */
+  function nomeAtual() {
+    try {
+      var u = global.FB && global.FB.auth && global.FB.auth.currentUser;
+      if (u && (u.displayName || u.email)) return u.displayName || u.email;
+    } catch (e) { /* segue para o estado local */ }
+    return (estado.usuario && (estado.usuario.nome || estado.usuario.email)) || "";
+  }
+
   function desligarTempoReal() {
     if (desligarMsgs) { try { desligarMsgs(); } catch (e) {} }
     desligarMsgs = null;
@@ -946,8 +966,7 @@
 
       var uid = uidAtual();
       if (uid) {
-        var nome = (estado.usuario && estado.usuario.nome) ||
-                   (estado.usuario && estado.usuario.email) || "";
+        var nome = nomeAtual();
         Object.keys(estado.itens || {}).forEach(function (k) {
           var r = estado.itens[k];
           if (!r || !r.atualizadoEm) return;
