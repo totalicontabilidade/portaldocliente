@@ -57,6 +57,18 @@ service cloud.firestore {
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.papel == 'admin';
     }
 
+    // Um bloco do conteúdo do portal chegou igual ao que já está
+    // gravado? É o que separa "a equipe editou a parte dela" de
+    // "alguém devolveu uma versão velha por cima da atual".
+    //
+    // `get(k, null)` nos dois lados para o bloco que ainda não
+    // existe também bater — nulo com nulo é igual, e é a situação
+    // de todo bloco novo antes da primeira publicação.
+    function blocoIntacto(k) {
+      return request.resource.data.get('blocos', {}).get(k, null)
+             == resource.data.get('blocos', {}).get(k, null);
+    }
+
     // O cliente provou o convite e registrou o próprio uid.
     function ehDonoDaEmpresa(empresaId) {
       return logado() &&
@@ -641,9 +653,43 @@ service cloud.firestore {
     // Textos, documentos do checklist, trilhas da Academy. Todo
     // cliente lê; só a equipe altera. É o que tira o passo de
     // baixar arquivo e publicar.
+    // ---------- Conteúdo do portal ----------
+    //
+    // Leitura aberta de propósito: é o que o portal do cliente
+    // carrega antes de qualquer login para saber o que mostrar.
+    // Nada aqui é dado de cliente — são textos, vídeos e a lista
+    // de documentos.
+    //
+    // ESCRITA TEM DOIS NÍVEIS (pedido dele, 2026-08-27). A equipe
+    // mantém o que muda no dia: vídeo de abertura, Academy,
+    // checklist de documentos, bancos e maquininhas. Estes cinco
+    // blocos são do administrador porque falam pela empresa
+    // inteira ou mexem na estrutura:
+    //
+    //   etapas + formasRelatorio  a trilha da migração; cada linha
+    //                             está amarrada a uma tela
+    //   faq                       a Ajuda que todo cliente lê
+    //   compromisso + termo       o texto que o cliente ASSINA
+    //   org                       nome, endereço e telefone
+    //   lembretes                 a mensagem automática que vai
+    //                             para todo mundo, e a hora dela
+    //
+    // O painel esconde essas seções de quem não é admin, mas
+    // esconder é conforto: é esta regra que recusa a gravação,
+    // inclusive a que viria de um rascunho antigo no navegador de
+    // alguém que já foi administrador.
     match /conteudo/{doc} {
       allow read: if true;
-      allow write: if ehEquipe();
+
+      // Criar o documento do zero mexe em tudo ao mesmo tempo.
+      allow create, delete: if ehAdmin();
+
+      allow update: if ehAdmin()
+                    || (ehEquipe()
+                        && blocoIntacto('etapas') && blocoIntacto('formasRelatorio')
+                        && blocoIntacto('faq') && blocoIntacto('compromisso')
+                        && blocoIntacto('termo') && blocoIntacto('org')
+                        && blocoIntacto('lembretes'));
     }
 
     // ---------- Equipe ----------

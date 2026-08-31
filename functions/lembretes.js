@@ -41,11 +41,14 @@
    nunca entrou — para essa, o problema é outro (o convite) e
    quem resolve é a equipe.
 
-   COMO MUDAR O TEXTO
-   ------------------
-   Está em TEXTO, aqui embaixo. É de propósito que ele seja curto
-   e diga o número: "faltam 4 documentos" é acionável; "não se
-   esqueça de nós" é ruído.
+   COMO MUDAR A HORA E O TEXTO
+   ---------------------------
+   No painel: Conteúdo do portal › Aviso automático. Hora, dias,
+   ligado/desligado e o texto saem de lá. O que está aqui embaixo,
+   em PADRAO, é só a reserva para quando não houver nada gravado.
+
+   O texto é curto e diz o número de propósito: "faltam 4
+   documentos" é acionável; "não se esqueça de nós" é ruído.
    ============================================================ */
 "use strict";
 
@@ -68,16 +71,91 @@ const DIAS_ENTRE_AVISOS = 7;
    Ela para e a equipe percebe pelo log. */
 const MAXIMO_POR_DIA = 20;
 
-function TEXTO(nome, quantos) {
-  const saudacao = nome ? "Olá, " + nome + "!" : "Olá!";
-  return saudacao + " Passando para lembrar que ainda " +
-    (quantos === 1
-      ? "falta 1 documento obrigatório"
-      : "faltam " + quantos + " documentos obrigatórios") +
-    " para concluirmos a entrada da sua empresa aqui na Totali.\n\n" +
-    "É só abrir o portal e enviar — dá para tirar foto pelo celular. " +
-    "Se algum deles não se aplica à sua empresa, ou se você precisar de ajuda, " +
-    "responda por aqui mesmo que a gente resolve.";
+/* ============================================================
+   O QUE A EQUIPE CONTROLA DAQUI, PELO PAINEL
+
+   Antes, mudar a hora do aviso — ou o texto dele — era editar
+   este arquivo e publicar as funções. Hora de aviso é decisão de
+   atendimento, não de programação: quem sabe se 10h é cedo demais
+   para os clientes é quem atende.
+
+   COMO A HORA FUNCIONA AGORA. O Cloud Scheduler não deixa mudar o
+   cron sem publicar de novo, então a função passou a ACORDAR DE
+   HORA EM HORA e só trabalhar quando o relógio de Brasília bate
+   com a hora escolhida. Custa 24 despertares por dia em vez de 1
+   — barato — e a trava que já existia continua valendo: cada
+   empresa tem `avisoAutomaticoEm`, e ninguém é avisado duas vezes
+   dentro do intervalo, mesmo que a função rode mil vezes.
+
+   O padrão abaixo vale quando não há nada gravado, e é o que o
+   sistema fazia antes: 10h, dias úteis, ligado.
+   ============================================================ */
+const PADRAO = {
+  ligado: true,
+  hora: 10,
+  diasUteis: true,
+  saudacaoCom: "Olá, {nome}!",
+  saudacaoSem: "Olá!",
+  corpo: "Passando para lembrar que ainda {faltam} para concluirmos a entrada da sua " +
+         "empresa aqui na Totali.\n\nÉ só abrir o portal e enviar — dá para tirar foto pelo " +
+         "celular. Se algum deles não se aplica à sua empresa, ou se você precisar de ajuda, " +
+         "responda por aqui mesmo que a gente resolve."
+};
+
+async function configuracao(db) {
+  try {
+    /* Mora no MESMO documento do resto do conteúdo do portal, e
+       não num documento só seu: assim vale o mesmo botão de
+       publicar, e a equipe não fica com dois lugares que salvam
+       de jeitos diferentes. */
+    const d = await db.collection("conteudo").doc("portal").get();
+    if (!d.exists) return PADRAO;
+    const c = ((d.data() || {}).blocos || {}).lembretes || {};
+    const hora = Number(c.hora);
+    return {
+      ligado: c.ligado !== false,
+      hora: (Number.isInteger(hora) && hora >= 0 && hora <= 23) ? hora : PADRAO.hora,
+      diasUteis: c.diasUteis !== false,
+      saudacaoCom: texto(c.saudacaoCom, 200) || PADRAO.saudacaoCom,
+      saudacaoSem: texto(c.saudacaoSem, 200) || PADRAO.saudacaoSem,
+      corpo: texto(c.corpo, 2000) || PADRAO.corpo
+    };
+  } catch (e) {
+    /* Sem conseguir ler, vale o padrão: é melhor avisar no horário
+       de sempre do que deixar de avisar. */
+    console.error("nao consegui ler a configuracao de lembretes", e && e.message);
+    return PADRAO;
+  }
+}
+
+function texto(v, max) {
+  return (typeof v === "string" && v.trim()) ? v.slice(0, max) : "";
+}
+
+/* Que horas são em Brasília, e que dia da semana. O relógio do
+   servidor é UTC; perguntar ao Intl é o jeito de não ter que
+   lembrar de fuso nem de horário de verão. */
+function agoraEmBrasilia() {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    hour: "numeric", hour12: false, weekday: "short"
+  }).formatToParts(new Date());
+  const achar = (t) => (partes.find((p) => p.type === t) || {}).value;
+  const dia = String(achar("weekday") || "");
+  return {
+    hora: Number(achar("hour")),
+    fimDeSemana: dia === "Sat" || dia === "Sun"
+  };
+}
+
+function TEXTO(cfg, nome, quantos) {
+  const saudacao = nome
+    ? String(cfg.saudacaoCom).replace(/\{nome\}/g, nome)
+    : String(cfg.saudacaoSem);
+  const faltam = quantos === 1
+    ? "falta 1 documento obrigatório"
+    : "faltam " + quantos + " documentos obrigatórios";
+  return saudacao + " " + String(cfg.corpo).replace(/\{faltam\}/g, faltam);
 }
 
 function emMs(v) {
@@ -116,22 +194,40 @@ async function faltamObrigatorios(empresaRef) {
 
 exports.avisarPendencias = onSchedule(
   {
-    /* 10h em Brasília, dias úteis.
+    /* DE HORA EM HORA, e quem decide a hora é o painel.
 
-       ERRO QUE ESTAVA AQUI: dizia "0 13" com esta MESMA timeZone.
-       O 13 tinha sido calculado como se fosse UTC (10h BRT = 13h
-       UTC), mas o Cloud Scheduler lê o cron no fuso que a gente
-       informa — então virava 13h de Brasília, três horas depois do
-       que o comentário e o painel prometiam. Ou se escreve a hora
-       local, ou se tira a timeZone. Não os dois. */
-    schedule: "0 10 * * 1-5",
+       Era "0 10 * * 1-5" — 10h, dias úteis, fixo no código. Mudar
+       exigia publicar as funções, e hora de aviso é decisão de
+       atendimento. Agora a função acorda toda hora cheia e só
+       trabalha quando o relógio de Brasília bate com a hora
+       escolhida em Conteúdo do portal.
+
+       ERRO QUE JÁ ESTEVE AQUI, e que a `timeZone` abaixo ainda
+       resolve: o cron dizia "0 13" com esta mesma timeZone. O 13
+       fora calculado como se fosse UTC (10h BRT = 13h UTC), mas o
+       Cloud Scheduler lê o cron no fuso informado — virava 13h de
+       Brasília. Ou se escreve a hora local, ou se tira a timeZone.
+       Não os dois. */
+    schedule: "0 * * * *",
     timeZone: "America/Sao_Paulo",
     region: REGIAO
   },
   async () => {
     const db = getFirestore();
+    const cfg = await configuracao(db);
+
+    if (!cfg.ligado) return;
+
+    const agora = agoraEmBrasilia();
+    if (agora.hora !== cfg.hora) return;
+    if (cfg.diasUteis && agora.fimDeSemana) return;
+
+    /* Daqui para baixo é a execução de verdade — e só ela anota a
+       saúde. Anotar a cada despertar faria o painel dizer "rodou
+       agora" o dia inteiro, e o aviso de rotina parada, que existe
+       para gritar quando ela morre, nunca mais gritaria. */
     try {
-      const r = await rodarAvisos(db);
+      const r = await rodarAvisos(db, cfg);
       await anotarSaude(db, "avisarPendencias", { ok: true, detalhe: r });
     } catch (e) {
       await anotarSaude(db, "avisarPendencias", {
@@ -170,7 +266,7 @@ async function anotarSaude(db, rotina, dados) {
   }
 }
 
-async function rodarAvisos(db) {
+async function rodarAvisos(db, cfg) {
   {
     const agora = Date.now();
     let enviados = 0, olhadas = 0, pulados = 0;
@@ -211,7 +307,7 @@ async function rodarAvisos(db) {
       const ultimoAviso = emMs(e.avisoAutomaticoEm);
       if (ultimoAviso && agora - ultimoAviso < DIAS_ENTRE_AVISOS * DIA) { pulados++; continue; }
 
-      const texto = TEXTO(primeiroNome(e.responsavelNome), faltam);
+      const texto = TEXTO(cfg, primeiroNome(e.responsavelNome), faltam);
 
       await emp.ref.collection("mensagens").add({
         autor: "equipe",

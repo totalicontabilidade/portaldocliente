@@ -1094,6 +1094,38 @@
   var ETAPAS = aplicaLista(CFG.etapas, ETAPAS_PADRAO, ["titulo", "desc", "acao"]);
   var FORMAS_RELATORIO = aplicaLista(CFG.formasRelatorio, FORMAS_PADRAO, ["titulo", "desc"]);
 
+  /* Aviso automático de pendências. Quem usa isto é a Cloud
+     Function `avisarPendencias`, que lê direto do Firestore — aqui
+     só existe para o painel ter o que mostrar no formulário e para
+     o padrão ser o mesmo dos dois lados. Mexeu num, mexa no outro
+     (functions/lembretes.js, const PADRAO). */
+  var LEMBRETES_PADRAO = {
+    ligado: true,
+    hora: 10,
+    diasUteis: true,
+    saudacaoCom: "Olá, {nome}!",
+    saudacaoSem: "Olá!",
+    corpo: "Passando para lembrar que ainda {faltam} para concluirmos a entrada da sua " +
+           "empresa aqui na Totali.\n\nÉ só abrir o portal e enviar — dá para tirar foto pelo " +
+           "celular. Se algum deles não se aplica à sua empresa, ou se você precisar de ajuda, " +
+           "responda por aqui mesmo que a gente resolve."
+  };
+
+  function aplicaLembretes(bruto) {
+    var b = (bruto && typeof bruto === "object") ? bruto : {};
+    var h = Number(b.hora);
+    return {
+      ligado: b.ligado !== false,
+      hora: (h === Math.floor(h) && h >= 0 && h <= 23) ? h : LEMBRETES_PADRAO.hora,
+      diasUteis: b.diasUteis !== false,
+      saudacaoCom: txt(b.saudacaoCom, 200, LEMBRETES_PADRAO.saudacaoCom),
+      saudacaoSem: txt(b.saudacaoSem, 200, LEMBRETES_PADRAO.saudacaoSem),
+      corpo: txt(b.corpo, 2000, LEMBRETES_PADRAO.corpo)
+    };
+  }
+
+  var LEMBRETES = aplicaLembretes(CFG.lembretes);
+
   var ORG = aplicaOrg(CFG.org);
   var VIDEO_INICIO = aplicaVideoInicio(CFG.videoInicio);
   var ACADEMY = aplicaAcademy(CFG.academy);
@@ -1121,6 +1153,7 @@
     nomesDo: nomesDo,
     acharNoCatalogo: acharNoCatalogo,
     FORMAS_RELATORIO: FORMAS_RELATORIO,
+    LEMBRETES: LEMBRETES,
     RELATORIOS_MENSAIS: RELATORIOS_MENSAIS,
     CANAL_RELATORIOS: CANAL_RELATORIOS,
     COMPROMISSO: COMPROMISSO,
@@ -1193,6 +1226,7 @@
       /* Sem estas duas linhas, editar as etapas no painel só valeria
          no recarregamento seguinte — e quem publicasse concluiria
          que não funcionou. */
+      if (bruto.lembretes) trocarObjeto(LEMBRETES, aplicaLembretes(bruto.lembretes));
       if (bruto.etapas) trocarLista(ETAPAS, aplicaLista(bruto.etapas, ETAPAS_PADRAO,
                                                         ["titulo", "desc", "acao"]));
       if (bruto.formasRelatorio) {

@@ -41,8 +41,33 @@
       bancos: clonar(DATA.BANCOS),
       maquinetas: clonar(DATA.MAQUINETAS),
       etapas: clonar(DATA.ETAPAS),
-      formasRelatorio: clonar(DATA.FORMAS_RELATORIO)
+      formasRelatorio: clonar(DATA.FORMAS_RELATORIO),
+      lembretes: clonar(DATA.LEMBRETES)
     };
+  }
+
+  /* ---------- O que só o administrador edita ----------
+
+     Pedido dele, 2026-08-27. A divisão não é por dificuldade: é
+     por alcance. Vídeo, Academy, checklist e catálogos mudam o
+     trabalho do dia — quem atende precisa poder mexer. Estas
+     cinco falam pela empresa inteira ou mexem na estrutura:
+
+       etapas       a trilha da migração e as formas de relatório;
+                    cada linha está amarrada a uma tela
+       faq          a Ajuda que todo cliente lê
+       textos       o compromisso e o termo que ele ASSINA
+       org          endereço, telefone e nome da empresa
+       lembretes    a mensagem automática que vai para todo mundo
+
+     Esconder aqui é conforto. Quem decide de verdade é a regra do
+     Firestore, que recusa a gravação destes blocos vinda de quem
+     não é administrador — inclusive de um rascunho antigo. */
+  var SO_ADMIN = ["etapas", "faq", "textos", "org", "lembretes"];
+
+  function souAdmin() {
+    var FB = global.FB;
+    return !!(FB && FB.equipe && FB.equipe.papel === "admin");
   }
 
   function carregar() {
@@ -283,6 +308,52 @@
           }
         });
       }).join("");
+  }
+
+  /* ---------- Aviso automático de pendências ----------
+
+     A hora saiu do código. O Cloud Scheduler não deixa mudar o
+     cron sem publicar as funções, então a rotina passou a acordar
+     de hora em hora e só trabalhar quando o relógio de Brasília
+     bate com o que está escolhido aqui. Muda no painel, vale no
+     dia seguinte — sem deploy.
+
+     Quem manda a mensagem continua sendo a função, com as travas
+     de sempre: só quem está parado há uma semana, no máximo um
+     aviso por semana por empresa, e nunca para quem só tem
+     documento opcional faltando. */
+  function secaoLembretes() {
+    var l = C.lembretes || {};
+    var horas = [];
+    for (var h = 0; h <= 23; h++) horas.push({ v: String(h), r: (h < 10 ? "0" : "") + h + ":00" });
+
+    return '<p class="text-sm text-muted" style="margin-bottom:14px">Quando um cliente fica uma ' +
+      'semana parado com documento obrigatório faltando, o sistema escreve na conversa dele. ' +
+      'Nunca mais de um aviso por semana para a mesma empresa.</p>' +
+
+      marcador("Manter o aviso automático ligado", "lembretes.ligado", l.ligado !== false) +
+
+      selecao("Horário", "lembretes.hora", String(l.hora === undefined ? 10 : l.hora), horas) +
+      '<p class="text-xs text-muted" style="margin:-6px 0 14px">Horário de Brasília. A rotina ' +
+        'confere de hora em hora e só age na hora marcada.</p>' +
+
+      /* Marcador, e não lista de duas opções: o valor precisa
+         chegar ao servidor como sim ou não de verdade. Uma lista
+         gravaria o texto "nao", que não é `false` — e o aviso
+         sairia no sábado sem ninguém entender por quê. */
+      marcador("Só em dias úteis (segunda a sexta)", "lembretes.diasUteis", l.diasUteis !== false) +
+
+      '<hr class="hr">' +
+      '<h3 style="font-size:14px;font-weight:650;margin-bottom:4px">O texto da mensagem</h3>' +
+      '<p class="text-xs text-muted" style="margin-bottom:14px">Entra na conversa como mensagem ' +
+        'da Totali. <strong>{nome}</strong> vira o primeiro nome do responsável e ' +
+        '<strong>{faltam}</strong> vira "faltam 3 documentos obrigatórios".</p>' +
+      '<div class="grid-2">' +
+        campo("Saudação quando sabemos o nome", "lembretes.saudacaoCom", l.saudacaoCom,
+              { max: 200, dica: "Use {nome}." }) +
+        campo("Saudação quando não sabemos", "lembretes.saudacaoSem", l.saudacaoSem, { max: 200 }) +
+      '</div>' +
+      campo("Corpo da mensagem", "lembretes.corpo", l.corpo, { max: 2000, linhas: 6 });
   }
 
   /* Cada seção com seu próprio ícone e um selo de estado. A pessoa
@@ -917,6 +988,14 @@
         corpo: secaoEtapas
       }),
       secao({
+        id: "lembretes", icone: "ic-clock", titulo: "Aviso automático",
+        resumo: (C.lembretes && C.lembretes.ligado === false)
+          ? "desligado"
+          : "todo dia às " + ((C.lembretes && C.lembretes.hora) || 10) + "h" +
+            ((C.lembretes && C.lembretes.diasUteis !== false) ? ", dias úteis" : ", todos os dias"),
+        corpo: secaoLembretes
+      }),
+      secao({
         id: "faq", icone: "ic-help", titulo: "Perguntas frequentes",
         resumo: (C.faq || []).length + " perguntas na tela de Ajuda",
         corpo: secaoFaq
@@ -932,8 +1011,15 @@
       })
     ];
 
+    /* As seções de administrador somem para quem não é. Ver a nota
+       em SO_ADMIN: aqui é conforto, a barreira é a regra. */
+    if (!souAdmin()) {
+      SECOES = SECOES.filter(function (x) { return SO_ADMIN.indexOf(x.id) === -1; });
+    }
+
     /* A seção guardada pode ter sumido — por exemplo, se um dia
-       alguma delas deixar de existir. Cai na primeira. */
+       alguma delas deixar de existir, ou se quem abriu não é
+       administrador. Cai na primeira. */
     if (!SECOES.some(function (x) { return x.id === secaoAberta; })) {
       secaoAberta = SECOES[0].id;
     }
@@ -1079,16 +1165,56 @@
     var botao = $("#pcPublicar");
     if (botao) { botao.disabled = true; botao.textContent = "Publicando…"; }
 
-    FB.db.collection("conteudo").doc("portal").set({
-      blocos: blocos,
-      atualizadoEm: Date.now(),
-      atualizadoPor: (FB.equipe && (FB.equipe.nome || FB.equipe.email)) || "equipe"
-    }).then(function () {
-      if (botao) { botao.disabled = false; botao.innerHTML = UI.icone("ic-check") + "Publicar para os clientes"; }
-      UI.toast("Publicado. Os clientes já veem na próxima vez que abrirem o portal.", "ok", 7000);
+    /* QUEM NÃO É ADMINISTRADOR PUBLICA O QUE ESTÁ NO AR, nos
+       blocos que não são dele.
+
+       O painel publica o conteúdo inteiro de uma vez, e o rascuho
+       local traz os cinco blocos de administrador junto — vindos
+       do que estava publicado quando a tela abriu, ou do padrão do
+       código. Republicá-los seria devolver uma versão velha por
+       cima da atual, sem ninguém ter pedido; e como a regra do
+       servidor recusa exatamente essa gravação, o que a pessoa
+       veria era o botão falhando sem motivo aparente.
+
+       Então, antes de gravar, copiamos de volta o que está no
+       servidor AGORA. O que a pessoa editou nas seções dela sobe;
+       o resto sobe idêntico ao que já estava. */
+    var soltar = function () {
+      if (botao) {
+        botao.disabled = false;
+        botao.innerHTML = UI.icone("ic-check") + "Publicar para os clientes";
+      }
+    };
+
+    var enviar = function (base) {
+      FB.db.collection("conteudo").doc("portal").set({
+        blocos: base,
+        atualizadoEm: Date.now(),
+        atualizadoPor: (FB.equipe && (FB.equipe.nome || FB.equipe.email)) || "equipe"
+      }).then(function () {
+        soltar();
+        UI.toast("Publicado. Os clientes já veem na próxima vez que abrirem o portal.", "ok", 7000);
+      }, function (e) {
+        soltar();
+        UI.toast("Não foi possível publicar: " + FB.explicar(e), "erro", 9000);
+      });
+    };
+
+    if (souAdmin()) { enviar(blocos); return; }
+
+    FB.db.collection("conteudo").doc("portal").get().then(function (d) {
+      var atual = (d.exists && (d.data() || {}).blocos) || {};
+      SO_ADMIN.forEach(function (k) {
+        /* Chave que ainda não existe no servidor não pode virar
+           `undefined` no que vamos gravar: o Firestore recusa o
+           documento inteiro. Some do payload e pronto. */
+        if (atual[k] === undefined) delete blocos[k];
+        else blocos[k] = atual[k];
+      });
+      enviar(blocos);
     }, function (e) {
-      if (botao) { botao.disabled = false; botao.innerHTML = UI.icone("ic-check") + "Publicar para os clientes"; }
-      UI.toast("Não foi possível publicar: " + FB.explicar(e), "erro", 9000);
+      soltar();
+      UI.toast("Não foi possível conferir o conteúdo publicado: " + FB.explicar(e), "erro", 9000);
     });
   }
 
