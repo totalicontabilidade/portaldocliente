@@ -122,7 +122,22 @@
            do tempo do documento nasce sem ela na próxima abertura. */
         obsEm: num(r.obsEm),
         atualizadoEm: num(r.atualizadoEm),
-        lembrete: num(r.lembrete)
+        lembrete: num(r.lembrete),
+        /* QUEM MEXEU NESTE DOCUMENTO.
+
+           A trilha de auditoria é escrita por uma Cloud Function que
+           observa a gravação — e um gatilho do Firestore não recebe
+           o usuário que gravou. Resultado: "item:enviado" e
+           "item:removido" saíam sem autor nenhum. Numa empresa com
+           duas pessoas no portal, a trilha não respondia a única
+           pergunta que importa depois: quem tirou o documento.
+
+           A regra do servidor exige que `porUid` seja o uid de quem
+           está gravando, então isto não é uma declaração de boa fé:
+           é assinatura. `porNome` vai junto só para a trilha ser
+           legível sem consultar a lista de acessos. */
+        porUid: txt(r.porUid, 60),
+        porNome: txt(r.porNome, 120)
       };
     }
 

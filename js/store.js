@@ -205,6 +205,9 @@
   function registroVazio() {
     return {
       arquivos: [], valor: "", na: false, obs: "", forma: "",
+      /* Quem mexeu por último. Preenchido em `commit`, exigido
+         pela regra do servidor e copiado pela trilha. */
+      porUid: "", porNome: "",
       /* Quando o cliente respondeu a uma correção sem reenviar o
          documento. É o que dá ordem à linha do tempo: sem hora, a
          resposta e o pedido ficam do mesmo tamanho no tempo. */
@@ -344,6 +347,10 @@
         novo.forma = typeof r.forma === "string" ? r.forma.slice(0, 60) : "";
         novo.na = r.na === true;
         novo.atualizadoEm = typeof r.atualizadoEm === "number" ? r.atualizadoEm : 0;
+        /* Assinatura de quem mexeu por último neste documento.
+           Sobrevive ao saneamento porque é ela que a trilha copia. */
+        novo.porUid = typeof r.porUid === "string" ? r.porUid.slice(0, 60) : "";
+        novo.porNome = typeof r.porNome === "string" ? r.porNome.slice(0, 120) : "";
         novo.lembrete = typeof r.lembrete === "number" && r.lembrete > 0 ? r.lembrete : 0;
         novo.naEquipe = typeof r.naEquipe === "boolean" ? r.naEquipe : null;
 
@@ -912,9 +919,44 @@
 
     on: function (fn) { if (typeof fn === "function") ouvintes.push(fn); },
 
-    /* Aplica uma mudança, persiste e avisa a interface. */
+    /* Aplica uma mudança, persiste e avisa a interface.
+
+       ASSINA OS DOCUMENTOS QUE MUDARAM NESTA GRAVAÇÃO.
+
+       A trilha de auditoria é escrita por uma Cloud Function que
+       observa o Firestore, e um gatilho não recebe quem gravou —
+       por isso "item:enviado" e "item:removido" saíam sem autor.
+       Numa empresa com duas pessoas no portal, a trilha não
+       respondia quem tirou o documento.
+
+       A assinatura mora aqui, e não nos dez lugares que mexem num
+       item, porque aqui ela não tem como ser esquecida no décimo
+       primeiro. O critério é o `atualizadoEm`: quem mexeu num
+       documento sobe esse carimbo, e é exatamente esse documento
+       que precisa levar o nome junto. Os outros ficam como estão —
+       carimbar todos faria a trilha dizer que esta pessoa mexeu em
+       documento que ela nunca abriu. */
     commit: function (mutador, motivo) {
+      var antes = {};
+      Object.keys(estado.itens || {}).forEach(function (k) {
+        antes[k] = (estado.itens[k] || {}).atualizadoEm || 0;
+      });
+
       if (typeof mutador === "function") mutador(estado);
+
+      var uid = uidAtual();
+      if (uid) {
+        var nome = (estado.usuario && estado.usuario.nome) ||
+                   (estado.usuario && estado.usuario.email) || "";
+        Object.keys(estado.itens || {}).forEach(function (k) {
+          var r = estado.itens[k];
+          if (!r || !r.atualizadoEm) return;
+          if (r.atualizadoEm === antes[k]) return;
+          r.porUid = uid;
+          r.porNome = String(nome).slice(0, 120);
+        });
+      }
+
       salvarDebounced();
       notificar(motivo || "commit");
     },
