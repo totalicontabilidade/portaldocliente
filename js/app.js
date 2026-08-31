@@ -3853,7 +3853,15 @@
         titulo: "Este é o seu portal",
         texto: "Em menos de um minuto eu mostro onde fica cada coisa. Se quiser rever depois, " +
                "o botão \"Ver o tutorial\" fica logo abaixo, na parte das etapas." },
-      { alvo: "#blocoVideo",
+      /* O ALVO É O BOTÃO DE TOCAR, e não o bloco inteiro.
+
+         Enquanto não há vídeo publicado, o bloco continua na tela
+         dizendo "Em breve" — e o tutorial mandava "toque na imagem
+         para assistir" para quem não tinha o que tocar. O botão só
+         existe quando existe vídeo (ver `videoHTML`), então mirar
+         nele faz o passo sumir sozinho, e a contagem "passo 2 de
+         5" se ajusta junto. */
+      { alvo: "#blocoVideo [data-tocar]",
         titulo: "Comece pelo vídeo",
         texto: "Toque na imagem para assistir. Em poucos minutos a gente explica como funciona a " +
                "sua migração para a Totali." },
@@ -3869,14 +3877,18 @@
         titulo: "Onde você está",
         texto: "A migração acontece por etapas. A que está acesa é a sua vez; as concluídas " +
                "ficam com um visto. Pode tocar em qualquer etapa liberada." },
+      /* A ORDEM DA FRASE SEGUE A ORDEM DO MENU. O Academy subiu
+         para o segundo lugar a pedido dele, e vinha citado por
+         último — o tutorial contava uma ordem e a tela mostrava
+         outra, logo abaixo. */
       { alvo: ".tabbar",
         titulo: "O menu fica aqui embaixo",
-        texto: "Por esta barra você vai para os documentos, para as mensagens com a nossa equipe " +
-               "e para os vídeos do Academy." },
+        texto: "Por esta barra você chega ao Academy, aos seus documentos e às mensagens com a " +
+               "nossa equipe." },
       { alvo: ".sidenav",
         titulo: "O menu fica aqui do lado",
-        texto: "Por este menu você vai para os documentos, para as mensagens com a nossa equipe " +
-               "e para os vídeos do Academy." }
+        texto: "Por este menu você chega ao Academy, aos seus documentos e às mensagens com a " +
+               "nossa equipe." }
     ]
   };
 
