@@ -260,8 +260,10 @@
       titulo: "Administrador ou equipe?",
       texto: "Quem é da equipe faz a rotina inteira: confere documento, cobra, responde, cria " +
              "cliente e abre senha de maquininha. O que ele NÃO faz é mexer nesta lista, " +
-             "excluir cliente definitivamente nem apagar mensagem de outra pessoa. Na dúvida, " +
-             "cadastre como equipe." },
+             "excluir cliente definitivamente, apagar mensagem de outra pessoa, entrar em " +
+             "Segurança nem editar as quatro seções de Conteúdo que são suas. Ele também não " +
+             "vê o papel dos colegas nesta lista — só os nomes. Na dúvida, cadastre como " +
+             "equipe." },
     { alvo: '.sidenav__item[data-aba="clientes"]',
       titulo: "2. Excluir um cliente de vez",
       texto: "Dentro da ficha, em Encerrar cliente, só você vê o botão de excluir. Ele apaga " +
