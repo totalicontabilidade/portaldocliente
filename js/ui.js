@@ -184,10 +184,17 @@
     }).join("");
     document.body.appendChild(el);
 
-    /* Encostar na borda deixaria metade do menu fora da tela. */
+    /* Encostar na borda deixaria metade do menu fora da tela.
+
+       `limiteInferior` é para quando há algo fixo no pé da tela —
+       a barra de abas do celular, por exemplo. Sem ele o menu
+       parava em cima da própria barra que o abriu, cobrindo o
+       botão que a pessoa acabou de tocar. */
     var larg = el.offsetWidth, alt = el.offsetHeight;
+    var piso = typeof opcoes.limiteInferior === "number"
+      ? opcoes.limiteInferior : window.innerHeight;
     var x = Math.min(opcoes.x, window.innerWidth - larg - 8);
-    var y = Math.min(opcoes.y, window.innerHeight - alt - 8);
+    var y = Math.min(opcoes.y, piso - alt - 8);
     el.style.left = Math.max(8, x) + "px";
     el.style.top = Math.max(8, y) + "px";
 

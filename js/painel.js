@@ -162,10 +162,9 @@
       return { rotulo: a.rotulo, icone: a.icone, onClick: function () { abrir(a.id); } };
     });
     var r = botao.getBoundingClientRect();
-    /* O `y` é o topo do botão: `UI.menu` encosta na borda de baixo
-       e o menu sobe sozinho, que é o certo para uma barra que fica
-       no pé da tela. */
-    UI.menu({ x: r.left, y: r.top, itens: itens });
+    /* `limiteInferior` é o topo da barra: sem ele o menu pousaria
+       em cima dela e cobriria o próprio botão que foi tocado. */
+    UI.menu({ x: r.left, y: r.top, limiteInferior: r.top, itens: itens });
   }
 
   function aplicarPermissoes(equipe) {
