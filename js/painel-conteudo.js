@@ -1352,6 +1352,18 @@
     }[origem];
     desenhar();
     ligar();
+
+    /* REDESENHA QUANDO SOUBER QUEM ENTROU.
+
+       Esta tela é montada assim que o HTML fica pronto, e a sessão
+       do Firebase chega depois — então, no primeiro desenho,
+       `FB.equipe` ainda é nulo e `souAdmin()` responde não. Sem
+       isto, o próprio administrador abria a aba sem as cinco
+       seções dele e concluía que tinham sumido. Aconteceu no teste
+       desta mudança. */
+    if (global.FB && global.FB.observarSessao) {
+      global.FB.observarSessao(function () { desenhar(); });
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
