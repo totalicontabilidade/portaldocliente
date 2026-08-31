@@ -50,7 +50,7 @@
     if (ABAS.indexOf(id) === -1) return PADRAO;
     /* Rota digitada à mão para uma aba que não é dela cai no
        Início, em vez de abrir uma tela que só saberia recusar. */
-    if (SO_ADMIN.indexOf(id) > -1 && !ehAdmin(global.FB && global.FB.equipe)) return PADRAO;
+    if (SO_ADMIN.indexOf(id) > -1 && !souAdmin) return PADRAO;
     return id;
   }
 
@@ -125,12 +125,19 @@
      como lhe dizer não. */
   var SO_ADMIN = ["seguranca"];
 
-  function ehAdmin(equipe) {
-    return !!(equipe && equipe.papel === "admin");
-  }
+  /* UMA FONTE SÓ para o papel de quem está usando.
+
+     Antes o menu escondia a aba olhando o objeto que chegou em
+     `sessao()`, e a validação da rota olhava `FB.equipe`. Em
+     produção são o mesmo objeto e ninguém veria diferença — até o
+     dia em que não fossem, e aí a aba estaria escondida no menu e
+     aberta pela barra de endereço. Duas leituras da mesma coisa é
+     como uma delas fica para trás. */
+  var souAdmin = false;
 
   function aplicarPermissoes(equipe) {
-    var admin = ehAdmin(equipe);
+    souAdmin = !!(equipe && equipe.papel === "admin");
+    var admin = souAdmin;
     SO_ADMIN.forEach(function (aba) {
       $$('[data-aba="' + aba + '"]').forEach(function (b) { b.hidden = !admin; });
     });
