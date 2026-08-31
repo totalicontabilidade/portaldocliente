@@ -829,17 +829,26 @@
     <svg class="ic" aria-hidden="true"><use href="#ic-chat"></use></svg>Mensagens
     <span class="tabbar__badge" data-badge-mensagens hidden></span>
   </button>
-  <button type="button" class="tabbar__item" data-aba="novo">
+  <button type="button" class="tabbar__item tabbar__item--extra" data-aba="novo">
     <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Novo
   </button>
-  <button type="button" class="tabbar__item" data-aba="conteudo">
+  <button type="button" class="tabbar__item tabbar__item--extra" data-aba="conteudo">
     <svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg>Conteúdo
   </button>
-  <button type="button" class="tabbar__item" data-aba="usuarios">
+  <button type="button" class="tabbar__item tabbar__item--extra" data-aba="usuarios">
     <svg class="ic" aria-hidden="true"><use href="#ic-badge"></use></svg>Usuários
   </button>
-  <button type="button" class="tabbar__item" data-aba="seguranca">
+  <button type="button" class="tabbar__item tabbar__item--extra" data-aba="seguranca">
     <svg class="ic" aria-hidden="true"><use href="#ic-shield"></use></svg>Segurança
+  </button>
+  <!-- As quatro abas acima não cabem na barra de um celular: com
+       as oito, cada uma ficava com 47px e a barra passava a rolar
+       de lado, escondendo Usuários e Segurança sem nenhum aviso de
+       que existiam. Elas continuam no menu lateral do computador e
+       aqui vêm por este botão. -->
+  <button type="button" class="tabbar__item" id="pnMaisAbas"
+          aria-haspopup="menu" aria-label="Mais telas do painel">
+    <svg class="ic" aria-hidden="true"><use href="#ic-mais"></use></svg>Mais
   </button>
 </nav>
 

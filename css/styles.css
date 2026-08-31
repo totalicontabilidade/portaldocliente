@@ -2814,25 +2814,30 @@ details.rec:not([open]) > .rec__body{display:none}
    guardar decisão sobre problema que ninguém tem. Se um dia a barra
    encolher, o `.tabbar--8` abaixo mostra como se resolve. */
 
-/* Oito abas, depois que Usuários saiu de dentro de Segurança.
-   A 320px cada uma fica com 40px — abaixo do alvo de toque
-   confortável, então a barra passa a rolar na horizontal em vez
-   de espremer mais. Rolar é ruim; letra ilegível é pior. */
-.tabbar--8{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.tabbar--8::-webkit-scrollbar{display:none}
+/* CINCO ITENS NA BARRA, NÃO OITO.
+
+   A versão anterior punha as oito abas aqui e, abaixo de 420px,
+   deixava a barra ROLAR de lado — a decisão escrita então foi
+   "rolar é ruim; letra ilegível é pior", e as duas metades disso
+   estavam certas. Faltava a terceira saída: tirar abas da barra.
+
+   Rolar era pior do que parecia. Num celular de 375px a barra
+   media 448px, e Usuários e Segurança ficavam fora da tela sem
+   nenhuma pista de que existiam — quem não soubesse arrastar a
+   barra concluiria que aquelas telas não existem no telefone.
+
+   Agora ficam as quatro do dia a dia — Início, Clientes,
+   Pendências, Mensagens — e um "Mais" que abre o resto em menu.
+   Cinco itens dão 75px cada a 375px, e 64px a 320px: alvo
+   confortável e letra em tamanho de gente, sem rolagem. */
+.tabbar--8 .tabbar__item--extra{display:none}
 .tabbar--8 .tabbar__item{
-  flex:0 0 auto;min-width:56px;
-  font-size:8.5px;letter-spacing:-.1px;gap:2px;padding:7px 4px 6px;
+  flex:1 1 0;min-width:0;
+  font-size:10px;letter-spacing:-.1px;gap:3px;padding:7px 4px 6px;
 }
-.tabbar--8 .tabbar__item .ic{width:19px;height:19px}
-.tabbar--8 .tabbar__badge{left:calc(50% + 4px);min-width:14px;height:14px;font-size:8.5px}
-@media (min-width:420px){
-  .tabbar--8{overflow-x:visible}
-  .tabbar--8 .tabbar__item{flex:1 1 0;min-width:0;font-size:9px}
-}
-@media (min-width:520px){
-  .tabbar--8 .tabbar__item{font-size:10px}
-  .tabbar--8 .tabbar__item .ic{width:20px;height:20px}
+.tabbar--8 .tabbar__item .ic{width:20px;height:20px}
+@media (max-width:359px){
+  .tabbar--8 .tabbar__item{font-size:9px}
 }
 
 /* Cabeçalho de seção com botão de ação à direita.

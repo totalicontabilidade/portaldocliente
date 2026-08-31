@@ -80,6 +80,16 @@
       else b.removeAttribute("aria-current");
     });
 
+    /* No celular, as quatro abas do "Mais" não estão na barra —
+       sem isto, estando em Conteúdo a barra ficaria sem nenhum
+       item aceso, e a pessoa não saberia dizer onde está. */
+    var mais = $("#pnMaisAbas");
+    if (mais) {
+      var eDoMais = ABAS_DO_MAIS.some(function (a) { return a.id === alvo; });
+      if (eDoMais) mais.setAttribute("aria-current", "page");
+      else mais.removeAttribute("aria-current");
+    }
+
     document.title = TITULOS[alvo] + " · Painel da equipe · Totali";
 
     if (mudou && !semRolar) global.scrollTo({ top: 0, behavior: "auto" });
@@ -134,6 +144,29 @@
      aberta pela barra de endereço. Duas leituras da mesma coisa é
      como uma delas fica para trás. */
   var souAdmin = false;
+
+  /* As abas que saem da barra do celular e vêm pelo "Mais". A
+     ordem é a mesma do menu lateral, para quem trocar de aparelho
+     não ter que reaprender. */
+  var ABAS_DO_MAIS = [
+    { id: "novo", rotulo: "Novo cliente", icone: "ic-plus" },
+    { id: "conteudo", rotulo: "Conteúdo do portal", icone: "ic-folder" },
+    { id: "usuarios", rotulo: "Usuários", icone: "ic-badge" },
+    { id: "seguranca", rotulo: "Segurança", icone: "ic-shield" }
+  ];
+
+  function abrirMaisAbas(botao) {
+    var itens = ABAS_DO_MAIS.filter(function (a) {
+      return SO_ADMIN.indexOf(a.id) === -1 || souAdmin;
+    }).map(function (a) {
+      return { rotulo: a.rotulo, icone: a.icone, onClick: function () { abrir(a.id); } };
+    });
+    var r = botao.getBoundingClientRect();
+    /* O `y` é o topo do botão: `UI.menu` encosta na borda de baixo
+       e o menu sobe sozinho, que é o certo para uma barra que fica
+       no pé da tela. */
+    UI.menu({ x: r.left, y: r.top, itens: itens });
+  }
 
   function aplicarPermissoes(equipe) {
     souAdmin = !!(equipe && equipe.papel === "admin");
@@ -390,6 +423,9 @@
     document.addEventListener("click", function (ev) {
       var t = ev.target.closest("[data-tutorial-painel]");
       if (t) { ev.preventDefault(); pedirTutorial(); return; }
+
+      var mais = ev.target.closest("#pnMaisAbas");
+      if (mais) { ev.preventDefault(); abrirMaisAbas(mais); return; }
 
       var b = ev.target.closest("[data-aba]");
       if (!b || b.disabled) return;
