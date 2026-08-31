@@ -651,9 +651,13 @@
          direto. */
       var temBusca = lista.length > 6;
       var termo = String(buscaOutras).trim().toLowerCase();
-      /* Só dígitos, para achar o CNPJ mesmo digitado sem
-         pontuação — que é como as pessoas digitam. */
-      var digitos = termo.replace(/\D+/g, "");
+
+      /* CNPJ digitado sem pontuação, que é como as pessoas
+         digitam. Só vale quando o que se digitou NÃO TEM LETRA:
+         com a regra frouxa, "teste 7" virava busca pelo dígito 7 e
+         trazia toda empresa com um 7 no CNPJ — quase todas. */
+      var soNumero = !!termo && !/[a-z]/.test(termo);
+      var digitos = soNumero ? termo.replace(/\D+/g, "") : "";
 
       var visiveis = !termo ? lista : lista.filter(function (c) {
         var cnpj = String(c.empresa.cnpj || "");
