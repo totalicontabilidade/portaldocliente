@@ -3365,12 +3365,34 @@ details.rec:not([open]) > .rec__body{display:none}
 .conteudo__corpo > :last-child{margin-bottom:0}
 
 /* No celular o índice vira uma tira que rola de lado: empilhado,
-   ele empurraria o conteúdo para fora da primeira tela. */
+   ele empurraria o conteúdo para fora da primeira tela.
+
+   E ROLAR PRECISA SER VISÍVEL. São dez seções e cabem duas e meia:
+   1230px de índice ficavam fora da tela sem nenhum sinal, e quem
+   não arrastasse por acaso concluiria que o portal se edita em
+   cinco lugares. A barra de rolagem está escondida de propósito
+   (ela é feia e some sozinha no celular), então o aviso é uma
+   sombra nas bordas.
+
+   A sombra é feita com `background-attachment`: as duas camadas
+   `local` acompanham o conteúdo e cobrem as `scroll` quando não há
+   mais nada para aquele lado. Resultado: a sombra da direita some
+   ao chegar no fim e a da esquerda só aparece depois que a pessoa
+   arrasta. Não é gambiarra de JavaScript que pode dessincronizar —
+   é o próprio navegador dizendo onde o conteúdo continua. */
 @media (max-width:859px){
   .conteudo__indice{
     grid-auto-flow:column;grid-auto-columns:max-content;
     overflow-x:auto;gap:6px;padding-bottom:4px;
     scrollbar-width:none;
+    background:
+      linear-gradient(to right, var(--bg-0) 30%, transparent) left center,
+      linear-gradient(to left,  var(--bg-0) 30%, transparent) right center,
+      linear-gradient(to right, rgba(0,0,0,.45), transparent) left center,
+      linear-gradient(to left,  rgba(0,0,0,.45), transparent) right center;
+    background-repeat:no-repeat;
+    background-size:26px 100%, 26px 100%, 16px 100%, 16px 100%;
+    background-attachment:local, local, scroll, scroll;
   }
   .conteudo__indice::-webkit-scrollbar{display:none}
   .conteudo__i{padding:8px 12px;border:1px solid var(--stroke);border-radius:999px}
