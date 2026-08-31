@@ -91,6 +91,12 @@
           C.formasRelatorio.length !== DATA.FORMAS_RELATORIO.length) {
         C.formasRelatorio = clonar(DATA.FORMAS_RELATORIO);
       }
+      /* Sem isto, o rascunho anterior ao aviso automático abria a
+         seção com os três textos em branco — e publicar mandaria
+         mensagem vazia para os clientes. */
+      if (!C.lembretes || typeof C.lembretes !== "object" || !C.lembretes.corpo) {
+        C.lembretes = clonar(DATA.LEMBRETES);
+      }
       return "rascunho";
     }
     C = doPadrao();
@@ -322,6 +328,16 @@
      de sempre: só quem está parado há uma semana, no máximo um
      aviso por semana por empresa, e nunca para quem só tem
      documento opcional faltando. */
+  /* "Dias úteis, às 10h" — e não "todo dia às 10h, dias úteis",
+     que era o que saía antes e se contradizia na mesma linha. */
+  function resumoLembretes() {
+    var l = C.lembretes || {};
+    if (l.ligado === false) return "desligado";
+    var h = (l.hora === undefined || l.hora === null) ? 10 : Number(l.hora);
+    return (l.diasUteis === false ? "Todos os dias" : "Dias úteis") +
+           ", às " + h + "h";
+  }
+
   function secaoLembretes() {
     var l = C.lembretes || {};
     var horas = [];
@@ -989,10 +1005,7 @@
       }),
       secao({
         id: "lembretes", icone: "ic-clock", titulo: "Aviso automático",
-        resumo: (C.lembretes && C.lembretes.ligado === false)
-          ? "desligado"
-          : "todo dia às " + ((C.lembretes && C.lembretes.hora) || 10) + "h" +
-            ((C.lembretes && C.lembretes.diasUteis !== false) ? ", dias úteis" : ", todos os dias"),
+        resumo: resumoLembretes(),
         corpo: secaoLembretes
       }),
       secao({
