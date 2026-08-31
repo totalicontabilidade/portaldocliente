@@ -885,6 +885,32 @@
     return TEXTOS[chave] || "Algo deu errado. Tente de novo.";
   }
 
+  /* COMO A PESSOA QUER SER CHAMADA.
+
+     Mora na CONTA (o `displayName` do Firebase Auth), e não no
+     cadastro da empresa, porque são duas coisas diferentes: o
+     "responsável pelo contato" é quem a Totali procura, e pode
+     muito bem não ser quem está com o portal aberto agora. Numa
+     empresa com dois acessos, guardar isto na empresa daria o
+     mesmo nome para as duas pessoas.
+
+     Ficando na conta, o nome acompanha a pessoa em qualquer
+     aparelho onde ela entrar, sem depender de nada gravado no
+     Firestore — e é o que a trilha de auditoria já lê para dizer
+     quem mexeu num documento. */
+  function definirNomeDaConta(nome) {
+    var u = auth && auth.currentUser;
+    if (!u) return Promise.reject(new Error("sem-sessao"));
+    return u.updateProfile({ displayName: String(nome || "").slice(0, 80) })
+      .then(function () { return u.reload(); })
+      .then(function () { return true; });
+  }
+
+  function nomeDaConta() {
+    var u = auth && auth.currentUser;
+    return (u && u.displayName) || "";
+  }
+
   global.FB = {
     pronto: pronto,
     get ligado() { return !!db; },
@@ -903,6 +929,8 @@
     cadastrarCliente: cadastrarCliente,
     entrarComoCliente: entrarComoCliente,
     recuperarSenha: recuperarSenha,
+    definirNomeDaConta: definirNomeDaConta,
+    nomeDaConta: nomeDaConta,
     retomarCliente: retomarCliente,
     empresasDoCliente: empresasDoCliente,
     novoCodigo: novoCodigo,

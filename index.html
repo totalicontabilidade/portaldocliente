@@ -270,13 +270,14 @@
       <span class="hbtn__label">Trocar empresa</span>
     </button>
     <!-- Quem está usando. Some quando não há sessão. -->
-    <span class="usuario" id="ctQuem" hidden>
+    <button type="button" class="usuario" id="ctQuem" hidden
+            aria-label="Sua conta — tocar para mudar seu nome">
       <span class="usuario__avatar" id="ctIniciais" aria-hidden="true">—</span>
       <span class="usuario__txt">
         <span class="usuario__nome" id="ctNome">—</span>
         <span class="usuario__papel">Sua conta</span>
       </span>
-    </span>
+    </button>
     <!-- Só o ícone. O rótulo virou aria-label: quem enxerga entende
          pelo desenho, e quem usa leitor de tela continua ouvindo o
          que o botão faz. -->

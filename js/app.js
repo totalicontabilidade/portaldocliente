@@ -46,6 +46,16 @@
     return ROTAS.some(function (r) { return r.id === id; }) ? id : "inicio";
   }
 
+  /* O nome que a pessoa deu à própria conta, quando deu.
+
+     Vale mais que `empresa.responsavelNome` em tudo que é dirigido
+     a ELA — a saudação, o cabeçalho, a assinatura das mensagens.
+     O responsável é o contato da empresa: com dois acessos no
+     mesmo portal, ele diria o mesmo nome para as duas pessoas. */
+  function nomeDeQuemUsa() {
+    return (global.FB && global.FB.nomeDaConta && global.FB.nomeDaConta()) || "";
+  }
+
   function rotaDaURL() {
     var h = (location.hash || "").replace(/^#\/?/, "").split("?")[0];
     return rotaValida(h);
@@ -496,6 +506,26 @@
         '<div class="eyebrow">Só falta isto</div>' +
         '<h2 class="aceite__titulo">Um passo para liberar seu portal</h2>' +
 
+        /* O NOME VEM ANTES DA LEI.
+
+           Sem isto o portal chamava a pessoa pelo que vinha antes
+           do @ no e-mail — "contato", "financeiro", "adm". Serve
+           para identificar a conta e não serve para falar com
+           gente. Perguntar aqui é perguntar uma vez só, na única
+           tela em que ela ainda não tem nada para fazer.
+
+           É opcional de propósito: quem não quiser responder toca
+           em Começar e o portal segue como antes. Um campo a mais
+           entre a pessoa e o botão não pode virar um pedágio. */
+        '<div class="field aceite__nome">' +
+          '<label class="field__label" for="seuNome">Como podemos te chamar?</label>' +
+          '<input type="text" class="input" id="seuNome" maxlength="80" autocomplete="given-name" ' +
+            'placeholder="Seu nome" aria-describedby="seuNomeDica">' +
+          '<p class="text-xs text-muted" id="seuNomeDica" style="margin-top:6px">' +
+            'Aparece no topo do portal e é assim que a nossa equipe vai te chamar. ' +
+            'Você pode mudar depois, tocando no seu nome no cabeçalho.</p>' +
+        '</div>' +
+
         '<label class="aceite__caixa" for="aceiteLgpd">' +
           '<input type="checkbox" id="aceiteLgpd" class="aceite__check">' +
           '<span class="aceite__txt">' +
@@ -547,12 +577,33 @@
     };
     chk.addEventListener("change", refletir);
     refletir();
+    /* O nome preenche sozinho quando a pessoa já respondeu antes —
+       ela pode ter aceitado a LGPD noutro aparelho. */
+    var campoNome = $("#seuNome");
+    if (campoNome && global.FB && global.FB.nomeDaConta) {
+      campoNome.value = global.FB.nomeDaConta();
+    }
+
     btn.addEventListener("click", function () {
       if (!chk.checked) return;
       Store.commit(function (st) { st.aceiteLGPD = Date.now(); }, "aceite");
       Store.registrarEvento("lgpd:aceite", "", "consentimento registrado no portal");
       Store.flush();
-      UI.toast("Tudo pronto. Vamos começar pelos dados da empresa.", "ok");
+
+      /* O nome não pode segurar a entrada. Se a gravação falhar —
+         internet ruim no meio do primeiro acesso —, a pessoa entra
+         do mesmo jeito e o portal a chama pelo e-mail, como fazia
+         antes. Errar aqui não vale travar ninguém na porta. */
+      var nome = campoNome ? campoNome.value.trim() : "";
+      if (nome && global.FB && global.FB.definirNomeDaConta) {
+        global.FB.definirNomeDaConta(nome).then(function () {
+          atualizarConta(true);
+          render();
+        }, function () { /* segue sem nome */ });
+      }
+
+      UI.toast(nome ? "Tudo pronto, " + U.primeiroNome(nome) + ". Vamos aos dados da empresa."
+                    : "Tudo pronto. Vamos começar pelos dados da empresa.", "ok");
       navegar("empresa");
     });
   }
@@ -672,7 +723,9 @@
     var st = Store.estado;
     var resumo = Store.resumoGeral();
     var etapaId = Store.etapaAtual();
-    var nome = U.primeiroNome(st.empresa.responsavelNome);
+    /* "Boa tarde, Raoni" — o nome da conta na frente do
+       responsável pelo contato. Ver `nomeDeQuemUsa`. */
+    var nome = U.primeiroNome(nomeDeQuemUsa() || st.empresa.responsavelNome);
     var empresaNome = st.empresa.nomeFantasia || st.empresa.razaoSocial;
     var passo = proximoPasso();
 
@@ -1725,7 +1778,7 @@
       perigo: true
     }).then(function (ok) {
       if (!ok) return;
-      var quem = Store.estado.empresa.responsavelNome || "";
+      var quem = nomeDeQuemUsa() || Store.estado.empresa.responsavelNome || "";
       Store.apagarMensagem(m.id, quem).then(function (deu) {
         if (deu) { render(); UI.toast("Mensagem apagada.", "ok", 3000); }
         else UI.toast("Não foi possível apagar agora. Tente de novo.", "erro", 7000);
@@ -2901,7 +2954,11 @@
       Promise.all(guardar).then(function (metas) {
         Store.enviarMensagem(texto, {
           autor: "cliente",
-          autorNome: Store.estado.empresa.responsavelNome || "",
+          /* Quem ESCREVEU, e não o responsável pelo contato: numa
+             empresa com dois acessos, o responsável assinaria as
+             mensagens das duas pessoas. Sem nome na conta, o
+             responsável continua sendo o melhor palpite. */
+          autorNome: nomeDeQuemUsa() || Store.estado.empresa.responsavelNome || "",
           anexos: metas
         });
         Store.flush();
@@ -4126,11 +4183,68 @@
     var email = (u && u.email) || "";
     if (!temSessao || !email) { caixa.hidden = true; return; }
 
-    var apelido = email.split("@")[0];
+    /* O NOME QUE A PESSOA DEU VEM PRIMEIRO.
+
+       Antes era sempre o pedaço do e-mail antes do @, e isso
+       rendia "contato", "financeiro", "adm" no lugar mais visível
+       da tela — identifica a conta, não fala com gente. O e-mail
+       continua ali, como título, para quem precisa conferir em
+       qual conta está num computador compartilhado. */
+    var proprio = (FB && FB.nomeDaConta && FB.nomeDaConta()) || "";
+    var mostrar = proprio || email.split("@")[0];
     caixa.hidden = false;
-    caixa.title = email;
-    $("#ctNome").textContent = apelido;
-    $("#ctIniciais").textContent = apelido.slice(0, 2).toUpperCase();
+    caixa.title = proprio ? proprio + " · " + email : email;
+    $("#ctNome").textContent = U.primeiroNome(mostrar) || mostrar;
+    $("#ctIniciais").textContent = iniciaisDe(mostrar);
+  }
+
+  /* Duas letras: as iniciais do nome e do sobrenome quando há os
+     dois, senão as duas primeiras letras. */
+  function iniciaisDe(nome) {
+    var partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return "—";
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  }
+
+  /* Trocar o nome depois. Fica atrás do próprio nome no cabeçalho
+     porque é lá que a pessoa repara nele — um campo escondido na
+     tela de cadastro da empresa seria um lugar que ninguém abre
+     para isso, e o nome é da CONTA, não da empresa. */
+  function abrirMinhaConta() {
+    var FB = global.FB;
+    var u = FB && FB.auth && FB.auth.currentUser;
+    if (!u) return;
+    var atual = (FB.nomeDaConta && FB.nomeDaConta()) || "";
+
+    var m = UI.modal({
+      titulo: "Sua conta",
+      corpoHTML:
+        '<div class="field">' +
+          '<label class="field__label" for="mcNome">Como podemos te chamar</label>' +
+          '<input type="text" class="input" id="mcNome" maxlength="80" autocomplete="given-name" ' +
+            'data-focus placeholder="Seu nome" value="' + U.escAttr(atual) + '">' +
+        '</div>' +
+        '<p class="text-xs text-muted" style="margin-top:10px">' +
+          'Entrando com <strong>' + U.esc(u.email) + '</strong>. O e-mail e a senha não mudam aqui — ' +
+          'se precisar trocá-los, fale com a ' + U.esc(DATA.ORG.curto) + '.</p>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary",
+          onClick: function () {
+            var novo = $("#mcNome", m.caixa).value.trim();
+            FB.definirNomeDaConta(novo).then(function () {
+              atualizarConta(true);
+              render();
+              UI.toast(novo ? "Pronto, " + U.primeiroNome(novo) + "." : "Nome removido.", "ok");
+            }, function () {
+              UI.toast("Não foi possível salvar seu nome agora. Tente de novo.", "erro", 7000);
+            });
+          }
+        }
+      ]
+    });
   }
 
   function atualizarNav(rota) {
@@ -4424,6 +4538,8 @@
       }
 
       if (ev.target.closest("#btnEmpresas")) { abrirSeletorEmpresas(); return; }
+
+      if (ev.target.closest("#ctQuem")) { abrirMinhaConta(); return; }
 
       var trocar = ev.target.closest("[data-trocar-empresa]");
       if (trocar && !trocar.disabled) {

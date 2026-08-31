@@ -2714,12 +2714,19 @@ details.rec:not([open]) > .rec__body{display:none}
    que está na própria conta quando o colega esqueceu a sessão
    aberta.
    ============================================================ */
+/* Virou botão: toca-se nele para trocar o próprio nome. O visual
+   é o mesmo de antes — o que muda é o cursor e a resposta ao
+   toque, que é o que faz uma pessoa descobrir que ali se clica. */
 .usuario{
   display:inline-flex;align-items:center;gap:9px;
   padding:4px 12px 4px 4px;border-radius:20px;
   border:1px solid var(--stroke);background:var(--glass);
   max-width:220px;
+  font:inherit;color:inherit;text-align:left;cursor:pointer;
+  transition:border-color .18s ease, background .18s ease;
 }
+.usuario:hover{border-color:var(--gold-2);background:var(--glass-2,var(--glass))}
+.usuario:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .usuario__avatar{
   width:29px;height:29px;flex:none;border-radius:50%;
   display:grid;place-items:center;
@@ -2879,6 +2886,14 @@ details.rec:not([open]) > .rec__body{display:none}
   box-shadow:var(--sh-2), 0 0 0 1px var(--stroke-gold);
 }
 .aceite__titulo{font-size:19px;font-weight:680;color:var(--txt);margin:8px 0 16px;line-height:1.3}
+
+/* O nome vem antes do aceite, separado por uma linha: são dois
+   pedidos diferentes, e colados viravam um bloco só que a pessoa
+   lê como "mais burocracia". */
+.aceite__nome{
+  margin-bottom:18px;padding-bottom:18px;
+  border-bottom:1px solid var(--stroke);
+}
 
 .aceite__caixa{
   display:flex;align-items:flex-start;gap:13px;cursor:pointer;
