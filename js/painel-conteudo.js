@@ -58,12 +58,17 @@
        faq          a Ajuda que todo cliente lê
        textos       o compromisso e o termo que ele ASSINA
        org          endereço, telefone e nome da empresa
-       lembretes    a mensagem automática que vai para todo mundo
+
+     O AVISO AUTOMÁTICO NÃO ENTRA. Cheguei a colocá-lo aqui por
+     conta própria — mexe na mensagem que vai para todo cliente —,
+     e ele decidiu o contrário: é ferramenta de cobrança, de quem
+     cobra. Quem atende é quem sabe se 10h é cedo demais e se o
+     texto está soando duro.
 
      Esconder aqui é conforto. Quem decide de verdade é a regra do
      Firestore, que recusa a gravação destes blocos vinda de quem
      não é administrador — inclusive de um rascunho antigo. */
-  var SO_ADMIN = ["etapas", "faq", "textos", "org", "lembretes"];
+  var SO_ADMIN = ["etapas", "faq", "textos", "org"];
 
   function souAdmin() {
     var FB = global.FB;

@@ -671,8 +671,10 @@ service cloud.firestore {
     //   faq                       a Ajuda que todo cliente lê
     //   compromisso + termo       o texto que o cliente ASSINA
     //   org                       nome, endereço e telefone
-    //   lembretes                 a mensagem automática que vai
-    //                             para todo mundo, e a hora dela
+    //
+    // O aviso automático (`lembretes`) fica com a equipe inteira,
+    // por decisão dele: é ferramenta de cobrança, e quem atende é
+    // quem sabe se o horário e o texto estão bons.
     //
     // O painel esconde essas seções de quem não é admin, mas
     // esconder é conforto: é esta regra que recusa a gravação,
@@ -688,8 +690,7 @@ service cloud.firestore {
                     || (ehEquipe()
                         && blocoIntacto('etapas') && blocoIntacto('formasRelatorio')
                         && blocoIntacto('faq') && blocoIntacto('compromisso')
-                        && blocoIntacto('termo') && blocoIntacto('org')
-                        && blocoIntacto('lembretes'));
+                        && blocoIntacto('termo') && blocoIntacto('org'));
     }
 
     // ---------- Equipe ----------
