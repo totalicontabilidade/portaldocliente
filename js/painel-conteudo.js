@@ -39,7 +39,9 @@
       compromisso: clonar(DATA.COMPROMISSO),
       termo: clonar(DATA.TERMO),
       bancos: clonar(DATA.BANCOS),
-      maquinetas: clonar(DATA.MAQUINETAS)
+      maquinetas: clonar(DATA.MAQUINETAS),
+      etapas: clonar(DATA.ETAPAS),
+      formasRelatorio: clonar(DATA.FORMAS_RELATORIO)
     };
   }
 
@@ -52,6 +54,18 @@
          tela sem bancos e maquininhas. */
       if (!Array.isArray(C.bancos) || !C.bancos.length) C.bancos = clonar(DATA.BANCOS);
       if (!Array.isArray(C.maquinetas) || !C.maquinetas.length) C.maquinetas = clonar(DATA.MAQUINETAS);
+      /* Mesma razão, para o rascunho salvo antes de as etapas e as
+         formas de relatório virem para cá. A quantidade tem que
+         bater com a do código: quem lê do outro lado descarta a
+         lista inteira se não bater, e a tela mostraria campos que
+         não valem nada. */
+      if (!Array.isArray(C.etapas) || C.etapas.length !== DATA.ETAPAS.length) {
+        C.etapas = clonar(DATA.ETAPAS);
+      }
+      if (!Array.isArray(C.formasRelatorio) ||
+          C.formasRelatorio.length !== DATA.FORMAS_RELATORIO.length) {
+        C.formasRelatorio = clonar(DATA.FORMAS_RELATORIO);
+      }
       return "rascunho";
     }
     C = doPadrao();
@@ -218,6 +232,57 @@
       'as operadoras de <strong>Modo Contador</strong>: nelas o portal deixa de pedir senha e passa ' +
       'a pedir só a confirmação de que o cadastro foi feito.</p>' +
       catalogoHTML("maquinetas", C.maquinetas, true, "na");
+  }
+
+  /* ---------- Etapas da migração e formas de relatório ----------
+
+     Os últimos textos de cliente que só mudavam por código. A
+     trilha "Como vai funcionar" é a primeira coisa que ele lê no
+     portal, e as duas formas de relatório são o que ele lê antes
+     de decidir se entrega a senha da maquininha ou se manda os
+     relatórios à mão.
+
+     Não dá para acrescentar nem remover linha: cada etapa está
+     amarrada a uma tela e cada forma a uma regra do sistema. O
+     que se edita aqui é o que se lê — o que o sistema faz com
+     elas continua no código, e é por isso que não há botão de
+     adicionar. */
+  function secaoEtapas() {
+    return '<p class="text-sm text-muted" style="margin-bottom:12px">Os passos que o cliente vê na ' +
+      'trilha da tela inicial. A ordem e a quantidade são fixas — cada passo leva a uma tela do ' +
+      'portal.</p>' +
+      (C.etapas || []).map(function (e, i) {
+        return caixaRecolhivel({
+          chave: "etapa." + i,
+          titulo: e.titulo || "(sem título)",
+          resumo: e.rota ? "leva para " + e.rota : "informativa — depende da Totali",
+          corpo: function () {
+            return campo("Título", "etapas." + i + ".titulo", e.titulo, { max: 80 }) +
+              campo("Descrição", "etapas." + i + ".desc", e.desc, { max: 300, linhas: 2 }) +
+              (e.acao !== undefined
+                ? campo("Texto do botão", "etapas." + i + ".acao", e.acao,
+                        { max: 60, dica: "O que aparece escrito no botão que leva para a tela." })
+                : '<p class="text-xs text-muted">Este passo não tem botão: quem age é a Totali.</p>');
+          }
+        });
+      }).join("") +
+
+      '<hr class="hr">' +
+      '<h3 style="font-size:14px;font-weight:650;margin-bottom:4px">Formas de enviar os relatórios</h3>' +
+      '<p class="text-xs text-muted" style="margin-bottom:14px">As duas opções da tela de ' +
+        'maquininhas. É o texto que o cliente lê antes de decidir entregar a senha ou não — ' +
+        'vale a pena ser exato aqui.</p>' +
+      (C.formasRelatorio || []).map(function (f, i) {
+        return caixaRecolhivel({
+          chave: "forma." + i,
+          titulo: f.titulo || "(sem título)",
+          resumo: f.recomendado ? "marcada como Mais prático" : "",
+          corpo: function () {
+            return campo("Título", "formasRelatorio." + i + ".titulo", f.titulo, { max: 120 }) +
+              campo("Explicação", "formasRelatorio." + i + ".desc", f.desc, { max: 600, linhas: 4 });
+          }
+        });
+      }).join("");
   }
 
   /* Cada seção com seu próprio ícone e um selo de estado. A pessoa
@@ -844,6 +909,12 @@
           (C.maquinetas || []).filter(function (m) { return m.semCredencial; }).length +
           " em Modo Contador",
         corpo: secaoMaquinetas
+      }),
+      secao({
+        id: "etapas", icone: "ic-bussola", titulo: "Etapas da migração",
+        resumo: (C.etapas || []).length + " passos na trilha · " +
+          (C.formasRelatorio || []).length + " formas de relatório",
+        corpo: secaoEtapas
       }),
       secao({
         id: "faq", icone: "ic-help", titulo: "Perguntas frequentes",

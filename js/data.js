@@ -38,7 +38,7 @@
      `rota` é para onde a etapa leva quando o cliente toca nela.
      Sem rota, a etapa é informativa (depende da Totali).
   ------------------------------------------- */
-  var ETAPAS = [
+  var ETAPAS_PADRAO = [
     {
       id: "boas-vindas",
       titulo: "Boas-vindas",
@@ -195,7 +195,7 @@
              "de documentos eletrônicos quando admitidos pelas partes como válidos."
   };
 
-  var FORMAS_RELATORIO = [
+  var FORMAS_PADRAO = [
     {
       id: "envio",
       titulo: "Eu mesmo envio os relatórios todo mês",
@@ -1055,6 +1055,45 @@
     return t;
   }
 
+  /* ETAPAS E FORMAS DE RELATÓRIO: O TEXTO É DA EQUIPE, O ID É DO
+     CÓDIGO.
+
+     Os dois eram os últimos textos de cliente que só mudavam
+     editando arquivo e publicando — a trilha "Como vai funcionar"
+     e as duas opções da tela de maquininhas, que são o que ele lê
+     antes de decidir entregar ou não a senha.
+
+     O `id` NÃO entra: ele não é texto, é o que amarra a etapa à
+     rota e a forma à regra que decide se o portal pede senha.
+     Deixar a equipe editá-lo seria deixá-la quebrar a tela sem
+     ter como saber por quê. Quem edita muda o que se lê; o que o
+     sistema faz continua sendo do código.
+
+     Lista fora do tamanho certo cai inteira no padrão: meia
+     trilha é pior que a trilha antiga.
+
+     DEVOLVE SEMPRE UM VETOR NOVO, nunca o próprio padrão. Devolver
+     o padrão parece inofensivo e não é: sem conteúdo publicado,
+     `ETAPAS` passa a SER `ETAPAS_PADRAO`, e aí `trocarLista` — que
+     esvazia o alvo antes de copiar — esvaziaria a fonte junto e a
+     trilha do cliente ficaria sem nenhum passo. Aconteceu no
+     teste desta função. */
+  function aplicaLista(bruto, padrao, campos) {
+    var vale = Array.isArray(bruto) && bruto.length === padrao.length;
+    return padrao.map(function (base, i) {
+      var novo = JSON.parse(JSON.stringify(base));
+      if (!vale) return novo;
+      var b = bruto[i] || {};
+      campos.forEach(function (k) {
+        if (typeof b[k] === "string" && b[k].trim()) novo[k] = b[k].slice(0, 600);
+      });
+      return novo;
+    });
+  }
+
+  var ETAPAS = aplicaLista(CFG.etapas, ETAPAS_PADRAO, ["titulo", "desc", "acao"]);
+  var FORMAS_RELATORIO = aplicaLista(CFG.formasRelatorio, FORMAS_PADRAO, ["titulo", "desc"]);
+
   var ORG = aplicaOrg(CFG.org);
   var VIDEO_INICIO = aplicaVideoInicio(CFG.videoInicio);
   var ACADEMY = aplicaAcademy(CFG.academy);
@@ -1150,6 +1189,15 @@
       if (bruto.maquinetas) {
         var m = normalizarCatalogo(bruto.maquinetas, true);
         if (m.length) trocarLista(MAQUINETAS, m);
+      }
+      /* Sem estas duas linhas, editar as etapas no painel só valeria
+         no recarregamento seguinte — e quem publicasse concluiria
+         que não funcionou. */
+      if (bruto.etapas) trocarLista(ETAPAS, aplicaLista(bruto.etapas, ETAPAS_PADRAO,
+                                                        ["titulo", "desc", "acao"]));
+      if (bruto.formasRelatorio) {
+        trocarLista(FORMAS_RELATORIO, aplicaLista(bruto.formasRelatorio, FORMAS_PADRAO,
+                                                  ["titulo", "desc"]));
       }
       return true;
     }
