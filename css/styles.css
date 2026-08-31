@@ -3055,6 +3055,23 @@ details.rec:not([open]) > .rec__body{display:none}
    O contorno aceso é o que se enxerga de longe.
    ============================================================ */
 .deptos{display:grid;gap:8px;margin-top:4px}
+
+/* Lista que rola dentro de si.
+
+   Nasceu do cadastro de cliente novo: a lista de "este link também
+   dá acesso a" cresce com um item por empresa, e com algumas
+   dezenas ela empurrava o botão de gerar o link para fora da tela.
+   Altura fixa resolve sem tirar nada de vista — rolar dentro de um
+   quadro é mais fácil que caçar um botão no fim da página.
+
+   `padding-right` porque a barra de rolagem passa por cima da
+   borda direita dos itens; `4px` devolve o respiro. */
+.deptos--rola{
+  max-height:264px;overflow-y:auto;padding-right:4px;
+  /* A borda avisa que aquilo rola. Sem ela, a lista cortada no
+     meio parece lista que acabou. */
+  border:1px solid var(--stroke);border-radius:12px;padding:8px;
+}
 .depto{
   display:flex;align-items:center;gap:10px;
   padding:11px 13px;border-radius:11px;cursor:pointer;

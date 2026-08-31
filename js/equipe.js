@@ -540,10 +540,11 @@
              cadastro mostra ao cliente. `empresas` traz ela e as
              extras, e é o que a regra do servidor confere na hora
              de registrar cada acesso. */
-          var extras = [];
-          var extrasMarcadas = document.querySelectorAll("[data-outra]");
-          Array.prototype.forEach.call(extrasMarcadas, function (c) {
-            if (c.checked) extras.push(c.getAttribute("data-outra"));
+          /* Vem de `outrasEscolhidas`, e não das caixas marcadas na
+             tela: com a busca ligada, a empresa escolhida pode não
+             estar mais no DOM. Ver a nota em `desenharOutras`. */
+          var extras = Object.keys(outrasEscolhidas).filter(function (id) {
+            return outrasEscolhidas[id];
           });
 
           return FB.db.collection("convites").doc(codigo).set({
@@ -610,6 +611,23 @@
        ainda não carregou (a pessoa abriu direto em "Novo"), o
        bloco fica com um aviso em vez de uma lista vazia mentindo
        que não há empresa nenhuma. */
+    /* A ESCOLHA MORA AQUI, NÃO NO DOM.
+
+       Antes ela era lida das caixas marcadas na hora de gerar o
+       link. Com busca isso quebraria na primeira letra digitada:
+       a empresa marcada sai da tela pelo filtro, o `checked`
+       morre com o elemento, e o link nasce sem ela — sem ninguém
+       perceber. Guardando aqui, filtrar é só filtrar. */
+    var outrasEscolhidas = {};
+
+    function contarEscolhidas() {
+      return Object.keys(outrasEscolhidas).filter(function (k) {
+        return outrasEscolhidas[k];
+      }).length;
+    }
+
+    var buscaOutras = "";
+
     function desenharOutras() {
       var caixa = $("#cOutras");
       if (!caixa) return;
@@ -628,14 +646,70 @@
         return;
       }
 
-      caixa.innerHTML = '<div class="deptos">' + lista.map(function (c) {
-        return '<label class="depto">' +
-          '<input type="checkbox" data-outra="' + U.escAttr(c.id) + '">' +
-          '<span class="depto__txt">' + U.esc(PC.nomeDe(c)) +
-            (c.empresa.cnpj ? ' <span class="text-xs text-muted">· ' + U.esc(c.empresa.cnpj) +
-              '</span>' : '') + '</span>' +
-        '</label>';
-      }).join("") + '</div>';
+      /* A BUSCA SÓ APARECE QUANDO PESA. Campo de busca sobre três
+         empresas é enfeite que rouba um toque de quem ia clicar
+         direto. */
+      var temBusca = lista.length > 6;
+      var termo = String(buscaOutras).trim().toLowerCase();
+      /* Só dígitos, para achar o CNPJ mesmo digitado sem
+         pontuação — que é como as pessoas digitam. */
+      var digitos = termo.replace(/\D+/g, "");
+
+      var visiveis = !termo ? lista : lista.filter(function (c) {
+        var cnpj = String(c.empresa.cnpj || "");
+        if ((PC.nomeDe(c) + " " + cnpj).toLowerCase().indexOf(termo) > -1) return true;
+        return !!digitos && cnpj.replace(/\D+/g, "").indexOf(digitos) > -1;
+      });
+
+      var quantas = contarEscolhidas();
+
+      caixa.innerHTML =
+        (temBusca
+          ? '<div class="row" style="gap:8px;align-items:center;margin:6px 0 8px">' +
+              '<input type="search" class="input" id="cBuscaOutra" ' +
+                'placeholder="Buscar por nome ou CNPJ" autocomplete="off" ' +
+                'value="' + U.escAttr(buscaOutras) + '" style="flex:1">' +
+              (quantas
+                ? '<span class="badge badge--analise" style="flex:none">' +
+                  quantas + ' ' + U.plural(quantas, "escolhida", "escolhidas") + '</span>'
+                : '') +
+            '</div>'
+          : '') +
+
+        /* ROLA DENTRO DE SI, e a página para de crescer. Era esse o
+           problema: cinquenta empresas empurravam o botão de gerar
+           o link para fora da tela. */
+        '<div class="deptos deptos--rola">' +
+          (visiveis.length
+            ? visiveis.map(function (c) {
+                var on = !!outrasEscolhidas[c.id];
+                return '<label class="depto' + (on ? ' depto--on' : '') + '">' +
+                  '<input type="checkbox" data-outra="' + U.escAttr(c.id) + '"' +
+                    (on ? ' checked' : '') + '>' +
+                  '<span class="depto__txt">' + U.esc(PC.nomeDe(c)) +
+                    (c.empresa.cnpj ? ' <span class="text-xs text-muted">· ' +
+                      U.esc(c.empresa.cnpj) + '</span>' : '') + '</span>' +
+                '</label>';
+              }).join("")
+            : '<p class="text-xs text-muted" style="margin:8px 4px">' +
+              'Nenhuma empresa com esse nome ou CNPJ.</p>') +
+        '</div>' +
+
+        /* O que está escolhido e sumiu no filtro precisa continuar
+           dito em algum lugar — senão a pessoa marca, busca outra e
+           fica sem saber o que já escolheu. */
+        (termo && quantas
+          ? '<p class="text-xs text-muted" style="margin:8px 0 0">' +
+            quantas + ' ' + U.plural(quantas, "empresa escolhida", "empresas escolhidas") +
+            ' no total, contando as que a busca escondeu.</p>'
+          : '');
+
+      var campo = $("#cBuscaOutra");
+      if (campo && buscaOutras) {
+        /* Redesenhar tira o foco do campo no meio da digitação. */
+        campo.focus();
+        campo.setSelectionRange(campo.value.length, campo.value.length);
+      }
     }
 
     desenharOutras();
@@ -645,10 +719,24 @@
     });
 
     var caixaOutras = $("#cOutras");
-    if (caixaOutras) caixaOutras.addEventListener("change", function (ev) {
-      var c = ev.target.closest("[data-outra]");
-      if (c) c.closest(".depto").classList.toggle("depto--on", c.checked);
-    });
+    if (caixaOutras) {
+      caixaOutras.addEventListener("change", function (ev) {
+        var c = ev.target.closest("[data-outra]");
+        if (!c) return;
+        outrasEscolhidas[c.getAttribute("data-outra")] = c.checked;
+        var rotulo = c.closest(".depto");
+        if (rotulo) rotulo.classList.toggle("depto--on", c.checked);
+        /* Só redesenha quando há contador para atualizar; mexer no
+           DOM a cada clique tiraria o foco de quem usa o teclado. */
+        if ($("#cBuscaOutra")) desenharOutras();
+      });
+
+      caixaOutras.addEventListener("input", function (ev) {
+        if (ev.target.id !== "cBuscaOutra") return;
+        buscaOutras = ev.target.value;
+        desenharOutras();
+      });
+    }
 
     /* Escolher os documentos antes de a empresa existir. A
        escolha fica em memória e é aplicada logo após o cadastro.
