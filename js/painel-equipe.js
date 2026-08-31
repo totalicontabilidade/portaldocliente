@@ -155,24 +155,36 @@
       var euMesmo = equipe && m.uid === equipe.uid;
       var podeMexer = souAdmin();
       return '<div class="item"><div class="item__top">' +
-        '<span class="group__icon">' + ic(m.papel === "admin" ? "ic-shield" : "ic-users") + '</span>' +
+        /* O ESCUDO DENUNCIA O PAPEL. Sem poder de mexer, o ícone
+           volta a ser o mesmo para todo mundo — ver a nota abaixo. */
+        '<span class="group__icon">' +
+          ic(podeMexer && m.papel === "admin" ? "ic-shield" : "ic-users") + '</span>' +
         '<div class="item__main">' +
           '<div class="item__name">' + U.esc(m.nome || m.email || "sem nome") +
             (euMesmo ? ' <span class="text-xs text-muted">· você</span>' : '') + '</div>' +
-          '<div class="item__row">' +
-            '<span class="badge ' + (m.papel === "admin" ? "badge--aprovado" : "badge--analise") + '">' +
-              '<span class="dot"></span>' +
-              (m.papel === "admin" ? "Administrador" : "Equipe") + '</span>' +
-            '<span class="text-xs text-muted">' + U.esc(m.email || "sem e-mail") + '</span>' +
-          '</div>' +
-          /* O setor fica na linha de baixo, junto do papel: é a
-             segunda coisa que se quer saber ao olhar a lista. */
-          '<div class="item__row">' +
-            '<span class="text-xs" style="color:var(--gold-2);font-weight:600">' +
-              (m.departamentos.length
-                ? U.esc(global.Departamentos.nomesDos(m.departamentos))
-                : "Todos os departamentos") + '</span>' +
-          '</div>' +
+
+          /* QUEM NÃO É ADMINISTRADOR VÊ SÓ O NOME (pedido dele).
+             Papel, e-mail e setor são informação de gestão: quem
+             não administra a lista não precisa saber quem manda
+             nem em que setor cada um está para fazer o trabalho.
+             Sobra o que serve — a lista de quem é da casa. */
+          (podeMexer
+            ? '<div class="item__row">' +
+                '<span class="badge ' +
+                  (m.papel === "admin" ? "badge--aprovado" : "badge--analise") + '">' +
+                  '<span class="dot"></span>' +
+                  (m.papel === "admin" ? "Administrador" : "Equipe") + '</span>' +
+                '<span class="text-xs text-muted">' + U.esc(m.email || "sem e-mail") + '</span>' +
+              '</div>' +
+              /* O setor fica na linha de baixo, junto do papel: é a
+                 segunda coisa que se quer saber ao olhar a lista. */
+              '<div class="item__row">' +
+                '<span class="text-xs" style="color:var(--gold-2);font-weight:600">' +
+                  (m.departamentos.length
+                    ? U.esc(global.Departamentos.nomesDos(m.departamentos))
+                    : "Todos os departamentos") + '</span>' +
+              '</div>'
+            : '') +
           /* Sem poder de mexer, a linha é só informação: nome,
              papel, setor. Botões desligados seriam pior que botão
              nenhum — convidam ao clique e respondem "não pode". */

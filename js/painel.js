@@ -225,6 +225,16 @@
       titulo: "Entrar um cliente novo",
       texto: "Preencha razão social e CNPJ e o painel devolve um link. O cliente abre o link, " +
              "cria a senha dele e o portal já nasce com os dados certos." },
+    /* Faltava. Quem faz a rotina precisa saber que o portal do
+       cliente se muda por aqui — senão pede a alguém "que mexe no
+       sistema" o que ela mesma faria em dois minutos. */
+    { alvo: '.sidenav__item[data-aba="conteudo"]',
+      titulo: "O portal do cliente se muda aqui",
+      texto: "Vídeo de abertura, aulas do Academy, a lista de documentos do checklist, os " +
+             "bancos e maquininhas e o aviso automático de cobrança: tudo isso você altera " +
+             "nesta aba, sem pedir para ninguém. Vale depois de tocar em Publicar para os " +
+             "clientes. Mexer no checklist muda o que TODO cliente precisa enviar — nesse, " +
+             "combine antes." },
     { alvo: "#pnQuem",
       titulo: "Seu nome fica registrado",
       texto: "Cada documento aprovado e cada senha de maquininha aberta guarda quem fez e " +
@@ -239,7 +249,7 @@
   var PASSOS_ADMIN = [
     { alvo: null,
       titulo: "Você é administrador",
-      texto: "A rotina é a mesma de todo mundo. O que muda são quatro poderes que só você tem, " +
+      texto: "A rotina é a mesma de todo mundo. O que muda são cinco poderes que só você tem, " +
              "e que ninguém da equipe consegue usar. Vou mostrar quais são." },
     { alvo: '.sidenav__item[data-aba="usuarios"]',
       titulo: "1. Quem entra no painel",
@@ -270,11 +280,14 @@
       texto: "É o par de chaves que deixa o cliente mandar senha sem ela ficar legível. Já está " +
              "funcionando; você só volta aqui se precisar trocar. Perder a chave privada torna " +
              "ilegível tudo o que os clientes já enviaram." },
+    /* O texto dizia "toda a equipe pode mexer", e deixou de ser
+       verdade quando quatro seções passaram a ser só de admin. */
     { alvo: '.sidenav__item[data-aba="conteudo"]',
-      titulo: "E uma coisa que é sua na prática",
-      texto: "Textos, documentos do checklist, vídeos e perguntas do portal se alteram nesta " +
-             "aba. Toda a equipe pode mexer — mas mudar o checklist muda o que todo cliente " +
-             "precisa enviar, então combine antes." }
+      titulo: "5. As quatro seções que só você edita",
+      texto: "Em Conteúdo do portal, a equipe cuida do vídeo, do Academy, do checklist e dos " +
+             "catálogos. Só você vê e altera as Etapas da migração, as Perguntas frequentes, o " +
+             "Compromisso e termo e os Contatos e endereço — são os textos que falam pela " +
+             "empresa inteira ou que o cliente assina." }
   ];
 
   /* Abre sozinho na primeira vez. Se a pessoa sair no meio, conta
