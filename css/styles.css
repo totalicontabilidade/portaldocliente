@@ -3287,6 +3287,16 @@ details.rec:not([open]) > .rec__body{display:none}
   overflow-x:auto;scrollbar-width:none;
 }
 .vistas::-webkit-scrollbar{display:none}
+
+/* No celular as quatro guias não cabem com o nome inteiro: a fila
+   media 554px numa tela de 375 e rolava de lado com a barra
+   escondida — "Conversa" ficava fora da tela sem nenhum sinal de
+   que existia. Some a cauda do nome e encolhe o vão; as quatro
+   passam a caber, e cada uma continua dizendo o que é. */
+@media (max-width:520px){
+  .vistas{gap:14px}
+  .vistas__cauda{display:none}
+}
 .vistas__b{
   display:flex;align-items:center;gap:8px;flex:0 0 auto;
   padding:0 0 13px;margin-bottom:-1px;

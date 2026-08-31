@@ -1676,11 +1676,19 @@
      conteúdo que a equipe abre a ficha para buscar quando vai
      baixar relatório de maquineta. Ficava escondido no lugar mais
      movimentado da ficha. */
+  /* A `cauda` é o pedaço do nome que some no celular.
+
+     As quatro guias somavam 554px numa tela de 375, e a fila
+     passava a rolar de lado com a barra escondida: "Conversa"
+     ficava fora da tela sem nenhum sinal de que existia. Cortar a
+     cauda dá "Documentos · Bancos · Cadastro · Conversa", que cabe
+     e continua dizendo a mesma coisa. No computador o nome
+     completo volta. */
   var VISTAS = [
-    { id: "documentos", rotulo: "Documentos",        icone: "ic-folder" },
-    { id: "financeiro", rotulo: "Bancos e senhas",   icone: "ic-card" },
-    { id: "cadastro",   rotulo: "Cadastro e acesso", icone: "ic-building" },
-    { id: "conversa",   rotulo: "Conversa",          icone: "ic-chat" }
+    { id: "documentos", rotulo: "Documentos", cauda: "",           icone: "ic-folder" },
+    { id: "financeiro", rotulo: "Bancos",     cauda: " e senhas",  icone: "ic-card" },
+    { id: "cadastro",   rotulo: "Cadastro",   cauda: " e acesso",  icone: "ic-building" },
+    { id: "conversa",   rotulo: "Conversa",   cauda: "",           icone: "ic-chat" }
   ];
   var vistaFicha = "documentos";
 
@@ -1700,6 +1708,7 @@
           '" class="vistas__b' + (ativa ? " vistas__b--on" : "") +
           '" data-vista="' + v.id + '">' +
           ic(v.icone) + U.esc(v.rotulo) +
+          (v.cauda ? '<span class="vistas__cauda">' + U.esc(v.cauda) + '</span>' : '') +
           (selo ? '<span class="vistas__n">' + selo + '</span>' : '') +
         '</button>';
       }).join("") +
