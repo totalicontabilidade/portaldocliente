@@ -52,6 +52,36 @@
      a ELA — a saudação, o cabeçalho, a assinatura das mensagens.
      O responsável é o contato da empresa: com dois acessos no
      mesmo portal, ele diria o mesmo nome para as duas pessoas. */
+  /* ---------- O "Mais" da barra do celular ----------
+
+     A barra cabe cinco itens e o menu lateral tem sete. Antes os
+     dois que sobravam simplesmente não existiam no telefone —
+     "Bancos e maquininhas", que é a ETAPA 4 da migração, e
+     "Empresa". Não era uma tela secundária escondida: era um passo
+     obrigatório sem caminho.
+
+     Ajuda desceu para cá porque continua no botão de interrogação
+     do cabeçalho, sempre à vista. */
+  var TELAS_DO_MAIS = [
+    { rota: "financeiro", rotulo: "Bancos e maquininhas", icone: "ic-card" },
+    { rota: "empresa", rotulo: "Empresa", icone: "ic-building" },
+    { rota: "ajuda", rotulo: "Ajuda", icone: "ic-help" }
+  ];
+
+  function abrirMaisTelas(botao) {
+    var r = botao.getBoundingClientRect();
+    UI.menu({
+      x: r.left, y: r.top,
+      /* Sem isto o menu pousa em cima da própria barra e cobre o
+         botão que a pessoa acabou de tocar. */
+      limiteInferior: r.top,
+      itens: TELAS_DO_MAIS.map(function (t) {
+        return { rotulo: t.rotulo, icone: t.icone,
+                 onClick: function () { navegar(t.rota); } };
+      })
+    });
+  }
+
   function nomeDeQuemUsa() {
     return (global.FB && global.FB.nomeDaConta && global.FB.nomeDaConta()) || "";
   }
@@ -4276,6 +4306,16 @@
     var btnEmp = $("#btnEmpresas");
     if (btnEmp) btnEmp.hidden = !(temSessao && empresasDaConta.length > 1);
 
+    /* No celular, as três telas do "Mais" não estão na barra —
+       sem isto, estando em Bancos e maquininhas a barra ficaria
+       sem nenhum item aceso e a pessoa não saberia onde está. */
+    var btnMais = $("#btnMaisTelas");
+    if (btnMais) {
+      var eDoMais = TELAS_DO_MAIS.some(function (t) { return t.rota === rota; });
+      if (eDoMais) btnMais.setAttribute("aria-current", "page");
+      else btnMais.removeAttribute("aria-current");
+    }
+
     $$("[data-nav]").forEach(function (b) {
       var id = b.getAttribute("data-nav");
       if (id === rota) b.setAttribute("aria-current", "page");
@@ -4570,6 +4610,9 @@
         abrirTutorial(verTutorial.getAttribute("data-tutorial"));
         return;
       }
+
+      var maisTelas = ev.target.closest("#btnMaisTelas");
+      if (maisTelas) { ev.preventDefault(); abrirMaisTelas(maisTelas); return; }
 
       var navBtn = ev.target.closest("[data-nav]");
       if (navBtn && !navBtn.disabled) {

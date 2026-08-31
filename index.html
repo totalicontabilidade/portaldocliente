@@ -99,6 +99,9 @@
     <path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V20"/><path d="M2.5 20h19"/>
     <path d="M7 8h4M7 12h4M7 16h4M17 14h1M17 17h1"/>
   </symbol>
+  <symbol id="ic-mais" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>
+  </symbol>
   <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .9-1 1.6v.4"/>
     <path d="M12 17h.01"/>
@@ -395,8 +398,18 @@
     <svg class="ic" aria-hidden="true"><use href="#ic-chat"></use></svg>Mensagens
     <span class="tabbar__badge" data-badge-mensagens hidden></span>
   </button>
-  <button type="button" class="tabbar__item" data-nav="ajuda">
-    <svg class="ic" aria-hidden="true"><use href="#ic-help"></use></svg>Ajuda
+  <!-- BANCOS E EMPRESA NÃO CABIAM, E SUMIRAM DO CELULAR.
+
+       A barra tinha cinco itens fixos e o menu lateral tem sete:
+       "Bancos e maquininhas" e "Empresa" simplesmente não existiam
+       para quem usa o portal no telefone — e Bancos é a ETAPA 4 da
+       migração, não uma tela secundária.
+
+       Ajuda saiu da barra para abrir a vaga: ela continua no botão
+       de interrogação do cabeçalho, que está sempre à vista. -->
+  <button type="button" class="tabbar__item" id="btnMaisTelas"
+          aria-haspopup="menu" aria-label="Mais telas do portal">
+    <svg class="ic" aria-hidden="true"><use href="#ic-mais"></use></svg>Mais
   </button>
 </nav>
 
