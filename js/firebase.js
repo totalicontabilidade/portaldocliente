@@ -869,6 +869,11 @@
     "auth/email-already-in-use": "Já existe uma conta com este e-mail. Entre com sua senha ou use \"Esqueci minha senha\".",
     "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
     "auth/missing-password": "Digite uma senha.",
+    "auth/wrong-password": "A senha atual não confere.",
+    "auth/invalid-credential": "A senha atual não confere.",
+    "auth/too-many-requests": "Muitas tentativas seguidas. Espere alguns minutos e tente de novo.",
+    "auth/requires-recent-login": "Por segurança, saia e entre de novo antes de trocar a senha.",
+    "sem-sessao": "Sua sessão expirou. Entre de novo.",
     "convite-invalido": "Este link está incompleto. Peça um novo à Totali.",
     "codigo-invalido": "Este link não é válido. Peça um novo à Totali.",
     "permission-denied": "Sem permissão para esta ação.",
@@ -911,6 +916,25 @@
     return (u && u.displayName) || "";
   }
 
+  /* A pessoa troca a PRÓPRIA senha, provando que é ela.
+
+     A reautenticação não é formalidade: o Firebase a exige quando
+     a sessão já tem algum tempo, e sem ela o erro que chega é o
+     críptico "requires-recent-login". Pedir a senha atual sempre
+     resolve os dois problemas de uma vez — o técnico e o real, que
+     é o painel deixado aberto numa mesa. */
+  function trocarMinhaSenha(atual, nova) {
+    var u = auth && auth.currentUser;
+    if (!u || !u.email) return Promise.reject(new Error("sem-sessao"));
+    if (String(nova || "").length < 6) {
+      return Promise.reject({ code: "auth/weak-password" });
+    }
+    var cred = global.firebase.auth.EmailAuthProvider.credential(u.email, String(atual || ""));
+    return u.reauthenticateWithCredential(cred).then(function () {
+      return u.updatePassword(String(nova));
+    });
+  }
+
   global.FB = {
     pronto: pronto,
     get ligado() { return !!db; },
@@ -931,6 +955,7 @@
     recuperarSenha: recuperarSenha,
     definirNomeDaConta: definirNomeDaConta,
     nomeDaConta: nomeDaConta,
+    trocarMinhaSenha: trocarMinhaSenha,
     retomarCliente: retomarCliente,
     empresasDoCliente: empresasDoCliente,
     novoCodigo: novoCodigo,

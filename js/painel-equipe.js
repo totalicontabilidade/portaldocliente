@@ -12,9 +12,23 @@
 
    QUEM PODE
    ---------
-   Só administrador. E isso não é a tela que decide: a regra do
-   servidor exige `ehAdmin()` para escrever em /usuarios/{uid}.
-   Esconder o formulário é conveniência; a barreira é a regra.
+   ALTERAR, só administrador. E isso não é a tela que decide: a
+   regra do servidor exige `ehAdmin()` para escrever em
+   /usuarios/{uid}. Esconder o formulário é conveniência; a
+   barreira é a regra.
+
+   VER, qualquer pessoa da equipe. Antes esta aba mostrava a quem
+   não é admin uma frase — "peça a um administrador" — e mais
+   nada: um item de menu que não fazia nada. Saber quem são os
+   colegas, de que setor cada um cuida e quem é administrador é
+   justamente o que se procura aqui quando não se vem para mexer
+   em nada.
+
+   E CADA UM CUIDA DO PRÓPRIO
+   --------------------------
+   Nome de exibição e senha da própria conta são de quem é a
+   conta, admin ou não. Ficam num bloco separado, no alto, antes
+   da lista — é o que a pessoa vem fazer aqui com mais frequência.
 
    O QUE É CADA PAPEL
    ------------------
@@ -47,7 +61,9 @@
 
   /* ---------- Leitura ---------- */
   function carregar() {
-    if (!FB || !FB.ligado || !souAdmin()) { desenhar(); return Promise.resolve(); }
+    /* Já não depende de ser admin: a lista é de leitura para
+       qualquer pessoa da equipe (ver o cabeçalho deste arquivo). */
+    if (!FB || !FB.ligado || !FB.equipe) { desenhar(); return Promise.resolve(); }
     carregando = true;
     desenhar();
     return FB.db.collection("usuarios").get().then(function (snap) {
@@ -75,31 +91,59 @@
     });
   }
 
+  /* ---------- A própria conta ----------
+
+     Vem antes da lista porque é o que a pessoa mais faz aqui —
+     e porque, para quem não é administrador, era a única coisa
+     que esta aba tinha para oferecer e não oferecia.
+
+     Nome de exibição e senha são da CONTA, não do papel: admin e
+     equipe mexem nos seus do mesmo jeito. Trocar a senha pede a
+     senha atual, e isso não é burocracia: é o que impede que uma
+     tela deixada aberta vire uma conta tomada. */
+  function minhaContaHTML() {
+    if (!equipe) return "";
+    var nome = equipe.nome || "";
+    var email = equipe.email || "";
+    return '<div class="card card--pad" style="margin-bottom:12px">' +
+      '<div class="eyebrow">Sua conta</div>' +
+      '<div class="item__top" style="align-items:center;gap:12px;margin-top:8px">' +
+        '<span class="group__icon">' + ic("ic-badge") + '</span>' +
+        '<div class="item__main">' +
+          '<div class="item__name">' + U.esc(nome || email || "você") + '</div>' +
+          '<div class="item__row">' +
+            '<span class="text-xs text-muted">' + U.esc(email) + '</span>' +
+            '<span class="badge ' + (souAdmin() ? "badge--aprovado" : "badge--analise") + '">' +
+              '<span class="dot"></span>' +
+              (souAdmin() ? "Administrador" : "Equipe") + '</span>' +
+          '</div>' +
+          '<div class="item__actions">' +
+            '<button type="button" class="btn btn--quiet btn--sm" id="eqMeuNome">' +
+              'Trocar nome de exibição</button>' +
+            '<button type="button" class="btn btn--quiet btn--sm" id="eqMinhaSenha">' +
+              'Trocar minha senha</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
   /* ---------- Tela ---------- */
   function desenhar() {
     var caixa = $("#eqLista");
     if (!caixa) return;
 
-    if (!souAdmin()) {
-      caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
-        'Só quem é administrador vê e altera a lista da equipe. Se você precisa incluir ' +
-        'alguém, peça a um administrador.</p></div>';
-      var b = $("#eqAdicionar");
-      if (b) b.hidden = true;
-      return;
-    }
-
     var botao = $("#eqAdicionar");
-    if (botao) botao.hidden = false;
+    if (botao) botao.hidden = !souAdmin();
 
     if (carregando) {
-      caixa.innerHTML = '<div class="card card--pad"><p class="text-sm text-muted">' +
-        'Carregando…</p></div>';
+      caixa.innerHTML = minhaContaHTML() +
+        '<div class="card card--pad"><p class="text-sm text-muted">Carregando…</p></div>';
       return;
     }
 
     if (!membros.length) {
-      caixa.innerHTML = '<div class="card"><div class="empty">' +
+      caixa.innerHTML = minhaContaHTML() + '<div class="card"><div class="empty">' +
         '<div class="empty__icon">' + ic("ic-users") + '</div>' +
         '<div class="empty__title">Nenhum membro cadastrado</div>' +
         '<div class="empty__desc">Estranho: você está usando o painel, então deveria haver ' +
@@ -107,8 +151,9 @@
       return;
     }
 
-    caixa.innerHTML = '<div class="card">' + membros.map(function (m) {
+    caixa.innerHTML = minhaContaHTML() + '<div class="card">' + membros.map(function (m) {
       var euMesmo = equipe && m.uid === equipe.uid;
+      var podeMexer = souAdmin();
       return '<div class="item"><div class="item__top">' +
         '<span class="group__icon">' + ic(m.papel === "admin" ? "ic-shield" : "ic-users") + '</span>' +
         '<div class="item__main">' +
@@ -128,18 +173,25 @@
                 ? U.esc(global.Departamentos.nomesDos(m.departamentos))
                 : "Todos os departamentos") + '</span>' +
           '</div>' +
-          '<div class="item__actions">' +
-            '<button type="button" class="btn btn--quiet btn--sm" data-deptos="' +
-              U.escAttr(m.uid) + '">Departamentos</button>' +
-            (euMesmo
-              ? '<span class="text-xs text-muted">Você não pode alterar o próprio papel — ' +
-                'é o que impede o painel de ficar sem administrador.</span>'
-              : '<button type="button" class="btn btn--ghost btn--sm" data-papel="' +
-                  U.escAttr(m.uid) + '">' +
-                  (m.papel === "admin" ? "Tornar equipe" : "Tornar administrador") + '</button>' +
-                '<button type="button" class="btn btn--quiet btn--sm" data-remover-membro="' +
-                  U.escAttr(m.uid) + '">Remover</button>') +
-          '</div>' +
+          /* Sem poder de mexer, a linha é só informação: nome,
+             papel, setor. Botões desligados seriam pior que botão
+             nenhum — convidam ao clique e respondem "não pode". */
+          (podeMexer
+            ? '<div class="item__actions">' +
+                '<button type="button" class="btn btn--quiet btn--sm" data-deptos="' +
+                  U.escAttr(m.uid) + '">Departamentos</button>' +
+                (euMesmo
+                  ? '<span class="text-xs text-muted">Você não pode alterar o próprio papel — ' +
+                    'é o que impede o painel de ficar sem administrador.</span>'
+                  : '<button type="button" class="btn btn--ghost btn--sm" data-papel="' +
+                      U.escAttr(m.uid) + '">' +
+                      (m.papel === "admin" ? "Tornar equipe" : "Tornar administrador") + '</button>' +
+                    '<button type="button" class="btn btn--quiet btn--sm" data-trocar-senha="' +
+                      U.escAttr(m.uid) + '">Trocar senha</button>' +
+                    '<button type="button" class="btn btn--quiet btn--sm" data-remover-membro="' +
+                      U.escAttr(m.uid) + '">Remover</button>') +
+              '</div>'
+            : '') +
         '</div>' +
       '</div></div>';
     }).join("") + '</div>';
@@ -468,6 +520,193 @@
     });
   }
 
+  /* ============================================================
+     A própria conta
+     ============================================================ */
+  function trocarMeuNome() {
+    if (!equipe) return;
+    var m = UI.modal({
+      titulo: "Seu nome de exibição",
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+          'É como você aparece no painel e como o cliente vê quem pediu uma correção ou ' +
+          'aprovou um documento.</p>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<input type="text" class="input" id="eqNomeNovo" maxlength="120" data-focus ' +
+            'autocomplete="name" value="' + U.escAttr(equipe.nome || "") + '">' +
+        '</div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Salvar", classe: "btn--primary",
+          onClick: function () {
+            var novo = $("#eqNomeNovo", m.caixa).value.trim();
+            if (!novo) { UI.toast("Escreva um nome.", "erro"); return; }
+            FB.db.collection("usuarios").doc(equipe.uid)
+              .set({ nome: novo.slice(0, 120) }, { merge: true })
+              .then(function () {
+                equipe.nome = novo;
+                carregar();
+                UI.toast("Nome atualizado.", "ok");
+              }, function (e) {
+                UI.toast("Não foi possível salvar: " + FB.explicar(e), "erro", 9000);
+              });
+          }
+        }
+      ]
+    });
+  }
+
+  /* A senha atual é pedida de propósito.
+
+     O Firebase exige reautenticação para trocar senha depois de um
+     tempo de sessão, e pedir sempre evita a mensagem críptica que
+     aparece quando ele resolve exigir. Mais importante: é o que
+     impede que um painel deixado aberto numa mesa vire uma conta
+     tomada por quem passar por ali. */
+  function trocarMinhaSenha() {
+    if (!equipe) return;
+    var m = UI.modal({
+      titulo: "Trocar minha senha",
+      corpoHTML:
+        '<div class="field">' +
+          '<label class="field__label" for="eqSenhaAtual">Senha atual</label>' +
+          '<input type="password" class="input" id="eqSenhaAtual" data-focus ' +
+            'autocomplete="current-password"></div>' +
+        '<div class="field">' +
+          '<label class="field__label" for="eqSenhaNova">Senha nova</label>' +
+          '<input type="password" class="input" id="eqSenhaNova" minlength="6" ' +
+            'autocomplete="new-password"></div>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="eqSenhaConf">Repita a senha nova</label>' +
+          '<input type="password" class="input" id="eqSenhaConf" minlength="6" ' +
+            'autocomplete="new-password"></div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Trocar", classe: "btn--primary",
+          onClick: function () {
+            var atual = $("#eqSenhaAtual", m.caixa).value;
+            var nova = $("#eqSenhaNova", m.caixa).value;
+            var conf = $("#eqSenhaConf", m.caixa).value;
+            if (nova.length < 6) { UI.toast("A senha nova precisa de 6 caracteres ou mais.", "erro"); return; }
+            if (nova !== conf) { UI.toast("As duas senhas novas não são iguais.", "erro"); return; }
+            FB.trocarMinhaSenha(atual, nova).then(function () {
+              UI.toast("Senha trocada. Ela vale a partir de agora, em todos os aparelhos.", "ok", 7000);
+            }, function (e) {
+              UI.toast("Não foi possível trocar: " + FB.explicar(e), "erro", 9000);
+            });
+          }
+        }
+      ]
+    });
+  }
+
+  /* ============================================================
+     Trocar a senha de outra pessoa (só administrador)
+
+     Quem esqueceu a senha e também não tem mais o e-mail de
+     trabalho à mão não conseguia voltar sozinho, e o administrador
+     não tinha por onde ajudar sem abrir o console do Firebase.
+
+     A senha vai SELADA com a chave pública da Totali e é aberta
+     dentro da Cloud Function. Não passa legível pelo Firestore em
+     momento nenhum — ver a nota em functions/senhas.js.
+     ============================================================ */
+  function trocarSenhaDe(uid) {
+    var alvo = membros.filter(function (x) { return x.uid === uid; })[0];
+    if (!alvo || !souAdmin()) return;
+
+    var C = global.Cripto;
+    if (!C || !C.disponivel || !C.configurada) {
+      UI.toast("O canal seguro não está configurado — sem ele a senha viajaria às claras. " +
+               "Configure em Segurança.", "erro", 10000);
+      return;
+    }
+
+    var m = UI.modal({
+      titulo: "Trocar a senha de " + (alvo.nome || alvo.email),
+      corpoHTML:
+        '<p style="font-size:13.5px;line-height:1.65;color:var(--txt-2);margin-bottom:12px">' +
+          'A senha atual desta pessoa deixa de valer na hora, em todos os aparelhos. ' +
+          'Combine a nova por um canal separado do e-mail — e peça que ela troque depois, ' +
+          'em <strong>Sua conta</strong>.</p>' +
+        '<div class="field">' +
+          '<label class="field__label" for="eqNovaDele">Senha nova</label>' +
+          '<input type="password" class="input" id="eqNovaDele" minlength="6" data-focus ' +
+            'autocomplete="new-password"></div>' +
+        '<div class="field" style="margin-bottom:0">' +
+          '<label class="field__label" for="eqNovaDeleConf">Repita a senha nova</label>' +
+          '<input type="password" class="input" id="eqNovaDeleConf" minlength="6" ' +
+            'autocomplete="new-password"></div>',
+      acoes: [
+        { rotulo: "Cancelar", classe: "btn--ghost" },
+        {
+          rotulo: "Trocar senha", classe: "btn--primary",
+          onClick: function () {
+            var nova = $("#eqNovaDele", m.caixa).value;
+            var conf = $("#eqNovaDeleConf", m.caixa).value;
+            if (nova.length < 6) { UI.toast("A senha precisa de 6 caracteres ou mais.", "erro"); return; }
+            if (nova !== conf) { UI.toast("As duas senhas não são iguais.", "erro"); return; }
+            enviarTrocaDeSenha(alvo, nova);
+          }
+        }
+      ]
+    });
+  }
+
+  function enviarTrocaDeSenha(alvo, nova) {
+    var C = global.Cripto;
+    UI.toast("Trocando a senha…", "info", 8000);
+
+    /* `cifrar` recebe um objeto, e é o mesmo formato que a função
+       do servidor sabe abrir — o envelope das credenciais do
+       cliente também viaja assim. */
+    C.cifrar({ senha: nova }).then(function (pacote) {
+      var ref = FB.db.collection("pedidosDeTrocaDeSenha").doc();
+      var parar = null;
+      var relogio = null;
+      var respondido = false;
+
+      var soltar = function (msg, tipo) {
+        if (respondido) return;
+        respondido = true;
+        if (parar) { try { parar(); } catch (e) {} }
+        if (relogio) clearTimeout(relogio);
+        if (msg) UI.toast(msg, tipo || "ok", tipo === "erro" ? 10000 : 7000);
+      };
+
+      /* A resposta vem da função, no mesmo documento. Escutar é o
+         que existe: `onCall` não é possível neste projeto. */
+      var escutar = function () {
+        parar = ref.onSnapshot(function (d) {
+          var r = d.data() || {};
+          if (!r.concluidoEm) return;
+          if (r.erro) soltar(r.erro, "erro");
+          else soltar("Senha trocada. Avise " + (alvo.nome || alvo.email) +
+                      " por um canal separado do e-mail.", "ok");
+        }, function () {
+          soltar("Não foi possível acompanhar o resultado. Confira em instantes.", "erro");
+        });
+        relogio = setTimeout(function () {
+          soltar("O servidor não respondeu a tempo. Confira se a senha trocou antes de tentar de novo.",
+                 "erro");
+        }, 30000);
+      };
+
+      return ref.set({
+        pedidoPor: (equipe && equipe.uid) || "",
+        alvo: alvo.uid,
+        pacote: pacote,
+        em: FB.agora()
+      }).then(escutar, function (e) {
+        soltar("Não foi possível pedir: " + FB.explicar(e), "erro");
+      });
+    }, function () {
+      UI.toast("Este navegador não conseguiu selar a senha com segurança.", "erro", 9000);
+    });
+  }
+
   /* ---------- Início ---------- */
   function ligar() {
     var b = $("#eqAdicionar");
@@ -482,6 +721,10 @@
       if (p) { trocarPapel(p.getAttribute("data-papel")); return; }
       var r = alvo.closest("[data-remover-membro]");
       if (r) { remover(r.getAttribute("data-remover-membro")); return; }
+      var ts = alvo.closest("[data-trocar-senha]");
+      if (ts) { trocarSenhaDe(ts.getAttribute("data-trocar-senha")); return; }
+      if (alvo.closest("#eqMeuNome")) { trocarMeuNome(); return; }
+      if (alvo.closest("#eqMinhaSenha")) { trocarMinhaSenha(); return; }
     });
   }
 

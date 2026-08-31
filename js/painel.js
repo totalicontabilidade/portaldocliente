@@ -47,7 +47,11 @@
   var ouvintes = [];
 
   function abaValida(id) {
-    return ABAS.indexOf(id) > -1 ? id : PADRAO;
+    if (ABAS.indexOf(id) === -1) return PADRAO;
+    /* Rota digitada à mão para uma aba que não é dela cai no
+       Início, em vez de abrir uma tela que só saberia recusar. */
+    if (SO_ADMIN.indexOf(id) > -1 && !ehAdmin(global.FB && global.FB.equipe)) return PADRAO;
+    return id;
   }
 
   function abaDaURL() {
@@ -103,6 +107,36 @@
     $("#pnPapel").textContent = equipe.papel === "admin" ? "Administrador" : "Equipe";
     $("#pnIniciais").textContent = iniciais(equipe.nome || equipe.email);
     $("#pnQuem").title = equipe.email || "";
+    aplicarPermissoes(equipe);
+  }
+
+  /* ---------- O que cada papel enxerga no menu ----------
+
+     ABAS SÓ DE ADMINISTRADOR. A tela de Segurança é onde se gera o
+     par de chaves que tranca as senhas dos clientes: publicar uma
+     chave nova torna ilegível tudo o que já foi enviado, e isso
+     não é decisão de quem está conferindo documento. Some do menu
+     para quem não é administrador.
+
+     Esconder é conforto, não proteção — a regra do Firestore e o
+     Secret Manager é que decidem de verdade, e continuam decidindo
+     mesmo que alguém digite a rota na barra de endereço. O que
+     esta função evita é a pessoa entrar numa tela que só teria
+     como lhe dizer não. */
+  var SO_ADMIN = ["seguranca"];
+
+  function ehAdmin(equipe) {
+    return !!(equipe && equipe.papel === "admin");
+  }
+
+  function aplicarPermissoes(equipe) {
+    var admin = ehAdmin(equipe);
+    SO_ADMIN.forEach(function (aba) {
+      $$('[data-aba="' + aba + '"]').forEach(function (b) { b.hidden = !admin; });
+    });
+    /* Já estava numa aba que deixou de existir para ela — acontece
+       quando o próprio papel muda com o painel aberto. */
+    if (!admin && SO_ADMIN.indexOf(abaAtual) > -1) abrir(PADRAO);
   }
 
   /* ---------- Avisos no menu ----------

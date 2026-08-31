@@ -569,6 +569,37 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- Trocar a senha de outra pessoa da equipe ----------
+    //
+    // O navegador não consegue fazer isto: o SDK do cliente só
+    // troca a senha de quem está logado. Trocar a de outra pessoa
+    // exige o Admin SDK, que só existe dentro de uma Cloud
+    // Function. Por isso o pedido vira documento aqui, e a função
+    // `trocarSenhaDeMembro` faz o trabalho.
+    //
+    // A SENHA NÃO ENTRA AQUI EM TEXTO PURO. Ela vem selada com a
+    // mesma chave pública que o portal usa para as senhas de
+    // maquininha do cliente, e quem abre é a função, com a chave
+    // privada que mora no Secret Manager. Guardar a senha legível
+    // no Firestore — mesmo por dois segundos, mesmo num documento
+    // que ninguém lê — seria abrir do lado de cá o buraco que o
+    // resto do sistema fecha do lado de lá.
+    //
+    // Ler é só de quem pediu, para acompanhar o resultado. E nem
+    // quem pediu edita ou apaga: a função responde e encerra.
+    match /pedidosDeTrocaDeSenha/{pedidoId} {
+      allow read: if ehAdmin() && resource.data.pedidoPor == request.auth.uid;
+      allow create: if ehAdmin()
+                    && request.resource.data.pedidoPor == request.auth.uid
+                    && request.resource.data.alvo is string
+                    // Ninguém troca a própria senha por aqui: para isso
+                    // existe o caminho normal, que exige a senha atual.
+                    // Este caminho é para DESTRAVAR outra pessoa.
+                    && request.resource.data.alvo != request.auth.uid
+                    && request.resource.data.pacote is map;
+      allow update, delete: if false;
+    }
+
     // ---------- Trilha de auditoria do SERVIDOR ----------
     //
     // A diferença entre esta e a /eventos de cada empresa é toda
@@ -620,7 +651,20 @@ service cloud.firestore {
     // O PRIMEIRO documento aqui é criado à mão pelo console.
     // Depois disso, só admin cria outros. Ninguém se promove.
     match /usuarios/{uid} {
-      allow read: if (logado() && request.auth.uid == uid) || ehAdmin();
+      // QUEM É DA EQUIPE VÊ QUEM MAIS É DA EQUIPE.
+      //
+      // Antes só o próprio documento e o administrador. O efeito
+      // era uma aba "Usuários" que, para quem não é admin, só
+      // sabia dizer "peça a um administrador" — um item de menu
+      // que não faz nada. Ver a lista de colegas, com papel e
+      // setor, é o que torna a tela útil para quem precisa saber
+      // a quem recorrer.
+      //
+      // Ler não é mexer: alterar papel, setor ou remover alguém
+      // continua sendo só de administrador, logo abaixo. E aqui
+      // não há segredo — nome, e-mail de trabalho e função são o
+      // que se lê na porta de uma sala.
+      allow read: if ehEquipe();
       allow create: if ehAdmin()
                     && request.resource.data.papel in ['admin', 'equipe'];
 
