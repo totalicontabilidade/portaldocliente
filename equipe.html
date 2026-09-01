@@ -796,6 +796,31 @@
           </div>
         </div>
       </section>
+
+      <!-- ============================================================
+           A TRILHA DO SERVIDOR
+
+           Existia desde sempre e não tinha tela: para saber quem
+           abriu qual senha, só pelo console do Firebase — o oposto
+           do que este painel promete. O texto logo acima já dizia
+           "veja no registro o que ela abriu", e o registro não
+           tinha onde ser visto.
+           ============================================================ -->
+      <section class="section" style="margin-top:34px">
+        <div class="section__head"><div>
+          <div class="eyebrow">Trilha</div>
+          <h2 class="section__title" style="font-size:19px;margin-top:4px">Registro do servidor</h2>
+          <p class="section__desc">Cada senha aberta, documento aprovado e acesso criado, com
+            quem fez e quando. Escrito pelo servidor — nem a equipe nem o administrador
+            conseguem alterar, e é isso que dá valor ao registro.</p>
+        </div></div>
+
+        <div class="card card--pad">
+          <div id="trFiltros" class="filtros" style="margin-bottom:14px"></div>
+          <div id="trLista"></div>
+          <div id="trMais" style="margin-top:14px"></div>
+        </div>
+      </section>
     </section>
 
     <!-- Mesma regra do rodapé do portal: a logo aparece com a pessoa
@@ -880,5 +905,6 @@
 <script defer src="js/painel-clientes.js"></script>
 <script defer src="js/painel-inicio.js"></script>
 <script defer src="js/painel-equipe.js"></script>
+<script defer src="js/painel-trilha.js"></script>
 </body>
 </html>

@@ -3470,3 +3470,47 @@ details.rec:not([open]) > .rec__body{display:none}
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin-top:9px;padding-top:8px;border-top:1px solid var(--stroke-fraco);
 }
+
+/* ============================================================
+   REGISTRO DO SERVIDOR (Segurança)
+
+   Uma linha por fato: o que aconteceu, de quem e quando. O ícone
+   à esquerda dá o assunto de relance; a hora fica à direita,
+   alinhada, porque é por ela que se procura.
+
+   `--forte` marca o que não se desfaz — senha aberta, documento
+   removido, acesso revogado, senha da equipe trocada. Não é
+   alarme: é o peso certo para o que merece um segundo olhar numa
+   lista longa.
+   ============================================================ */
+.trilha{display:grid;gap:2px}
+.trilha__l{
+  display:grid;grid-template-columns:30px 1fr auto;align-items:start;gap:11px;
+  padding:11px 10px;border-radius:10px;
+}
+.trilha__l:hover{background:var(--surf-2)}
+.trilha__l + .trilha__l{border-top:1px solid var(--stroke)}
+.trilha__i{
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:var(--surf-2);color:var(--txt-3);
+}
+.trilha__i .ic{width:15px;height:15px}
+.trilha__i--forte{background:rgba(194,162,80,.14);color:var(--gold-2)}
+.trilha__c{min-width:0}
+.trilha__t{font-size:13.5px;font-weight:600;color:var(--txt);line-height:1.4}
+.trilha__quem{font-weight:500;color:var(--txt-3)}
+.trilha__d{
+  font-size:12px;color:var(--txt-3);line-height:1.45;margin-top:2px;
+  overflow-wrap:anywhere;
+}
+.trilha__q{
+  font-size:11.5px;color:var(--txt-4);white-space:nowrap;padding-top:2px;
+  font-variant-numeric:tabular-nums;
+}
+
+/* No celular a hora desce para baixo do texto: alinhada à direita
+   ela espremia o detalhe do evento em duas ou três linhas. */
+@media (max-width:560px){
+  .trilha__l{grid-template-columns:30px 1fr}
+  .trilha__q{grid-column:2;padding-top:4px}
+}
