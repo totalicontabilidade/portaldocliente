@@ -262,6 +262,44 @@
           y += partes.length * 5 + 1.2;
         }
 
+        /* NOME DE SÓCIO NÃO É RÓTULO.
+
+           Estes sócios saíam por `dado(nome, cpf)`, e `dado`
+           desenha o rótulo em x=L e o valor numa coluna fixa, 46mm
+           adiante. Serve para "CNPJ" e "Regime", que são curtos.
+           Um nome completo passa dos 46mm — e o CPF era escrito
+           EM CIMA das últimas letras do nome.
+
+           Aqui o nome é conteúdo e ocupa a linha inteira; o CPF vem
+           depois dele, em cinza, se couber, e desce uma linha
+           quando não couber. */
+        function socio(nome, cpf) {
+          var n = String(nome || "Sócio");
+          var c = String(cpf || "");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9.5);
+
+          var linhas = doc.splitTextToSize(n, LARG);
+          var ultima = linhas[linhas.length - 1];
+          var largUltima = doc.getTextWidth(ultima);
+          /* Decidido ANTES de desenhar: a altura precisa ser
+             conhecida para `cabe` não quebrar a página no meio do
+             sócio, deixando o nome numa folha e o CPF na outra. */
+          var juntos = !c || (largUltima + 4 + doc.getTextWidth(c) <= LARG);
+          var alt = (linhas.length + (juntos ? 0 : 1)) * 5 + 2;
+          cabe(alt);
+
+          doc.setTextColor(TINTA[0], TINTA[1], TINTA[2]);
+          linhas.forEach(function (l, i) { doc.text(l, L, y + i * 5); });
+
+          if (c) {
+            doc.setTextColor(CINZA[0], CINZA[1], CINZA[2]);
+            if (juntos) doc.text(c, L + largUltima + 4, y + (linhas.length - 1) * 5);
+            else doc.text(c, L, y + linhas.length * 5);
+          }
+          y += alt - 0.8;
+        }
+
         function paragrafo(txt, tam, cor) {
           var cc = cor || CINZA;
           doc.setFont("helvetica", "normal");
@@ -319,7 +357,7 @@
 
         titulo("Sócios");
         if (!d.socios.length) paragrafo("Nenhum sócio cadastrado.");
-        else d.socios.forEach(function (s) { dado(s.nome || "Sócio", s.cpf || ""); });
+        else d.socios.forEach(function (s) { socio(s.nome, s.cpf); });
 
         /* ---- o coração do dossiê ---- */
         titulo("Documentos recebidos");

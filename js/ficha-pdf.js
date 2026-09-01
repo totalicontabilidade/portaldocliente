@@ -294,6 +294,41 @@
 
       /* Rótulo à esquerda, valor à direita, valor longo quebrando
          em linhas alinhadas embaixo do primeiro pedaço. */
+      /* NOME DE SÓCIO NÃO É RÓTULO.
+
+         Estes sócios saíam por `dado(nome, cpf)`, e `dado` desenha
+         o rótulo em x=L e o valor numa coluna fixa, 42mm adiante.
+         Serve para "CNPJ" e "Regime", que são curtos. Um nome
+         completo passa dos 42mm — e o CPF era escrito EM CIMA das
+         últimas letras do nome. Mesmo defeito do dossiê.
+
+         Aqui o nome ocupa a linha inteira e o CPF vem depois dele,
+         em cinza, descendo uma linha quando não couber. */
+      function socio(nome, cpf) {
+        var n = String(nome || "Sócio");
+        var c = String(cpf || "");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+
+        var linhas = doc.splitTextToSize(n, LARG);
+        var ultima = linhas[linhas.length - 1];
+        var largUltima = doc.getTextWidth(ultima);
+        /* Decidido ANTES de desenhar: sem a altura certa, `cabe`
+           quebraria a página entre o nome e o CPF. */
+        var juntos = !c || (largUltima + 4 + doc.getTextWidth(c) <= LARG);
+        var alt = (linhas.length + (juntos ? 0 : 1)) * 5 + 2;
+        cabe(alt);
+
+        doc.setTextColor(TINTA[0], TINTA[1], TINTA[2]);
+        linhas.forEach(function (l, i) { doc.text(l, L, y + i * 5); });
+
+        if (c) {
+          doc.setTextColor(CINZA[0], CINZA[1], CINZA[2]);
+          if (juntos) doc.text(c, L + largUltima + 4, y + (linhas.length - 1) * 5);
+          else doc.text(c, L, y + linhas.length * 5);
+        }
+        y += alt - 0.8;
+      }
       function dado(rotulo, valor) {
         var v = String(valor == null || valor === "" ? "—" : valor);
         var partes = doc.splitTextToSize(v, LARG - 42);
@@ -407,7 +442,7 @@
         paragrafo("Nenhum sócio cadastrado. Enquanto não houver, os documentos de sócio " +
                   "não existem para este cliente.");
       } else {
-        d.socios.forEach(function (s) { dado(s.nome || "Sócio", s.cpf || ""); });
+        d.socios.forEach(function (s) { socio(s.nome, s.cpf); });
       }
 
       /* ---- documentos ---- */
