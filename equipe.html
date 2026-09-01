@@ -654,7 +654,35 @@
          programador, e a regra aqui é que tudo se resolve pelo
          painel. -->
     <section data-painel="seguranca" hidden>
-      <div class="section__head"><div>
+      <!-- ============================================================
+           A TRILHA DO SERVIDOR — PRIMEIRA COISA DA TELA
+
+           Existia desde sempre e não tinha tela: para saber quem
+           abriu qual senha, só pelo console do Firebase — o oposto
+           do que este painel promete.
+
+           Vem antes das chaves por decisão dele, e a ordem faz
+           sentido: o registro é o que se CONSULTA, e as chaves são
+           o que quase nunca se toca. Quem abre Segurança quase
+           sempre vem ver o que aconteceu, não trocar chave.
+           ============================================================ -->
+      <section class="section">
+        <div class="section__head"><div>
+          <div class="eyebrow">Trilha</div>
+          <h2 class="section__title" style="font-size:19px;margin-top:4px">Registro do servidor</h2>
+          <p class="section__desc">Cada senha aberta, documento aprovado e acesso criado, com
+            quem fez e quando. Escrito pelo servidor — nem a equipe nem o administrador
+            conseguem alterar, e é isso que dá valor ao registro.</p>
+        </div></div>
+
+        <div class="card card--pad">
+          <div id="trFiltros" class="filtros" style="margin-bottom:14px"></div>
+          <div id="trLista"></div>
+          <div id="trMais" style="margin-top:14px"></div>
+        </div>
+      </section>
+
+      <div class="section__head" style="margin-top:34px"><div>
         <div class="eyebrow">Canal seguro</div>
         <h2 class="section__title" style="font-size:19px;margin-top:4px">Senhas dos clientes</h2>
         <p class="section__desc">Como as senhas que os clientes enviam ficam protegidas, e o que
@@ -786,7 +814,7 @@
             <div class="help-block__t">Se algo der errado</div>
             <ul class="help-list">
               <li><strong>Conta do painel comprometida</strong> — é o caminho mais provável.
-                Remova a conta em Usuários, veja no registro logo abaixo o que ela abriu, e mande trocar
+                Remova a conta em Usuários, veja no registro no topo desta tela o que ela abriu, e mande trocar
                 <strong>só as senhas daqueles clientes</strong>. Não precisa trocar chave: a chave
                 privada não passa por navegador nenhum.</li>
               <li><strong>Suspeita de vazamento da chave do servidor</strong> — gere um par novo
@@ -797,30 +825,6 @@
         </div>
       </section>
 
-      <!-- ============================================================
-           A TRILHA DO SERVIDOR
-
-           Existia desde sempre e não tinha tela: para saber quem
-           abriu qual senha, só pelo console do Firebase — o oposto
-           do que este painel promete. O texto logo acima já dizia
-           "veja no registro o que ela abriu", e o registro não
-           tinha onde ser visto.
-           ============================================================ -->
-      <section class="section" style="margin-top:34px">
-        <div class="section__head"><div>
-          <div class="eyebrow">Trilha</div>
-          <h2 class="section__title" style="font-size:19px;margin-top:4px">Registro do servidor</h2>
-          <p class="section__desc">Cada senha aberta, documento aprovado e acesso criado, com
-            quem fez e quando. Escrito pelo servidor — nem a equipe nem o administrador
-            conseguem alterar, e é isso que dá valor ao registro.</p>
-        </div></div>
-
-        <div class="card card--pad">
-          <div id="trFiltros" class="filtros" style="margin-bottom:14px"></div>
-          <div id="trLista"></div>
-          <div id="trMais" style="margin-top:14px"></div>
-        </div>
-      </section>
     </section>
 
     <!-- Mesma regra do rodapé do portal: a logo aparece com a pessoa

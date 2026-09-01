@@ -281,7 +281,7 @@
   var PASSOS_ADMIN = [
     { alvo: null,
       titulo: "Você é administrador",
-      texto: "A rotina é a mesma de todo mundo. O que muda são cinco poderes que só você tem, " +
+      texto: "A rotina é a mesma de todo mundo. O que muda são seis poderes que só você tem, " +
              "e que ninguém da equipe consegue usar. Vou mostrar quais são." },
     { alvo: '.sidenav__item[data-aba="usuarios"]',
       titulo: "1. Quem entra no painel",
@@ -309,25 +309,25 @@
              "indevido que ninguém descobre em 15 minutos. Nada some de vez: fica " +
              "\"Mensagem apagada\" no seu nome. E editar mensagem alheia ninguém faz, nem " +
              "você: apagar tira algo do registro, editar põe palavra na boca dos outros." },
+    /* O registro vem ANTES das chaves aqui pela mesma razão que
+       vem antes na tela: é o que se consulta. As chaves são o que
+       quase nunca se toca. */
     { alvo: '.sidenav__item[data-aba="seguranca"]',
-      titulo: "4. As chaves do canal seguro",
-      texto: "É o par de chaves que deixa o cliente mandar senha sem ela ficar legível. Já está " +
-             "funcionando; você só volta aqui se precisar trocar. Perder a chave privada torna " +
-             "ilegível tudo o que os clientes já enviaram." },
-    /* O registro ganhou tela agora; sem este passo, o administrador
-       continuaria sem saber que ela existe — e era exatamente esse
-       o problema que a tela veio resolver. */
+      titulo: "4. O registro do servidor",
+      texto: "É a primeira coisa em Segurança, e mostra tudo o que aconteceu: cada senha " +
+             "aberta, cada documento aprovado, cada acesso criado — com quem fez e quando. " +
+             "Quem escreve é o servidor, com o relógio dele: nem você consegue alterar, e é " +
+             "isso que faz o registro valer como prova. É onde se olha quando um cliente " +
+             "pergunta quem acessou o quê, e quando se desliga alguém." },
     { alvo: '.sidenav__item[data-aba="seguranca"]',
-      titulo: "E o registro do servidor, na mesma tela",
-      texto: "Mais abaixo em Segurança fica tudo o que aconteceu: cada senha aberta, cada " +
-             "documento aprovado, cada acesso criado — com quem fez e quando. Quem escreve é o " +
-             "servidor, com o relógio dele: nem você consegue alterar, e é isso que faz o " +
-             "registro valer como prova. É onde se olha quando um cliente pergunta quem " +
-             "acessou o que, e quando se desliga alguém." },
+      titulo: "5. As chaves do canal seguro",
+      texto: "No fim da mesma tela. É o par de chaves que deixa o cliente mandar senha sem ela " +
+             "ficar legível. Já está funcionando; você só volta lá se precisar trocar. Perder " +
+             "a chave privada torna ilegível tudo o que os clientes já enviaram." },
     /* O texto dizia "toda a equipe pode mexer", e deixou de ser
        verdade quando quatro seções passaram a ser só de admin. */
     { alvo: '.sidenav__item[data-aba="conteudo"]',
-      titulo: "5. As quatro seções que só você edita",
+      titulo: "6. As quatro seções que só você edita",
       texto: "Em Conteúdo do portal, a equipe cuida do vídeo, do Academy, do checklist e dos " +
              "catálogos. Só você vê e altera as Etapas da migração, as Perguntas frequentes, o " +
              "Compromisso e termo e os Contatos e endereço — são os textos que falam pela " +
