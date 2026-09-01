@@ -9,13 +9,21 @@
 
      Mais fechada que a do portal, e de propósito: esta página abre
      SEM login, então é a que mais gente estranha vai acessar. Ela
-     não tem vídeo, não tem mapa e não envia formulário — então
-     `frame-src`, `media-src` e `form-action` ficam em 'none'.
+     não tem vídeo e não envia formulário — então `media-src` e
+     `form-action` ficam em 'none'.
 
      O que ela precisa é ler dois documentos do Firestore e falar
      com o App Check. Os links do Ottimizza e o PDF do manual não
      entram aqui: abrir uma aba nova é navegação, não requisição, e
      navegação a CSP não governa.
+
+     `frame-src` FICOU ABERTO para o google.com, e não é descuido.
+     O reCAPTCHA do App Check roda num iframe de lá; com 'none' ele
+     é bloqueado, o App Check nunca pega token e, com a verificação
+     exigida, a página não lê nada — falhando igualzinho a um link
+     inválido, sem dizer por quê. Foi assim que apareceu: a página
+     publicada abria dizendo "este link não abre", e o console
+     mostrava o bloqueio do iframe.
      ============================================================ -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
@@ -32,7 +40,7 @@
   object-src 'none';
   base-uri 'none';
   form-action 'none';
-  frame-src 'none';
+  frame-src https://www.google.com;
   upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 
