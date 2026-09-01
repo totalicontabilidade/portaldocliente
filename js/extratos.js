@@ -81,6 +81,28 @@
       "ic-alert");
   }
 
+  /* FALHA DE REDE NÃO É LINK INVÁLIDO, e dizer que é sai caro.
+
+     Os dois casos caíam na mesma tela: quem estava sem sinal lia
+     "este link não abre" e ligava para a Totali reclamando de um
+     link que está perfeito. A pessoa não tem como saber a
+     diferença — mas o código tem. */
+  function telaSemConexao() {
+    telaAviso("Não consegui carregar agora",
+      "Parece que a internet oscilou. O seu link está certo — é só tentar de novo.",
+      "ic-alert");
+    var alvo = $("#view .section__desc");
+    if (!alvo) return;
+    alvo.insertAdjacentHTML("beforeend",
+      '<div style="margin-top:14px">' +
+        '<button type="button" class="btn btn--gold btn--sm" id="btnTentar">' +
+          'Tentar de novo</button>' +
+      '</div>');
+    $("#btnTentar").addEventListener("click", function () {
+      global.location.reload();
+    });
+  }
+
   /* ---------- Conferência do CNPJ ---------- */
 
   function telaCNPJ(erro) {
@@ -404,8 +426,15 @@
         if (!registro.cnpjHash || jaConferiu()) telaBancos();
         else telaCNPJ("");
       });
-    }, function () {
-      telaLinkInvalido();
+    }, function (e) {
+      /* `permission-denied` é a única resposta que fala do link em
+         si: a regra recusou. Todo o resto — sem rede, App Check
+         fora do ar, servidor devagar — é problema de conexão, e
+         mandar essa pessoa procurar o link certo é mandá-la
+         perder tempo com o que não está errado. */
+      var codigo = String((e && e.code) || "");
+      if (codigo.indexOf("permission-denied") > -1) telaLinkInvalido();
+      else telaSemConexao();
     });
   }
 
