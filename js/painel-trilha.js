@@ -61,6 +61,7 @@
   var filtro = "todos";
   var busca = "";
   var periodo = 30;        /* dias; 0 = desde o começo */
+  var lidoEm = 0;          /* quando a última leitura terminou */
 
   /* QUANTAS LINHAS CHEGAM A EXISTIR NO HTML.
 
@@ -208,6 +209,7 @@
         eventos.push(r);
       });
       ultimoDoc = snap.docs.length ? snap.docs[snap.docs.length - 1] : ultimoDoc;
+      lidoEm = Date.now();
       if (snap.size < pagina) acabou = true;
       carregando = false;
       desenhar();
@@ -257,6 +259,12 @@
         return '<button type="button" class="filtro' + (periodo === p.id ? " filtro--on" : "") +
           '" data-ptrilha="' + p.id + '">' + U.esc(p.rotulo) + '</button>';
       }).join("") +
+      /* A releitura automática cobre o caso comum; este botão é
+         para quem está acompanhando algo agora e não quer sair da
+         aba só para forçar a atualização. */
+      '<button type="button" class="btn btn--quiet btn--sm" id="trAtualizar" ' +
+        'style="margin-left:auto"' + (carregando ? " disabled" : "") + '>' +
+        (carregando ? "Lendo…" : "Atualizar") + '</button>' +
     '</div>';
 
     var linhaAssunto = '<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">' +
@@ -392,6 +400,7 @@
       }
 
       if (ev.target.closest("#trLerMais")) { carregar(true); return; }
+      if (ev.target.closest("#trAtualizar")) { carregar(false); return; }
     });
 
     document.addEventListener("input", function (ev) {
@@ -400,12 +409,23 @@
       desenhar();
     });
 
-    /* Só lê quando a aba é aberta. O registro cresce para sempre e
+    /* Só lê quando a aba é aberta — o registro cresce para sempre e
        não faz sentido puxar cem eventos em toda entrada no painel
-       de quem nunca vai olhar isto. */
+       de quem nunca vai olhar isto.
+
+       MAS RELÊ QUANDO A ABA VOLTA A SER ABERTA. A primeira versão
+       lia uma vez e nunca mais: quem deixasse o painel aberto via
+       um registro parado no tempo, sem nada dizendo isso. Num
+       lugar em que se vai justamente para saber o que ACABOU de
+       acontecer, esse é o pior defeito possível.
+
+       A janela de um minuto existe para o caso de sair da aba e
+       voltar em seguida: relendo, quem tivesse clicado em "Ler
+       mais" três vezes perderia as três. */
     if (global.Painel) {
       global.Painel.aoTrocar(function (aba) {
-        if (aba === "seguranca" && !eventos.length) carregar(false);
+        if (aba !== "seguranca") return;
+        if (!eventos.length || Date.now() - lidoEm > 60000) carregar(false);
       });
     }
 
