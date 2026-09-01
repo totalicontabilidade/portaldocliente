@@ -59,6 +59,31 @@
   var acabou = false;
   var carregando = false;
   var filtro = "todos";
+  var busca = "";
+  var periodo = 30;        /* dias; 0 = desde o começo */
+
+  /* QUANTAS LINHAS CHEGAM A EXISTIR NO HTML.
+
+     A lista rola dentro de uma caixa, então a página não cresce
+     mais — mas o navegador continua desenhando cada linha lida, e
+     com alguns milhares isso pesa mesmo dentro da caixa. O teto
+     abaixo é o que impede a tela de ficar lenta em silêncio;
+     passando dele, o caminho é filtrar, e a tela diz isso. */
+  var TETO_NA_TELA = 300;
+
+  /* O PERÍODO É O QUE MAIS SEGURA O PESO, porque corta na
+     CONSULTA — não adianta desenhar menos se o navegador já
+     baixou tudo.
+
+     Trinta dias por padrão: é o que responde "o que andou
+     acontecendo por aqui". Quem procura um fato antigo escolhe o
+     período maior de propósito, sabendo que vai esperar mais. */
+  var PERIODOS = [
+    { id: 7,  rotulo: "7 dias" },
+    { id: 30, rotulo: "30 dias" },
+    { id: 90, rotulo: "90 dias" },
+    { id: 0,  rotulo: "Desde o começo" }
+  ];
 
   /* ---------- Como cada evento se chama em português ----------
 
@@ -165,7 +190,15 @@
     if (!maisUma) { eventos = []; ultimoDoc = null; acabou = false; }
     desenhar();
 
-    var q = FB.db.collection("auditoria").orderBy("em", "desc").limit(pagina);
+    /* O corte por data usa o MESMO campo da ordenação, e é por
+       isso que não precisa de índice composto no Firestore —
+       índice é mais uma coisa para publicar à mão, e some da
+       cabeça de quem mantém o sistema depois. */
+    var q = FB.db.collection("auditoria");
+    if (periodo > 0) {
+      q = q.where("em", ">=", new Date(Date.now() - periodo * 86400000));
+    }
+    q = q.orderBy("em", "desc").limit(pagina);
     if (maisUma && ultimoDoc) q = q.startAfter(ultimoDoc);
 
     return q.get().then(function (snap) {
@@ -187,20 +220,70 @@
   }
 
   /* ---------- Desenho ---------- */
+  /* A BUSCA VARRE O QUE JÁ FOI LIDO, não o banco inteiro.
+
+     Procurar por nome no servidor exigiria índice composto
+     (`uid` + `em`) e, mesmo assim, só acharia por uid — não por
+     "Raoni", nem por empresa, nem por nome de arquivo. Varrendo o
+     que está na mão, a mesma caixa acha as quatro coisas.
+
+     O preço é honesto e está dito na tela: ela procura dentro do
+     período escolhido. Quem não achar aumenta o período. */
+  function combina(r) {
+    if (!busca) return true;
+    var alvo = [
+      nomeDe(r.tipo).texto, r.por || "", empresaDe(r.empresaId),
+      r.chave || "", detalheDe(r)
+    ].join(" ").toLowerCase();
+    return alvo.indexOf(busca) > -1;
+  }
+
   function visiveis() {
-    if (filtro === "todos") return eventos;
-    return eventos.filter(function (r) { return grupoDe(r.tipo) === filtro; });
+    return eventos.filter(function (r) {
+      return (filtro === "todos" || grupoDe(r.tipo) === filtro) && combina(r);
+    });
   }
 
   function desenharFiltros() {
     var caixa = $("#trFiltros");
     if (!caixa) return;
-    caixa.innerHTML = FILTROS.map(function (f) {
-      var n = f.id === "todos" ? eventos.length
-            : eventos.filter(function (r) { return grupoDe(r.tipo) === f.id; }).length;
-      return '<button type="button" class="filtro' + (filtro === f.id ? " filtro--on" : "") +
-        '" data-ftrilha="' + U.escAttr(f.id) + '">' + U.esc(f.rotulo) + ' <b>' + n + '</b></button>';
-    }).join("");
+
+    /* O período em cima porque decide o que é BAIXADO; o assunto
+       e a busca embaixo porque só recortam o que já veio. A ordem
+       na tela é a ordem em que as decisões acontecem. */
+    var linhaPeriodo = '<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<span class="text-xs text-muted" style="flex:none">Período</span>' +
+      PERIODOS.map(function (p) {
+        return '<button type="button" class="filtro' + (periodo === p.id ? " filtro--on" : "") +
+          '" data-ptrilha="' + p.id + '">' + U.esc(p.rotulo) + '</button>';
+      }).join("") +
+    '</div>';
+
+    var linhaAssunto = '<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">' +
+      FILTROS.map(function (f) {
+        var n = eventos.filter(function (r) {
+          return f.id === "todos" || grupoDe(r.tipo) === f.id;
+        }).length;
+        return '<button type="button" class="filtro' + (filtro === f.id ? " filtro--on" : "") +
+          '" data-ftrilha="' + U.escAttr(f.id) + '">' + U.esc(f.rotulo) + ' <b>' + n + '</b></button>';
+      }).join("") +
+    '</div>';
+
+    var linhaBusca = '<div style="margin-top:10px">' +
+      '<input type="search" class="input" id="trBusca" autocomplete="off" ' +
+        'placeholder="Procurar por pessoa, empresa ou documento" ' +
+        'value="' + U.escAttr(busca) + '">' +
+      '<div class="field__hint">Procura dentro do período escolhido. Não achou? Aumente o ' +
+        'período acima.</div>' +
+    '</div>';
+
+    caixa.innerHTML = linhaPeriodo + linhaAssunto + linhaBusca;
+
+    var campo = $("#trBusca");
+    if (campo && busca) {
+      campo.focus();
+      campo.setSelectionRange(campo.value.length, campo.value.length);
+    }
   }
 
   function linhaHTML(r) {
@@ -247,16 +330,32 @@
       caixa.innerHTML = '<div class="empty" style="padding:26px 10px">' +
         '<div class="empty__icon">' + ic("ic-scroll") + '</div>' +
         '<div class="empty__title">' +
-          (eventos.length ? "Nada deste tipo nesta parte do registro" : "O registro está vazio") +
+          (eventos.length ? "Nada com esse recorte" : "Nada neste período") +
         '</div>' +
         '<div class="empty__desc">' +
           (eventos.length
-            ? "Foram lidos " + eventos.length + " eventos, e nenhum é deste tipo. " +
-              "Toque em Ler mais para ir mais para trás."
-            : "Nada foi registrado ainda, ou as funções do servidor não estão publicadas.") +
+            ? "Foram lidos " + eventos.length + " eventos no período, e nenhum passa nos " +
+              "filtros. Tente um período maior ou limpe a busca."
+            : periodo > 0
+              ? "Nada foi registrado nos últimos " + periodo + " dias. Escolha um período " +
+                "maior para ver mais atrás."
+              : "Nada foi registrado ainda, ou as funções do servidor não estão publicadas.") +
         '</div></div>';
     } else {
-      caixa.innerHTML = '<div class="trilha">' + lista.map(linhaHTML).join("") + '</div>';
+      /* A CAIXA ROLA, E A PÁGINA PARA DE CRESCER.
+
+         Com 80 eventos a lista media 5 metros de altura e a página
+         quase 7 — cada evento novo empurrava o rodapé mais para
+         baixo, para sempre. Agora a lista tem altura fixa e rola
+         dentro de si, com a barra à vista. */
+      var mostradas = lista.slice(0, TETO_NA_TELA);
+      caixa.innerHTML =
+        '<div class="trilha trilha--rola">' + mostradas.map(linhaHTML).join("") + '</div>' +
+        (lista.length > mostradas.length
+          ? '<p class="text-xs text-muted" style="margin:10px 0 0">Mostrando as ' +
+            TETO_NA_TELA + ' mais recentes de ' + lista.length + ' que passaram no filtro. ' +
+            'Para chegar às outras, estreite a busca ou o período.</p>'
+          : '');
     }
 
     var pe = $("#trMais");
@@ -279,7 +378,26 @@
     document.addEventListener("click", function (ev) {
       var f = ev.target.closest("[data-ftrilha]");
       if (f) { filtro = f.getAttribute("data-ftrilha"); desenhar(); return; }
+
+      var p = ev.target.closest("[data-ptrilha]");
+      if (p) {
+        var novo = Number(p.getAttribute("data-ptrilha"));
+        if (novo === periodo) return;
+        periodo = novo;
+        /* Trocar o período muda o que se BAIXA, então recomeça do
+           zero — aproveitar o que já veio misturaria dois recortes
+           e o rodapé passaria a contar errado. */
+        carregar(false);
+        return;
+      }
+
       if (ev.target.closest("#trLerMais")) { carregar(true); return; }
+    });
+
+    document.addEventListener("input", function (ev) {
+      if (!ev.target || ev.target.id !== "trBusca") return;
+      busca = String(ev.target.value || "").trim().toLowerCase();
+      desenhar();
     });
 
     /* Só lê quando a aba é aberta. O registro cresce para sempre e

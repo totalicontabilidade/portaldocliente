@@ -3514,3 +3514,17 @@ details.rec:not([open]) > .rec__body{display:none}
   .trilha__l{grid-template-columns:30px 1fr}
   .trilha__q{grid-column:2;padding-top:4px}
 }
+
+/* A lista da trilha rola dentro de si.
+
+   Com 80 eventos ela media 5146px e a página inteira quase 7000 —
+   e cada evento novo empurrava o rodapé mais para baixo, para
+   sempre. Altura fixa resolve; a barra de rolagem fica À VISTA,
+   porque aqui não há borda cortando conteúdo para avisar sozinha. */
+.trilha--rola{
+  max-height:520px;overflow-y:auto;
+  border:1px solid var(--stroke);border-radius:12px;padding:4px 6px;
+}
+@media (max-width:560px){
+  .trilha--rola{max-height:420px}
+}
