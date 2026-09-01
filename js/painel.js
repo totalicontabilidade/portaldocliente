@@ -314,6 +314,16 @@
       texto: "É o par de chaves que deixa o cliente mandar senha sem ela ficar legível. Já está " +
              "funcionando; você só volta aqui se precisar trocar. Perder a chave privada torna " +
              "ilegível tudo o que os clientes já enviaram." },
+    /* O registro ganhou tela agora; sem este passo, o administrador
+       continuaria sem saber que ela existe — e era exatamente esse
+       o problema que a tela veio resolver. */
+    { alvo: '.sidenav__item[data-aba="seguranca"]',
+      titulo: "E o registro do servidor, na mesma tela",
+      texto: "Mais abaixo em Segurança fica tudo o que aconteceu: cada senha aberta, cada " +
+             "documento aprovado, cada acesso criado — com quem fez e quando. Quem escreve é o " +
+             "servidor, com o relógio dele: nem você consegue alterar, e é isso que faz o " +
+             "registro valer como prova. É onde se olha quando um cliente pergunta quem " +
+             "acessou o que, e quando se desliga alguém." },
     /* O texto dizia "toda a equipe pode mexer", e deixou de ser
        verdade quando quatro seções passaram a ser só de admin. */
     { alvo: '.sidenav__item[data-aba="conteudo"]',
