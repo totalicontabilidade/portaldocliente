@@ -16,7 +16,7 @@
    Ao alterar qualquer arquivo do app, suba o número da versão —
    é o que faz o navegador do cliente buscar o conteúdo novo.
    ============================================================ */
-var VERSAO = "v159";
+var VERSAO = "v160";
 var CACHE = "totali-onboarding-" + VERSAO;
 
 var SHELL = [
@@ -50,6 +50,16 @@ var SHELL = [
      arquivo de código. */
   "./js/termo.js",
   "./js/app.js",
+  /* A página de liberação de extratos e o script dela.
+
+     Ela entra no cache mesmo sendo aberta por link direto: o
+     cliente costuma abrir, ir ao banco, voltar — e voltar às vezes
+     é com a rede do celular oscilando. Sem isto, ele voltaria para
+     uma página que não carrega, com a autorização já feita e sem
+     conseguir marcar. Os manuais em PDF NÃO entram: são pesados e
+     só interessam a quem tem aquele banco. */
+  "./extratos.html",
+  "./js/extratos.js",
   "./js/pwa.js",
   "./manifest.webmanifest",
   "./assets/totali-simbolo.png",

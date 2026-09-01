@@ -33,6 +33,17 @@ uploads/
 *.docx
 *.xlsx
 
+# EXCEÇÃO, e uma só: os manuais de credenciamento no Open Finance,
+# publicados pela Ottimizza. Não são documento de cliente — são
+# material nosso, igual para todo mundo, que a página de liberação
+# de extratos abre numa aba.
+#
+# A exceção é estreita de propósito: vale só nesta pasta e só para
+# PDF. Sem ela o manual ficava de fora do repositório e o link
+# quebrava no ar, sem quebrar nada no computador de quem escreveu.
+!assets/manuais/
+!assets/manuais/*.pdf
+
 # Mockups de design: existem para uma decisao e depois saem.
 # Publicados por engano, ficam acessiveis no dominio do cliente.
 _modelos*.html

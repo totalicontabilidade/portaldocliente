@@ -285,6 +285,10 @@
           atualizadoEm: num(e.atualizadoEm) || Date.now(),
           etapa: txt(e.etapa, 40) || "boas-vindas",
           aceiteLGPD: typeof e.aceiteLGPD === "number" ? e.aceiteLGPD : null,
+          /* Vem da equipe e fica fora de `empresa` de propósito:
+             `payloadEmpresa` é o que o cliente GRAVA de volta, e
+             este campo não é dele para gravar. */
+          extratosCodigo: txt(e.extratosCodigo, 40),
           empresa: {
             razaoSocial: txt(e.razaoSocial, 200),
             nomeFantasia: txt(e.nomeFantasia, 200),

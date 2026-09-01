@@ -99,6 +99,82 @@
     return baseLimpa(base) + "?k=" + encodeURIComponent(codigo) + "#/inicio";
   }
 
+  /* Link da página de liberação de extratos.
+
+     `baseLimpa` devolve ou uma pasta terminada em barra, ou um
+     arquivo `.html` — o segundo caso acontece quando o painel foi
+     aberto por `.../index.html`. Trocar o arquivo pelo nosso cobre
+     os dois; emendar direto quebraria no segundo. */
+  function montarLinkExtratos(base, codigo) {
+    var b = baseLimpa(base).replace(/[^/]*\.html$/i, "");
+    return b + "extratos.html?c=" + encodeURIComponent(codigo);
+  }
+
+  function mensagemExtratos(nomeEmpresa, link) {
+    return "Olá! Aqui é a Totali Soluções Contábeis.\n\n" +
+      "Para lançarmos a contabilidade de " + nomeEmpresa + " sem precisar pedir extrato todo " +
+      "mês, precisamos da sua autorização para ler o extrato bancário pelo Open Finance — o " +
+      "mesmo sistema do Banco Central que você usa ao conectar um banco no aplicativo de " +
+      "outro.\n\n" +
+      "Abra o link abaixo, confirme o CNPJ da empresa e siga o passo a passo de cada banco. " +
+      "Leva uns três minutos por banco e dá para fazer pelo celular.\n\n" +
+      link + "\n\n" +
+      "É só leitura: não movimentamos dinheiro, não fazemos transferência e não alteramos " +
+      "nada na sua conta. Você pode cancelar quando quiser, pelo aplicativo do banco.";
+  }
+
+  /* ============================================================
+     Página de liberação de extratos: gravar e reaproveitar
+
+     UM CÓDIGO POR EMPRESA, e não um a cada geração. A equipe volta
+     aqui toda vez que o cliente abre conta nova ou troca de banco,
+     e um código novo a cada vez deixaria vivos os links antigos —
+     dois endereços mostrando listas diferentes, com o cliente
+     seguindo o que estiver mais acima na conversa. Reaproveitando,
+     o link que ele já tem passa a mostrar o banco novo.
+
+     O código fica gravado na empresa (`extratosCodigo`) porque é
+     dali que a ficha, e o portal do cliente, o encontram depois.
+     ============================================================ */
+  function salvarExtratos(empresa, bancos) {
+    var FB = global.FB;
+    if (!FB || !FB.ligado || !FB.equipe) return Promise.reject(new Error("sem-conexao"));
+
+    var limpos = (bancos || []).map(function (b) {
+      return { nome: String((b && b.nome) || "").slice(0, 80), link: U.linkOttimizza(b && b.link) };
+    }).filter(function (b) { return b.nome && b.link; });
+
+    var codigo = String(empresa.extratosCodigo || "") || FB.novoCodigo();
+
+    return U.hashCNPJ(empresa.cnpj).then(function (hash) {
+      return FB.db.collection("extratos").doc(codigo).set({
+        empresaId: empresa.id,
+        nome: String(empresa.nomeFantasia || empresa.razaoSocial || "").slice(0, 120),
+        cnpjHash: hash,
+        bancos: limpos,
+        ativo: true,
+        criadoPor: FB.equipe.uid,
+        atualizadoEm: FB.agora()
+      }, { merge: true });
+    }).then(function () {
+      /* O código na empresa é o que liga as duas pontas. Falhando
+         aqui, o documento acima já existe e a gravação seguinte
+         criaria OUTRO código — por isso o erro sobe em vez de ser
+         engolido. */
+      return FB.db.collection("empresas").doc(empresa.id)
+        .set({ extratosCodigo: codigo }, { merge: true });
+    }).then(function () {
+      var link = montarLinkExtratos(enderecoPadrao(), codigo);
+      return {
+        codigo: codigo,
+        link: link,
+        quantos: limpos.length,
+        mensagem: mensagemExtratos(
+          empresa.nomeFantasia || empresa.razaoSocial || "sua empresa", link)
+      };
+    });
+  }
+
   /* "o portal de FULANO" dava a entender que o portal era da
      empresa. Ele é o Portal do Cliente da Totali, PREPARADO para
      ela — e a diferença importa na primeira impressão.
@@ -937,5 +1013,14 @@
     gerar: gerarConvite,
     copiar: copiar,
     enderecoPadrao: enderecoPadrao
+  };
+
+  /* A liberação de extratos é montada na ficha do cliente, que é
+     onde a equipe já está quando vai atrás disso. O que ela precisa
+     daqui é só gravar e devolver o link pronto. */
+  global.Extratos = {
+    salvar: salvarExtratos,
+    link: function (codigo) { return montarLinkExtratos(enderecoPadrao(), codigo); },
+    mensagem: mensagemExtratos
   };
 })(window);

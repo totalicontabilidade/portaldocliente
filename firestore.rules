@@ -131,6 +131,51 @@ service cloud.firestore {
                              .affectedKeys().hasOnly(['ativo', 'usadoPor', 'usadoEm']));
     }
 
+    // ---------- Liberação de extratos (Open Finance) ----------
+    //
+    // A página `extratos.html` é aberta por link, SEM login: o
+    // cliente que só precisa autorizar o banco não vira usuário do
+    // portal por causa disso. O código do endereço é o segredo,
+    // com os mesmos 22 caracteres sorteados do convite, e vale a
+    // mesma regra de lá: `get` por id é livre, `list` é da equipe.
+    // Sem o código não se chega ao documento, e ninguém varre a
+    // carteira de clientes.
+    //
+    // O QUE ESTE DOCUMENTO PODE CONTER, e por quê.
+    // Nome da empresa e os links de conexão da Ottimizza — que são
+    // os mesmos que a equipe mandaria por WhatsApp. Nada de sócio,
+    // de credencial, de documento. O CNPJ entra só como hash: a
+    // página confere o que o cliente digita sem guardar o número.
+    // Essa conferência segura link encaminhado por engano, e é
+    // isso que ela é — quem protege de verdade é o código.
+    //
+    // A confirmação do cliente mora numa SUBCOLEÇÃO, e isso não é
+    // arrumação: aqui dentro estão os links, e quem escreve neles
+    // decide para onde o cliente é levado. Ele marca a dele lá,
+    // sem tocar aqui.
+    match /extratos/{codigo} {
+      allow get: if true;
+      allow list: if ehEquipe();
+      allow create, update: if ehEquipe();
+      allow delete: if ehAdmin();
+
+      // Quem tem o link marca que já autorizou. É um sinal para a
+      // equipe conferir no Ottimizza, nunca uma prova — por isso
+      // `por` fica gravado, e por isso a equipe pode corrigir.
+      match /confirmacoes/{banco} {
+        allow read: if true;
+        allow create, update: if request.resource.data.keys().hasOnly(
+                                   ['confirmado', 'em', 'por', 'banco'])
+                              && request.resource.data.confirmado is bool
+                              && request.resource.data.em is number
+                              && request.resource.data.por in ['cliente', 'equipe']
+                              && textoAte(request.resource.data.banco, 80)
+                              // Só a equipe assina como equipe.
+                              && (request.resource.data.por == 'cliente' || ehEquipe());
+        allow delete: if ehEquipe();
+      }
+    }
+
     // ---------- De qual empresa é cada cliente ----------
     //
     // Criado junto com o acesso. Serve para o portal descobrir,

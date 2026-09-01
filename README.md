@@ -31,6 +31,7 @@ o celular, instalável como aplicativo (PWA) e publicável no GitHub Pages.
 | Cobrança do que falta, pelo painel | pronto (envio manual) |
 | Etapas clicáveis com liberação progressiva | pronto |
 | Checklist financeiro trazido para dentro | pronto, com termo em PDF |
+| Liberação de extrato pelo Ottimizza (Open Finance) | pronta (`extratos.html`) |
 | Academy em destaque após o envio | pronto |
 | Trilhas da Academy | telas prontas, vídeos pendentes |
 | Avisos no aparelho (portal aberto ou em 2º plano) | pronto |
@@ -54,6 +55,7 @@ anterior.
 ```
 index.html                 Portal do cliente
 equipe.html                Painel da equipe (uso interno, com login)
+extratos.html              Liberação de extrato — página aberta por link, SEM login
 manifest.webmanifest       Metadados do aplicativo instalável
 sw.js                      Service worker (offline). Suba a VERSAO a cada release
 firestore.rules            Regras do banco — a proteção de verdade
@@ -75,6 +77,7 @@ js/tour.js                 Tutorial guiado
 js/motion.js               Animações de entrada, contadores e anel de progresso
 js/notificacoes.js         Avisos no aparelho e ganchos para o push do Firebase
 js/termo.js                Termo de compromisso em PDF
+js/extratos.js             Página de liberação de extrato (Ottimizza / Open Finance)
 js/app.js                  Portal do cliente: rotas, telas e eventos
 js/pwa.js                  Instalação, service worker e proteções de contexto
 
@@ -264,6 +267,63 @@ Duas diferenças em relação ao original:
    vendorizado em `lib/` — a CSP bloqueia CDN de propósito. Os três relatórios
    do compromisso aparecem na tela e no PDF, para o cliente não depender de ler
    o documento inteiro.
+
+### Liberação de extrato pelo Ottimizza
+
+A Totali lê o extrato das empresas pelo **Ottimizza (Busca Extrato)**, e para
+isso o cliente precisa autorizar o compartilhamento no site do próprio banco,
+uma vez por banco, pelo Open Finance. No integrador da Ottimizza a equipe gera
+um **link de conexão por banco e por CNPJ** — e até aqui esse link ia solto no
+WhatsApp, sem contexto e sem o passo a passo.
+
+**Onde cada lado mexe:**
+
+| Quem | Onde |
+|---|---|
+| Equipe | Ficha do cliente → aba "Bancos e senhas" → *Liberação de extratos* |
+| Cliente | `extratos.html?c={codigo}` — aberta por link, sem login |
+| Manual de cada banco | Painel → Conteúdo do portal → Bancos → *Passo a passo em PDF* |
+
+**Por que ela é uma página, e não uma tela do portal.** Quem só precisa
+autorizar o banco não deveria criar conta, escolher senha e aprender um portal
+por causa disso — e boa parte de quem recebe este link é cliente antigo, que
+não usa o portal. Quem *é* do portal encontra o mesmo endereço num cartão da
+etapa 4.
+
+**O que protege esse link.** O código tem 22 caracteres sorteados, os mesmos do
+convite, e o documento é lido por quem souber o código (`allow get: if true`,
+como em `/convites`). Antes de mostrar qualquer coisa, a página pede o **CNPJ da
+empresa** e confere contra um resumo (`U.hashCNPJ`) — o número não fica gravado.
+Essa conferência segura link encaminhado por engano, **não** um atacante: CNPJ
+tem quatorze dígitos e o sal está no código aberto. Quem protege é o código.
+
+O documento guarda o mínimo: nome da empresa, resumo do CNPJ e os links —
+nenhum dado pessoal, nenhuma credencial. A confirmação do cliente vive numa
+subcoleção à parte, para que quem marca "já autorizei" não possa alterar os
+links.
+
+```
+extratos/{codigo}                          empresaId, nome, cnpjHash, bancos[], ativo
+extratos/{codigo}/confirmacoes/{banco}     confirmado, em, por: cliente | equipe
+empresas/{empresaId}.extratosCodigo        liga a empresa à página
+```
+
+**O passo a passo é dividido em dois**, e a divisão é o ponto: a maior parte do
+manual da Ottimizza não é do banco — é a tela dela e do parceiro (Pluggy), igual
+para todos. Essa parte fica em `DATA.EXTRATOS`, **na tela**, incluindo o tropeço
+que mais derruba cliente: o navegador bloqueando o pop-up. O que muda de banco
+para banco vai no PDF, que abre em aba nova.
+
+**O PDF de cada banco entra por dois caminhos**, e o segundo ganha:
+
+1. **Publicado com o código** — `assets/manuais/{banco}.pdf`, apontado em
+   `js/data.js`. É como o do Banco do Brasil entrou. Note a exceção no
+   `.gitignore`: o repositório bloqueia `*.pdf`, e sem ela o manual ficava de
+   fora sem quebrar nada localmente.
+2. **Anexado pelo painel** — vai para `publico/manuais/` no Storage. É o caminho
+   de rotina, sem publicar versão nova. Sobe **inline**, não como download: o
+   manual é lido no meio da tarefa, e forçar download manda a pessoa procurar
+   arquivo na pasta de downloads do celular, que é onde ela desiste.
 
 **Para integrar um sistema novo**, o caminho é sempre o mesmo: o conteúdo entra
 em `js/data.js`, o estado ganha um ramo em `estadoInicial()` com validação

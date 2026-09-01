@@ -2324,6 +2324,30 @@
       '</div>';
     }
 
+    /* --- Liberação de extratos ---
+
+       Só aparece depois que a equipe preparou os links no
+       Ottimizza. Antes disso não há nada que o cliente possa fazer,
+       e um cartão dizendo "em breve" só ocupa tela.
+
+       A tela de verdade é uma página à parte (`extratos.html`),
+       porque ela serve também a quem NÃO usa o portal: cliente
+       antigo que só precisa autorizar o banco. Aqui é só a porta,
+       para quem está no portal não ter que procurar o link no
+       meio da conversa do WhatsApp. */
+    if (Store.estado.extratosCodigo) {
+      html += '<a class="card card--pad" style="margin-bottom:14px;display:block;' +
+          'text-decoration:none" href="extratos.html?c=' +
+          encodeURIComponent(Store.estado.extratosCodigo) + '">' +
+        '<h2 class="section__title" style="font-size:16px">Autorize a leitura do seu ' +
+          'extrato</h2>' +
+        '<p class="section__desc" style="margin-bottom:12px">Assim buscamos o extrato direto ' +
+          'no banco, pelo Open Finance, e você não precisa nos enviar arquivo todo mês. É só ' +
+          'leitura: não movimentamos nada na sua conta.</p>' +
+        '<span class="btn btn--gold btn--sm">Ver os bancos' + ic("ic-arrow-right") + '</span>' +
+      '</a>';
+    }
+
     /* --- Bancos --- */
     html += '<div class="card card--pad" style="margin-bottom:14px">' +
       '<h2 class="section__title" style="font-size:16px">A empresa tem conta em banco?</h2>' +

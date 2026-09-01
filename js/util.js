@@ -308,6 +308,84 @@
     return new TextDecoder().decode(bytes);
   }
 
+  /* Nome de instituição virando id de documento: "Banco do Brasil"
+     vira "banco-do-brasil". Serve de chave da confirmação de cada
+     banco, e por isso precisa dar o MESMO resultado no painel e na
+     página do cliente — os dois chamam daqui.
+
+     Barra é o que o Firestore não aceita em id, mas a limpeza vai
+     além dela de propósito: acento e espaço em id de documento é
+     dor de cabeça na hora de depurar. */
+  function slug(nome) {
+    return String(nome || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "item";
+  }
+
+  /* ------------------------------------------------------------
+     CNPJ da página de liberação de extratos
+
+     A página `extratos.html` abre sem login e confere o CNPJ que o
+     cliente digita. O número não fica guardado: o que viaja no
+     documento é este resumo.
+
+     SEJA HONESTO SOBRE O QUE ISTO É. CNPJ tem quatorze dígitos e o
+     sal está no código aberto — quem quiser reverter o resumo,
+     reverte, e em segundos. Isto não protege o documento de um
+     atacante: protege de link encaminhado por engano no grupo da
+     empresa, que é o caso real, e evita guardar mais um cadastro
+     de cliente numa coleção que qualquer um lê sabendo o código.
+     Quem protege de verdade é o código de 22 caracteres do
+     endereço.
+
+     As duas pontas — o painel que grava e a página que confere —
+     chamam esta mesma função. Duas implementações do mesmo resumo
+     é o tipo de coisa que só se descobre quebrada em produção.
+     ------------------------------------------------------------ */
+  var SAL_CNPJ = "totali.extratos.v1:";
+
+  function hashCNPJ(valor) {
+    var digitos = soDigitos(valor);
+    if (digitos.length !== 14) return Promise.resolve("");
+    /* `crypto.subtle` só existe em https e em localhost. Sem ele
+       não há como conferir, e a página trata isso como "não dá
+       para abrir aqui" em vez de deixar passar sem conferência. */
+    if (!global.crypto || !global.crypto.subtle) {
+      return Promise.reject(new Error("sem-crypto"));
+    }
+    var entrada = new TextEncoder().encode(SAL_CNPJ + digitos);
+    return global.crypto.subtle.digest("SHA-256", entrada).then(function (buf) {
+      var b = new Uint8Array(buf), hex = "";
+      for (var i = 0; i < b.length; i++) hex += ("0" + b[i].toString(16)).slice(-2);
+      return hex;
+    });
+  }
+
+  /* ------------------------------------------------------------
+     Endereço de conexão do Ottimizza
+
+     Escrito pela equipe, no painel, e aberto pelo cliente numa aba
+     nova — os dois lados chamam isto antes. Conta de equipe pode
+     ser comprometida, e campo de texto que vira `href` sem
+     conferência é por onde `javascript:` entra numa página nossa.
+
+     Domínio fechado no código: se a Ottimizza mudar de endereço, é
+     uma linha aqui — e é bom que seja uma decisão, não um campo
+     que alguém preenche sem pensar.
+     ------------------------------------------------------------ */
+  function linkOttimizza(valor) {
+    var v = String(valor || "").trim();
+    if (!v) return "";
+    var u;
+    try { u = new URL(v); } catch (e) { return ""; }
+    if (u.protocol !== "https:") return "";
+    if (u.hostname !== "ottimizza.com.br" && !/\.ottimizza\.com\.br$/.test(u.hostname)) return "";
+    return u.href;
+  }
+
   /* ------------------------------------------------------------
      Carregar biblioteca só na hora de usar
 
@@ -376,6 +454,9 @@
     clamp: clamp,
     textoParaB64url: textoParaB64url,
     b64urlParaTexto: b64urlParaTexto,
+    slug: slug,
+    hashCNPJ: hashCNPJ,
+    linkOttimizza: linkOttimizza,
     MAX_ARQUIVO: MAX_ARQUIVO,
     MAX_TOTAL: MAX_TOTAL,
     ACCEPT_ATTR: ACCEPT_ATTR,

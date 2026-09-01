@@ -145,6 +145,11 @@
          chegou pelo link de convite. Nesse caso o cliente confere,
          mas não edita, os dados da empresa. */
       cadastroPelaEquipe: false,
+      /* Código da página de liberação de extratos desta empresa,
+         quando a equipe já montou uma. Escrito só do lado de lá: o
+         portal apenas lê, para oferecer o atalho na etapa 4 a quem
+         usa o portal. Quem chega pelo link não passa por aqui. */
+      extratosCodigo: "",
       empresa: {
         razaoSocial: "", nomeFantasia: "", cnpj: "", regime: "",
         responsavelNome: "", responsavelEmail: "", responsavelTelefone: "", responsavelCargo: ""
@@ -240,6 +245,9 @@
     if (typeof bruto.etapa === "string") s.etapa = bruto.etapa;
     if (typeof bruto.aceiteLGPD === "number") s.aceiteLGPD = bruto.aceiteLGPD;
     s.cadastroPelaEquipe = bruto.cadastroPelaEquipe === true;
+    if (typeof bruto.extratosCodigo === "string") {
+      s.extratosCodigo = bruto.extratosCodigo.slice(0, 40);
+    }
 
     /* Estado gravado antes do esquema 2 não tem empresaId: ganha um
        agora e segue funcionando, sem perder nada do que já foi enviado. */

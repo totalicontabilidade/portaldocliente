@@ -2282,6 +2282,7 @@
     if (vistaFicha === "financeiro") {
       html += '<div class="paineis">' +
           financeiroHTML(c) +
+          extratosHTML(c) +
           credenciaisHTML(c) +
         '</div>';
     }
@@ -2673,6 +2674,315 @@
                 ic("ic-download") + 'Abrir termo de compromisso</button></div>'
             : '');
       }
+    });
+  }
+
+  /* ============================================================
+     Liberação de extratos (Ottimizza)
+
+     A equipe gera no integrador do Ottimizza um link de conexão
+     por BANCO e por CNPJ, e cola aqui. O que sai daqui é um
+     endereço só — `extratos.html?c=...` — que o cliente abre sem
+     login e onde ele encontra os bancos dele, o passo a passo de
+     cada um e o botão da autorização.
+
+     Isto vive na aba "Bancos e senhas" porque é exatamente onde a
+     equipe já está quando vai atrás de extrato. Aba nova para uma
+     seção só seria mais um lugar para procurar.
+     ============================================================ */
+
+  /* Uma leitura por ficha aberta, guardada aqui. A ficha redesenha
+     a cada toque em qualquer bloco, e sem isto seriam duas idas ao
+     servidor por redesenho. */
+  var extratosCache = {};   /* empresaId -> { carregando, codigo, bancos, confirmacoes } */
+
+  function extratosDo(c) {
+    return extratosCache[c.id] || null;
+  }
+
+  function carregarExtratos(c) {
+    var codigo = String((c.empresa && c.empresa.extratosCodigo) || "");
+    if (!codigo) {
+      extratosCache[c.id] = { codigo: "", bancos: [], confirmacoes: {} };
+      return Promise.resolve();
+    }
+
+    extratosCache[c.id] = { carregando: true, codigo: codigo, bancos: [], confirmacoes: {} };
+    var raiz = FB.db.collection("extratos").doc(codigo);
+    return Promise.all([raiz.get(), raiz.collection("confirmacoes").get()])
+      .then(function (r) {
+        var doc = r[0].exists ? (r[0].data() || {}) : {};
+        var conf = {};
+        r[1].forEach(function (d) { conf[d.id] = d.data() || {}; });
+        extratosCache[c.id] = {
+          codigo: codigo,
+          bancos: Array.isArray(doc.bancos) ? doc.bancos : [],
+          confirmacoes: conf
+        };
+      }, function () {
+        extratosCache[c.id] = { codigo: codigo, bancos: [], confirmacoes: {}, erro: true };
+      });
+  }
+
+  /* A lista que a equipe preenche nasce do que o CLIENTE marcou na
+     etapa 4 — é ele quem sabe onde tem conta. O que já foi salvo
+     entra junto, inclusive banco que ele desmarcou depois: apagar
+     link em silêncio por causa de uma desmarcação seria perder
+     trabalho já feito. */
+  function bancosParaExtratos(c) {
+    var salvos = (extratosDo(c) || {}).bancos || [];
+    var porNome = {};
+    var ordem = [];
+
+    var juntar = function (nome, link) {
+      var n = String(nome || "").trim();
+      if (!n) return;
+      if (!porNome[n]) { porNome[n] = { nome: n, link: "" }; ordem.push(n); }
+      if (link) porNome[n].link = link;
+    };
+
+    var f = c.financeiro || {};
+    (f.bancos || []).forEach(function (n) { juntar(n, ""); });
+    if (f.bancoOutro) juntar(f.bancoOutro, "");
+    salvos.forEach(function (b) { juntar(b && b.nome, (b && b.link) || ""); });
+
+    return ordem.map(function (n) { return porNome[n]; });
+  }
+
+  function confirmacaoDe(c, nome) {
+    var e = extratosDo(c);
+    return (e && e.confirmacoes[U.slug(nome)]) || null;
+  }
+
+  function extratosHTML(c) {
+    var e = extratosDo(c);
+    var lista = e ? bancosParaExtratos(c) : [];
+    var comLink = lista.filter(function (b) { return U.linkOttimizza(b.link); }).length;
+    var feitos = lista.filter(function (b) {
+      var x = confirmacaoDe(c, b.nome);
+      return x && x.confirmado;
+    }).length;
+
+    return painel({
+      id: "extratos", icone: "ic-card", titulo: "Liberação de extratos",
+      resumo: !e || e.carregando ? "Carregando…"
+        : !comLink ? "Nenhum link do Ottimizza cadastrado ainda"
+        : comLink + " " + U.plural(comLink, "banco preparado", "bancos preparados") +
+          " · " + feitos + " " + U.plural(feitos, "autorizado", "autorizados"),
+      selo: e && !e.carregando && comLink && feitos < comLink ? "Aguardando o cliente" : "",
+      seloCls: "badge--pendente",
+      corpo: function () {
+        if (!e || e.carregando) {
+          return '<p class="text-sm text-muted">Carregando…</p>';
+        }
+        if (e.erro) {
+          return '<p class="text-sm" style="color:var(--danger)">Não consegui ler a ' +
+            'liberação desta empresa. Toque em Atualizar e tente de novo.</p>';
+        }
+
+        var html = '<p class="text-sm text-muted" style="margin:0 0 14px;line-height:1.6">' +
+          'No Ottimizza, gere o <b>link de conexão</b> de cada banco desta empresa e cole ' +
+          'abaixo. O cliente recebe um endereço só, com todos eles e o passo a passo de ' +
+          'cada um.</p>';
+
+        if (!lista.length) {
+          html += '<p class="text-sm text-muted">Este cliente ainda não informou em quais ' +
+            'bancos tem conta. Você pode acrescentar um banco abaixo assim mesmo.</p>';
+        }
+
+        html += lista.map(function (b) {
+          var conf = confirmacaoDe(c, b.nome);
+          var feito = !!(conf && conf.confirmado);
+          var valido = !!U.linkOttimizza(b.link);
+          return '<div class="item" style="margin-bottom:10px"><div class="item__top">' +
+            '<div class="item__main">' +
+              '<div class="item__name">' + U.esc(b.nome) +
+                (feito
+                  ? ' <span class="badge badge--aprovado"><span class="dot"></span>autorizado' +
+                    (conf.em ? " em " + U.esc(U.dataCurta(conf.em)) : "") +
+                    (conf.por === "equipe" ? " (pela equipe)" : "") + '</span>'
+                  : '') +
+              '</div>' +
+              '<input type="text" class="input" style="margin-top:8px" ' +
+                'data-ext-link="' + U.escAttr(b.nome) + '" autocomplete="off" ' +
+                'placeholder="https://extratos.ottimizza.com.br/…" value="' +
+                U.escAttr(b.link || "") + '"' +
+                (b.link && !valido ? ' aria-invalid="true"' : '') + '>' +
+              (b.link && !valido
+                ? '<div class="text-xs" style="color:var(--danger);margin-top:6px">Este ' +
+                  'endereço não é do Ottimizza e não vai aparecer para o cliente.</div>'
+                : '') +
+            '</div>' +
+            '<div class="item__actions">' +
+              '<button type="button" class="btn btn--quiet btn--sm" data-ext-marcar="' +
+                U.escAttr(b.nome) + '" data-ext-valor="' + (feito ? "0" : "1") + '">' +
+                (feito ? "Desmarcar" : "Marcar autorizado") + '</button>' +
+            '</div>' +
+          '</div></div>';
+        }).join("");
+
+        /* Banco fora do que o cliente marcou. Acontece o tempo todo:
+           ele abre conta nova e avisa por mensagem, não voltando à
+           etapa 4 para marcar. */
+        var faltando = DATA.BANCOS.filter(function (cat) {
+          return !lista.some(function (b) { return b.nome === cat.nome; });
+        });
+        if (faltando.length) {
+          html += '<div class="row" style="margin-top:12px;align-items:flex-end">' +
+            '<div style="flex:1;min-width:180px">' +
+              '<label class="field__label" for="extNovo">Acrescentar banco</label>' +
+              '<select class="select" id="extNovo">' +
+                '<option value="">Escolha…</option>' +
+                faltando.map(function (cat) {
+                  return '<option value="' + U.escAttr(cat.nome) + '">' +
+                    U.esc(cat.nome) + '</option>';
+                }).join("") +
+              '</select>' +
+            '</div>' +
+            '<button type="button" class="btn btn--ghost btn--sm" id="extAdicionar">' +
+              ic("ic-plus") + 'Acrescentar</button>' +
+          '</div>';
+        }
+
+        html += '<div class="row" style="margin-top:16px">' +
+          '<button type="button" class="btn btn--gold btn--sm" id="extSalvar">' +
+            (e.codigo ? "Salvar e atualizar o link" : "Salvar e gerar o link") + '</button>' +
+        '</div>';
+
+        if (e.codigo) {
+          var link = global.Extratos.link(e.codigo);
+          html += '<hr class="hr">' +
+            '<label class="field__label" for="extLink">Link do cliente</label>' +
+            '<input type="text" class="input" id="extLink" readonly value="' +
+              U.escAttr(link) + '">' +
+            '<div class="row" style="margin-top:10px">' +
+              '<button type="button" class="btn btn--ghost btn--sm" id="extCopiarLink">' +
+                'Copiar o link</button>' +
+              '<button type="button" class="btn btn--ghost btn--sm" id="extCopiarMsg">' +
+                'Copiar a mensagem</button>' +
+            '</div>' +
+            '<p class="text-xs text-muted" style="margin-top:10px;line-height:1.6">' +
+              'O endereço é sempre o mesmo para esta empresa: acrescentando um banco, o link ' +
+              'que o cliente já tem passa a mostrá-lo também.</p>';
+        }
+
+        return html;
+      }
+    });
+  }
+
+  function ligarExtratos() {
+    var c = aberto;
+    if (!c) return;
+
+    /* A leitura só acontece quando a aba está à vista. Fazê-la ao
+       abrir a ficha custaria duas idas ao servidor por cliente para
+       uma seção que nem sempre é olhada. */
+    if (vistaFicha === "financeiro" && !extratosDo(c)) {
+      carregarExtratos(c).then(desenharFicha);
+      return;
+    }
+
+    var adicionar = $("#extAdicionar");
+    if (adicionar) adicionar.addEventListener("click", function () {
+      var nome = $("#extNovo").value;
+      if (!nome) return;
+      var e = extratosDo(c);
+      /* Entra na lista em memória com link vazio. Só vira gravação
+         quando a equipe salvar — banco sem link não chega ao
+         cliente de qualquer forma. */
+      e.bancos = e.bancos.concat([{ nome: nome, link: "" }]);
+      desenharFicha();
+    });
+
+    var salvar = $("#extSalvar");
+    if (salvar) salvar.addEventListener("click", function () {
+      var bancos = $$("[data-ext-link]").map(function (campo) {
+        return { nome: campo.getAttribute("data-ext-link"), link: campo.value.trim() };
+      });
+
+      var invalidos = bancos.filter(function (b) {
+        return b.link && !U.linkOttimizza(b.link);
+      });
+      if (invalidos.length) {
+        UI.toast("Confira o endereço de " + invalidos[0].nome +
+                 ": só entra link do Ottimizza (https).", "erro", 7000);
+        return;
+      }
+
+      salvar.disabled = true;
+      salvar.textContent = "Salvando…";
+      var empresa = {
+        id: c.id,
+        cnpj: c.empresa.cnpj,
+        razaoSocial: c.empresa.razaoSocial,
+        nomeFantasia: c.empresa.nomeFantasia,
+        extratosCodigo: c.empresa.extratosCodigo
+      };
+
+      global.Extratos.salvar(empresa, bancos).then(function (r) {
+        /* O código volta para a ficha em memória: sem isto, salvar
+           de novo antes de recarregar geraria um código novo e
+           deixaria o link anterior mostrando a lista velha. */
+        c.empresa.extratosCodigo = r.codigo;
+        delete extratosCache[c.id];
+        return carregarExtratos(c).then(function () {
+          desenharFicha();
+          UI.toast(r.quantos
+            ? "Link pronto para " + r.quantos + " " +
+              U.plural(r.quantos, "banco", "bancos") + "."
+            : "Salvo. Nenhum banco tem link ainda, então o cliente ainda não vê nada.",
+            "ok", 5000);
+        });
+      }, function (err) {
+        salvar.disabled = false;
+        salvar.textContent = "Salvar e gerar o link";
+        UI.toast("Não consegui salvar: " + FB.explicar(err), "erro", 8000);
+      });
+    });
+
+    var copiarLink = $("#extCopiarLink");
+    if (copiarLink) copiarLink.addEventListener("click", function () {
+      global.Convite.copiar($("#extLink").value, "Link copiado.");
+    });
+
+    var copiarMsg = $("#extCopiarMsg");
+    if (copiarMsg) copiarMsg.addEventListener("click", function () {
+      var nome = c.empresa.nomeFantasia || c.empresa.razaoSocial || "sua empresa";
+      global.Convite.copiar(
+        global.Extratos.mensagem(nome, $("#extLink").value), "Mensagem copiada.");
+    });
+
+    /* A equipe corrige a marcação depois de conferir no Ottimizza:
+       o cliente pode marcar achando que terminou quando a conexão
+       nem chegou a fechar. */
+    $$("[data-ext-marcar]").forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        var e = extratosDo(c);
+        if (!e || !e.codigo) {
+          UI.toast("Salve o link primeiro.", "erro");
+          return;
+        }
+        var nome = botao.getAttribute("data-ext-marcar");
+        var querMarcar = botao.getAttribute("data-ext-valor") === "1";
+        botao.disabled = true;
+
+        FB.db.collection("extratos").doc(e.codigo)
+          .collection("confirmacoes").doc(U.slug(nome)).set({
+            banco: String(nome).slice(0, 80),
+            confirmado: querMarcar,
+            em: Date.now(),
+            por: "equipe"
+          }).then(function () {
+            e.confirmacoes[U.slug(nome)] = {
+              banco: nome, confirmado: querMarcar, em: Date.now(), por: "equipe"
+            };
+            desenharFicha();
+          }, function (err) {
+            botao.disabled = false;
+            UI.toast("Não consegui alterar: " + FB.explicar(err), "erro", 7000);
+          });
+      });
     });
   }
 
@@ -4805,6 +5115,8 @@
   function ligarFicha() {
     var voltar = $("#clVoltar");
     if (voltar) voltar.addEventListener("click", fecharCliente);
+
+    ligarExtratos();
 
     var recarregar = $("#clRecarregar");
     if (recarregar) recarregar.addEventListener("click", function () {

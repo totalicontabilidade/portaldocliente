@@ -223,6 +223,37 @@
 
      A orientação só aparece para o cliente que marcou aquela
      instituição, então escrever bastante aqui não polui a tela dele. */
+  /* O passo a passo do banco em PDF, mostrado na página de
+     liberação de extratos.
+
+     Dois caminhos, de propósito. O PDF pode vir publicado junto com
+     o código (`assets/manuais/…`), que é como o do Banco do Brasil
+     entrou, ou ser anexado aqui — e o anexado ganha. O primeiro
+     serve para o que já sabemos hoje; o segundo é para a equipe não
+     depender de publicação quando a Ottimizza mandar um manual
+     novo, que é a situação de sempre.
+
+     Aparece só em banco: maquininha não entra no Open Finance. */
+  function manualBtns(caminho, item) {
+    var atual = DATA.manualSeguro(item && item.manual);
+    var noCodigo = atual && atual.indexOf("assets/") === 0;
+
+    return '<div class="ac-material" style="margin-top:10px">' +
+      '<span class="text-xs text-muted">Passo a passo em PDF:</span>' +
+      '<button type="button" class="ac-mini ac-mini--txt" data-material="manual|' +
+        U.escAttr(caminho) + '">' + (atual ? "Trocar o PDF" : "Enviar PDF") + '</button>' +
+      (atual
+        ? '<span class="ac-material__n" title="' + U.escAttr(item.manualNome || atual) + '">' +
+            U.esc(noCodigo ? "publicado com o sistema"
+                           : (item.manualNome || "PDF enviado").slice(0, 40)) + '</span>' +
+          (noCodigo
+            ? ''
+            : '<button type="button" class="ac-mini ac-mini--txt" data-material="tirar-manual|' +
+              U.escAttr(caminho) + '">Tirar</button>')
+        : '') +
+    '</div>';
+  }
+
   function catalogoHTML(prefixo, lista, comModoContador, preposicao) {
     return (lista || []).map(function (item, i) {
       var p = prefixo + "." + i;
@@ -230,7 +261,8 @@
         chave: p,
         titulo: item.nome || "(sem nome)",
         resumo: (item.semCredencial ? "Modo Contador · " : "") +
-                (item.orientacao ? "com orientação" : "sem orientação"),
+                (item.orientacao ? "com orientação" : "sem orientação") +
+                (!comModoContador && DATA.manualSeguro(item.manual) ? " · com manual" : ""),
         depois: ordemBtns(prefixo, i) +
           '<button type="button" class="ac-mini ac-mini--x" data-remove="' +
             U.escAttr(prefixo + ":" + i) + '" aria-label="Remover">&#215;</button>',
@@ -250,7 +282,8 @@
               linhas: 4, max: 1500,
               dica: "Só aparece para quem marcar esta opção. Uma linha por passo — linhas que " +
                     "começam com traço ou número viram lista numerada."
-            });
+            }) +
+            (comModoContador ? "" : manualBtns(p, item));
         }
       });
     }).join("") +
@@ -260,7 +293,9 @@
 
   function secaoBancos() {
     return '<p class="text-sm text-muted" style="margin-bottom:12px">Lista que o cliente vê na ' +
-      'etapa "Bancos e maquininhas".</p>' + catalogoHTML("bancos", C.bancos, false, "no");
+      'etapa "Bancos e maquininhas". O <strong>passo a passo em PDF</strong> de cada banco é o ' +
+      'que abre na página de liberação de extratos — anexe aqui o manual que a Ottimizza ' +
+      'envia.</p>' + catalogoHTML("bancos", C.bancos, false, "no");
   }
 
   function secaoMaquinetas() {
@@ -500,14 +535,19 @@
     "audio/opus": "opus", "audio/wav": "wav", "audio/x-wav": "wav"
   };
 
-  function subirMaterial(blob, tipoEsperado) {
+  /* `opcoes.pasta` e `opcoes.inline` existem por causa do manual do
+     banco, que veio depois: mesmo envio, mesma validação, mesmo
+     limite — muda só onde o arquivo cai e se o navegador BAIXA ou
+     ABRE. Ver o comentário do `contentDisposition`, mais abaixo. */
+  function subirMaterial(blob, tipoEsperado, opcoes) {
+    var o = opcoes || {};
     var FB = global.FB;
     if (!FB || !FB.ligado || !FB.equipe) {
       return Promise.reject(new Error("Sem conexão com o servidor."));
     }
     if (blob.size > LIMITE_MATERIAL) {
       return Promise.reject(new Error(
-        "O arquivo passa de 25 MB. Comprima o áudio antes de enviar."));
+        "O arquivo passa de 25 MB. Comprima o arquivo antes de enviar."));
     }
 
     var tipo = blob.type || "";
@@ -522,7 +562,7 @@
       }
     }
 
-    var nome = "publico/academy/" + FB.novoCodigo() + "." + ext;
+    var nome = (o.pasta || "publico/academy/") + FB.novoCodigo() + "." + ext;
     var ref = FB.storage.ref(nome);
 
     /* BAIXAR, E NÃO ABRIR — e isto tem que ficar no ARQUIVO.
@@ -535,18 +575,28 @@
 
        O nome vai limpo de aspas, barras e quebras de linha: ele
        entra num cabeçalho HTTP, e cabeçalho aceita injeção como
-       qualquer outro texto montado por concatenação. */
+       qualquer outro texto montado por concatenação.
+
+       O MANUAL DO BANCO É O CASO INVERSO, e por isso `inline`. Ele
+       é lido no meio de uma tarefa: o cliente está com a tela da
+       autorização aberta e precisa olhar o passo seguinte. Forçar
+       download ali manda a pessoa procurar o arquivo na pasta de
+       downloads do celular, e é onde ela desiste. */
     var seguro = String(blob.name || "")
       .replace(/[\r\n"\\/]+/g, " ")
       .replace(/[^\x20-\x7E]/g, "")
       .trim()
-      .slice(0, 120) || ("aula." + ext);
+      .slice(0, 120) || ("arquivo." + ext);
 
-    return ref.put(blob, {
+    var meta = {
       contentType: tipo,
-      cacheControl: "public, max-age=31536000, immutable",
-      contentDisposition: 'attachment; filename="' + seguro + '"'
-    }).then(function () { return ref.getDownloadURL(); });
+      cacheControl: "public, max-age=31536000, immutable"
+    };
+    meta.contentDisposition = o.inline
+      ? 'inline; filename="' + seguro + '"'
+      : 'attachment; filename="' + seguro + '"';
+
+    return ref.put(blob, meta).then(function () { return ref.getDownloadURL(); });
   }
 
   /* Grava o material no rascunho. Guarda também o NOME original: é
@@ -569,10 +619,16 @@
   function trocarMaterial(caminho, qual) {
     if (qual === "tirar-audio") return definirMaterial(caminho, "audio", "");
     if (qual === "tirar-pdf") return definirMaterial(caminho, "pdf", "");
+    if (qual === "tirar-manual") return definirMaterial(caminho, "manual", "");
+
+    /* O manual do banco é um PDF como o da aula; o que muda é o
+       destino no Storage e o abrir em vez de baixar. */
+    var ehManual = qual === "manual";
+    var ehPdf = ehManual || qual === "pdf";
 
     var entrada = document.createElement("input");
     entrada.type = "file";
-    entrada.accept = qual === "pdf"
+    entrada.accept = ehPdf
       ? "application/pdf"
       : "audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/opus,audio/wav";
     entrada.style.display = "none";
@@ -581,9 +637,11 @@
       entrada.remove();
       if (!f) return;
       UI.toast("Enviando " + f.name + "…", "ok", 4000);
-      subirMaterial(f, qual).then(function (url) {
+      subirMaterial(f, ehPdf ? "pdf" : qual,
+        ehManual ? { pasta: "publico/manuais/", inline: true } : null
+      ).then(function (url) {
         definirMaterial(caminho, qual, url, f.name);
-        UI.toast(qual === "pdf" ? "PDF enviado." : "Áudio enviado.", "ok");
+        UI.toast(ehManual ? "Manual enviado." : (ehPdf ? "PDF enviado." : "Áudio enviado."), "ok");
       }, function (e) {
         UI.toast(e.message || "Não foi possível enviar.", "erro", 9000);
       });
@@ -1106,7 +1164,7 @@
     },
     credenciais: function () { return { id: "", rotulo: "", tipo: "texto", dica: "", placeholder: "" }; },
     faq: function () { return { q: "", a: "" }; },
-    bancos: function () { return { nome: "", orientacao: "" }; },
+    bancos: function () { return { nome: "", orientacao: "", manual: "", manualNome: "" }; },
     maquinetas: function () { return { nome: "", orientacao: "", semCredencial: false }; }
   };
 

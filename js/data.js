@@ -104,7 +104,9 @@
      Continua aceitando texto puro na lista: `normalizarCatalogo`
      converte, então conteúdo antigo não quebra. */
   var BANCOS = [
-    { nome: "Banco do Brasil" }, { nome: "Banco do Nordeste" }, { nome: "Banese" },
+    { nome: "Banco do Brasil", manual: "assets/manuais/banco-do-brasil.pdf",
+      manualNome: "Credenciamento via Open Finance — Banco do Brasil" },
+    { nome: "Banco do Nordeste" }, { nome: "Banese" },
     { nome: "Bradesco" }, { nome: "C6 Bank" }, { nome: "Caixa Econômica" },
     { nome: "Cora" }, { nome: "InfinitePay" }, { nome: "Inter" }, { nome: "Itaú" },
     { nome: "Mercado Pago" }, { nome: "Nubank" }, { nome: "PagBank" },
@@ -118,7 +120,18 @@
   ];
 
   /* Aceita ["Nome"] ou [{nome, orientacao, semCredencial}] e sempre
-     devolve o formato de objeto. */
+     devolve o formato de objeto.
+
+     `manual` (só banco) é o passo a passo em PDF que a página de
+     liberação de extratos abre. Entra de dois jeitos, e os dois
+     passam por aqui: caminho do próprio repositório, quando o PDF
+     é publicado com o código, ou endereço do nosso Storage, quando
+     a equipe anexa pelo painel. O anexado ganha, porque é o que
+     se troca sem publicar versão nova.
+
+     Ele PRECISA ser preservado nesta função: ela é o funil por
+     onde passa todo catálogo, e campo que ela não conhece é campo
+     que some — o do painel sumiria na primeira leitura. */
   function normalizarCatalogo(lista, aceitaSemCredencial) {
     if (!Array.isArray(lista)) return [];
     var saida = [];
@@ -128,9 +141,29 @@
       if (!nome) return;
       var pronto = { nome: nome, orientacao: txt(item.orientacao, 1500) };
       if (aceitaSemCredencial) pronto.semCredencial = item.semCredencial === true;
+      else {
+        pronto.manual = enderecoDeManual(item.manual);
+        pronto.manualNome = txt(item.manualNome, 160);
+      }
       saida.push(pronto);
     });
     return saida;
+  }
+
+  /* Endereço de manual que o portal aceita abrir.
+
+     A lista é curta de propósito: caminho relativo do próprio
+     repositório, ou https do nosso Storage. Sem esta trava, o
+     campo do painel viraria "abra este endereço numa aba" com o
+     que alguém digitasse — inclusive `javascript:`, que executa
+     na nossa página, e endereço de terceiro, que não deveria
+     abrir como se fosse material nosso. */
+  function enderecoDeManual(valor) {
+    var v = txt(valor, 400).trim();
+    if (!v) return "";
+    if (/^assets\/manuais\/[A-Za-z0-9._-]+\.pdf$/.test(v)) return v;
+    if (/^https:\/\/(firebasestorage\.googleapis\.com|[a-z0-9-]+\.firebasestorage\.app)\//.test(v)) return v;
+    return "";
   }
 
   function nomesDo(lista) {
@@ -143,6 +176,53 @@
     }
     return null;
   }
+
+  /* ---------- Liberação de extratos (Open Finance) ----------
+
+     A Totali puxa o extrato pelo Ottimizza, e para isso o cliente
+     precisa autorizar o compartilhamento no site do próprio banco.
+     A equipe gera, no integrador, um link por BANCO e por CNPJ, e
+     manda ao cliente.
+
+     O texto abaixo é a metade do caminho que NÃO depende do banco:
+     é a tela da Ottimizza e do parceiro dela (Pluggy), igual para
+     todos. A outra metade — o que muda de banco para banco — vem
+     no PDF de cada um, em `manual`.
+
+     Separar os dois é o ponto do desenho. Lendo o manual do Banco
+     do Brasil se vê que a maior parte dele nem é do banco, e o
+     tropeço que mais derruba o cliente está justamente nessa parte
+     comum: o navegador bloqueia o pop-up e a pessoa acha que o
+     sistema quebrou. Por isso o passo do pop-up está aqui, na
+     tela, e não escondido na página 2 de um PDF.
+  ------------------------------------------------------------- */
+  var EXTRATOS = {
+    titulo: "Como autorizar o acesso ao extrato",
+    chamada: "São seis passos, uma vez por banco. Leva cerca de três minutos e você faz " +
+             "tudo pelo celular.",
+    passos: [
+      "Toque em “Abrir a autorização”. Uma aba nova abre no site da Ottimizza, que é a " +
+      "empresa que faz a conexão para nós.",
+      "Na primeira tela, sobre segurança e privacidade, toque em “Continuar”.",
+      "Informe o CPF de quem é o responsável (usuário master) pela conta e o CNPJ da " +
+      "empresa. Depois toque em “Conectar”.",
+      "Se nada acontecer, o navegador bloqueou a janela. Toque no ícone que aparece no " +
+      "canto da barra de endereço, escolha “Sempre permitir pop-up” e toque em " +
+      "“Conectar” de novo.",
+      "Você é levado ao site do seu banco. Entre com os seus dados e autorize o " +
+      "compartilhamento até o fim — no último passo, toque em “Avançar”.",
+      "Volte para a aba da Ottimizza e espere a barra chegar a 100%, até aparecer “Seus " +
+      "dados foram coletados com sucesso”."
+    ],
+    /* Isto responde à pergunta que o cliente faz antes de clicar, e
+       que ele faria por mensagem se a tela não respondesse. */
+    seguranca: "A conexão é do Open Finance, regulado pelo Banco Central: você autoriza " +
+               "no site do próprio banco, e a sua senha não passa por nós nem pela " +
+               "Ottimizza. O que a Totali recebe é só a leitura do extrato — não " +
+               "movimentamos dinheiro, não fazemos transferência e não alteramos nada " +
+               "na sua conta. A autorização pode ser cancelada por você, a qualquer " +
+               "momento, no aplicativo do banco."
+  };
 
   /* Os três relatórios que a Totali precisa de cada maquininha,
      todo mês. Mesma lista usada no aviso da tela e no termo de
@@ -1152,7 +1232,13 @@
     MAQUINETAS: MAQUINETAS,
     nomesDo: nomesDo,
     acharNoCatalogo: acharNoCatalogo,
+    /* Um só julgador para os dois lados, como acontece com a capa
+       da Academy: o painel usa para saber se já há manual naquele
+       banco, e a página do cliente para não montar link com
+       endereço de fora. */
+    manualSeguro: enderecoDeManual,
     FORMAS_RELATORIO: FORMAS_RELATORIO,
+    EXTRATOS: EXTRATOS,
     LEMBRETES: LEMBRETES,
     RELATORIOS_MENSAIS: RELATORIOS_MENSAIS,
     CANAL_RELATORIOS: CANAL_RELATORIOS,
