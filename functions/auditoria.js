@@ -38,6 +38,10 @@
      credencial:*      senha guardada ou apagada
      acesso:criado     alguém passou a acessar a empresa
      acesso:revogado   alguém deixou de acessar
+     equipe:entrou     alguém ganhou acesso ao painel
+     equipe:saiu       alguém perdeu o acesso ao painel
+     equipe:promovido  virou administrador
+     equipe:rebaixado  deixou de ser administrador
 
    O QUE ELA NÃO REGISTRA, DE PROPÓSITO
    ------------------------------------
@@ -193,6 +197,79 @@ exports.auditarCredencial = onDocumentWritten(
       });
     } else if (existiaAntes && !existeDepois) {
       await anotar(empresaId, "credencial:apagada", { chave: chaveLegivel(chave) });
+    }
+  }
+);
+
+/* ------------------------------------------------------------
+   Quem manda no painel
+
+   POR QUE ISTO EXISTE, e o que aconteceu sem ele.
+
+   Em 02/09/2026, durante um teste, uma conta da equipe apareceu
+   como administradora e não havia como saber de onde aquilo tinha
+   vindo: se de um clique legítimo no painel ou de uma brecha. A
+   trilha registrava senha aberta, documento aprovado e acesso
+   criado — mas NÃO registrava a ação mais poderosa do sistema,
+   que é dar a alguém o poder de abrir todas as senhas dos
+   clientes e de gerenciar quem entra. A pergunta "quem promoveu
+   esta conta, e quando" não tinha resposta em lugar nenhum.
+
+   Agora tem. E vale para os quatro fatos: entrou, saiu, subiu e
+   desceu.
+
+   QUEM FEZ: um gatilho do Firestore não recebe o usuário que
+   gravou, então o painel assina a gravação em `porUid`, e a regra
+   exige que essa assinatura seja o uid de quem está gravando —
+   como já é feito nos documentos do checklist. Registro antigo,
+   ou gravação feita fora do painel, fica sem autor: inventar um
+   seria pior que admitir que não se sabe.
+
+   Marcar tutorial como visto NÃO gera evento — é a única coisa
+   que cada pessoa altera no próprio documento, acontece a todo
+   login e encheria a trilha de ruído.
+   ------------------------------------------------------------ */
+exports.auditarEquipe = onDocumentWritten(
+  { document: "usuarios/{uid}", region: REGIAO },
+  async (event) => {
+    const { uid } = event.params;
+    const antes = event.data.before.exists ? event.data.before.data() : null;
+    const depois = event.data.after.exists ? event.data.after.data() : null;
+
+    /* O nome de quem SOFREU a mudança sai do lado que existe: numa
+       remoção só há o "antes". */
+    const lado = depois || antes || {};
+    const base = {
+      alvoUid: texto(uid, 128),
+      alvo: texto(lado.nome || lado.email || "", 200)
+    };
+
+    const assinatura = {};
+    const quem = texto((depois || antes || {}).porUid, 60);
+    if (quem) {
+      assinatura.uid = quem;
+      assinatura.por = texto((depois || antes || {}).porNome, 120);
+    }
+
+    if (!antes && depois) {
+      return anotar("", "equipe:entrou", {
+        ...base, ...assinatura,
+        papel: depois.papel === "admin" ? "admin" : "equipe"
+      });
+    }
+
+    if (antes && !depois) {
+      return anotar("", "equipe:saiu", {
+        ...base, ...assinatura,
+        papel: antes.papel === "admin" ? "admin" : "equipe"
+      });
+    }
+
+    if (antes && depois && antes.papel !== depois.papel) {
+      const virouAdmin = depois.papel === "admin";
+      return anotar("", virouAdmin ? "equipe:promovido" : "equipe:rebaixado", {
+        ...base, ...assinatura
+      });
     }
   }
 );

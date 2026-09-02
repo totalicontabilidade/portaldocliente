@@ -107,6 +107,10 @@
     "acesso:criado":       { texto: "Acesso criado",           icone: "ic-users",        grupo: "acessos" },
     "acesso:revogado":     { texto: "Acesso revogado",         icone: "ic-users",        grupo: "acessos", peso: "forte" },
     "equipe:senha-trocada":{ texto: "Senha da equipe trocada", icone: "ic-badge",        grupo: "equipe", peso: "forte" },
+    "equipe:entrou":       { texto: "Entrou no painel",        icone: "ic-users",        grupo: "equipe", peso: "forte" },
+    "equipe:saiu":         { texto: "Saiu do painel",          icone: "ic-users",        grupo: "equipe", peso: "forte" },
+    "equipe:promovido":    { texto: "Virou administrador",     icone: "ic-shield",       grupo: "equipe", peso: "forte" },
+    "equipe:rebaixado":    { texto: "Deixou de ser administrador", icone: "ic-shield",   grupo: "equipe", peso: "forte" },
     "aviso:automatico":    { texto: "Aviso automático enviado", icone: "ic-send",        grupo: "sistema" }
   };
 
@@ -172,6 +176,12 @@
       return r.chave + extra;
     }
     if (r.tipo === "equipe:senha-trocada") return "de " + (r.alvo || r.alvoUid || "alguém");
+    if (String(r.tipo || "").indexOf("equipe:") === 0) {
+      var quem = r.alvo || (r.alvoUid ? String(r.alvoUid).slice(0, 10) + "…" : "alguém");
+      if (r.tipo === "equipe:entrou") return quem + (r.papel === "admin" ? " · já como administrador" : "");
+      if (r.tipo === "equipe:saiu") return quem + (r.papel === "admin" ? " · era administrador" : "");
+      return quem;
+    }
     if (r.tipo === "acesso:criado") {
       return (r.origem === "equipe" ? "criado pela equipe" : "pelo convite") +
              (r.uid ? " · " + String(r.uid).slice(0, 10) + "…" : "");

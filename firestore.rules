@@ -81,6 +81,21 @@ service cloud.firestore {
 
     // ---------- Utilidades ----------
 
+    // A assinatura de quem gravou, quando ela vier.
+    //
+    // Serve para a trilha de /auditoria saber QUEM fez: o gatilho
+    // que a escreve não recebe o usuário, então quem grava se
+    // identifica. Isto é o que impede a identificação de ser uma
+    // simples declaração — ninguém assina no nome de outro.
+    //
+    // O padrão é o próprio uid, e não a ausência do campo, para
+    // que gravação sem assinatura continue passando: assim a regra
+    // pode subir antes ou depois do JavaScript que assina, sem
+    // recusar gravação no meio do caminho.
+    function assinaturaConfere() {
+      return request.resource.data.get('porUid', request.auth.uid) == request.auth.uid;
+    }
+
     // Para ALTERAR: nenhum campo fora da lista pode ser tocado.
     function soEstesCampos(campos) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
@@ -758,7 +773,8 @@ service cloud.firestore {
       // que se lê na porta de uma sala.
       allow read: if ehEquipe();
       allow create: if ehAdmin()
-                    && request.resource.data.papel in ['admin', 'equipe'];
+                    && request.resource.data.papel in ['admin', 'equipe']
+                    && assinaturaConfere();
 
       // Quem manda neste documento continua sendo o administrador,
       // com UMA exceção estreita: cada pessoa marca o próprio
@@ -768,7 +784,9 @@ service cloud.firestore {
       // `hasOnly(['tutoriais'])` é o que segura: papel, nome, e-mail
       // e departamentos não podem mudar por este caminho. Ninguém se
       // promove marcando que assistiu ao tutorial.
-      allow update: if (ehAdmin() && request.resource.data.papel in ['admin', 'equipe'])
+      allow update: if (ehAdmin()
+                        && request.resource.data.papel in ['admin', 'equipe']
+                        && assinaturaConfere())
                     || (logado()
                         && request.auth.uid == uid
                         && request.resource.data.diff(resource.data)

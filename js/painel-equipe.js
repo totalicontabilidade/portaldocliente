@@ -59,6 +59,25 @@
     return !!(equipe && equipe.papel === "admin");
   }
 
+  /* QUEM FEZ A MUDANÇA, carimbado na própria gravação.
+
+     A trilha de /auditoria é escrita por uma função que observa o
+     documento mudar, e um gatilho do Firestore não recebe o
+     usuário que gravou. Sem este carimbo, a trilha saberia dizer
+     que alguém virou administrador e não quem o promoveu — que é
+     justamente a pergunta que se faz depois.
+
+     Não é declaração de boa fé: a regra do servidor exige que
+     `porUid` seja o uid de quem está gravando. Mesmo desenho já
+     usado nos documentos do checklist. */
+  function assinado(dados) {
+    var eu = (FB && FB.equipe) || equipe;
+    if (!eu || !eu.uid) return dados;
+    dados.porUid = eu.uid;
+    dados.porNome = String(eu.nome || eu.email || "").slice(0, 120);
+    return dados;
+  }
+
   /* ---------- Leitura ---------- */
   function carregar() {
     /* Já não depende de ser admin: a lista é de leitura para
@@ -368,9 +387,9 @@
     }
     ocupar(m, true, "Gravando…");
 
-    comLimite(FB.db.collection("usuarios").doc(uid).set({
+    comLimite(FB.db.collection("usuarios").doc(uid).set(assinado({
       nome: nome, email: email, papel: papel, departamentos: deptos || []
-    }), m).then(function () {
+    })), m).then(function () {
       UI.fecharModal();
       UI.toast(nome + " agora tem acesso ao painel.", "ok", 7000);
       carregar();
@@ -481,10 +500,10 @@
       /* `departamentos` vai junto de propósito: este `set` grava o
          documento inteiro, e sem repetir o campo a troca de papel
          apagaria os setores da pessoa sem ninguém notar. */
-      FB.db.collection("usuarios").doc(uid).set({
+      FB.db.collection("usuarios").doc(uid).set(assinado({
         nome: alvo.nome, email: alvo.email, papel: novo,
         departamentos: alvo.departamentos || []
-      }).then(function () {
+      })).then(function () {
         UI.toast("Papel alterado.", "ok");
         carregar();
       }, function (e) {
@@ -511,7 +530,17 @@
          é a trava que impede uma exclusão de cliente derrubar
          alguém da equipe por engano. Com o crachá fora, a conta
          deixa de ser da equipe e a exclusão passa. */
-      FB.db.collection("usuarios").doc(uid).delete().then(function () {
+      /* O CARIMBO VEM ANTES DA EXCLUSÃO, e não é capricho: quando
+         o documento some, some junto qualquer chance de saber quem
+         mandou removê-lo — o gatilho que escreve a trilha só tem o
+         "antes" para olhar. Assinando primeiro, o "antes" já chega
+         nomeado. Esta gravação não gera evento nenhum: nada de
+         papel mudou, e o documento não nasceu nem morreu aqui. */
+      FB.db.collection("usuarios").doc(uid).set(assinado({}), { merge: true })
+        .catch(function () { /* sem autoria é pior que sem remoção: segue */ })
+        .then(function () {
+          return FB.db.collection("usuarios").doc(uid).delete();
+        }).then(function () {
         carregar();
         return FB.db.collection("exclusoesDeConta").doc().set({
           pedidoPor: (FB.equipe && FB.equipe.uid) || "",
