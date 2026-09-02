@@ -41,7 +41,8 @@
      CADA PÁGINA TEM A SUA PRÓPRIA SESSÃO
 
      O portal do cliente e o painel da equipe moram na MESMA origem
-     (totalicontabilidade.github.io). O Firebase guarda a sessão numa
+     (cliente.totalicontabilidade.com.br desde 02/09/2026; antes era
+     totalicontabilidade.github.io). O Firebase guarda a sessão numa
      chave que inclui o nome do app — e as duas páginas chamavam
      `initializeApp` sem nome, então as duas usavam `[DEFAULT]` e
      dividiam a MESMA gaveta de sessão.
