@@ -207,6 +207,24 @@
     </span>
   </button>
 
+  <!-- O CAMINHO DE VOLTA, e ele fica FORA de `pnAcoes`.
+
+       `pnAcoes` só aparece depois do login, e é na tela de entrada
+       que este link faz falta: quem digitou o endereço errado
+       descobre ali, antes de tentar a senha, que parou na porta da
+       equipe. Dentro do bloco escondido, ele só serviria a quem já
+       não precisava dele.
+
+       A volta também serve à equipe: dá para conferir como o
+       cliente está vendo o portal sem ir procurar o endereço. -->
+  <div class="header-actions">
+    <a class="hbtn hbtn--discreto" href="index.html"
+       aria-label="Acesso do cliente — abrir o portal do cliente" title="Acesso do cliente">
+      <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>
+      <span class="hbtn__label">Acesso do cliente</span>
+    </a>
+  </div>
+
   <div class="header-actions" id="pnAcoes" hidden>
     <span class="usuario" id="pnQuem">
       <span class="usuario__avatar" id="pnIniciais" aria-hidden="true">—</span>
