@@ -2045,7 +2045,22 @@ body.porta-aberta .foot__nome-br{display:inline}
   background:rgba(194,162,80,.18);border-color:var(--stroke-gold);color:var(--gold-2);
 }
 .cofre__icone .ic{width:17px;height:17px}
-.cofre__txt{flex:1;min-width:0}
+/* O TEXTO TEM PISO, E É ELE QUE FAZ A LINHA QUEBRAR.
+
+   O cartão já pedia `flex-wrap:wrap`, mas nunca quebrava. Com
+   `min-width:0` este bloco podia encolher até sumir, então o flex
+   sempre achava que cabia tudo numa linha só e espremia o texto
+   em vez de mandar os botões para baixo.
+
+   No celular dava nisto, medido no publicado em 04/09/2026: o
+   cartão tinha 301px, o ícone levava 34, os botões 202, e sobravam
+   CINCO pixels para "Acesso guardado com segurança". O texto
+   quebrava uma letra por linha e o cartão virava uma coluna de
+   3543px de altura.
+
+   Com um piso, quando os botões não couberem ao lado eles descem —
+   que é o que `flex-wrap` já queria fazer. */
+.cofre__txt{flex:1 1 170px;min-width:170px}
 .cofre__t{display:block;font-size:14px;font-weight:650;color:var(--txt)}
 .cofre__d{display:block;font-size:12.5px;color:var(--txt-3);margin-top:3px;line-height:1.5}
 .cofre__acoes{display:flex;gap:8px;flex-wrap:wrap}
