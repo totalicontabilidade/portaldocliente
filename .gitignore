@@ -11,6 +11,14 @@ $RECYCLE.BIN/
 *.swp
 *~
 
+# Permissões locais do Claude Code: são da MÁQUINA, não do projeto.
+# Guardam caminhos absolutos desta instalação e a lista de comandos
+# já autorizados aqui — nada disso serve a quem clonar o repositório,
+# e o repositório é público. O `launch.json` continua versionado de
+# propósito: ele diz como subir o servidor de teste, e isso é do
+# projeto.
+.claude/settings.local.json
+
 # Nunca versionar credenciais do Firebase nem chaves de serviço.
 # A configuração pública do Firebase (apiKey do cliente) pode ir no
 # repositório; a chave de conta de serviço, jamais.
