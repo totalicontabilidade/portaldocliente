@@ -21,14 +21,15 @@
      • o que o cliente declarou sobre empréstimo, aplicações e
        controle de contas pagas?
 
-   POR QUE A TRILHA DO SERVIDOR ENTRA AQUI
-   ---------------------------------------
+   POR QUE O CARIMBO DO SERVIDOR ENTRA AQUI
+   ----------------------------------------
    Porque é a única parte deste documento que nenhuma das duas
    partes podia ter escrito. As datas de recebimento e aprovação
-   vêm de /auditoria, gravada por Cloud Function com hora do
-   servidor — não do que o navegador do cliente ou o do contador
-   disseram. Num documento de arquivo, isso é a diferença entre
-   um relato e um registro.
+   são gravadas pela Cloud Function que observa cada documento
+   mudar, com a hora do servidor — não com o que o navegador do
+   cliente ou o do contador disseram. E a regra do Firestore
+   proíbe cliente e equipe de tocar nesses campos. Num documento
+   de arquivo, isso é a diferença entre um relato e um registro.
 
    O QUE NÃO ENTRA
    ---------------
@@ -108,50 +109,46 @@
   function plural(n, um, varios) { return n === 1 ? um : varios; }
 
   /* ------------------------------------------------------------
-     A trilha do servidor, por documento
+     AS DATAS QUE VALEM VÊM CARIMBADAS NO PRÓPRIO DOCUMENTO
 
-     De /auditoria saem duas datas que valem: quando cada
+     Duas datas dão ao dossiê o peso que ele tem: quando cada
      documento chegou e quando foi aprovado, com quem aprovou.
-     Se a trilha não existir (empresa anterior às Cloud Functions),
-     o dossiê sai sem essas colunas em vez de inventar datas.
-     ------------------------------------------------------------ */
-  function lerTrilha(empresaId) {
-    var FB = global.FB;
-    if (!FB || !FB.ligado) return Promise.resolve(null);
-    return FB.db.collection("auditoria").where("empresaId", "==", empresaId).get()
-      .then(function (snap) {
-        var porChave = {};
-        var acessos = [];
-        snap.forEach(function (d) {
-          var r = d.data() || {};
-          if (r.tipo === "acesso:criado") { acessos.push(r); return; }
-          if (!r.chave) return;
-          if (!porChave[r.chave]) porChave[r.chave] = {};
-          var alvo = porChave[r.chave];
-          var quando = emMs(r.em);
-          if (r.tipo === "item:enviado") {
-            if (!alvo.recebido || quando < alvo.recebido) alvo.recebido = quando;
-          } else if (r.tipo === "item:aprovado") {
-            if (!alvo.aprovado || quando > alvo.aprovado) {
-              alvo.aprovado = quando;
-              alvo.por = r.por || "";
-            }
-          }
-        });
-        return { porChave: porChave, acessos: acessos, total: snap.size };
-      }, function () { return null; });
+     Elas são escritas pela Cloud Function que observa a gravação,
+     nos campos `recebidoEm`, `aprovadoEm` e `aprovadoPor` — e a
+     regra do Firestore proíbe cliente e equipe de tocar neles.
+
+     ANTES ISSO VINHA DE /auditoria, e o preço era alto: para o
+     dossiê funcionar, a leitura da trilha inteira precisava ficar
+     aberta para toda a equipe — e a trilha guarda a carteira
+     inteira de clientes, não só a empresa do dossiê. Com o
+     carimbo no item, a trilha pôde virar exclusiva do
+     administrador sem o dossiê perder nada.
+
+     De quebra, saiu uma ida ao servidor: os itens e os acessos já
+     vêm carregados com o cliente.
+
+     Documento carimbado antes desta mudança não existe, e nesse
+     caso o dossiê usa a data do envio e DIZ que é ela — inventar
+     procedência seria pior que admitir que não há. */
+  function carimboDe(reg) {
+    return {
+      recebido: emMs(reg.recebidoEm),
+      aprovado: emMs(reg.aprovadoEm),
+      por: reg.aprovadoPor || ""
+    };
   }
 
   /* ------------------------------------------------------------
      O que vai no documento
      ------------------------------------------------------------ */
-  function reunir(c, trilha) {
+  function reunir(c) {
     var e = c.empresa || {};
     var dados = c.dados || { itens: {}, socios: [], gruposNA: {} };
     var S = global.Situacao;
     var DATA = global.DATA;
 
     var recebidos = [], naoAplicaveis = [], pendentes = [];
+    var carimbados = 0;
 
     DATA.GRUPOS.forEach(function (g) {
       var alvos = g.escopo === "socio"
@@ -165,7 +162,8 @@
           var sit = S.de(dados, g, item, socioId);
           var chave = S.chaveItem(g.id, item.id, socioId);
           var reg = dados.itens[chave] || {};
-          var t = (trilha && trilha.porChave[chave]) || {};
+          var t = carimboDe(reg);
+          if (t.recebido || t.aprovado) carimbados++;
 
           var linha = {
             nome: item.nome + (socio && socio.nome ? " — " + socio.nome : ""),
@@ -198,8 +196,13 @@
       naoAplicaveis: naoAplicaveis,
       pendentes: pendentes,
       financeiro: c.financeiro || null,
-      acessos: (trilha && trilha.acessos) || [],
-      temTrilha: !!(trilha && trilha.total)
+      /* Os acessos já vêm com o cliente. `porEquipe` separa o
+         acesso que a equipe deu no painel daquele que o próprio
+         cliente abriu pelo convite. */
+      acessos: (c.acessos || []).map(function (a) {
+        return { em: emMs(a.em), origem: a.porEquipe ? "equipe" : "convite" };
+      }).sort(function (a, b) { return a.em - b.em; }),
+      temCarimbo: carimbados > 0
     };
   }
 
@@ -208,9 +211,7 @@
      ------------------------------------------------------------ */
   function gerar(c) {
     return garantirJsPDF().then(function () {
-      return lerTrilha(c.id);
-    }).then(function (trilha) {
-      var d = reunir(c, trilha);
+      var d = reunir(c);
       var ORG = global.DATA.ORG;
       var em = Date.now();
 
@@ -366,9 +367,9 @@
         } else {
           paragrafo(d.recebidos.length + " " +
             plural(d.recebidos.length, "documento recebido", "documentos recebidos") +
-            (d.temTrilha
-              ? ". As datas vêm do registro do servidor."
-              : ". Sem registro de servidor para esta empresa; as datas são as do envio."),
+            (d.temCarimbo
+              ? ". As datas são carimbadas pelo servidor."
+              : ". Sem carimbo do servidor nesta empresa; as datas são as do envio."),
             9);
           d.recebidos.forEach(function (l) { linhaDocumento(l); });
         }
@@ -445,9 +446,7 @@
         /* ---- acesso ao portal ---- */
         titulo("Acesso ao portal");
         if (!d.acessos.length) {
-          paragrafo(d.temTrilha
-            ? "Nenhum acesso registrado pelo servidor."
-            : "Sem registro de servidor para esta empresa.");
+          paragrafo("Ninguém acessou o portal desta empresa até a emissão deste dossiê.");
         } else {
           d.acessos.forEach(function (a) {
             dado(a.origem === "equipe" ? "Acesso criado pela equipe" : "Acesso criado por convite",
@@ -460,9 +459,9 @@
         paragrafo("Este dossiê registra a documentação recebida pela " + ORG.nome +
           " no início do contrato com " + d.nome + ", conforme consta no Portal do Cliente " +
           "na data de emissão." +
-          (d.temTrilha
-            ? " As datas de recebimento e aprovação vêm da trilha gravada pelo servidor, " +
-              "que não pode ser alterada nem pelo cliente nem pela equipe."
+          (d.temCarimbo
+            ? " As datas de recebimento e aprovação são carimbadas pelo servidor no momento " +
+              "do fato e não podem ser alteradas nem pelo cliente nem pela equipe."
             : "") +
           " Senhas e credenciais não são reproduzidas aqui.", 9.5);
 

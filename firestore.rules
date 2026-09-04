@@ -81,6 +81,34 @@ service cloud.firestore {
 
     // ---------- Utilidades ----------
 
+    // ---------- O carimbo do servidor ----------
+    //
+    // Três campos do documento do checklist não pertencem a
+    // ninguém que use o sistema: `recebidoEm`, `aprovadoEm` e
+    // `aprovadoPor`. Quem os escreve é a Cloud Function que
+    // observa a gravação — funções rodam com poder de
+    // administrador e passam por cima destas regras.
+    //
+    // Por que fechar TAMBÉM para a equipe: eles existem para o
+    // dossiê poder afirmar quando um documento chegou e quando
+    // foi aprovado. Data que a equipe pode escrever não prova
+    // nada contra a equipe, e é justamente essa a pergunta que
+    // se faz num dossiê. Fechar só para o cliente seria teatro.
+    //
+    // Antes essas datas vinham de /auditoria, e por isso a
+    // leitura da trilha inteira precisava ficar aberta para a
+    // equipe. Com o carimbo no próprio item, a trilha pode ser
+    // só do administrador.
+    function semCarimbo() {
+      return !request.resource.data.keys()
+                .hasAny(['recebidoEm', 'aprovadoEm', 'aprovadoPor']);
+    }
+
+    function carimboIntacto() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['recebidoEm', 'aprovadoEm', 'aprovadoPor']);
+    }
+
     // A assinatura de quem gravou, quando ela vier.
     //
     // Serve para a trilha de /auditoria saber QUEM fez: o gatilho
@@ -315,7 +343,7 @@ service cloud.firestore {
       match /itens/{chave} {
         allow read: if equipeOuDono(empresaId);
 
-        allow create: if ehEquipe()
+        allow create: if (ehEquipe() && semCarimbo())
                       || (ehDonoDaEmpresa(empresaId) && soEstesCamposAoCriar([
                            'arquivos', 'valor', 'na', 'forma',
                            /* `obsEm` é quando o cliente respondeu a
@@ -356,8 +384,9 @@ service cloud.firestore {
         // escrever `na` à vontade, desde que não fique `true`. Se
         // já era `true` de antes da equipe decidir, também segue
         // valendo: `naEquipe` ganha do `na` de qualquer jeito.
-        allow update: if ehEquipe()
+        allow update: if (ehEquipe() && carimboIntacto())
                       || (ehDonoDaEmpresa(empresaId)
+                          && carimboIntacto()
                           && soEstesCampos([
                                'arquivos', 'valor', 'na', 'forma',
                                'obs', 'obsEm', 'atualizadoEm', 'lembrete',
@@ -686,8 +715,21 @@ service cloud.firestore {
     // valor ao registro: quem é parte interessada não escreve.
     //
     // Ler é da equipe. É uma trilha de trabalho, não um mural.
+    // A TRILHA É DO ADMINISTRADOR, e passou a ser em 04/09/2026.
+    //
+    // Ela era de leitura da equipe inteira, e não por escolha: o
+    // dossiê buscava aqui as datas de recebimento e aprovação de
+    // cada documento, então fechar a trilha quebrava o dossiê. O
+    // efeito colateral era grande — a trilha guarda a carteira
+    // INTEIRA de clientes, e por ela se vê qual senha de qual
+    // cliente foi aberta e por quem.
+    //
+    // Com as datas carimbadas no próprio documento (ver
+    // `semCarimbo` acima), o dossiê deixou de precisar da trilha,
+    // e a tela de Segurança passou a ser fronteira de verdade, e
+    // não só arrumação de menu.
     match /auditoria/{registroId} {
-      allow read: if ehEquipe();
+      allow read: if ehAdmin();
       allow write: if false;
     }
 

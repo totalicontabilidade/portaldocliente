@@ -166,7 +166,11 @@
       var acessos = [];
       r[5].forEach(function (d) {
         var a = d.data() || {};
-        acessos.push({ uid: d.id, em: a.em, codigo: a.codigo || "" });
+        /* `porEquipe` diz se o acesso nasceu de um convite aberto
+           pelo próprio cliente ou foi dado pela equipe no painel.
+           O dossiê imprime essa diferença. */
+        acessos.push({ uid: d.id, em: a.em, codigo: a.codigo || "",
+                       porEquipe: a.porEquipe || "" });
       });
 
       /* O e-mail que interessa aqui é o do LOGIN, não o do

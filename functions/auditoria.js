@@ -176,6 +176,52 @@ exports.auditarItem = onDocumentWritten(
         await anotar(empresaId, "item:naEquipe", { ...base, seAplica: null });
       }
     }
+
+    /* ------------------------------------------------------------
+       O CARIMBO DO SERVIDOR, NO PRÓPRIO DOCUMENTO
+
+       O dossiê precisa de duas datas que valham como prova: quando
+       o documento chegou e quando foi aprovado. Elas existem na
+       trilha, mas buscá-las lá obrigava a leitura de /auditoria a
+       ficar aberta para toda a equipe — e a trilha guarda a
+       carteira inteira de clientes, não só a empresa do dossiê.
+
+       Então a data vem até o documento. Quem escreve é esta
+       função, que roda com poder de administrador; a regra do
+       Firestore proíbe cliente E equipe de tocar nestes três
+       campos. Não é declaração de ninguém: é carimbo.
+
+       `recebidoEm` marca a PRIMEIRA chegada e não se mexe mais —
+       é o mesmo critério que a trilha usava. Já a aprovação
+       acompanha a revisão: se a equipe volta atrás e pede
+       correção, o carimbo sai junto, senão o dossiê mostraria
+       como aprovado um documento que voltou para a fila.
+
+       SOBRE O LAÇO: gravar aqui dispara esta mesma função de
+       novo. Na segunda passada `recebidoEm` já existe e o status
+       da revisão não mudou, então nenhuma das condições abaixo se
+       cumpre, nada é gravado e a coisa para. Por isso as duas
+       guardas são pelo ESTADO e não por um sinalizador.
+       ------------------------------------------------------------ */
+    const carimbo = {};
+
+    if (nDepois > nAntes && !depois.recebidoEm) {
+      carimbo.recebidoEm = FieldValue.serverTimestamp();
+    }
+
+    if (rDepois.status && rDepois.status !== rAntes.status) {
+      if (rDepois.status === "aprovado") {
+        carimbo.aprovadoEm = FieldValue.serverTimestamp();
+        carimbo.aprovadoPor = texto(rDepois.por, 120);
+      } else if (depois.aprovadoEm) {
+        carimbo.aprovadoEm = FieldValue.delete();
+        carimbo.aprovadoPor = FieldValue.delete();
+      }
+    }
+
+    if (Object.keys(carimbo).length) {
+      await event.data.after.ref.set(carimbo, { merge: true });
+    }
   }
 );
 
