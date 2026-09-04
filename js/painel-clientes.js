@@ -2063,7 +2063,36 @@
      exatamente como estava — e quem clicou conclui que o botão
      está quebrado, sem nenhuma pista do que houve. Um erro
      visível vale mais que uma tela imóvel. */
+  /* A CONVERSA DA FICHA ABRIA NA MENSAGEM MAIS ANTIGA.
+
+     A tela Mensagens já rolava para o fim, mas a aba Conversa da
+     ficha do cliente não: trocar de aba só remontava o HTML e
+     mandava a JANELA para o topo. Com uma conversa de verdade —
+     medida hoje, 2138px de altura numa caixa de 420px — a equipe
+     caía na primeira mensagem trocada com aquele cliente e tinha
+     de rolar quase mil e setecentos pixels para ver o que era
+     novo. Toda vez.
+
+     SEGUE O FIM, MAS NÃO ARRANCA NINGUÉM DE ONDE ESTÁ: se a
+     pessoa subiu para reler algo e chega mensagem nova, o
+     redesenho respeita a posição dela. Só volta ao fim quem já
+     estava no fim — ou quem está abrindo a aba agora, que é
+     quando a caixa ainda nem existia. */
+  function seguindoOFimDaConversa() {
+    var f = $("#clFicha");
+    var lista = f && f.querySelector(".conversa");
+    if (!lista) return true;
+    return lista.scrollTop + lista.clientHeight >= lista.scrollHeight - 40;
+  }
+
+  function rolarConversaDaFichaParaOFim() {
+    var f = $("#clFicha");
+    var lista = f && f.querySelector(".conversa");
+    if (lista) lista.scrollTop = lista.scrollHeight;
+  }
+
   function desenharFicha() {
+    var seguirOFim = vistaFicha === "conversa" && seguindoOFimDaConversa();
     try { montarFicha(); }
     catch (e) {
       var caixa = $("#clFicha");
@@ -2076,6 +2105,7 @@
       }
       if (global.console && console.error) console.error("desenharFicha:", e);
     }
+    if (seguirOFim) rolarConversaDaFichaParaOFim();
   }
 
   function montarFicha() {
