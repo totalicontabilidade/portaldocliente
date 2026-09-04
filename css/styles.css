@@ -425,18 +425,10 @@ html.motion .reveal.is-in{
   color:#0d1926;box-shadow:0 6px 24px rgba(194,162,80,.4);
 }
 
-/* A porta do outro lado: portal -> painel, painel -> portal.
-
-   Sem moldura e sem cor enquanto ninguem procura por ela. Quem
-   precisa, acha; quem nao precisa, nao esbarra. No hover ela vira
-   um `hbtn` normal, porque ai a pessoa ja decidiu ir. */
-.hbtn--discreto{
-  background:transparent;border-color:transparent;color:var(--txt-4);
-  font-weight:500;text-decoration:none;
-}
-.hbtn--discreto:hover{
-  background:var(--glass);border-color:var(--stroke);color:var(--txt-2);
-}
+/* Aqui morava `.hbtn--discreto`, o estilo das portas cruzadas
+   entre portal e painel. As duas portas saíram do cabeçalho em
+   04/09/2026 e a regra ficou sem dono — some junto, senão vira
+   estilo órfão que o próximo a mexer aqui tenta entender. */
 .hbtn__label{display:none}
 @media (min-width:520px){ .hbtn__label{display:inline} }
 

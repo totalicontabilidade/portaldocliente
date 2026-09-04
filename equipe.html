@@ -207,24 +207,19 @@
     </span>
   </button>
 
-  <!-- O CAMINHO DE VOLTA, e ele fica FORA de `pnAcoes`.
+  <!-- O ATALHO PARA O PORTAL NÃO MORA MAIS NO CABEÇALHO.
 
-       `pnAcoes` só aparece depois do login, e é na tela de entrada
-       que este link faz falta: quem digitou o endereço errado
-       descobre ali, antes de tentar a senha, que parou na porta da
-       equipe. Dentro do bloco escondido, ele só serviria a quem já
-       não precisava dele.
+       Havia aqui um "Acesso do cliente". Saiu em 04/09/2026: o
+       caminho já existe dentro do sistema, no cartão "Portal do
+       cliente" da barra lateral, e dois lugares para a mesma coisa
+       só ocupavam a barra — que no celular já disputa espaço com o
+       nome de quem está logado.
 
-       A volta também serve à equipe: dá para conferir como o
-       cliente está vendo o portal sem ir procurar o endereço. -->
-  <div class="header-actions">
-    <a class="hbtn hbtn--discreto" href="index.html"
-       aria-label="Acesso do cliente — abrir o portal do cliente" title="Acesso do cliente">
-      <svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg>
-      <span class="hbtn__label">Acesso do cliente</span>
-    </a>
-  </div>
-
+       O QUE SE PERDEU, para quem for reavaliar: este link também
+       aparecia ANTES do login, e servia a quem digitasse o
+       endereço errado e parasse na porta da equipe. Agora essa
+       pessoa vê só a tela de entrada do painel. Foi decisão do
+       Raoni, sabendo disso. -->
   <div class="header-actions" id="pnAcoes" hidden>
     <span class="usuario" id="pnQuem">
       <span class="usuario__avatar" id="pnIniciais" aria-hidden="true">—</span>
