@@ -376,6 +376,28 @@ html.motion .reveal.is-in{
   display:block;
   color:var(--gold);font-size:10px;font-weight:700;
   letter-spacing:.16em;text-transform:uppercase;
+  /* Em UMA linha, sempre. Sem isto, num cabeçalho apertado ela
+     quebrava no meio — "USO" numa linha, "INTERNO" na outra — e
+     empurrava a altura da barra, deixando a tela torta logo na
+     abertura. Faltando espaço, reticências: é o mesmo tratamento
+     do título logo acima. */
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* O RÓTULO DO PAINEL SAI NO CELULAR.
+
+   Aqui o cabeçalho tem quatro ações disputando 375px, e sobram
+   ~64px para o texto: o bastante para mostrar "Painel d…" e mais
+   nada. Rótulo cortado pela metade não informa, e ainda deixa a
+   barra desalinhada. A logo já diz de quem é a tela, o título da
+   seção diz onde a pessoa está, e o aviso de uso interno continua
+   no rodapé de todas as telas.
+
+   Vale SÓ no painel. No portal do cliente este mesmo espaço
+   carrega o nome da empresa — ali é informação, não rótulo, e a
+   barra de lá tem menos botões para caber. */
+@media (max-width:430px){
+  .pagina-painel .brand__text{display:none}
 }
 .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
 
