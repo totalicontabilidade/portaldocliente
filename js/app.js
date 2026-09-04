@@ -4205,19 +4205,45 @@
   var MARCA_SIMBOLO = { src: "assets/totali-simbolo.png", w: 220, h: 230 };
   var MARCA_CHEIA   = { src: "assets/totali-portal-branca.png", w: 660, h: 235 };
 
+  /* A LOGO POR EXTENSO SÓ ONDE ELA CABE.
+
+     Com o cliente dentro, o cabeçalho mostra a logo completa e o
+     nome da empresa ao lado. No celular os dois não cabem: a logo
+     por extenso leva cerca de 130px dos 375, as ações levam 182, e
+     o nome ficava com 64 — "TOTALI SOLUCOES CONTABEIS" aparecia
+     como "TOTALI …". Medido no publicado, em 04/09/2026.
+
+     Entre a marca grande e o nome do cliente legível, vale o nome:
+     é ele que faz o portal parecer do cliente, e é o que o
+     comentário logo acima já dizia ser a prioridade. A logo não sai
+     do cabeçalho — vira o símbolo, que é a mesma marca ocupando um
+     quinto do espaço. */
+  var LARGURA_PARA_LOGO_CHEIA = 430;
+  var marcaPedida = false;
+
   function trocarMarca(cheia) {
+    marcaPedida = !!cheia;
     var img = $("#brandLogo");
     if (!img) return;
-    var m = cheia ? MARCA_CHEIA : MARCA_SIMBOLO;
+    var usarCheia = marcaPedida &&
+                    (global.innerWidth || 0) >= LARGURA_PARA_LOGO_CHEIA;
+    var m = usarCheia ? MARCA_CHEIA : MARCA_SIMBOLO;
     /* Só mexe se mudou: reatribuir o `src` igual faz o navegador
        repintar e a marca pisca a cada render. */
-    if (img.getAttribute("data-marca") === (cheia ? "cheia" : "simbolo")) return;
-    img.setAttribute("data-marca", cheia ? "cheia" : "simbolo");
+    if (img.getAttribute("data-marca") === (usarCheia ? "cheia" : "simbolo")) return;
+    img.setAttribute("data-marca", usarCheia ? "cheia" : "simbolo");
     img.width = m.w;
     img.height = m.h;
     img.src = m.src;
-    img.classList.toggle("brand__logo--cheia", !!cheia);
+    img.classList.toggle("brand__logo--cheia", usarCheia);
   }
+
+  /* Girar o telefone ou abrir a janela muda o que cabe. Sem isto, a
+     marca ficaria com a decisão tomada no tamanho de quando a tela
+     abriu. */
+  global.addEventListener("resize", U.debounce(function () {
+    trocarMarca(marcaPedida);
+  }, 150));
 
   function atualizarCabecalho() {
     var e = Store.estado.empresa;
