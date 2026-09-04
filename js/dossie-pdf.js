@@ -130,6 +130,15 @@
      Documento carimbado antes desta mudança não existe, e nesse
      caso o dossiê usa a data do envio e DIZ que é ela — inventar
      procedência seria pior que admitir que não há. */
+  function chegadaMaisAntiga(reg) {
+    var cedo = 0;
+    (reg.arquivos || []).forEach(function (a) {
+      var q = emMs(a && a.em);
+      if (q && (!cedo || q < cedo)) cedo = q;
+    });
+    return cedo || emMs(reg.atualizadoEm);
+  }
+
   function carimboDe(reg) {
     return {
       recebido: emMs(reg.recebidoEm),
@@ -174,7 +183,15 @@
             /* Data do servidor quando existe; a do navegador só
                como reserva, e sinalizada como tal. */
             recebido: t.recebido || 0,
-            recebidoLocal: emMs(reg.atualizadoEm),
+            /* A RESERVA, para documento sem carimbo do servidor.
+               Vale a chegada do arquivo mais antigo, não
+               `atualizadoEm`: aquele campo é a ÚLTIMA mexida no
+               registro, então qualquer alteração posterior — a
+               equipe marcando o setor, o cliente escrevendo uma
+               observação — empurrava a data de "recebido" para
+               frente e o dossiê passava a afirmar que o documento
+               chegou depois de ter chegado. */
+            recebidoLocal: chegadaMaisAntiga(reg),
             aprovado: t.aprovado || 0,
             aprovadoPor: t.por || ((reg.revisao || {}).por || ""),
             decidiuEquipe: typeof reg.naEquipe === "boolean"
