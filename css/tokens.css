@@ -1,0 +1,165 @@
+/* ============================================================
+   Totali · Portal do Cliente
+   tokens.css — o design system do Agência 100K, em CSS puro
+
+   Os valores são os mesmos de web/src/app/globals.css do Agência
+   100K (docs/01-design-system-e-telas.md), validados WCAG AA.
+   Modo claro é o padrão; o escuro entra pela classe .dark no
+   <html>, que js/tema.js aplica conforme a escolha da pessoa
+   (claro, escuro ou sistema). A sidebar é navy nos dois modos.
+
+   Regras que vieram da pesquisa do Agência 100K e valem aqui:
+     • nunca branco puro nem preto puro em área grande;
+     • um acento interativo só (primary); o dourado é destaque
+       de marca (KPI, selo, vitrine), nunca botão comum;
+     • semântica sempre com ícone + texto, nunca só cor;
+     • dourado nunca carrega texto branco (2,5:1 reprova).
+   ============================================================ */
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("../assets/fonts/manrope-variable.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  --background: #f5f7fa;
+  --foreground: #1e293b;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --primary: #182c43;
+  --primary-foreground: #ffffff;
+  --primary-soft: rgba(24, 44, 67, 0.08);
+  --secondary: #f1f4f8;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f4f8;
+  --muted-foreground: #5b6b7f;
+  --accent: #f1f4f8;
+  --accent-foreground: #1e293b;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #182c43;
+
+  /* marca */
+  --gold: #c89d57;
+  --gold-foreground: #182c43;
+  --gold-text: #8a6a2f;
+  --gold-soft: #f7eedd;
+  --text-2: #475569;
+
+  /* semânticos */
+  --success: #0f766e;
+  --success-soft: #ccfbf1;
+  --warning: #b45309;
+  --warning-soft: #fef3c7;
+  --amber: #d97706;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --info: #1d4ed8;
+  --info-soft: #dbeafe;
+
+  /* sidebar: sempre navy */
+  --sidebar: #182c43;
+  --sidebar-foreground: #c9d4e0;
+  --sidebar-primary: #c89d57;
+  --sidebar-primary-foreground: #182c43;
+  --sidebar-accent: #213a57;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #c89d57;
+  --sidebar-muted: #8195ac;
+
+  --chart-1: #182c43;
+  --chart-2: #0f766e;
+  --chart-3: #c89d57;
+  --chart-4: #1d4ed8;
+  --chart-5: #7c3aed;
+
+  /* chat: quem envia à direita (primary), quem recebe à esquerda (card) */
+  --bolha-eu: #182c43;
+  --bolha-eu-fg: #ffffff;
+  --bolha-outro: #ffffff;
+  --bolha-outro-fg: #1e293b;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.14);
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  --header-h: 56px;
+  --tabbar-h: 64px;
+  --sidebar-w: 240px;
+  --sidebar-mini: 64px;
+  --maxw: 1200px;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #0f172a;
+  --foreground: #e6eaf0;
+  --card: #1b2536;
+  --card-foreground: #e6eaf0;
+  --popover: #243044;
+  --popover-foreground: #e6eaf0;
+  --primary: #7fa3d1;
+  --primary-foreground: #0f172a;
+  --primary-soft: rgba(127, 163, 209, 0.14);
+  --secondary: #243044;
+  --secondary-foreground: #e6eaf0;
+  --muted: #243044;
+  --muted-foreground: #94a0b0;
+  --accent: #243044;
+  --accent-foreground: #e6eaf0;
+  --destructive: #f87171;
+  --destructive-foreground: #0f172a;
+  --border: #2f3d52;
+  --input: #3b4a61;
+  --ring: #7fa3d1;
+
+  --gold: #c89d57;
+  --gold-foreground: #0f172a;
+  --gold-text: #c89d57;
+  --gold-soft: rgba(200, 157, 87, 0.14);
+  --text-2: #b6bfcc;
+
+  --success: #5eead4;
+  --success-soft: rgba(94, 234, 212, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --amber: #fbbf24;
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --info: #93c5fd;
+  --info-soft: rgba(147, 197, 253, 0.14);
+
+  --sidebar: #0b1220;
+  --sidebar-accent: #152033;
+
+  --bolha-eu: #7fa3d1;
+  --bolha-eu-fg: #0f172a;
+  --bolha-outro: #1b2536;
+  --bolha-outro-fg: #e6eaf0;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
+}

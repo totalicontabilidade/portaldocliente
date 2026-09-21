@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Padrão de calculadora · modelos</title>
+<style>
+  :root { --navy: #182c43; --navy-d: #0b1220; --gold: #c89d57; --bg: #f5f7fa; --txt: #1e293b; --card: #fff; --border: #e2e8f0; --muted: #5b6b7f; }
+  html.dark { --bg: #0f172a; --txt: #e6eaf0; --card: #1b2536; --border: #2f3d52; --muted: #94a0b0; --navy: #0b1220; }
+  body { margin: 0; font-family: "Manrope", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--txt); padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } p.sub { color: var(--muted); margin: 0 0 18px; font-size: 14px; max-width: 70ch; }
+  .barra { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  button { font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--txt); cursor: pointer; font-weight: 700; }
+  .modelo { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 28px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+  @media (min-width: 900px) { .modelo { grid-template-columns: 240px 1fr 1fr; } }
+  .modelo h2 { grid-column: 1 / -1; margin: 0; font-size: 16px; display: flex; gap: 10px; align-items: center; }
+  .modelo h2 small { font-weight: 500; color: var(--muted); font-size: 13px; }
+  .tag { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--gold); color: #182c43; font-weight: 800; }
+  .side, .login, .cardnavy { position: relative; overflow: hidden; background: var(--navy); color: #c9d4e0; border-radius: 12px; }
+  .side { height: 360px; padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .login { height: 360px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; }
+  .cardnavy { height: 160px; padding: 16px; grid-column: 2 / -1; }
+  .pat { position: absolute; pointer-events: none; background-size: 240px 240px; inset: 0; }
+  .pat.persp { width: 300%; height: 220%; left: -100%; top: -50%; transform: perspective(1400px) rotateX(38deg) rotateZ(-22deg); transform-origin: 50% 45%; }
+  .pat.persp2 { width: 220%; height: 200%; left: -60%; top: -45%; transform: perspective(1400px) rotateX(38deg) rotateZ(-22deg); transform-origin: 50% 45%; }
+  .pat.flat { background-size: 200px 200px; }
+  .pat.diag { transform: rotate(-14deg) scale(1.3); }
+  .veu { position: absolute; inset: 0; background: linear-gradient(180deg, var(--navy) 0%, color-mix(in srgb, var(--navy) 88%, transparent) 14%, color-mix(in srgb, var(--navy) 50%, transparent) 40%, color-mix(in srgb, var(--navy) 28%, transparent) 75%, color-mix(in srgb, var(--navy) 22%, transparent) 100%); }
+  .login .veu { background: linear-gradient(135deg, var(--navy) 0%, color-mix(in srgb, var(--navy) 85%, transparent) 45%, color-mix(in srgb, var(--navy) 35%, transparent) 100%); }
+  .cardnavy .veu { background: linear-gradient(90deg, var(--navy) 30%, color-mix(in srgb, var(--navy) 35%, transparent) 100%); }
+  .brilho { position: absolute; right: -120px; bottom: -160px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(200,157,87,.26), transparent 62%); }
+  .in { position: relative; z-index: 1; }
+  .logo { font-weight: 800; color: #fff; font-size: 18px; letter-spacing: -.02em; } .logo b { color: var(--gold); }
+  .grupo { margin-top: 10px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #8195ac; font-weight: 800; }
+  .item { padding: 8px 10px; border-radius: 6px; font-size: 13.5px; font-weight: 700; } .item.on { background: #213a57; color: #fff; }
+  .frase { font-size: 26px; font-weight: 800; color: #fff; line-height: 1.15; max-width: 14ch; } .frase b { color: var(--gold); }
+  .pequeno { font-size: 12px; color: #8195ac; }
+  .anel { display: inline-grid; place-items: center; width: 70px; height: 70px; border-radius: 50%; border: 8px solid rgba(255,255,255,.14); border-top-color: var(--gold); border-right-color: var(--gold); color: #fff; font-weight: 800; }
+  .nota { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>Padrão de fundo: calculadora no lugar do quebra-cabeça</h1>
+<p class="sub">Seis modelos aplicados nos três lugares onde o padrão aparece: menu lateral, painel do login e cartão navy. Todos em dourado sobre navy, com a mesma opacidade baixa do Agência 100K, para o texto continuar mandando. Alterne o modo escuro para ver o navy mais fundo.</p>
+<div class="barra"><button onclick="document.documentElement.classList.toggle('dark')">Alternar claro / escuro</button><span class="pequeno">Responda com a letra do modelo escolhido (ou combine: ex. "B no menu, C no login").</span></div>
+<div id="modelos"></div>
+<script>
+(function () {
+  var G = "#C89D57";
+  function svg(inner, w, h) { return "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='" + (w || 240) + "' height='" + (h || 240) + "' viewBox='0 0 " + (w || 240) + " " + (h || 240) + "'>" + inner + "</svg>"); }
+  function tecla(x, y, s, fill, op, simbolo) {
+    var r = "<rect x='" + x + "' y='" + y + "' width='" + s + "' height='" + s + "' rx='" + (s * 0.22) + "' fill='" + (fill ? G : "none") + "' fill-opacity='" + (fill ? op : 0) + "' stroke='" + G + "' stroke-opacity='" + (op * 4) + "' stroke-width='1.6'/>";
+    var c = x + s / 2, cy = y + s / 2, k = s * 0.2;
+    var g = "<g stroke='" + G + "' stroke-opacity='" + (op * 5) + "' stroke-width='2.2' stroke-linecap='round' fill='none'>";
+    if (simbolo === "+") g += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "M" + c + " " + (cy - k) + "V" + (cy + k) + "'/>";
+    if (simbolo === "-") g += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "'/>";
+    if (simbolo === "x") g += "<path d='M" + (c - k * .8) + " " + (cy - k * .8) + "L" + (c + k * .8) + " " + (cy + k * .8) + "M" + (c + k * .8) + " " + (cy - k * .8) + "L" + (c - k * .8) + " " + (cy + k * .8) + "'/>";
+    if (simbolo === "=") g += "<path d='M" + (c - k) + " " + (cy - k * .45) + "H" + (c + k) + "M" + (c - k) + " " + (cy + k * .45) + "H" + (c + k) + "'/>";
+    if (simbolo === "/") g += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "'/><circle cx='" + c + "' cy='" + (cy - k * .7) + "' r='1.6' fill='" + G + "' stroke='none'/><circle cx='" + c + "' cy='" + (cy + k * .7) + "' r='1.6' fill='" + G + "' stroke='none'/>";
+    if (simbolo === "%") g += "<path d='M" + (c - k) + " " + (cy + k) + "L" + (c + k) + " " + (cy - k) + "'/><circle cx='" + (c - k * .6) + "' cy='" + (cy - k * .6) + "' r='2.2'/><circle cx='" + (c + k * .6) + "' cy='" + (cy + k * .6) + "' r='2.2'/>";
+    if (simbolo === "o") g += "<circle cx='" + c + "' cy='" + cy + "' r='" + (k * .55) + "'/>";
+    if (typeof simbolo === "number") g += "<text x='" + c + "' y='" + (cy + k * .55) + "' font-family='Manrope,Segoe UI,sans-serif' font-size='" + (s * .42) + "' font-weight='700' text-anchor='middle' fill='" + G + "' fill-opacity='" + (op * 5) + "' stroke='none'>" + simbolo + "</text>";
+    return r + g + "</g>";
+  }
+  var SIMB = ["+", "-", "x", "/", "=", "%", "o"];
+  /* A · Teclado em relevo (xadrez preenchido, como o quebra-cabeça alternado) */
+  function A() { var s = "", n = 4, t = 52, gap = 8; for (var i = 0; i < n; i++) for (var j = 0; j < n; j++) s += tecla(gap / 2 + i * (t + gap), gap / 2 + j * (t + gap), t, (i + j) % 2 === 0, 0.07, SIMB[(i * 3 + j) % SIMB.length]); return svg(s); }
+  /* B · Símbolos soltos (sem teclas), traço dourado, espaçados */
+  function B() { var s = "<g stroke='" + G + "' stroke-opacity='.34' stroke-width='2.4' stroke-linecap='round' fill='none'>"; var ops = [[30, 40, "+"], [130, 30, "="], [200, 90, "x"], [70, 120, "/"], [160, 160, "%"], [30, 200, "-"], [210, 210, "+"], [120, 210, "o"]]; ops.forEach(function (o) { var c = o[0], cy = o[1], k = 12; if (o[2] === "+") s += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "M" + c + " " + (cy - k) + "V" + (cy + k) + "'/>"; if (o[2] === "-") s += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "'/>"; if (o[2] === "x") s += "<path d='M" + (c - 9) + " " + (cy - 9) + "L" + (c + 9) + " " + (cy + 9) + "M" + (c + 9) + " " + (cy - 9) + "L" + (c - 9) + " " + (cy + 9) + "'/>"; if (o[2] === "=") s += "<path d='M" + (c - k) + " " + (cy - 5) + "H" + (c + k) + "M" + (c - k) + " " + (cy + 5) + "H" + (c + k) + "'/>"; if (o[2] === "/") s += "<path d='M" + (c - k) + " " + cy + "H" + (c + k) + "'/><circle cx='" + c + "' cy='" + (cy - 8) + "' r='2' fill='" + G + "'/><circle cx='" + c + "' cy='" + (cy + 8) + "' r='2' fill='" + G + "'/>"; if (o[2] === "%") s += "<path d='M" + (c - k) + " " + (cy + k) + "L" + (c + k) + " " + (cy - k) + "'/><circle cx='" + (c - 7) + "' cy='" + (cy - 7) + "' r='3'/><circle cx='" + (c + 7) + "' cy='" + (cy + 7) + "' r='3'/>"; if (o[2] === "o") s += "<circle cx='" + c + "' cy='" + cy + "' r='7'/>"; }); return svg(s + "</g>"); }
+  /* C · Calculadora em contorno (ícone repetido em diagonal, com halo) */
+  function C() { function calc(x, y, sc) { var w = 54 * sc, h = 74 * sc; var s = "<g transform='translate(" + x + " " + y + ")' stroke='" + G + "' stroke-width='1.6' fill='none'>"; s += "<rect x='0' y='0' width='" + w + "' height='" + h + "' rx='" + (7 * sc) + "' stroke-opacity='.42' fill='" + G + "' fill-opacity='.05'/>"; s += "<rect x='" + (8 * sc) + "' y='" + (8 * sc) + "' width='" + (w - 16 * sc) + "' height='" + (14 * sc) + "' rx='" + (3 * sc) + "' stroke-opacity='.42'/>"; for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) s += "<circle cx='" + (13 * sc + i * 14 * sc) + "' cy='" + (34 * sc + j * 13 * sc) + "' r='" + (2.6 * sc) + "' fill='" + G + "' fill-opacity='.42' stroke='none'/>"; return s + "</g>"; } return svg(calc(18, 14, 1) + calc(140, 40, .85) + calc(60, 130, .9) + calc(180, 160, .8)); }
+  /* D · Fita de calculadora (linhas de números, bem discreto) */
+  function D() { var s = "<g font-family='Manrope,Segoe UI,sans-serif' font-size='13' font-weight='700' fill='" + G + "' fill-opacity='.3' text-anchor='end'>"; var vals = ["1.250,00 +", "348,90 +", "2.100,00 -", "89,75 +", "5.430,15 =", "12,5 %", "980,00 x", "3.311,20 +"]; for (var i = 0; i < 8; i++) s += "<text x='120' y='" + (28 + i * 27) + "'>" + vals[i] + "</text>"; s += "</g><g stroke='" + G + "' stroke-opacity='.22' stroke-width='1' stroke-dasharray='3 4'>"; for (var k = 0; k < 8; k++) s += "<path d='M8 " + (36 + k * 27) + "H128'/>"; s += "</g><rect x='4' y='2' width='130' height='236' rx='6' fill='none' stroke='" + G + "' stroke-opacity='.28'/>"; s += "<g font-family='Manrope,Segoe UI,sans-serif' font-size='13' font-weight='700' fill='" + G + "' fill-opacity='.22' text-anchor='end'>"; for (var m = 0; m < 8; m++) s += "<text x='236' y='" + (18 + m * 27) + "'>" + vals[(m + 3) % 8] + "</text>"; return svg(s + "</g>"); }
+  /* E · Teclado numérico (dígitos e operadores, plano, sem perspectiva) */
+  function E() { var s = "", t = 44, gap = 6, k = [7, 8, 9, "/", 4, 5, 6, "x", 1, 2, 3, "-", 0, "o", "=", "+"]; for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) { var sim = k[j * 4 + i]; var op = typeof sim !== "number" && sim !== "o"; s += tecla(20 + i * (t + gap), 20 + j * (t + gap), t, op, 0.06, sim); } return svg(s); }
+  /* F · Peças de calculadora em relevo: só operadores grandes, com halo (mais "marca") */
+  function F() { var s = "<defs><filter id='h' x='-40%' y='-40%' width='180%' height='180%'><feGaussianBlur stdDeviation='4'/></filter></defs>"; var ops = [[50, 60, "+"], [170, 50, "="], [60, 180, "x"], [180, 175, "/"]]; ops.forEach(function (o) { var x = o[0], y = o[1]; s += "<rect x='" + (x - 34) + "' y='" + (y - 34) + "' width='68' height='68' rx='16' fill='" + G + "' fill-opacity='.10' filter='url(#h)'/>"; s += tecla(x - 30, y - 30, 60, true, 0.07, o[2]); }); return svg(s); }
+  var MODELOS = [
+    ["A", "Teclado em relevo", "Teclas alternadas preenchidas em dourado, na mesma perspectiva diagonal do quebra-cabeça. O mais parecido com o que existe hoje.", A, "persp"],
+    ["B", "Símbolos soltos", "Só os sinais (+ − × ÷ = %) em traço dourado, espaçados, sem teclas. Mais leve e mais elegante; lê como 'contabilidade' sem parecer teclado.", B, "diag"],
+    ["C", "Calculadora em contorno", "O ícone da calculadora repetido em diagonal, com preenchimento quase transparente. Literal e simpático.", C, "flat"],
+    ["D", "Fita de calculadora", "Bobinas de papel com números e sinais, bem discretas. Remete a escritório de contabilidade clássico.", D, "flat"],
+    ["E", "Teclado numérico", "Grade plana de dígitos e operadores, sem perspectiva. Textura uniforme, quase papel de parede.", E, "flat"],
+    ["F", "Sinais em relevo", "Quatro teclas grandes de operadores com halo dourado. Poucas peças, mais 'marca' e menos textura.", F, "persp"]
+  ];
+  var raiz = document.getElementById("modelos");
+  MODELOS.forEach(function (m) {
+    var url = m[3](), cls = m[4];
+    var el = document.createElement("section"); el.className = "modelo";
+    el.innerHTML = "<h2><span class='tag'>" + m[0] + "</span>" + m[1] + " <small>· " + m[2] + "</small></h2>" +
+      "<div class='side'><div class='pat " + cls + "' style=\"background-image:url(&quot;" + url + "&quot;)\"></div><div class='veu'></div><div class='in'><div class='logo'>t<b>o</b>tali</div><div class='pequeno'>Padaria Estrela do Sul</div><div class='grupo'>Minha empresa</div><div class='item on'>Início</div><div class='item'>Chat com a Totali</div><div class='item'>Documentos</div><div class='item'>Cofre de senhas</div><div class='grupo'>Ferramentas</div><div class='item'>Checklist do mês</div><div class='item'>Meus sistemas</div></div></div>" +
+      "<div class='login'><div class='pat " + (cls === "persp" ? "persp2" : cls) + "' style=\"background-image:url(&quot;" + url + "&quot;)\"></div><div class='veu'></div><div class='brilho'></div><div class='in logo'>t<b>o</b>tali</div><div class='in'><div class='frase'>Sua empresa, <b>organizada</b> em um só lugar.</div></div><div class='in pequeno'>powered by <b style='color:#c89d57'>Totali</b></div></div>" +
+      "<div class='cardnavy'><div class='pat " + cls + "' style=\"background-image:url(&quot;" + url + "&quot;);opacity:.9\"></div><div class='veu'></div><div class='in' style='display:flex;gap:16px;align-items:center'><span class='anel'>67%</span><div><div class='pequeno' style='letter-spacing:.1em;text-transform:uppercase;font-weight:800'>Checklist do mês</div><div style='color:#fff;font-weight:800;font-size:15px'>4 de 6 itens enviados</div><div class='pequeno'>faltam 2 até o dia 20</div></div></div></div>";
+    raiz.appendChild(el);
+  });
+})();
+</script>
+</body>
+</html>

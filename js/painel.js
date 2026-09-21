@@ -1,0 +1,605 @@
+/* ============================================================
+   Totali · Portal do Cliente
+   painel.js — o PAINEL DA EQUIPE (equipe.html)
+
+   O intuito do painel é ALIMENTAR o portal do cliente: cadastrar
+   empresas, liberar sistemas, conduzir a jornada de 30 dias,
+   responder o chat, conferir documentos, abrir senhas, publicar
+   campanhas da vitrine e ver quem usa o quê (para cobrar).
+
+   Telas: inicio · clientes · clientes/:id (abas) · jornadas ·
+   mensagens · checklist · vitrine · uso · equipe · conteudo ·
+   seguranca · perfil.
+   ============================================================ */
+(function (global) {
+  "use strict";
+  var U = global.U, UI = global.UI, ic = global.ic, Dados = global.Dados, Shell = global.Shell, JORNADA = global.JORNADA, CATALOGO = global.CATALOGO, Uso = global.Uso, Chat = global.Chat, Cripto = global.Cripto;
+
+  var TITULO = "Painel da equipe · Portal do Cliente";
+  var app = document.getElementById("app");
+  var sessao = null, empresas = [], chatAtual = null;
+  var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  function nomeMes(am) { var p = am.split("-"); return MESES[Number(p[1]) - 1] + " de " + p[0]; }
+  function admin() { return sessao && sessao.papel === "admin"; }
+
+  function iniciar() {
+    Dados.pronto().then(function () {
+      sessao = Dados.sessao();
+      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); }).catch(function () {}).then(rotear);
+    });
+    global.addEventListener("hashchange", rotear);
+    document.addEventListener("dados:mudou", function (e) {
+      var t = e.detail && e.detail.tipo;
+      if (t === "sessao") { var s = Dados.sessao(); if (!!s !== !!sessao || (s && sessao && s.uid !== sessao.uid)) { sessao = s; rotear(); } return; }
+      if (["mensagem", "remoto", "lidas"].indexOf(t) > -1) atualizarBadges();
+      if (t === "remoto") { var r = Shell.rota().nome; if (["inicio", "clientes", "jornadas", "checklist", "uso"].indexOf(r) > -1) rotear(); }
+    });
+  }
+  function carregarEmpresas() { return Dados.listarEmpresas().then(function (l) { empresas = l; return l; }); }
+  function rotear() {
+    var r = Shell.rota();
+    if (r.nome === "sair") { sair(); return; }
+    if (!sessao || sessao.papel === "cliente") { document.body.classList.remove("logado"); return telaEntrar(); }
+    if (!Shell.view()) { montarShell(); }
+    if (chatAtual && !(r.nome === "mensagens" || (r.nome === "clientes" && r.sub === "conversa"))) { chatAtual.destruir(); chatAtual = null; }
+    var telas = { "": telaInicio, inicio: telaInicio, clientes: r.param === "novo" ? telaNovoCliente : r.param ? telaCliente : telaClientes, jornadas: telaJornadas, mensagens: telaMensagens, checklist: telaChecklist, vitrine: telaVitrine, uso: telaUso, equipe: telaEquipe, conteudo: telaConteudo, seguranca: telaSeguranca, perfil: telaPerfil, documentos: telaDocumentosGeral };
+    carregarEmpresas().then(function () { (telas[r.nome] || telaInicio)(r); });
+  }
+  function montarShell() {
+    document.body.classList.add("logado");
+    Shell.montar({
+      raiz: app, org: "Painel da equipe", usuario: sessao, titulo: "Início", busca: true, logo: "assets/totali-contabil-branca.png",
+      nav: [
+        { grupo: "Atendimento", itens: [
+          { href: "#/inicio", rotulo: "Início", icone: "home" },
+          { href: "#/clientes", rotulo: "Clientes", icone: "building" },
+          { href: "#/mensagens", rotulo: "Mensagens", icone: "chat" },
+          { href: "#/documentos", rotulo: "Documentos a conferir", icone: "inbox" },
+          { href: "#/jornadas", rotulo: "Onboarding · 30 dias", icone: "route" }
+        ] },
+        { grupo: "Sistemas", itens: [
+          { href: "#/checklist", rotulo: "Checklist Contábil", icone: "list-check" },
+          { href: "#/vitrine", rotulo: "Vitrine e campanhas", icone: "megaphone" },
+          { href: "#/uso", rotulo: "Uso e cobrança", icone: "bar-chart", sensivel: true }
+        ] },
+        { grupo: "Administração", itens: [
+          { href: "#/conteudo", rotulo: "Conteúdo do portal", icone: "pencil" },
+          { href: "#/equipe", rotulo: "Equipe", icone: "users", oculto: !admin() },
+          { href: "#/seguranca", rotulo: "Segurança", icone: "shield", oculto: !admin() }
+        ] }
+      ],
+      tabbar: [
+        { href: "#/inicio", rotulo: "Início", icone: "home" },
+        { href: "#/clientes", rotulo: "Clientes", icone: "building" },
+        { href: "#/mensagens", rotulo: "Mensagens", icone: "chat" },
+        { href: "#/jornadas", rotulo: "Jornadas", icone: "route" },
+        { menu: true }
+      ],
+      destaque: '<a class="sidebar__destaque" href="#/clientes/novo"><b>' + ic("plus") + "<span>Novo cliente</span></b><small>Cadastro e link de convite</small><span class=\"cta\">Cadastrar</span></a>",
+      aoBuscar: abrirBusca
+    });
+    atualizarBadges();
+  }
+  function atualizarBadges() {
+    Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); Shell.badge("#/mensagens", n); UI.titulo(TITULO, n); });
+  }
+  function sair() { if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Dados.sair().then(function () { sessao = null; location.hash = "#/entrar"; rotear(); }); }
+
+  function abrirBusca() {
+    var m = UI.modal({ titulo: "Buscar", corpo: '<input class="input" id="qBusca" placeholder="Cliente, CNPJ ou tela…" autocomplete="off"><div class="lista mt-8" id="resBusca"></div>' });
+    var q = UI.$("#qBusca", m.corpo), res = UI.$("#resBusca", m.corpo);
+    var telas = [["#/clientes", "Clientes", "building"], ["#/mensagens", "Mensagens", "chat"], ["#/jornadas", "Jornadas", "route"], ["#/checklist", "Checklist Contábil", "list-check"], ["#/vitrine", "Vitrine", "megaphone"], ["#/uso", "Uso e cobrança", "bar-chart"], ["#/conteudo", "Conteúdo", "pencil"], ["#/clientes/novo", "Novo cliente", "plus"]];
+    function desenhar() {
+      var t = q.value.trim().toLowerCase();
+      var emps = empresas.filter(function (e) { return !t || (e.fantasia + " " + e.nome + " " + e.cnpj).toLowerCase().indexOf(t) > -1; }).slice(0, 6);
+      var ts = telas.filter(function (x) { return !t || x[1].toLowerCase().indexOf(t) > -1; }).slice(0, 4);
+      res.innerHTML = emps.map(function (e) { return '<a class="lista__item" href="#/clientes/' + e.id + '" data-acao="ir">' + UI.avatar(e.fantasia, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(e.fantasia) + '</span><span class="lista__sub">' + U.esc(e.cnpj) + " · " + U.esc(e.regime) + "</span></div></a>"; }).join("") + ts.map(function (x) { return '<a class="lista__item" href="' + x[0] + '" data-acao="ir">' + ic(x[2]) + '<div class="lista__texto"><span class="lista__titulo">' + x[1] + "</span></div></a>"; }).join("");
+    }
+    q.addEventListener("input", desenhar); desenhar();
+    UI.delegar(m.corpo, { ir: function (a) { location.hash = a.getAttribute("href"); m.fechar(); } });
+  }
+
+  /* ============================================================
+     Login
+     ============================================================ */
+  function telaEntrar() {
+    Shell.desmontar();
+    var demo = Dados.ehDemo();
+    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/totali-contabil-branca.png" alt="Totali" style="height:44px;width:auto"><div><p class="login__frase">O painel que <b>alimenta</b> o portal do cliente.</p><ul class="login__lista"><li>' + ic("route") + "<span>Conduza a jornada de 30 dias de cada cliente.</span></li><li>" + ic("grid") + "<span>Libere sistemas por cliente e publique campanhas.</span></li><li>" + ic("bar-chart") + "<span>Saiba quem usa o quê, para informar e cobrar.</span></li></ul></div><p class=\"f-12\" style=\"color:var(--sidebar-muted)\">powered by <b style=\"color:var(--gold)\">Totali</b></p></section>" +
+      '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate><img class="login__logo" src="assets/totali-portal-cor.png" alt="Portal do Cliente"><h1>Painel da equipe</h1><p class="sub">Uso interno da Totali. Entre com o seu e-mail da equipe.</p>' +
+      '<div class="campo"><label class="campo__rotulo" for="email">E-mail</label><div class="input--icone">' + ic("mail") + '<input class="input" id="email" type="email" autocomplete="email" required></div></div>' +
+      '<div class="campo"><label class="campo__rotulo" for="senha">Senha</label><div class="input--icone">' + ic("key") + '<input class="input" id="senha" type="password" autocomplete="current-password" required></div></div>' +
+      '<p class="campo__erro" id="erroEntrar" hidden role="alert"></p><button class="btn btn--primario btn--bloco" type="submit" style="height:44px">Entrar</button>' +
+      (demo ? '<div class="aviso aviso--info mt-8">' + ic("info") + '<div><b>Modo demonstração</b>Dados fictícios, só neste navegador.</div></div><div class="login__demo"><button type="button" class="chip" data-acao="demo" data-qual="admin">Entrar como administrador</button><button type="button" class="chip" data-acao="demo" data-qual="equipe">Entrar como gerente de contas</button></div>' : "") +
+      '<p class="login__rodape">powered by <b>Totali</b></p></form></section></div>';
+    var erro = UI.$("#erroEntrar");
+    UI.delegar(app, { demo: function (b) { Dados.entrarDemo(b.dataset.qual).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (e) { erro.textContent = e.message; erro.hidden = false; }); } });
+    UI.$("#formEntrar").addEventListener("submit", function (e) {
+      e.preventDefault(); erro.hidden = true;
+      Dados.entrar(UI.$("#email").value, UI.$("#senha").value).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+    });
+  }
+
+  /* ============================================================
+     Início: o que precisa de você hoje
+     ============================================================ */
+  function telaInicio() {
+    Shell.titulo("Início");
+    Shell.render(UI.esqueleto(8));
+    var semana = Date.now() - 7 * U.DIA_MS;
+    Promise.all([Dados.todasConversas(), Dados.todosDocumentos(), Dados.usos({ desde: semana }), Dados.listarChecklists(U.anoMes(Date.now()))]).then(function (r) {
+      var convs = r[0], docs = r[1], usos = r[2], checks = r[3];
+      var naoLidas = U.soma(convs, function (c) { return c.naoLidas; });
+      var aConferir = docs.filter(function (d) { return d.situacao === "enviado" || d.situacao === "analise"; });
+      var jornadas = empresas.map(function (e) { var rs = JORNADA.resumo(e.jornada, autoFnDe(e), "equipe"); return { e: e, r: rs }; }).filter(function (x) { return !x.r.concluida; });
+      var atrasadas = jornadas.filter(function (x) { return x.r.atrasados > 0; });
+      var hoje = jornadas.filter(function (x) { return x.r.dias.some(function (d) { return d.estado === "hoje"; }); });
+      var ativos = U.unicos(usos.map(function (u) { return u.empresaId; })).length;
+      var checkOk = checks.filter(function (c) { return c.concluidoEm; }).length;
+      var porDia = Uso.porDia(usos, 7);
+      var max = Math.max.apply(null, Object.keys(porDia).map(function (k) { return porDia[k]; }).concat([1]));
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(U.diaSemana(Date.now())) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + "</h1><p>O que precisa de você hoje, em ordem de urgência.</p></div><div class=\"cabecalho__acoes\"><a class=\"btn btn--primario\" href=\"#/clientes/novo\">" + ic("plus") + "Novo cliente</a></div></div>" +
+        '<div class="grade grade--4">' +
+          kpi("#/mensagens", "chat", naoLidas, "mensagens sem resposta", naoLidas ? "erro" : "") +
+          kpi("#/documentos", "inbox", aConferir.length, "documentos a conferir", aConferir.length ? "aviso" : "") +
+          kpi("#/jornadas", "route", atrasadas.length, "jornadas com atraso", atrasadas.length ? "erro" : "") +
+          kpi("#/uso", "activity", ativos + "/" + empresas.length, "clientes ativos na semana", "gold") +
+        "</div>" +
+        '<div class="grade grade--lado"><div class="pilha">' +
+          '<div class="card"><div class="card__cab"><h2>Jornadas: o que vence hoje ou atrasou</h2><a class="btn btn--xs btn--contorno" href="#/jornadas">Ver todas</a></div><div class="lista" style="padding-top:6px">' + (atrasadas.concat(hoje.filter(function (h) { return atrasadas.indexOf(h) === -1; })).slice(0, 6).map(function (x) { var d = x.r.dias.filter(function (y) { return y.estado === "atrasado" || y.estado === "hoje"; })[0]; var dia = JORNADA.por(d.id); return '<a class="lista__item" href="#/clientes/' + x.e.id + '/jornada">' + UI.avatar(x.e.fantasia, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(x.e.fantasia) + " · D" + dia.dia + " " + U.esc(dia.titulo) + '</span><span class="lista__sub">' + U.esc(dia.quem) + " · " + d.feitos + "/" + d.total + " passos</span></div>" + (d.estado === "atrasado" ? UI.badge(d.diasAtraso + "d atraso", "erro", "clock") : UI.badge("hoje", "gold")) + "</a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma jornada vencendo hoje. 👌</div>') + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Mensagens sem resposta</h2><a class="btn btn--xs btn--contorno" href="#/mensagens">Abrir caixa</a></div><div class="lista" style="padding-top:6px">' + (convs.filter(function (c) { return c.naoLidas; }).slice(0, 5).map(function (c) { return '<a class="lista__item" href="#/mensagens/' + c.empresaId + '">' + UI.avatar(c.empresa, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(c.empresa) + '</span><span class="lista__sub">' + U.esc(c.ultima ? c.ultima.texto || "📎 anexo" : "") + '</span></div><span class="badge badge--erro">' + c.naoLidas + '</span><span class="lista__meta">' + (c.ultima ? U.relativo(c.ultima.em) : "") + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Caixa zerada. 🎉</div>') + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Documentos a conferir</h2><a class="btn btn--xs btn--contorno" href="#/documentos">Ver todos</a></div><div class="lista" style="padding-top:6px">' + (aConferir.slice(0, 5).map(function (d) { var e = empresas.filter(function (x) { return x.id === d.empresaId; })[0] || {}; return '<a class="lista__item" href="#/clientes/' + d.empresaId + '/documentos">' + ic("file") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(d.nome) + '</span><span class="lista__sub">' + U.esc(e.fantasia || "") + " · " + (d.origem === "anterior" ? "contabilidade anterior" : "cliente") + " · " + U.relativo(d.em) + "</span></div></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nada para conferir.</div>') + "</div></div>" +
+        '</div><div class="pilha">' +
+          '<div class="card"><div class="card__cab"><h2>Uso do portal · 7 dias</h2></div><div class="card__corpo" style="padding-top:10px"><div style="display:flex;gap:4px;align-items:flex-end;height:80px">' + Object.keys(porDia).map(function (k) { var v = porDia[k]; return '<div title="' + k + ": " + v + '" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%"><div style="width:100%;border-radius:4px 4px 0 0;background:var(--primary);height:' + Math.max(4, Math.round(v / max * 64)) + 'px"></div><span class="f-12 txt-mudo">' + k.slice(0, 2) + "</span></div>"; }).join("") + '</div><p class="f-12 txt-2 mt-8">' + usos.filter(function (u) { return u.tipo === "abrir"; }).length + " aberturas de sistema · " + ativos + " empresas ativas</p></div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Checklist de ' + nomeMes(U.anoMes(Date.now())).split(" de ")[0] + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Detalhar</a></div><div class="card__corpo" style="padding-top:10px"><div class="f-800" style="font-size:26px">' + checkOk + ' <small class="f-13 txt-2">de ' + empresas.filter(function (e) { return (e.liberacoes || {}).checklist && e.liberacoes.checklist.ativo; }).length + " concluíram</small></div>" + UI.barra(U.pct(checkOk, empresas.length || 1), "barra--ok") + "</div></div>" +
+          '<div class="card card--navy"><div class="puzzle-layer" aria-hidden="true"></div><div class="veu"></div><div class="card__corpo pilha"><div class="f-12" style="color:var(--sidebar-muted);font-weight:800;letter-spacing:.1em;text-transform:uppercase">Atalhos</div><a class="btn btn--sm btn--gold" href="#/clientes/novo">' + ic("plus") + 'Cadastrar cliente</a><a class="btn btn--sm btn--contorno" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2)" href="#/vitrine">' + ic("megaphone") + 'Nova campanha</a><a class="btn btn--sm btn--contorno" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2)" href="#/uso">' + ic("download") + "Exportar uso (CSV)</a></div></div>" +
+        "</div></div></div>");
+    });
+    function kpi(href, icone, valor, rotulo, tipo) { return '<a class="card card--clicavel kpi entra' + (tipo === "gold" ? " kpi--gold" : "") + '" href="' + href + '" style="text-decoration:none;color:inherit"><span class="kpi__rotulo">' + ic(icone) + rotulo + '</span><span class="kpi__valor' + (tipo === "erro" ? " txt-erro" : tipo === "aviso" ? " txt-aviso" : "") + '">' + valor + "</span></a>"; }
+  }
+
+  /* Fatos automáticos da jornada, avaliados com os dados da empresa (o painel tem documentos e credenciais carregados sob demanda) */
+  var cacheAuto = {};
+  function autoFnDe(e) {
+    var c = cacheAuto[e.id] || {};
+    return function (id) {
+      switch (id) {
+        case "cadastro": return true;
+        case "gerente": return !!e.gerenteUid;
+        case "convite": return true;
+        case "entrou": return (e.acessos || []).length > 0;
+        case "canal": return !!e.canalPreferido;
+        case "certificado": return (c.docs || []).some(function (d) { return d.grupo === "certificado" && d.situacao !== "pendencia"; });
+        case "senhas": return (c.creds || []).length > 0;
+        case "documentos": return (c.docs || []).filter(function (d) { return d.origem === "cliente"; }).length >= 3;
+        case "anterior": return (c.docs || []).some(function (d) { return d.origem === "anterior"; });
+        case "migracao": return !!e.migracaoConcluidaEm;
+        case "trilha": return !!(e.marcos && e.marcos.academy);
+        case "relatorios": return !!e.formaRelatorio;
+        case "feedback": return !!(c.feedback && c.feedback.texto) || !!(e.feedback30 && e.feedback30.texto);
+        default: return false;
+      }
+    };
+  }
+  function carregarAuto(e) { return Promise.all([Dados.documentos(e.id), Dados.credenciais(e.id), Dados.feedback(e.id)]).then(function (r) { cacheAuto[e.id] = { docs: r[0], creds: r[1], feedback: r[2] }; return cacheAuto[e.id]; }); }
+
+  /* ============================================================
+     Clientes
+     ============================================================ */
+  function telaClientes() {
+    Shell.titulo("Clientes");
+    var lista = empresas.map(function (e) { var jr = JORNADA.resumo(e.jornada, autoFnDe(e), "equipe"); return { e: e, jr: jr }; });
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Atendimento</div><h1>Clientes</h1><p>' + empresas.length + " empresas no portal. Toque para abrir a ficha.</p></div><div class=\"cabecalho__acoes\"><input class=\"input\" id=\"filtro\" placeholder=\"Filtrar…\" style=\"min-height:36px;width:200px\"><a class=\"btn btn--primario\" href=\"#/clientes/novo\">" + ic("plus") + "Novo cliente</a></div></div>" +
+      '<div class="tabela-wrap"><table class="tabela" id="tabClientes"><thead><tr><th>Empresa</th><th>Regime · trilha</th><th>Gerente</th><th>Jornada</th><th>Sistemas</th><th>Acesso</th></tr></thead><tbody>' + lista.map(function (x) {
+        var e = x.e, jr = x.jr; var libs = Object.keys(e.liberacoes || {}).filter(function (k) { return e.liberacoes[k].ativo; });
+        var ult = Math.max.apply(null, (e.acessos || []).map(function (a) { return U.ms(a.ultimoAcesso) || 0; }).concat([0]));
+        return '<tr data-busca="' + U.esc((e.fantasia + " " + e.nome + " " + e.cnpj + " " + e.gerenteNome).toLowerCase()) + '" style="cursor:pointer" data-acao="abrir" data-id="' + e.id + '"><td><div class="linha" style="flex-wrap:nowrap">' + UI.avatar(e.fantasia, "avatar--sm") + '<div class="lista__texto"><b>' + U.esc(e.fantasia) + '</b><span class="lista__sub num">' + U.esc(e.cnpj) + '</span></div></div></td><td class="f-13">' + U.esc(e.regime) + ' · <b>' + U.esc(e.trilha || "A") + '</b></td><td class="f-13">' + U.esc(e.gerenteNome || "") + '</td><td style="min-width:140px">' + (jr.concluida ? UI.badge("concluída", "ok", "check") : '<div class="f-12 txt-2">D' + jr.diaHoje + " · " + jr.pct + "%" + (jr.atrasados ? ' · <span class="txt-erro f-700">' + jr.atrasados + " atraso</span>" : "") + "</div>" + UI.barra(jr.pct, jr.atrasados ? "" : "barra--gold")) + '</td><td class="f-12">' + libs.map(function (k) { var s = CATALOGO.por(k); return s ? '<span class="badge" title="' + U.esc(s.nome) + '" style="margin:1px">' + U.esc(s.nome.split(" ")[0]) + "</span>" : ""; }).join("") + '</td><td class="f-12 txt-2">' + ((e.acessos || []).length ? (ult ? U.relativo(ult) : "nunca entrou") : '<span class="txt-aviso f-700">sem acesso</span>') + "</td></tr>";
+      }).join("") + "</tbody></table></div></div>");
+    var v = Shell.view();
+    UI.$("#filtro", v).addEventListener("input", function () { var t = this.value.toLowerCase(); UI.$$("#tabClientes tbody tr", v).forEach(function (tr) { tr.hidden = t && tr.dataset.busca.indexOf(t) === -1; }); });
+    UI.delegar(v, { abrir: function (tr) { location.hash = "#/clientes/" + tr.dataset.id; } });
+  }
+
+  function telaNovoCliente() {
+    Shell.titulo("Novo cliente");
+    Shell.render('<div class="pagina" style="max-width:720px"><div class="cabecalho"><div><div class="cabecalho__kicker">Cadastro</div><h1>Novo cliente</h1><p>Cadastre a empresa e gere o link de convite. O D0 da jornada nasce marcado: proposta aceita e cadastro criado.</p></div></div>' +
+      '<form class="card" id="fNovo" novalidate><div class="card__corpo pilha">' +
+        '<div class="grade grade--2"><div class="campo"><label class="campo__rotulo" for="nome">Razão social</label><input class="input" id="nome" required></div><div class="campo"><label class="campo__rotulo" for="fantasia">Nome fantasia</label><input class="input" id="fantasia"></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="cnpj">CNPJ</label><input class="input num" id="cnpj" inputmode="numeric" required></div><div class="campo"><label class="campo__rotulo" for="regime">Regime</label><select class="select" id="regime"><option>MEI</option><option selected>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option></select></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="trilha">Trilha da jornada</label><select class="select" id="trilha"><option value="A">A · simples</option><option value="B">B · folha, presumido ou mais de um sócio</option><option value="C">C · real, grupo ou pendências</option></select><span class="campo__ajuda" id="ajTrilha">' + U.esc(JORNADA.TRILHAS.A) + '</span></div><div class="campo"><label class="campo__rotulo" for="aceite">Data do aceite da proposta</label><input class="input" id="aceite" type="date" value="' + new Date().toISOString().slice(0, 10) + '"><span class="campo__ajuda">O relógio dos 30 dias conta a partir daqui.</span></div></div>' +
+        '<div class="campo"><span class="campo__rotulo">Perfil (define quais sistemas fazem sentido na vitrine)</span><div class="linha">' + CATALOGO.PERFIS.filter(function (p) { return p.id !== "todos"; }).map(function (p) { return '<label class="checar"><input type="checkbox" name="perfil" value="' + p.id + '"> ' + U.esc(p.rotulo) + "</label>"; }).join("") + "</div></div>" +
+        '<div class="campo"><span class="campo__rotulo">Liberar de início</span><div class="linha">' + CATALOGO.SISTEMAS.filter(function (s) { return s.status !== "breve"; }).map(function (s) { return '<label class="checar"><input type="checkbox" name="lib" value="' + s.id + '"' + (s.id === "checklist" || s.id === "academy" ? " checked" : "") + "> " + U.esc(s.nome) + "</label>"; }).join("") + '</div><span class="campo__ajuda">Checklist entra com 30 dias de cortesia (reverse trial); Academy sempre aberto.</span></div>' +
+        '<p class="campo__erro" id="erroNovo" hidden></p><div class="modal__acoes"><a class="btn btn--contorno" href="#/clientes">Cancelar</a><button class="btn btn--primario" type="submit">' + ic("check") + "Cadastrar e gerar convite</button></div></div></form></div>");
+    var v = Shell.view();
+    UI.$("#cnpj", v).addEventListener("input", function () { this.value = U.cnpj(this.value); });
+    UI.$("#trilha", v).addEventListener("change", function () { UI.$("#ajTrilha", v).textContent = JORNADA.TRILHAS[this.value]; });
+    UI.$("#fNovo", v).addEventListener("submit", function (e) {
+      e.preventDefault(); var erro = UI.$("#erroNovo", v); erro.hidden = true;
+      var nome = UI.$("#nome", v).value.trim(), cnpj = UI.$("#cnpj", v).value.trim();
+      if (!nome) { erro.textContent = "Informe a razão social."; erro.hidden = false; return; }
+      if (!U.cnpjValido(cnpj)) { erro.textContent = "CNPJ inválido."; erro.hidden = false; return; }
+      var perfis = UI.$$('[name=perfil]:checked', v).map(function (i) { return i.value; }), libs = UI.$$('[name=lib]:checked', v).map(function (i) { return i.value; });
+      var aceite = new Date(UI.$("#aceite", v).value + "T09:00:00").getTime() || Date.now();
+      Dados.criarEmpresa({ nome: nome, fantasia: UI.$("#fantasia", v).value.trim() || nome, cnpj: cnpj, regime: UI.$("#regime", v).value, trilha: UI.$("#trilha", v).value, perfis: perfis, aceiteEm: aceite }, sessao).then(function (r) {
+        return Promise.all(libs.filter(function (l) { return l !== "checklist" && l !== "academy"; }).map(function (l) { return Dados.liberar(r.empresa.id, l, { ativo: true, plano: "mensal" }, sessao); })).then(function () { return r; });
+      }).then(function (r) { mostrarConvite(r.empresa, r.convite); UI.toast("Cliente cadastrado. D0 marcado na jornada.", "ok"); }).catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+    });
+  }
+  function linkConvite(codigo) { return location.origin + location.pathname.replace(/equipe\.html$/, "") + "index.html#/convite/" + codigo; }
+  function mostrarConvite(e, codigo) {
+    var link = linkConvite(codigo);
+    var msg = "Olá! Aqui é da Totali 👋 Criamos o portal da " + e.fantasia + ". Entre por este link para criar sua senha e acompanhar seus primeiros 30 dias com a gente: " + link;
+    UI.modal({ titulo: "Convite do portal · " + e.fantasia, corpo: '<p class="f-13 txt-2">O link vale uma vez: ao abrir, o cliente cria a senha e o convite é queimado.</p><div class="codigo mt-8">' + U.esc(link) + '</div><div class="campo mt-12"><span class="campo__rotulo">Mensagem sugerida</span><textarea class="textarea" id="msgConv">' + U.esc(msg) + "</textarea></div>",
+      acoes: [{ rotulo: "Copiar link", icone: "copy", manter: true, ao: function () { UI.copiar(link, "Link copiado."); } }, { rotulo: "Abrir no WhatsApp", classe: "btn--gold", icone: "whatsapp", manter: true, ao: function (c) { global.open("https://wa.me/?text=" + encodeURIComponent(c.querySelector("#msgConv").value), "_blank", "noopener"); } }, { rotulo: "Ir para a ficha", classe: "btn--primario", ao: function () { location.hash = "#/clientes/" + e.id; } }] });
+  }
+
+  /* ---------- Ficha do cliente ---------- */
+  function telaCliente(r) {
+    var e = empresas.filter(function (x) { return x.id === r.param; })[0];
+    if (!e) return telaClientes();
+    var aba = r.sub || "visao";
+    Shell.titulo(e.fantasia);
+    var abas = [["visao", "Visão geral", "eye"], ["liberacoes", "Liberações", "unlock"], ["jornada", "Jornada", "route"], ["documentos", "Documentos", "folder"], ["cofre", "Cofre", "key"], ["conversa", "Conversa", "chat"], ["uso", "Uso", "bar-chart"]];
+    Shell.render('<div class="pagina pagina--larga" style="padding-bottom:0"><div class="cabecalho"><div class="linha" style="flex-wrap:nowrap;gap:12px">' + UI.avatar(e.fantasia, "avatar--lg") + '<div><div class="cabecalho__kicker">' + U.esc(e.regime) + " · trilha " + U.esc(e.trilha || "A") + "</div><h1>" + U.esc(e.fantasia) + '</h1><p class="f-13">' + U.esc(e.nome) + ' · <span class="num">' + U.esc(e.cnpj) + "</span> · gerente: " + U.esc(e.gerenteNome || "—") + "</p></div></div>" +
+      '<div class="cabecalho__acoes"><a class="btn btn--sm btn--contorno" href="#/mensagens/' + e.id + '">' + ic("chat") + 'Chat</a><button type="button" class="btn btn--sm btn--contorno" data-acao="convite">' + ic("link") + 'Convite</button><button type="button" class="btn btn--sm btn--contorno" data-acao="anterior">' + ic("upload") + 'Link p/ contab. anterior</button><button type="button" class="btn btn--sm btn--fantasma" data-acao="editar">' + ic("pencil") + "Editar</button></div></div>" +
+      '<div class="abas" role="tablist">' + abas.map(function (a) { return '<a role="tab" href="#/clientes/' + e.id + "/" + a[0] + '" aria-selected="' + (aba === a[0]) + '" class="btn btn--fantasma" style="border-radius:0;min-height:40px">' + ic(a[2], "ic--sm") + a[1] + "</a>"; }).join("") + '</div></div><div id="abaCorpo"></div>');
+    var v = Shell.view();
+    UI.delegar(v, {
+      convite: function () { Dados.criarConvite(e.id, sessao).then(function (c) { mostrarConvite(e, c); }); },
+      anterior: function () { Dados.criarLinkAnterior(e.id, sessao).then(function (c) { var link = location.origin + location.pathname.replace(/equipe\.html$/, "") + "anterior.html?c=" + c; UI.modal({ titulo: "Link para a contabilidade anterior", corpo: '<p class="f-13 txt-2">Página de envio sem login. Quem tiver o link envia contrato, balanços, livros e folha; os arquivos entram na ficha como origem "contabilidade anterior" e o cliente vê chegar.</p><div class="codigo mt-8">' + U.esc(link) + '</div><textarea class="textarea mt-12" id="msgAnt">Prezados, aqui é da Totali Soluções Contábeis. Assumimos a contabilidade da ' + U.esc(e.fantasia) + '. Para a transferência de responsabilidade técnica, pedimos a gentileza de enviar os documentos por este link seguro: ' + U.esc(link) + "</textarea>", acoes: [{ rotulo: "Copiar link", icone: "copy", manter: true, ao: function () { UI.copiar(link); } }, { rotulo: "Copiar mensagem", classe: "btn--primario", ao: function (c) { UI.copiar(c.querySelector("#msgAnt").value, "Mensagem copiada."); } }] }); }); },
+      editar: function () { editarEmpresa(e); }
+    });
+    var corpo = UI.$("#abaCorpo", v);
+    ({ visao: abaVisao, liberacoes: abaLiberacoes, jornada: abaJornada, documentos: abaDocumentos, cofre: abaCofre, conversa: abaConversa, uso: abaUso }[aba] || abaVisao)(e, corpo, r);
+  }
+  function editarEmpresa(e) {
+    UI.modal({ titulo: "Editar " + e.fantasia, corpo: '<div class="pilha"><div class="campo"><label class="campo__rotulo">Nome fantasia</label><input class="input" id="eF" value="' + U.esc(e.fantasia) + '"></div><div class="campo"><label class="campo__rotulo">Regime</label><select class="select" id="eR">' + ["MEI", "Simples Nacional", "Lucro Presumido", "Lucro Real"].map(function (x) { return "<option" + (x === e.regime ? " selected" : "") + ">" + x + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Trilha</label><select class="select" id="eT">' + ["A", "B", "C"].map(function (x) { return '<option value="' + x + '"' + (x === e.trilha ? " selected" : "") + ">" + x + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Gerente de contas</label><select class="select" id="eG"></select></div><div class="campo"><span class="campo__rotulo">Perfis</span><div class="linha">' + CATALOGO.PERFIS.filter(function (p) { return p.id !== "todos"; }).map(function (p) { return '<label class="checar"><input type="checkbox" name="ep" value="' + p.id + '"' + ((e.perfis || []).indexOf(p.id) > -1 ? " checked" : "") + "> " + U.esc(p.rotulo) + "</label>"; }).join("") + '</div></div><div class="campo"><label class="campo__rotulo">Dor principal (D2)</label><textarea class="textarea" id="eD">' + U.esc(e.dor || "") + '</textarea></div><label class="checar"><input type="checkbox" id="eM"' + (e.migracaoConcluidaEm ? " checked" : "") + "> Migração da contabilidade anterior concluída</label></div>",
+      acoes: [{ rotulo: "Cancelar" }, { rotulo: "Salvar", classe: "btn--primario", ao: function (c) {
+        var g = c.querySelector("#eG"); var gerente = g.options[g.selectedIndex];
+        Dados.salvarEmpresa(e.id, { fantasia: c.querySelector("#eF").value.trim() || e.fantasia, regime: c.querySelector("#eR").value, trilha: c.querySelector("#eT").value, gerenteUid: g.value, gerenteNome: gerente ? gerente.textContent : e.gerenteNome, perfis: Array.prototype.map.call(c.querySelectorAll("[name=ep]:checked"), function (i) { return i.value; }), dor: c.querySelector("#eD").value.trim(), migracaoConcluidaEm: c.querySelector("#eM").checked ? (e.migracaoConcluidaEm || Date.now()) : 0 }).then(function () { UI.toast("Salvo.", "ok"); rotear(); });
+      } }] });
+    Dados.equipe().then(function (eq) { var sel = UI.$("#eG"); sel.innerHTML = eq.map(function (m) { return '<option value="' + m.uid + '"' + (m.uid === e.gerenteUid ? " selected" : "") + ">" + U.esc(m.nome) + "</option>"; }).join(""); });
+  }
+
+  function abaVisao(e, corpo) {
+    corpo.innerHTML = UI.esqueleto(4);
+    Promise.all([carregarAuto(e), Dados.mensagens(e.id), Dados.checklists(e.id), Dados.usos({ empresaId: e.id, desde: Date.now() - 30 * U.DIA_MS }), Dados.auditoria({ empresaId: e.id })]).then(function (r) {
+      var c = r[0], msgs = r[1], checks = r[2], usos = r[3], aud = r[4];
+      var jrE = JORNADA.resumo(e.jornada, autoFnDe(e), "equipe"), jrC = JORNADA.resumo(e.jornada, autoFnDe(e), "cliente");
+      var pend = c.docs.filter(function (d) { return d.situacao === "enviado" || d.situacao === "analise"; });
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="grade grade--4">' +
+        '<div class="card kpi"><span class="kpi__rotulo">' + ic("route") + 'Jornada (equipe)</span><span class="kpi__valor">' + jrE.pct + '%</span><span class="kpi__delta txt-2">' + (jrE.concluida ? "concluída" : "D" + jrE.diaHoje + (jrE.atrasados ? " · " + jrE.atrasados + " atraso" : "")) + "</span></div>" +
+        '<div class="card kpi"><span class="kpi__rotulo">' + ic("user") + 'Jornada (cliente)</span><span class="kpi__valor">' + jrC.pct + '%</span><span class="kpi__delta txt-2">' + jrC.feitos + "/" + jrC.total + " passos</span></div>" +
+        '<div class="card kpi"><span class="kpi__rotulo">' + ic("folder") + 'Documentos</span><span class="kpi__valor">' + c.docs.length + '</span><span class="kpi__delta ' + (pend.length ? "txt-aviso" : "txt-2") + '">' + pend.length + " a conferir</span></div>" +
+        '<div class="card kpi kpi--gold"><span class="kpi__rotulo">' + ic("activity") + 'Uso · 30 dias</span><span class="kpi__valor">' + usos.filter(function (u) { return u.tipo === "abrir"; }).length + '</span><span class="kpi__delta txt-2">aberturas · ' + U.duracao(U.soma(usos, function (u) { return u.duracaoS || 0; })) + "</span></div></div>" +
+        '<div class="grade grade--lado"><div class="pilha">' +
+          '<div class="card"><div class="card__cab"><h2>Acesso ao portal</h2><button type="button" class="btn btn--xs btn--contorno" data-acao="convite">' + ic("plus", "ic--sm") + 'Novo convite</button></div><div class="lista" style="padding-top:6px">' + ((e.acessos || []).map(function (a) { return '<div class="lista__item">' + UI.avatar(a.nome, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(a.nome) + '</span><span class="lista__sub">' + U.esc(a.email) + '</span></div><span class="lista__meta">' + (a.ultimoAcesso ? "entrou " + U.relativo(a.ultimoAcesso) : "nunca entrou") + "</span></div>"; }).join("") || '<div class="card__corpo aviso aviso--aviso">' + ic("alert") + "<div><b>Ninguém entrou ainda</b>Gere o convite e envie pelo WhatsApp. O D1 depende disso.</div></div>") + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Notas da jornada</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="f-13"><b>Dor principal (D2):</b> ' + (e.dor ? U.esc(e.dor) : '<span class="txt-mudo">ainda não anotada</span>') + "</div>" + Object.keys((e.jornada || {}).notas || {}).map(function (k) { return '<div class="f-13"><b>' + k.toUpperCase() + ":</b> " + U.esc(e.jornada.notas[k]) + "</div>"; }).join("") + (c.feedback ? '<div class="aviso aviso--ok">' + ic("heart") + "<div><b>Feedback dos 30 dias · nota " + (c.feedback.nota || "—") + "</b>" + U.esc(c.feedback.texto) + "</div></div>" : "") + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Checklist Contábil</h2></div><div class="lista" style="padding-top:6px">' + (checks.slice(0, 4).map(function (h) { var f = h.itens.filter(function (x) { return x.feito; }).length; return '<div class="lista__item"><div class="lista__texto"><span class="lista__titulo">' + nomeMes(h.anoMes) + '</span><span class="lista__sub">' + f + "/" + h.itens.length + " itens</span></div>" + (h.concluidoEm ? UI.badge("em dia", "ok", "check") : UI.badge("aberto", "aviso")) + "</div>"; }).join("") || '<div class="card__corpo txt-2 f-13">Sem checklist.</div>') + "</div></div>" +
+        '</div><div class="pilha">' +
+          '<div class="card"><div class="card__cab"><h2>Sistemas liberados</h2><a class="btn btn--xs btn--contorno" href="#/clientes/' + e.id + '/liberacoes">Gerenciar</a></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px">' + CATALOGO.SISTEMAS.map(function (s) { var l = (e.liberacoes || {})[s.id]; var on = l && l.ativo && !(l.ate && U.ms(l.ate) < Date.now()); return '<div class="linha linha--entre f-13"><span class="linha" style="gap:6px"><span class="ponto ' + (on ? "ponto--ok" : "") + '"></span>' + U.esc(s.nome) + "</span>" + (on ? '<span class="txt-2 f-12">' + U.esc(l.plano || "ativo") + (l.ate ? " até " + U.dataCurta(l.ate) : "") + "</span>" : '<span class="txt-mudo f-12">não</span>') + "</div>"; }).join("") + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Trilha de auditoria</h2></div><div class="lista" style="padding-top:6px;max-height:320px;overflow:auto">' + (aud.slice(0, 12).map(function (a) { return '<div class="lista__item" style="min-height:0;padding:8px 16px"><div class="lista__texto"><span class="lista__titulo f-13">' + U.esc(a.tipo) + (a.detalhe ? " · " + U.esc(a.detalhe) : "") + '</span><span class="lista__sub">' + U.esc(a.por || "") + " · " + U.dataHora(a.em) + "</span></div></div>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nada registrado.</div>') + "</div></div>" +
+        "</div></div></div>";
+      UI.delegar(corpo, { convite: function () { Dados.criarConvite(e.id, sessao).then(function (c2) { mostrarConvite(e, c2); }); } });
+    });
+  }
+
+  function abaLiberacoes(e, corpo) {
+    corpo.innerHTML = '<div class="pagina pagina--larga"><div class="aviso aviso--info">' + ic("info") + "<div><b>Cada cliente só acessa o que você liberar aqui.</b>O que não estiver liberado aparece no portal como prévia (\"ver como funciona\"), com botão para pedir. Nada de venda casada: cada sistema é independente.</div></div><div class=\"grade grade--3\">" + CATALOGO.SISTEMAS.map(function (s) {
+      var l = (e.liberacoes || {})[s.id] || {}; var on = !!l.ativo;
+      return '<div class="card sistema"><div class="sistema__topo"><span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + '</span><div style="flex:1"><div class="sistema__nome">' + U.esc(s.nome) + '</div><div class="sistema__tag">' + U.esc(s.tagline) + '</div></div><label class="interruptor" title="Liberar"><input type="checkbox" data-acao="toggle" data-s="' + s.id + '"' + (on ? " checked" : "") + (s.status === "breve" ? " disabled" : "") + '><span class="interruptor__pista"></span></label></div>' +
+        (on ? '<div class="grade grade--2" style="gap:8px"><div class="campo"><label class="campo__rotulo">Plano</label><select class="select" data-acao="plano" data-s="' + s.id + '" style="min-height:36px">' + ["mensal", "anual", "avulso", "cortesia 30 dias", "cortesia"].map(function (p) { return "<option" + (p === l.plano ? " selected" : "") + ">" + p + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Válido até</label><input class="input" type="date" data-acao="ate" data-s="' + s.id + '" style="min-height:36px" value="' + (l.ate ? new Date(U.ms(l.ate)).toISOString().slice(0, 10) : "") + '"></div></div><div class="f-12 txt-2">liberado ' + (l.desde ? U.relativo(l.desde) : "") + (l.ate && U.ms(l.ate) < Date.now() ? ' · <b class="txt-erro">vencido</b>' : "") + "</div>" : '<div class="f-12 txt-mudo">' + (s.status === "breve" ? "Em desenvolvimento: aparece como lista de espera." : "Não liberado. O cliente vê a prévia.") + "</div>") + "</div>";
+    }).join("") + "</div></div>";
+    corpo.addEventListener("change", function (ev) {
+      var t = ev.target, s = t.dataset.s; if (!s) return;
+      var l = (e.liberacoes || {})[s] || {};
+      var dados = t.dataset.acao === "toggle" ? { ativo: t.checked, plano: l.plano || "mensal" } : t.dataset.acao === "plano" ? { ativo: true, plano: t.value } : { ativo: true, ate: t.value ? new Date(t.value + "T23:59:59").getTime() : 0 };
+      Dados.liberar(e.id, s, dados, sessao).then(function () { UI.toast((dados.ativo ? "Liberado: " : "Desativado: ") + CATALOGO.por(s).nome, "ok"); return carregarEmpresas(); }).then(function () { e = empresas.filter(function (x) { return x.id === e.id; })[0]; abaLiberacoes(e, corpo); });
+    });
+  }
+
+  function abaJornada(e, corpo) {
+    corpo.innerHTML = UI.esqueleto(6);
+    carregarAuto(e).then(function () {
+      var auto = autoFnDe(e), and = e.jornada || {};
+      var jrE = JORNADA.resumo(and, auto, "equipe"), jrC = JORNADA.resumo(and, auto, "cliente");
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="grade grade--lado"><div class="pilha">' +
+        '<div class="linha linha--entre"><div class="f-13 txt-2">Aceite em <b>' + U.data(and.aceiteEm) + "</b> · hoje é o D" + jrE.diaHoje + ' <button type="button" class="btn btn--xs btn--fantasma" data-acao="aceite">' + ic("pencil", "ic--sm") + "alterar</button></div>" + (jrE.concluida ? UI.badge("jornada concluída", "ok", "trophy") : "") + "</div>" +
+        '<div class="jornada">' + JORNADA.DIAS.map(function (d, idx) {
+          var est = jrE.dias[idx]; var estado = est.estado === "futuro" && jrE.atual && jrE.atual.id === d.id ? "atual" : est.estado;
+          var estC = jrC.dias[idx];
+          var passosE = d.equipe.map(function (p, i) { var f = JORNADA.passoFeito(and, auto, d.id, "equipe", i, p); return '<button type="button" class="passo" data-feito="' + (f.feito ? 1 : 0) + '" data-auto="' + (p.auto ? 1 : 0) + '" data-acao="passo" data-dia="' + d.id + '" data-i="' + i + '"><span class="passo__p">P' + (i + 1) + '</span><span class="passo__check">' + ic("check", "ic--sm") + '</span><span class="passo__texto">' + U.esc(p.texto) + (f.feito ? '<div class="passo__meta">' + (f.auto ? "confirmado pelo sistema" : "feito " + U.relativo(f.em) + " · " + U.esc(f.por)) + "</div>" : "") + "</span></button>"; }).join("");
+          var passosC = d.cliente.map(function (p, i) { var f = JORNADA.passoFeito(and, auto, d.id, "cliente", i, p); return '<button type="button" class="passo" data-feito="' + (f.feito ? 1 : 0) + '" data-auto="' + (p.auto ? 1 : 0) + '" data-acao="passo" data-lado="cliente" data-dia="' + d.id + '" data-i="' + i + '" style="background:var(--muted)"><span class="passo__p">P' + (i + 1) + '</span><span class="passo__check">' + ic("check", "ic--sm") + '</span><span class="passo__texto f-13">' + U.esc(p.texto) + (f.feito ? '<div class="passo__meta">' + (f.auto ? "confirmado pelo sistema" : "feito " + U.relativo(f.em) + (f.por && f.por !== "cliente" ? " · " + U.esc(f.por) : "")) + "</div>" : "") + "</span></button>"; }).join("");
+          return '<div class="dia" data-estado="' + estado + '"><div class="dia__marca"><div class="dia__d">D' + d.dia + "</div>" + (idx < JORNADA.DIAS.length - 1 ? '<div class="dia__linha"></div>' : "") + '</div><div class="dia__corpo"><div class="dia__cab"><span class="dia__titulo">' + U.esc(d.titulo) + "</span>" + (d.marco ? '<span class="badge badge--gold">' + ic("star") + "Marco</span>" : "") + (estado === "atrasado" ? UI.badge(est.diasAtraso + "d atraso", "erro", "clock") : estado === "hoje" ? UI.badge("hoje", "gold") : estado === "feito" ? UI.badge("feito", "ok", "check") : "") + '<span class="dia__quando">' + (est.prazo ? U.dataCurta(est.prazo) : "") + " · " + U.esc(d.quem) + '</span></div><div class="dia__objetivo">' + U.esc(d.objetivo) + '</div>' +
+            '<div class="f-12 f-800 txt-2 mt-8" style="letter-spacing:.06em;text-transform:uppercase">A equipe faz</div><div class="passos">' + passosE + "</div>" +
+            '<div class="f-12 f-800 txt-2 mt-8" style="letter-spacing:.06em;text-transform:uppercase">O cliente precisa fazer (controle interno; ele não vê esta lista) · ' + estC.feitos + "/" + estC.total + '</div><div class="passos">' + passosC + "</div>" +
+            (d.id === "d30" ? '<button type="button" class="btn btn--xs btn--gold mt-8" data-acao="pedir-feedback">' + ic("heart", "ic--sm") + "Pedir o feedback dos 30 dias pelo chat</button>" : "") +
+            (d.erro ? '<div class="dia__erro">' + ic("alert", "ic--sm") + "<span><b>Erro comum:</b> " + U.esc(d.erro) + "</span></div>" : "") +
+            '<div class="dia__nota"><button type="button" class="btn btn--xs btn--fantasma" data-acao="nota" data-dia="' + d.id + '">' + ic("pencil", "ic--sm") + (and.notas && and.notas[d.id] ? "Editar anotação" : "Anotar") + "</button>" + (and.notas && and.notas[d.id] ? '<div class="f-13 txt-2 mt-4" style="white-space:pre-wrap">' + U.esc(and.notas[d.id]) + "</div>" : "") + "</div></div></div>";
+        }).join("") + "</div></div>" +
+        '<div class="pilha"><div class="card card--navy"><div class="puzzle-layer"></div><div class="veu"></div><div class="card__corpo" style="display:flex;gap:14px;align-items:center">' + UI.anel(jrE.pct, "equipe") + UI.anel(jrC.pct, "cliente") + "</div></div>" +
+          '<div class="card"><div class="card__corpo pilha"><h3>Trilha ' + U.esc(e.trilha || "A") + '</h3><p class="f-13 txt-2">' + U.esc(JORNADA.TRILHAS[e.trilha || "A"]) + "</p></div></div>" +
+          '<div class="card"><div class="card__corpo pilha"><h3>Os três marcos</h3><p class="f-13 txt-2">D0 (ligação em 2 h), D15 (primeira entrega de valor) e D30 (feedback) decidem a percepção do cliente. O resto sustenta.</p></div></div></div></div></div>';
+      UI.delegar(corpo, {
+        "pedir-feedback": function () { Dados.enviarMensagem(e.id, { autor: { uid: sessao.uid, nome: sessao.nome, lado: "equipe" }, texto: "Oi! Fechamos seus primeiros 30 dias com a Totali 🎉 Pode me contar em uma frase como foi? É só tocar aqui: " + location.origin + location.pathname.replace(/equipe\.html$/, "") + "index.html#/feedback" }).then(function () { UI.toast("Pedido enviado pelo chat.", "ok"); }); },
+        passo: function (b) {
+          var lado = b.dataset.lado || "equipe";
+          var d = JORNADA.por(b.dataset.dia), i = Number(b.dataset.i), p = d[lado][i];
+          var f = JORNADA.passoFeito(and, auto, d.id, lado, i, p);
+          if (f.feito && f.auto) return UI.toast("Confirmado pelo sistema: " + (JORNADA.AUTOMACOES.filter(function (a) { return a.id === p.auto; })[0] || {}).como, "info", null, 5000);
+          Dados.marcarPasso(e.id, JORNADA.chave(d.id, lado, i), !f.feito, sessao).then(function () { if (!f.feito) UI.vibrar(10); return carregarEmpresas(); }).then(function () { e = empresas.filter(function (x) { return x.id === e.id; })[0]; var r2 = JORNADA.resumo(e.jornada, auto, "equipe"); if (r2.concluida && !and.concluidaEm) { Dados.salvarJornada(e.id, { concluidaEm: Date.now() }); UI.celebrar("Jornada de " + e.fantasia + " concluída 🏆"); } abaJornada(e, corpo); });
+        },
+        nota: function (b) { var d = b.dataset.dia; UI.perguntar("Anotação · D" + JORNADA.por(d).dia, "O que vale lembrar", (and.notas || {})[d] || "", { longo: true, ok: "Salvar" }).then(function (t) { if (t === null) return; var notas = Object.assign({}, and.notas || {}); notas[d] = U.txt(t, 2000); Dados.salvarJornada(e.id, { notas: notas }).then(carregarEmpresas).then(function () { e = empresas.filter(function (x) { return x.id === e.id; })[0]; abaJornada(e, corpo); }); }); },
+        aceite: function () { UI.perguntar("Data do aceite da proposta", "Data (AAAA-MM-DD)", new Date(U.ms(and.aceiteEm) || Date.now()).toISOString().slice(0, 10)).then(function (t) { if (!t) return; var ms = new Date(t + "T09:00:00").getTime(); if (!ms) return UI.toast("Data inválida.", "erro"); Dados.salvarJornada(e.id, { aceiteEm: ms }).then(carregarEmpresas).then(function () { e = empresas.filter(function (x) { return x.id === e.id; })[0]; abaJornada(e, corpo); }); }); }
+      });
+    });
+  }
+
+  var GRUPOS_DOC = { certificado: "Certificado digital", societario: "Societário", socios: "Sócios", contabil: "Contábil", fiscal: "Fiscal", pessoal: "Dep. pessoal", mensal: "Mês", outros: "Outros" };
+  function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Correção pedida", "erro", "alert") }[s] || UI.badge(s); }
+  function docLinha(d, e) {
+    var visto = (d.vistos || [])[0];
+    return '<div class="doc" data-id="' + d.id + '"><span class="doc__icone">' + ic(U.ehImagem(d.arquivo && d.arquivo.mime, d.nome) ? "image" : "file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(d.nome) + '</div><div class="doc__meta">' + (e ? U.esc(e.fantasia) + " · " : "") + U.esc(GRUPOS_DOC[d.grupo] || d.grupo) + " · " + (d.origem === "anterior" ? "contab. anterior" : d.origem === "equipe" ? "Totali" : U.esc(d.por || "cliente")) + " · " + U.relativo(d.em) + (d.observacao ? " · “" + U.esc(d.observacao) + "”" : "") + "</div>" + (visto ? '<div class="doc__meta txt-ok">visto por ' + U.esc(visto.por) + " " + U.relativo(visto.em) + "</div>" : "") + (d.revisao && d.revisao.motivo ? '<div class="doc__meta txt-erro">' + U.esc(d.revisao.motivo) + "</div>" : "") + '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + situacaoBadge(d.situacao) + '<div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("eye", "ic--sm") + "Ver</button>" + (d.situacao !== "aprovado" ? '<button type="button" class="btn btn--xs btn--primario" data-acao="aprovar" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("check", "ic--sm") + "Aprovar</button>" : "") + (d.situacao !== "pendencia" ? '<button type="button" class="btn btn--xs btn--perigo" data-acao="corrigir" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("alert", "ic--sm") + "Pedir correção</button>" : "") + "</div></div></div>";
+  }
+  function ligarDocs(raiz, recarregar) {
+    UI.delegar(raiz, {
+      ver: function (b) { Dados.verDocumento(b.dataset.emp, b.dataset.id, sessao).then(function () { return Dados.documentos(b.dataset.emp); }).then(function (ds) { var d = ds.filter(function (x) { return x.id === b.dataset.id; })[0]; return Dados.urlArquivo(d); }).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Documento de exemplo sem arquivo. O recibo 'visto por' foi registrado.", "info"); recarregar(); }); },
+      aprovar: function (b) { Dados.revisarDocumento(b.dataset.emp, b.dataset.id, "aprovado", "", sessao).then(function () { UI.toast("Aprovado. O cliente vê o aceite com seu nome.", "ok"); recarregar(); }); },
+      corrigir: function (b) { UI.perguntar("Pedir correção", "Motivo (o cliente vai ler exatamente isto)", "", { longo: true, ok: "Enviar pedido", placeholder: "Ex.: a foto está cortada, reenvie mostrando o documento inteiro." }).then(function (t) { if (!t) return; Dados.revisarDocumento(b.dataset.emp, b.dataset.id, "pendencia", t, sessao).then(function () { UI.toast("Pedido enviado.", "ok"); recarregar(); }); }); }
+    });
+  }
+  function abaDocumentos(e, corpo, r) {
+    corpo.innerHTML = UI.esqueleto(5);
+    Dados.documentos(e.id).then(function (docs) {
+      var grupos = U.agrupar(docs, function (d) { return d.grupo; });
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="f-13 txt-2">' + docs.length + " documentos · " + docs.filter(function (d) { return d.situacao === "enviado"; }).length + ' a conferir</div><button type="button" class="btn btn--sm btn--contorno" data-acao="enviar-equipe">' + ic("upload") + "Enviar documento ao cliente</button></div>" + (docs.length ? Object.keys(grupos).map(function (g) { return '<h3 class="mt-8">' + U.esc(GRUPOS_DOC[g] || g) + '</h3><div class="pilha" style="gap:6px">' + grupos[g].map(function (d) { return docLinha(d); }).join("") + "</div>"; }).join("") : UI.vazio("folder", "Nenhum documento", "O cliente ainda não enviou nada.")) + '<input type="file" id="docEq" hidden></div>';
+      ligarDocs(corpo, function () { abaDocumentos(e, corpo, r); });
+      UI.delegar(corpo, { "enviar-equipe": function () { UI.$("#docEq", corpo).click(); } });
+      UI.$("#docEq", corpo).addEventListener("change", function () { var f = this.files[0]; if (!f) return; var err = U.validarArquivo(f); if (err) return UI.toast(err, "erro"); Dados.enviarDocumento(e.id, { file: f, grupo: "outros", origem: "equipe", por: sessao.nome }).then(function () { UI.toast("Enviado ao portal do cliente.", "ok"); abaDocumentos(e, corpo, r); }); });
+    });
+  }
+  function telaDocumentosGeral() {
+    Shell.titulo("Documentos a conferir");
+    Shell.render(UI.esqueleto(6));
+    Dados.todosDocumentos().then(function (docs) {
+      var porEmp = U.porChave(empresas, "id");
+      var pend = docs.filter(function (d) { return d.situacao === "enviado" || d.situacao === "analise"; });
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Atendimento</div><h1>Documentos a conferir</h1><p>' + pend.length + " aguardando. Ver registra o recibo \"visto por você\" no portal do cliente; aprovar dá o aceite.</p></div></div>" + (pend.length ? '<div class="pilha" style="gap:6px">' + pend.map(function (d) { return docLinha(d, porEmp[d.empresaId]); }).join("") + "</div>" : UI.vazio("check-circle", "Tudo conferido", "Nenhum documento aguardando.")) + "</div>");
+      ligarDocs(Shell.view(), telaDocumentosGeral);
+    });
+  }
+
+  function abaCofre(e, corpo) {
+    corpo.innerHTML = UI.esqueleto(3);
+    Dados.credenciais(e.id).then(function (creds) {
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="aviso aviso--info">' + ic("shield") + "<div><b>Toda abertura fica registrada na auditoria com seu nome e hora.</b>A senha é aberta pelo servidor e chega recifrada só para esta aba. Não copie para WhatsApp.</div></div>" + (creds.length ? '<div class="pilha" style="gap:6px">' + creds.map(function (c) { return '<div class="doc"><span class="doc__icone" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("lock") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(c.rotulo) + '</div><div class="doc__meta">' + (c.usuario ? "usuário: <b class=\"num\">" + U.esc(c.usuario) + "</b> · " : "") + "guardada por " + U.esc(c.por || "cliente") + " " + U.relativo(c.em) + '</div><div class="doc__meta senha-campo" id="sen-' + c.id + '">••••••••••</div></div><button type="button" class="btn btn--xs btn--contorno" data-acao="abrir" data-id="' + c.id + '">' + ic("eye", "ic--sm") + "Ver senha</button></div>"; }).join("") + "</div>" : UI.vazio("key", "Nenhuma senha guardada", "O cliente guarda pelo portal, em Cofre de senhas.")) + "</div>";
+      UI.delegar(corpo, { abrir: function (b) {
+        b.disabled = true;
+        var p;
+        if (Dados.ehDemo()) p = Dados.abrirCredencial(e.id, b.dataset.id, sessao);
+        else p = Cripto.gerarPar().then(function (par) { return Dados.abrirCredencial(e.id, b.dataset.id, sessao, par.publica).then(function (r) { return Cripto.decifrar(r.resposta, par.privada); }); });
+        p.then(function (dados) { var el = UI.$("#sen-" + b.dataset.id, corpo); el.textContent = dados.senha + (dados.obs ? "  (" + dados.obs + ")" : ""); el.classList.add("txt-gold"); el.setAttribute("data-segredo", "1"); UI.toast("Aberta e registrada na auditoria.", "info"); setTimeout(function () { el.textContent = "••••••••••"; el.classList.remove("txt-gold"); el.removeAttribute("data-segredo"); b.disabled = false; }, 45000); })
+          .catch(function (err) { UI.toast(err.message, "erro", null, 6000); b.disabled = false; });
+      } });
+    });
+  }
+
+  function abaConversa(e, corpo) {
+    corpo.innerHTML = '<div style="padding:0 16px 16px"><div id="chatFicha"></div></div>';
+    montarChatEquipe(UI.$("#chatFicha", corpo), e, true);
+  }
+  function montarChatEquipe(container, e, embutido) {
+    if (chatAtual) chatAtual.destruir();
+    var cab = '<div class="chat__cab">' + UI.avatar(e.fantasia) + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(e.fantasia) + '</span><span class="lista__sub">' + U.esc((e.acessos || []).map(function (a) { return a.nome; }).join(", ") || "sem acesso ao portal") + '</span></div><button type="button" class="btn btn--xs btn--contorno" data-acao="resolver">' + ic("check", "ic--sm") + 'Resolver</button><a class="btn btn--xs btn--fantasma" href="#/clientes/' + e.id + '" title="Ficha">' + ic("building", "ic--sm") + "</a></div>";
+    chatAtual = Chat.montar(container, { empresaId: e.id, eu: { uid: sessao.uid, nome: sessao.nome, lado: "equipe" }, cabecalho: cab, embutido: embutido, aoReceber: atualizarBadges, aoEnviar: atualizarBadges });
+    UI.delegar(container, { resolver: function () { UI.perguntar("Marcar como resolvida", "Próximo passo para o cliente (peak-end: a conversa termina com clareza)", "", { ok: "Resolver", placeholder: "Ex.: enviar o extrato de setembro até dia 5" }).then(function (t) { if (t === null) return; Dados.resolverConversa(e.id, sessao, t).then(function () { UI.toast("Conversa resolvida.", "ok"); atualizarBadges(); }); }); } });
+  }
+  function telaMensagens(r) {
+    Shell.titulo("Mensagens");
+    Shell.render(UI.esqueleto(6));
+    Dados.todasConversas().then(function (convs) {
+      var atual = r.param || "";
+      Shell.render('<div class="conversas"' + (atual ? " data-aberta" : "") + '><div class="conversas__lista"><div class="lista">' + convs.map(function (c) { return '<a class="lista__item" href="#/mensagens/' + c.empresaId + '" aria-current="' + (c.empresaId === atual) + '">' + UI.avatar(c.empresa, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(c.empresa) + '</span><span class="lista__sub">' + (c.ultima ? (c.ultima.autor.lado === "equipe" ? "Você: " : "") + U.esc(c.ultima.texto || "📎 anexo") : "sem mensagens") + '</span></div><div class="pilha" style="gap:4px;align-items:flex-end"><span class="lista__meta">' + (c.ultima ? U.relativo(c.ultima.em) : "") + "</span>" + (c.naoLidas ? '<span class="badge badge--erro">' + c.naoLidas + "</span>" : c.resolvida ? UI.badge("resolvida", "ok", "check") : "") + "</div></a>"; }).join("") + '</div></div><div class="conversas__chat" id="chatArea">' + (atual ? "" : '<div class="vazio" style="height:100%;justify-content:center">' + ic("chat") + "<b>Escolha uma conversa</b><span>As não lidas aparecem com o contador vermelho.</span></div>") + "</div></div>");
+      if (atual) { var e = empresas.filter(function (x) { return x.id === atual; })[0]; if (e) { var area = UI.$("#chatArea"); area.innerHTML = '<div id="chatMsgs"></div>'; var cont = UI.$("#chatMsgs"); montarChatEquipe(cont, e, false); var cab = cont.querySelector(".chat__cab"); if (cab) cab.insertAdjacentHTML("afterbegin", '<a class="btn btn--icone btn--fantasma so-mobile" href="#/mensagens" aria-label="Voltar">' + ic("arrow-left") + "</a>"); } }
+    });
+  }
+
+  function abaUso(e, corpo) {
+    corpo.innerHTML = UI.esqueleto(4);
+    Dados.usos({ empresaId: e.id, desde: Date.now() - 30 * U.DIA_MS }).then(function (usos) {
+      var ag = Uso.agregar(usos, [e]);
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="f-13 txt-2">Últimos 30 dias · ' + usos.filter(function (u) { return u.tipo === "abrir"; }).length + ' aberturas</div><button type="button" class="btn btn--sm btn--contorno" data-acao="csv">' + ic("download") + 'CSV</button></div><div class="tabela-wrap"><table class="tabela tabela--compacta"><thead><tr><th>Sistema</th><th class="num">Aberturas</th><th class="num">Minutos</th><th class="num">Dias ativos</th><th>Quem</th><th>Último uso</th><th>Dispositivo</th></tr></thead><tbody>' + (ag.map(function (r) { var s = CATALOGO.por(r.sistemaId); return "<tr><td><b>" + U.esc(s ? s.nome : r.sistemaId === "portal" ? "Portal (telas)" : r.sistemaId) + '</b></td><td class="num">' + r.aberturas + '</td><td class="num">' + Math.round(r.segundos / 60) + '</td><td class="num">' + r.diasAtivos + "</td><td class=\"f-12\">" + U.esc(Object.keys(r.pessoas).map(function (k) { return r.pessoas[k]; }).join(", ")) + '</td><td class="f-12">' + U.relativo(r.ultimo) + '</td><td class="f-12">' + (r.celular > r.computador ? "📱 celular" : "💻 computador") + "</td></tr>"; }).join("") || '<tr><td colspan="7" class="txt-2">Sem uso no período.</td></tr>') + "</tbody></table></div><h3 class=\"mt-12\">Últimos eventos</h3><div class=\"lista card\">" + usos.filter(function (u) { return u.tipo !== "sessao"; }).slice(0, 20).map(function (u) { var s = CATALOGO.por(u.sistemaId); return '<div class="lista__item" style="min-height:0;padding:8px 16px"><span class="ponto ' + (u.tipo === "abrir" ? "ponto--ok" : u.tipo === "vitrine" ? "ponto--gold" : "") + '"></span><div class="lista__texto"><span class="lista__titulo f-13">' + (u.tipo === "abrir" ? "abriu " + U.esc(s ? s.nome : u.sistemaId) : u.tipo === "tela" ? "tela " + U.esc(u.tela) : u.tipo === "vitrine" ? "vitrine · " + U.esc(u.acao) + " · " + U.esc(s ? s.nome : u.sistemaId) : u.tipo) + '</span><span class="lista__sub">' + U.esc(u.nome || "") + " · " + U.esc(u.dispositivo || "") + '</span></div><span class="lista__meta">' + U.dataHora(u.em) + "</span></div>"; }).join("") + "</div></div>";
+      UI.delegar(corpo, { csv: function () { U.baixar("uso-" + U.slug(e.fantasia) + ".csv", Uso.csv(ag), "text/csv;charset=utf-8"); } });
+    });
+  }
+
+  /* ============================================================
+     Jornadas (visão geral de todos os clientes)
+     ============================================================ */
+  function telaJornadas() {
+    Shell.titulo("Jornadas de 30 dias");
+    Shell.render(UI.esqueleto(6));
+    Promise.all(empresas.map(carregarAuto)).then(function () {
+      var lista = empresas.map(function (e) { return { e: e, r: JORNADA.resumo(e.jornada, autoFnDe(e), "equipe"), c: JORNADA.resumo(e.jornada, autoFnDe(e), "cliente") }; });
+      var abertas = lista.filter(function (x) { return !x.r.concluida; }).sort(function (a, b) { return b.r.atrasados - a.r.atrasados || a.r.diaHoje - b.r.diaHoje; });
+      var concluidas = lista.filter(function (x) { return x.r.concluida; });
+      Shell.render('<div class="pagina pagina--larga"><div class="cabecalho"><div><div class="cabecalho__kicker">Onboarding</div><h1>Jornadas de 30 dias</h1><p>' + abertas.length + " em andamento · " + concluidas.length + ' concluídas. Cada coluna é um dia (D); a célula mostra os passos feitos da equipe.</p></div><a class="btn btn--sm btn--contorno" href="#/conteudo">' + ic("pencil") + "Editar a jornada</a></div>" +
+        '<div class="tabela-wrap"><table class="tabela tabela--compacta"><thead><tr><th>Cliente</th><th>Hoje</th>' + JORNADA.DIAS.map(function (d) { return '<th class="centro">D' + d.dia + "</th>"; }).join("") + "<th>Cliente fez</th></tr></thead><tbody>" + abertas.map(function (x) {
+          return '<tr style="cursor:pointer" data-acao="abrir" data-id="' + x.e.id + '"><td><b>' + U.esc(x.e.fantasia) + '</b><div class="f-12 txt-2">' + U.esc(x.e.gerenteNome || "") + " · trilha " + U.esc(x.e.trilha || "A") + "</div></td><td>D" + x.r.diaHoje + "</td>" + x.r.dias.map(function (d) { var cor = d.estado === "feito" ? "var(--success-soft);color:var(--success)" : d.estado === "atrasado" ? "var(--danger-soft);color:var(--danger)" : d.estado === "hoje" || d.estado === "atual" ? "var(--gold-soft);color:var(--gold-text)" : "var(--muted);color:var(--muted-foreground)"; return '<td class="centro"><span class="badge" style="background:' + cor + '" title="' + d.estado + '">' + d.feitos + "/" + d.total + "</span></td>"; }).join("") + '<td style="min-width:110px"><div class="f-12 txt-2">' + x.c.pct + "%</div>" + UI.barra(x.c.pct, "barra--gold") + "</td></tr>";
+        }).join("") + "</tbody></table></div>" +
+        (concluidas.length ? '<h2 class="mt-8">Concluídas</h2><div class="grade grade--3">' + concluidas.map(function (x) { return '<a class="card card--clicavel" href="#/clientes/' + x.e.id + '/jornada" style="text-decoration:none;color:inherit"><div class="card__corpo linha" style="flex-wrap:nowrap">' + UI.avatar(x.e.fantasia, "avatar--sm") + '<div class="lista__texto"><b>' + U.esc(x.e.fantasia) + '</b><span class="lista__sub">concluída ' + (x.e.jornada.concluidaEm ? U.relativo(x.e.jornada.concluidaEm) : "") + "</span></div>" + UI.badge("100%", "ok", "trophy") + "</div></a>"; }).join("") + "</div>" : "") + "</div>");
+      UI.delegar(Shell.view(), { abrir: function (tr) { location.hash = "#/clientes/" + tr.dataset.id + "/jornada"; } });
+    });
+  }
+
+  /* ============================================================
+     Checklist Contábil: quais empresas concluíram
+     ============================================================ */
+  function telaChecklist(r) {
+    Shell.titulo("Checklist Contábil");
+    var anoMes = r.query.mes || U.anoMes(Date.now());
+    Shell.render(UI.esqueleto(6));
+    Dados.listarChecklists(anoMes).then(function (checks) {
+      var porEmp = U.porChave(checks, "empresaId");
+      var comChecklist = empresas.filter(function (e) { return (e.liberacoes || {}).checklist && e.liberacoes.checklist.ativo; });
+      var linhas = comChecklist.map(function (e) { var c = porEmp[e.id]; var f = c ? c.itens.filter(function (i) { return i.feito; }).length : 0, t = c ? c.itens.length : 6; return { e: e, c: c, f: f, t: t, pct: U.pct(f, t), ok: !!(c && c.concluidoEm) }; }).sort(function (a, b) { return a.pct - b.pct; });
+      var concl = linhas.filter(function (l) { return l.ok; }).length;
+      var meses = []; for (var i = 0; i < 6; i++) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); meses.push(U.anoMes(d)); }
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Sistema integrado</div><h1>Checklist Contábil · ' + nomeMes(anoMes) + '</h1><p>Quais empresas concluíram o checklist do mês, quais estão paradas e o que falta em cada uma.</p></div><div class="cabecalho__acoes"><select class="select" id="selMes" style="min-height:36px;width:auto">' + meses.map(function (m) { return '<option value="' + m + '"' + (m === anoMes ? " selected" : "") + ">" + nomeMes(m) + "</option>"; }).join("") + '</select><button type="button" class="btn btn--contorno" data-acao="csv">' + ic("download") + "CSV</button></div></div>" +
+        '<div class="grade grade--3"><div class="card kpi"><span class="kpi__rotulo">' + ic("check-circle") + 'Concluíram</span><span class="kpi__valor txt-ok">' + concl + '<small>de ' + linhas.length + '</small></span></div><div class="card kpi"><span class="kpi__rotulo">' + ic("clock") + 'Em andamento</span><span class="kpi__valor">' + linhas.filter(function (l) { return !l.ok && l.f > 0; }).length + '</span></div><div class="card kpi"><span class="kpi__rotulo">' + ic("alert") + 'Não começaram</span><span class="kpi__valor txt-aviso">' + linhas.filter(function (l) { return l.f === 0; }).length + "</span></div></div>" +
+        '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Empresa</th><th>Gerente</th><th style="min-width:160px">Progresso</th><th>Faltando</th><th>Situação</th><th></th></tr></thead><tbody>' + linhas.map(function (l) { var faltam = l.c ? l.c.itens.filter(function (i) { return !i.feito; }).map(function (i) { return i.texto; }) : ["tudo"]; return '<tr><td><b>' + U.esc(l.e.fantasia) + '</b></td><td class="f-13">' + U.esc(l.e.gerenteNome || "") + '</td><td><div class="f-12 txt-2">' + l.f + "/" + l.t + "</div>" + UI.barra(l.pct, l.ok ? "barra--ok" : "") + '</td><td class="f-12 txt-2">' + U.esc(faltam.slice(0, 2).join(", ")) + (faltam.length > 2 ? " +" + (faltam.length - 2) : "") + "</td><td>" + (l.ok ? UI.badge("em dia", "ok", "check") : l.f === 0 ? UI.badge("não começou", "aviso") : UI.badge("em andamento", "info")) + '</td><td><div class="linha" style="gap:4px;flex-wrap:nowrap"><a class="btn btn--xs btn--contorno" href="#/mensagens/' + l.e.id + '">' + ic("chat", "ic--sm") + "Cobrar</a>" + (l.c ? '<button type="button" class="btn btn--xs btn--contorno" data-acao="aceitar" data-id="' + l.e.id + '">' + ic("check", "ic--sm") + "Aceitar itens</button>" : "") + "</div></td></tr>"; }).join("") + "</tbody></table></div>" +
+        '<div class="aviso aviso--info">' + ic("info") + "<div><b>Integração com o sistema Checklist Contábil</b>Esta tela lê <code>empresas/{id}/checklist/{anoMes}</code>. O sistema Checklist Contábil externo pode gravar direto nessa coleção (mesmo projeto Firebase) ou ser importado por CSV. Contrato em docs/01-arquitetura.md.</div></div></div>");
+      var v = Shell.view();
+      UI.$("#selMes", v).addEventListener("change", function () { location.hash = "#/checklist?mes=" + this.value; });
+      UI.delegar(v, {
+        csv: function () { U.baixar("checklist-" + anoMes + ".csv", U.csv(linhas.map(function (l) { return [l.e.fantasia, l.e.cnpj, l.f, l.t, l.pct + "%", l.ok ? "concluído" : "aberto", l.c && l.c.concluidoEm ? U.data(l.c.concluidoEm) : ""]; }), ["Empresa", "CNPJ", "Feitos", "Total", "%", "Situação", "Concluído em"]), "text/csv;charset=utf-8"); },
+        aceitar: function (b) { var l = linhas.filter(function (x) { return x.e.id === b.dataset.id; })[0]; var itens = l.c.itens.map(function (i) { if (i.feito && !i.aceite) i.aceite = { por: sessao.nome, em: Date.now() }; return i; }); Dados.salvarChecklist(l.e.id, anoMes, { itens: itens }).then(function () { UI.toast("Itens enviados receberam o seu aceite.", "ok"); telaChecklist(r); }); }
+      });
+    });
+  }
+
+  /* ============================================================
+     Vitrine e campanhas
+     ============================================================ */
+  function telaVitrine() {
+    Shell.titulo("Vitrine e campanhas");
+    Shell.render(UI.esqueleto(5));
+    Promise.all([Dados.vitrine(), Dados.usos({ desde: Date.now() - 30 * U.DIA_MS })]).then(function (r) {
+      var proprias = r[0], usos = r[1].filter(function (u) { return u.tipo === "vitrine"; });
+      var stats = function (id) { var s = { impressao: 0, clique: 0, fechou: 0, interesse: 0 }; usos.forEach(function (u) { if (u.campanhaId === id && s[u.acao] !== undefined) s[u.acao]++; }); return s; };
+      var card = function (c, padrao) { var s = CATALOGO.por(c.sistemaId); var st = stats(c.id); return '<div class="card sistema"><div class="sistema__topo"><span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + '</span><div style="flex:1;min-width:0"><div class="sistema__nome">' + U.esc(c.titulo) + '</div><div class="sistema__tag">' + U.esc(s.nome) + " · " + (c.publico === "todos" ? "todas as empresas" : "quem não tem o sistema") + (c.gatilho ? " · por gatilho no chat" : "") + "</div></div>" + (c.ativo ? UI.badge("ativa", "ok") : UI.badge("pausada")) + '</div><div class="sistema__desc">' + U.esc(c.texto) + '</div><div class="f-12 txt-2">' + st.impressao + " impressões · " + st.clique + " cliques · " + st.fechou + " fechou · " + st.interesse + ' pedidos</div><div class="sistema__acoes">' + (padrao ? '<span class="badge">padrão do código</span><button type="button" class="btn btn--xs btn--contorno" data-acao="clonar" data-id="' + c.id + '">' + ic("copy", "ic--sm") + "Copiar e editar</button>" : '<button type="button" class="btn btn--xs btn--contorno" data-acao="editar" data-id="' + c.id + '">' + ic("pencil", "ic--sm") + 'Editar</button><button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-id="' + c.id + '">' + ic("trash", "ic--sm") + "</button>") + "</div></div>"; };
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Propaganda ética</div><h1>Vitrine e campanhas</h1><p>Uma campanha por vez no portal, no máximo 2 impressões por pessoa, some 14 dias ao fechar. Sem som, sem vibração, sem escassez falsa (docs/00-pesquisa-engajamento.md).</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--primario" data-acao="nova">' + ic("plus") + "Nova campanha</button></div></div>" +
+        '<h2>Suas campanhas</h2>' + (proprias.length ? '<div class="grade grade--3">' + proprias.map(function (c) { return card(c, false); }).join("") + "</div>" : UI.vazio("megaphone", "Nenhuma campanha própria", "Enquanto isso o portal usa as campanhas padrão abaixo.")) +
+        '<h2 class="mt-8">Campanhas padrão</h2><div class="grade grade--3">' + CATALOGO.VITRINE.map(function (c) { return card(c, true); }).join("") + "</div>" +
+        '<h2 class="mt-8">Prova social (número real de clientes por sistema)</h2><div class="card"><div class="card__corpo grade grade--4">' + CATALOGO.SISTEMAS.map(function (s) { var n = empresas.filter(function (e) { var l = (e.liberacoes || {})[s.id]; return l && l.ativo; }).length; return '<div class="f-13"><b>' + U.esc(s.nome) + '</b><div class="txt-2">' + n + " liberado" + (n === 1 ? "" : "s") + " · exibindo " + s.prova + '</div><button type="button" class="btn btn--xs btn--contorno mt-4" data-acao="prova" data-s="' + s.id + '" data-n="' + n + '">Usar ' + n + "</button></div>"; }).join("") + "</div></div></div>");
+      var v = Shell.view();
+      function editor(c) {
+        c = c || { id: "c_" + U.id().slice(-8), sistemaId: "ponto", titulo: "", texto: "", cta: "Conhecer", publico: "sem-sistema", ativo: true, prioridade: 1, gatilho: false };
+        UI.modal({ titulo: c.titulo ? "Editar campanha" : "Nova campanha", corpo: '<div class="pilha"><div class="campo"><label class="campo__rotulo">Sistema</label><select class="select" id="vS">' + CATALOGO.SISTEMAS.map(function (s) { return '<option value="' + s.id + '"' + (s.id === c.sistemaId ? " selected" : "") + ">" + U.esc(s.nome) + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Título (até 90)</label><input class="input" id="vT" maxlength="90" value="' + U.esc(c.titulo) + '"></div><div class="campo"><label class="campo__rotulo">Texto (até 240)</label><textarea class="textarea" id="vX" maxlength="240">' + U.esc(c.texto) + '</textarea></div><div class="grade grade--2"><div class="campo"><label class="campo__rotulo">Botão</label><input class="input" id="vC" maxlength="40" value="' + U.esc(c.cta) + '"></div><div class="campo"><label class="campo__rotulo">Prioridade (1 = primeiro)</label><input class="input num" id="vP" type="number" min="1" max="9" value="' + (c.prioridade || 1) + '"></div><div class="campo"><label class="campo__rotulo">Público</label><select class="select" id="vPub"><option value="sem-sistema"' + (c.publico === "sem-sistema" ? " selected" : "") + '>Quem não tem o sistema</option><option value="todos"' + (c.publico === "todos" ? " selected" : "") + '>Todas as empresas</option></select></div><div class="campo"><label class="campo__rotulo">Só estas empresas (opcional)</label><select class="select" id="vE" multiple style="min-height:80px">' + empresas.map(function (e) { return '<option value="' + e.id + '"' + ((c.empresas || []).indexOf(e.id) > -1 ? " selected" : "") + ">" + U.esc(e.fantasia) + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Início</label><input class="input" type="date" id="vI" value="' + (c.inicio ? new Date(c.inicio).toISOString().slice(0, 10) : "") + '"></div><div class="campo"><label class="campo__rotulo">Fim</label><input class="input" type="date" id="vF" value="' + (c.fim ? new Date(c.fim).toISOString().slice(0, 10) : "") + '"></div></div><label class="checar"><input type="checkbox" id="vG"' + (c.gatilho ? " checked" : "") + "> Só aparece por gatilho (quando o cliente fala do assunto no chat)</label><label class=\"checar\"><input type=\"checkbox\" id=\"vA\"" + (c.ativo ? " checked" : "") + "> Ativa</label></div>",
+          acoes: [{ rotulo: "Cancelar" }, { rotulo: "Salvar", classe: "btn--primario", ao: function (x) { var t = x.querySelector("#vT").value.trim(); if (!t) { UI.toast("Título obrigatório.", "aviso"); return false; } var emps = Array.prototype.map.call(x.querySelector("#vE").selectedOptions, function (o) { return o.value; }); Dados.salvarCampanha({ id: c.id, sistemaId: x.querySelector("#vS").value, titulo: t, texto: x.querySelector("#vX").value.trim(), cta: x.querySelector("#vC").value.trim() || "Conhecer", publico: x.querySelector("#vPub").value, empresas: emps.length ? emps : null, prioridade: Number(x.querySelector("#vP").value) || 1, gatilho: x.querySelector("#vG").checked, ativo: x.querySelector("#vA").checked, inicio: x.querySelector("#vI").value ? new Date(x.querySelector("#vI").value).getTime() : 0, fim: x.querySelector("#vF").value ? new Date(x.querySelector("#vF").value + "T23:59:59").getTime() : 0 }).then(function () { UI.toast("Campanha salva.", "ok"); telaVitrine(); }); } }] });
+      }
+      UI.delegar(v, {
+        nova: function () { editor(null); },
+        editar: function (b) { editor(proprias.filter(function (c) { return c.id === b.dataset.id; })[0]); },
+        clonar: function (b) { var c = U.clonar(CATALOGO.VITRINE.filter(function (x) { return x.id === b.dataset.id; })[0]); c.id = "c_" + U.id().slice(-8); editor(c); },
+        remover: function (b) { UI.confirmar("Remover campanha?", "Ela some do portal na hora.", { ok: "Remover", perigo: true }).then(function (ok) { if (ok) Dados.removerCampanha(b.dataset.id).then(telaVitrine); }); },
+        prova: function (b) { Dados.conteudo("catalogo").then(function (cat) { cat = cat || { sistemas: [] }; var lista = (cat.sistemas || []).filter(function (s) { return s.id !== b.dataset.s; }); var atual = (cat.sistemas || []).filter(function (s) { return s.id === b.dataset.s; })[0] || { id: b.dataset.s }; atual.prova = Number(b.dataset.n); lista.push(atual); return Dados.salvarConteudo("catalogo", { sistemas: lista, vitrine: cat.vitrine || null }, sessao).then(function () { CATALOGO.aplicar({ sistemas: lista }); UI.toast("Prova social atualizada com o número real.", "ok"); telaVitrine(); }); }); }
+      });
+    });
+  }
+
+  /* ============================================================
+     Uso e cobrança
+     ============================================================ */
+  function telaUso(r) {
+    Shell.titulo("Uso e cobrança");
+    var dias = Number(r.query.dias) || 30, sis = r.query.sistema || "", emp = r.query.empresa || "";
+    Shell.render(UI.esqueleto(6));
+    Dados.usos({ desde: Date.now() - dias * U.DIA_MS, sistemaId: sis || undefined, empresaId: emp || undefined }).then(function (usos) {
+      var ag = Uso.agregar(usos, empresas);
+      var porEmp = U.agrupar(ag, function (x) { return x.empresaId; });
+      var totalAb = U.soma(ag, function (x) { return x.aberturas; }), totalMin = Math.round(U.soma(ag, function (x) { return x.segundos; }) / 60);
+      var porDia = Uso.porDia(usos, Math.min(dias, 30)), max = Math.max.apply(null, Object.keys(porDia).map(function (k) { return porDia[k]; }).concat([1]));
+      var q = function (o) { var p = { dias: dias, sistema: sis, empresa: emp }; Object.assign(p, o); return "#/uso?dias=" + p.dias + (p.sistema ? "&sistema=" + p.sistema : "") + (p.empresa ? "&empresa=" + p.empresa : ""); };
+      Shell.render('<div class="pagina pagina--larga"><div class="cabecalho"><div><div class="cabecalho__kicker">Auditoria de uso</div><h1>Uso e cobrança</h1><p>Quem está usando o portal e cada sistema, quantas vezes, por quanto tempo e em que aparelho. Exporte para informar e cobrar.</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--primario" data-acao="csv">' + ic("download") + 'Exportar CSV</button><button type="button" class="btn btn--contorno" data-acao="cobranca">' + ic("receipt") + "Relatório de cobrança</button></div></div>" +
+        '<div class="linha"><div class="segmentos">' + [7, 30, 90].map(function (d) { return '<button type="button" data-acao="ir" data-h="' + q({ dias: d }) + '" aria-pressed="' + (d === dias) + '">' + d + " dias</button>"; }).join("") + '</div><select class="select" style="min-height:36px;width:auto" data-acao="sel-sis"><option value="">Todos os sistemas</option>' + CATALOGO.SISTEMAS.map(function (s) { return '<option value="' + s.id + '"' + (s.id === sis ? " selected" : "") + ">" + U.esc(s.nome) + "</option>"; }).join("") + '<option value="portal"' + (sis === "portal" ? " selected" : "") + '>Portal (telas)</option></select><select class="select" style="min-height:36px;width:auto" data-acao="sel-emp"><option value="">Todas as empresas</option>' + empresas.map(function (e) { return '<option value="' + e.id + '"' + (e.id === emp ? " selected" : "") + ">" + U.esc(e.fantasia) + "</option>"; }).join("") + "</select></div>" +
+        '<div class="grade grade--4"><div class="card kpi"><span class="kpi__rotulo">' + ic("zap") + 'Aberturas</span><span class="kpi__valor">' + U.num(totalAb) + '</span></div><div class="card kpi"><span class="kpi__rotulo">' + ic("clock") + 'Minutos de uso</span><span class="kpi__valor">' + U.num(totalMin) + '</span></div><div class="card kpi"><span class="kpi__rotulo">' + ic("building") + 'Empresas ativas</span><span class="kpi__valor">' + Object.keys(porEmp).length + '<small>de ' + empresas.length + '</small></span></div><div class="card kpi kpi--gold"><span class="kpi__rotulo">' + ic("smile") + 'No celular</span><span class="kpi__valor">' + U.pct(U.soma(ag, function (x) { return x.celular; }), U.soma(ag, function (x) { return x.celular + x.computador; }) || 1) + "%</span></div></div>" +
+        '<div class="card"><div class="card__cab"><h2>Aberturas por dia</h2></div><div class="card__corpo" style="padding-top:10px"><div style="display:flex;gap:3px;align-items:flex-end;height:90px">' + Object.keys(porDia).map(function (k) { var v = porDia[k]; return '<div title="' + k + ": " + v + '" style="flex:1;border-radius:3px 3px 0 0;background:var(--primary);height:' + Math.max(3, Math.round(v / max * 84)) + 'px"></div>'; }).join("") + "</div></div></div>" +
+        '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Empresa</th><th>Sistema</th><th class="num">Aberturas</th><th class="num">Minutos</th><th class="num">Dias ativos</th><th class="num">Pessoas</th><th>Último uso</th><th>Aparelho</th></tr></thead><tbody>' + (ag.map(function (x) { var s = CATALOGO.por(x.sistemaId); return '<tr><td><a href="#/clientes/' + x.empresaId + '/uso"><b>' + U.esc(x.empresa) + "</b></a></td><td>" + U.esc(s ? s.nome : x.sistemaId === "portal" ? "Portal (telas)" : x.sistemaId) + '</td><td class="num">' + x.aberturas + '</td><td class="num">' + Math.round(x.segundos / 60) + '</td><td class="num">' + x.diasAtivos + '</td><td class="num">' + x.qtdPessoas + '</td><td class="f-12">' + U.relativo(x.ultimo) + '</td><td class="f-12">' + (x.celular > x.computador ? "📱" : "💻") + "</td></tr>"; }).join("") || '<tr><td colspan="8" class="txt-2">Sem uso no período.</td></tr>') + "</tbody></table></div>" +
+        '<h2>Sem uso no período</h2><div class="linha">' + empresas.filter(function (e) { return !porEmp[e.id]; }).map(function (e) { return '<a class="chip" href="#/mensagens/' + e.id + '">' + U.esc(e.fantasia) + "</a>"; }).join("") + "</div></div>");
+      var v = Shell.view();
+      v.querySelector("[data-acao=sel-sis]").addEventListener("change", function () { location.hash = q({ sistema: this.value }); });
+      v.querySelector("[data-acao=sel-emp]").addEventListener("change", function () { location.hash = q({ empresa: this.value }); });
+      UI.delegar(v, {
+        ir: function (b) { location.hash = b.dataset.h; },
+        csv: function () { U.baixar("uso-" + dias + "d.csv", Uso.csv(ag), "text/csv;charset=utf-8"); },
+        cobranca: function () {
+          var linhas = [];
+          Object.keys(porEmp).forEach(function (id) { var e = empresas.filter(function (x) { return x.id === id; })[0] || {}; porEmp[id].forEach(function (x) { if (x.sistemaId === "portal") return; var l = (e.liberacoes || {})[x.sistemaId] || {}; linhas.push([e.fantasia, e.cnpj, CATALOGO.por(x.sistemaId) ? CATALOGO.por(x.sistemaId).nome : x.sistemaId, l.plano || "sem plano", x.aberturas, Math.round(x.segundos / 60), x.diasAtivos, U.data(x.ultimo)]); }); });
+          U.baixar("cobranca-" + U.anoMes(Date.now()) + ".csv", U.csv(linhas, ["Empresa", "CNPJ", "Sistema", "Plano", "Aberturas", "Minutos", "Dias ativos", "Último uso"]), "text/csv;charset=utf-8");
+          UI.toast("Relatório de cobrança gerado: um sistema por linha, com plano e uso.", "ok");
+        }
+      });
+    });
+  }
+
+  /* ============================================================
+     Equipe, conteúdo, segurança, perfil
+     ============================================================ */
+  function telaEquipe() {
+    if (!admin()) { location.hash = "#/inicio"; return; }
+    Shell.titulo("Equipe");
+    Dados.equipe().then(function (eq) {
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Administração</div><h1>Equipe</h1><p>Quem entra no painel. Administrador vê Uso, Equipe e Segurança; os demais atendem.</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--primario" data-acao="novo">' + ic("plus") + 'Adicionar</button></div></div><div class="card"><div class="lista">' + eq.map(function (m) { return '<div class="lista__item">' + UI.avatar(m.nome, "avatar--gold avatar-sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(m.nome) + " " + (m.papel === "admin" ? UI.badge("admin", "gold") : "") + '</span><span class="lista__sub">' + U.esc(m.email) + " · " + U.esc(m.setor || "") + '</span></div><button type="button" class="btn btn--xs btn--contorno" data-acao="editar" data-uid="' + m.uid + '">' + ic("pencil", "ic--sm") + "</button>" + (m.uid !== sessao.uid ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-uid="' + m.uid + '">' + ic("trash", "ic--sm") + "</button>" : "") + "</div>"; }).join("") + "</div></div>" + (Dados.ehDemo() ? "" : '<div class="aviso aviso--info">' + ic("info") + "<div><b>No Firebase</b>a pessoa precisa existir no Authentication (e-mail/senha). Crie-a no console e informe aqui o UID: é o documento em /usuarios/{uid} que dá acesso ao painel.</div></div>") + "</div>");
+      function editor(m) {
+        m = m || { nome: "", email: "", papel: "equipe", setor: "" };
+        UI.modal({ titulo: m.uid ? "Editar" : "Adicionar à equipe", corpo: '<div class="pilha"><div class="campo"><label class="campo__rotulo">Nome</label><input class="input" id="mN" value="' + U.esc(m.nome) + '"></div><div class="campo"><label class="campo__rotulo">E-mail</label><input class="input" id="mE" type="email" value="' + U.esc(m.email) + '"></div>' + (Dados.ehDemo() ? "" : '<div class="campo"><label class="campo__rotulo">UID (Authentication)</label><input class="input mono" id="mU" value="' + U.esc(m.uid || "") + '"' + (m.uid ? " readonly" : "") + "></div>") + '<div class="campo"><label class="campo__rotulo">Setor / função</label><input class="input" id="mS" value="' + U.esc(m.setor || "") + '"></div><div class="campo"><label class="campo__rotulo">Papel</label><select class="select" id="mP"><option value="equipe"' + (m.papel === "equipe" ? " selected" : "") + '>Equipe</option><option value="admin"' + (m.papel === "admin" ? " selected" : "") + ">Administrador</option></select></div></div>",
+          acoes: [{ rotulo: "Cancelar" }, { rotulo: "Salvar", classe: "btn--primario", ao: function (c) { var dados = { uid: m.uid || (c.querySelector("#mU") ? c.querySelector("#mU").value.trim() : ""), nome: c.querySelector("#mN").value.trim(), email: c.querySelector("#mE").value.trim().toLowerCase(), setor: c.querySelector("#mS").value.trim(), papel: c.querySelector("#mP").value }; if (!dados.nome || !U.emailValido(dados.email)) { UI.toast("Nome e e-mail válidos, por favor.", "aviso"); return false; } Dados.salvarMembro(dados, sessao).then(function () { UI.toast("Salvo.", "ok"); telaEquipe(); }).catch(function (e) { UI.toast(e.message, "erro"); }); } }] });
+      }
+      UI.delegar(Shell.view(), { novo: function () { editor(null); }, editar: function (b) { editor(eq.filter(function (m) { return m.uid === b.dataset.uid; })[0]); }, remover: function (b) { UI.confirmar("Remover da equipe?", "A pessoa perde o acesso ao painel na hora.", { ok: "Remover", perigo: true }).then(function (ok) { if (ok) Dados.removerMembro(b.dataset.uid, sessao).then(telaEquipe); }); } });
+    });
+  }
+
+  function telaConteudo(r) {
+    Shell.titulo("Conteúdo do portal");
+    var aba = r.param || "jornada";
+    Shell.render(UI.esqueleto(6));
+    Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo")]).then(function (res) {
+      var conteudoJ = res[0], conteudoC = res[1];
+      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Administração</div><h1>Conteúdo do portal</h1><p>Nada por código: o que você salva aqui o portal lê na hora.</p></div></div><div class="abas"><a class="btn btn--fantasma" style="border-radius:0" role="tab" aria-selected="' + (aba === "jornada") + '" href="#/conteudo/jornada">Jornada de 30 dias</a><a class="btn btn--fantasma" style="border-radius:0" role="tab" aria-selected="' + (aba === "catalogo") + '" href="#/conteudo/catalogo">Sistemas (endereços e textos)</a></div>';
+      if (aba === "jornada") {
+        html += '<div class="aviso aviso--info">' + ic("info") + '<div><b>Dias (D) e passos (P)</b>Edite o texto de cada passo. "Auto" liga o passo a um fato que o sistema confirma sozinho. Reordene pelos números dos dias.' + (conteudoJ ? " Última publicação: " + U.dataHora(conteudoJ.atualizadoEm) + " por " + U.esc(conteudoJ.por || "") : " Usando o padrão do treinamento.") + "</div></div>" +
+          '<div class="pilha" id="edJornada">' + JORNADA.DIAS.map(function (d, di) {
+            var passos = function (lado) { return d[lado].map(function (p, i) { return '<div class="linha" style="flex-wrap:nowrap;gap:6px"><span class="passo__p">P' + (i + 1) + '</span><input class="input" style="min-height:36px" data-lado="' + lado + '" data-i="' + i + '" value="' + U.esc(p.texto) + '"><select class="select" style="min-height:36px;width:190px" data-auto="' + lado + '" data-i="' + i + '"><option value="">manual</option>' + JORNADA.AUTOMACOES.map(function (a) { return '<option value="' + a.id + '"' + (a.id === p.auto ? " selected" : "") + ">auto: " + U.esc(a.rotulo) + "</option>"; }).join("") + '</select><button type="button" class="btn btn--icone btn--fantasma" data-acao="rm-passo" data-lado="' + lado + '" data-i="' + i + '" aria-label="Remover">' + ic("x", "ic--sm") + "</button></div>"; }).join("") + '<button type="button" class="btn btn--xs btn--contorno" data-acao="add-passo" data-lado="' + lado + '">' + ic("plus", "ic--sm") + "Passo</button>"; };
+            return '<details class="card" data-di="' + di + '"' + (di === 0 ? " open" : "") + '><summary class="card__corpo linha" style="cursor:pointer"><b>D' + d.dia + " · " + U.esc(d.titulo) + "</b>" + (d.marco ? UI.badge("marco", "gold") : "") + '<span class="esp"></span><button type="button" class="btn btn--xs btn--fantasma" data-acao="rm-dia" aria-label="Remover dia">' + ic("trash", "ic--sm") + '</button></summary><div class="card__corpo pilha" style="padding-top:0"><div class="grade grade--2"><div class="campo"><label class="campo__rotulo">Dia (número)</label><input class="input num" type="number" min="0" max="120" data-campo="dia" value="' + d.dia + '"></div><div class="campo"><label class="campo__rotulo">Título</label><input class="input" data-campo="titulo" value="' + U.esc(d.titulo) + '"></div><div class="campo"><label class="campo__rotulo">Quem (equipe)</label><input class="input" data-campo="quem" value="' + U.esc(d.quem) + '"></div><div class="campo"><label class="checar" style="margin-top:22px"><input type="checkbox" data-campo="marco"' + (d.marco ? " checked" : "") + "> Marco</label></div></div>" +
+              '<div class="campo"><label class="campo__rotulo">Objetivo (o cliente lê)</label><textarea class="textarea" data-campo="objetivo" style="min-height:60px">' + U.esc(d.objetivo) + '</textarea></div><div class="campo"><label class="campo__rotulo">Erro comum (só a equipe vê)</label><textarea class="textarea" data-campo="erro" style="min-height:60px">' + U.esc(d.erro) + "</textarea></div>" +
+              '<div class="f-12 f-800 txt-2" style="letter-spacing:.06em;text-transform:uppercase">O cliente faz</div><div class="pilha" style="gap:6px" data-passos="cliente">' + passos("cliente") + '</div><div class="f-12 f-800 txt-2 mt-8" style="letter-spacing:.06em;text-transform:uppercase">A equipe faz</div><div class="pilha" style="gap:6px" data-passos="equipe">' + passos("equipe") + "</div></div></details>";
+          }).join("") + '</div><div class="modal__acoes"><button type="button" class="btn btn--contorno" data-acao="add-dia">' + ic("plus") + 'Novo dia</button><button type="button" class="btn btn--contorno" data-acao="restaurar">' + ic("refresh") + 'Restaurar padrão</button><button type="button" class="btn btn--primario" data-acao="publicar">' + ic("check") + "Publicar jornada</button></div>";
+      } else {
+        html += '<div class="aviso aviso--info">' + ic("info") + "<div><b>Endereços dos sistemas</b>Só https. Modo <i>embutido</i> abre dentro do portal (o sistema precisa permitir em Content-Security-Policy: frame-ancestors); <i>externo</i> abre em aba nova.</div></div><div class=\"pilha\" id=\"edCat\">" + CATALOGO.SISTEMAS.map(function (s) { return '<div class="card" data-s="' + s.id + '"><div class="card__corpo pilha"><div class="linha"><span class="selo-sistema" style="background:' + s.cor + ';width:32px;height:32px;border-radius:8px">' + ic(s.icone, "ic--sm") + "</span><b>" + U.esc(s.nome) + '</b></div><div class="grade grade--2"><div class="campo"><label class="campo__rotulo">Endereço (https)</label><input class="input" data-campo="url" value="' + U.esc(s.url) + '" placeholder="https://…"></div><div class="campo"><label class="campo__rotulo">Modo</label><select class="select" data-campo="modo">' + ["interno", "embutido", "externo"].map(function (m) { return "<option" + (m === s.modo ? " selected" : "") + ">" + m + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo">Status</label><select class="select" data-campo="status"><option value="disponivel"' + (s.status === "disponivel" ? " selected" : "") + '>Disponível</option><option value="breve"' + (s.status === "breve" ? " selected" : "") + '>Em breve</option></select></div><div class="campo"><label class="campo__rotulo">Prova social (clientes usando)</label><input class="input num" type="number" min="0" data-campo="prova" value="' + s.prova + '"></div><div class="campo"><label class="campo__rotulo">Tagline</label><input class="input" data-campo="tagline" maxlength="80" value="' + U.esc(s.tagline) + '"></div><div class="campo"><label class="campo__rotulo">Descrição</label><input class="input" data-campo="desc" maxlength="300" value="' + U.esc(s.desc) + '"></div></div></div></div>'; }).join("") + '</div><div class="modal__acoes"><button type="button" class="btn btn--primario" data-acao="publicar-cat">' + ic("check") + "Publicar sistemas</button></div>";
+      }
+      var v = Shell.render(html + "</div>");
+      function lerJornada() {
+        return UI.$$("#edJornada details", v).map(function (det, i) {
+          var ler = function (c) { var el = det.querySelector('[data-campo="' + c + '"]'); return el ? (el.type === "checkbox" ? el.checked : el.value) : ""; };
+          var passos = function (lado) { return UI.$$('[data-passos="' + lado + '"] input[data-lado]', det).map(function (inp) { var sel = det.querySelector('select[data-auto="' + lado + '"][data-i="' + inp.dataset.i + '"]'); return { texto: inp.value.trim(), auto: sel ? sel.value : "" }; }).filter(function (p) { return p.texto; }); };
+          return { id: (JORNADA.DIAS[i] || {}).id || "d" + ler("dia"), dia: Number(ler("dia")), titulo: ler("titulo"), quem: ler("quem"), marco: ler("marco"), objetivo: ler("objetivo"), erro: ler("erro"), cliente: passos("cliente"), equipe: passos("equipe") };
+        });
+      }
+      UI.delegar(v, {
+        "add-passo": function (b) { var wrap = b.closest("[data-passos]"); var n = wrap.querySelectorAll("input[data-lado]").length; b.insertAdjacentHTML("beforebegin", '<div class="linha" style="flex-wrap:nowrap;gap:6px"><span class="passo__p">P' + (n + 1) + '</span><input class="input" style="min-height:36px" data-lado="' + b.dataset.lado + '" data-i="' + n + '" placeholder="Texto do passo"><select class="select" style="min-height:36px;width:190px" data-auto="' + b.dataset.lado + '" data-i="' + n + '"><option value="">manual</option>' + JORNADA.AUTOMACOES.map(function (a) { return '<option value="' + a.id + '">auto: ' + U.esc(a.rotulo) + "</option>"; }).join("") + '</select><button type="button" class="btn btn--icone btn--fantasma" data-acao="rm-passo" aria-label="Remover">' + ic("x", "ic--sm") + "</button></div>"); },
+        "rm-passo": function (b) { b.closest(".linha").remove(); },
+        "rm-dia": function (b, e) { e.preventDefault(); b.closest("details").remove(); },
+        "add-dia": function () { var dias = lerJornada(); dias.push({ id: "d" + U.id().slice(-4), dia: (dias[dias.length - 1] || { dia: 0 }).dia + 1, titulo: "Novo dia", quem: "", marco: false, objetivo: "", erro: "", cliente: [{ texto: "Primeiro passo" }], equipe: [{ texto: "Primeiro passo" }] }); JORNADA.aplicar({ dias: dias }); telaConteudo(r); },
+        restaurar: function () { UI.confirmar("Restaurar a jornada padrão?", "Volta ao texto do treinamento. O andamento dos clientes não é apagado.", { ok: "Restaurar" }).then(function (ok) { if (!ok) return; JORNADA.aplicar({ dias: JORNADA.PADRAO }); Dados.salvarConteudo("jornada", { dias: JORNADA.PADRAO }, sessao).then(function () { UI.toast("Padrão restaurado.", "ok"); telaConteudo(r); }); }); },
+        publicar: function () { var dias = lerJornada(); if (!JORNADA.aplicar({ dias: dias })) return UI.toast("Jornada inválida: cada dia precisa de título.", "erro"); Dados.salvarConteudo("jornada", { dias: JORNADA.DIAS.slice() }, sessao).then(function () { UI.toast("Jornada publicada. O portal já mostra.", "ok"); telaConteudo(r); }); },
+        "publicar-cat": function () { var sistemas = UI.$$("#edCat .card", v).map(function (c) { var ler = function (k) { return c.querySelector('[data-campo="' + k + '"]').value; }; return { id: c.dataset.s, url: ler("url").trim(), modo: ler("modo"), status: ler("status"), prova: Number(ler("prova")) || 0, tagline: ler("tagline").trim(), desc: ler("desc").trim() }; }); var ruim = sistemas.filter(function (s) { return s.url && !U.urlSegura(s.url); }); if (ruim.length) return UI.toast("Endereço inválido em " + ruim[0].id + ": só https.", "erro"); CATALOGO.aplicar({ sistemas: sistemas }); Dados.salvarConteudo("catalogo", { sistemas: sistemas, vitrine: (conteudoC || {}).vitrine || null }, sessao).then(function () { UI.toast("Sistemas publicados.", "ok"); telaConteudo(r); }); }
+      });
+    });
+  }
+
+  function telaSeguranca() {
+    if (!admin()) { location.hash = "#/inicio"; return; }
+    Shell.titulo("Segurança");
+    var pub = global.CHAVE_PUBLICA;
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Administração</div><h1>Segurança</h1><p>Estado do canal seguro de senhas e do modo de operação.</p></div></div><div class="grade grade--2">' +
+      '<div class="card"><div class="card__cab"><h2>Modo de operação</h2></div><div class="card__corpo pilha" style="padding-top:10px">' + (Dados.ehDemo() ? '<div class="aviso aviso--aviso">' + ic("alert") + "<div><b>Modo local (demonstração)</b>Sem Firebase configurado. Dados fictícios só neste navegador. Para ligar: js/firebase-config.js.</div></div>" : '<div class="aviso aviso--ok">' + ic("check-circle") + "<div><b>Firebase ligado</b>Projeto " + U.esc(global.FIREBASE_CONFIG.projectId) + "</div></div>") + "</div></div>" +
+      '<div class="card"><div class="card__cab"><h2>Cofre de senhas (chave pública)</h2></div><div class="card__corpo pilha" style="padding-top:10px">' + (pub ? '<div class="aviso aviso--ok">' + ic("shield") + '<div><b>Canal seguro configurado</b>Impressão digital: <span class="mono" id="fp">…</span></div></div>' : '<div class="aviso aviso--aviso">' + ic("alert") + "<div><b>Sem chave pública</b>O cofre não aceita senhas de verdade até colar o JWK público em js/chave-publica.js. Se o projeto Firebase for o mesmo do Academy, use a chave de lá.</div></div>") + '<button type="button" class="btn btn--sm btn--contorno" data-acao="gerar">' + ic("key") + 'Gerar novo par de chaves</button><p class="f-12 txt-mudo">Gera um par RSA-OAEP 3072 no navegador. A pública vai para js/chave-publica.js; a privada vai para o Secret Manager (segredo chave-privada-credenciais) e para um cofre de senhas. Perdeu a privada, perdeu as senhas guardadas.</p></div></div>' +
+      '<div class="card"><div class="card__cab"><h2>Auditoria</h2></div><div class="card__corpo pilha" style="padding-top:10px"><p class="f-13 txt-2">Duas trilhas: <b>/uso</b> (o que o cliente usa, escrita pelo navegador dele, só create) e <b>/auditoria</b> (aprovações, senhas abertas, liberações; escrita pela Cloud Function com hora do servidor, fechada para todos). A segunda é a que vale como prova.</p><a class="btn btn--sm btn--contorno" href="#/uso">' + ic("bar-chart") + "Ver uso</a></div></div></div></div>");
+    if (pub) Cripto.impressaoDigital(pub).then(function (fp) { var el = UI.$("#fp"); if (el) el.textContent = fp; });
+    UI.delegar(Shell.view(), { gerar: function () { Cripto.gerarPar().then(function (par) { UI.modal({ titulo: "Novo par de chaves", larga: true, corpo: '<div class="aviso aviso--erro">' + ic("alert") + '<div><b>Guarde a privada agora.</b>Ela não é mostrada de novo.</div></div><div class="campo mt-12"><span class="campo__rotulo">Pública (cole em js/chave-publica.js)</span><div class="codigo" style="max-height:120px;overflow:auto">window.CHAVE_PUBLICA = ' + U.esc(JSON.stringify(par.publica)) + ';</div></div><div class="campo mt-12"><span class="campo__rotulo">Privada (Secret Manager + cofre)</span><div class="codigo" style="max-height:120px;overflow:auto">' + U.esc(JSON.stringify(par.privada)) + "</div></div>", acoes: [{ rotulo: "Baixar privada (.json)", icone: "download", manter: true, ao: function () { U.baixar("chave-privada-credenciais.json", JSON.stringify(par.privada), "application/json"); } }, { rotulo: "Copiar pública", classe: "btn--primario", manter: true, ao: function () { UI.copiar("window.CHAVE_PUBLICA = " + JSON.stringify(par.publica) + ";"); } }] }); }); } });
+  }
+
+  function telaPerfil() {
+    Shell.titulo("Configurações");
+    var tema = global.Tema.atual(), pref = UI.pref();
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Você</div><h1>' + U.esc(sessao.nome) + "</h1><p>" + U.esc(sessao.email) + " · " + U.esc(sessao.setor || sessao.papel) + '</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--contorno" data-acao="sair">' + ic("log-out") + "Sair</button></div></div>" +
+      '<div class="grade grade--2"><div class="card"><div class="card__cab"><h2>Aparência</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="segmentos" id="tema">' + [["claro", "sun", "Claro"], ["escuro", "moon", "Escuro"], ["sistema", "monitor", "Sistema"]].map(function (t) { return '<button type="button" data-v="' + t[0] + '" aria-pressed="' + (tema === t[0]) + '">' + ic(t[1], "ic--sm") + " " + t[2] + "</button>"; }).join("") + '</div><label class="interruptor"><input type="checkbox" id="pSom"' + (pref.som !== false ? " checked" : "") + '><span class="interruptor__pista"></span>' + ic("volume") + ' Som ao receber mensagem</label></div></div><div class="card"><div class="card__cab"><h2>Atalhos</h2></div><div class="card__corpo pilha ajuda-cmd f-13" style="padding-top:10px"><div><kbd>Ctrl</kbd> + <kbd>K</kbd> buscar cliente ou tela</div><div><kbd>Enter</kbd> envia no chat · <kbd>Shift</kbd>+<kbd>Enter</kbd> quebra linha</div></div></div>' + (Dados.ehDemo() ? '<div class="card"><div class="card__cab"><h2>Demonstração</h2></div><div class="card__corpo" style="padding-top:10px"><button type="button" class="btn btn--sm btn--perigo" data-acao="zerar">' + ic("refresh") + "Zerar dados fictícios</button></div></div>" : "") + "</div></div>");
+    var v = Shell.view();
+    UI.$$("#tema button", v).forEach(function (b) { b.addEventListener("click", function () { global.Tema.definir(b.dataset.v); Shell.redesenhar(); telaPerfil(); }); });
+    UI.$("#pSom", v).addEventListener("change", function () { UI.definirPref("som", this.checked); });
+    UI.delegar(v, { sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Recria os dados fictícios.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.reload(); }); }); } });
+  }
+
+  iniciar();
+})(window);

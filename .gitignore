@@ -1,0 +1,8 @@
+node_modules/
+functions/node_modules/
+.firebase/
+*.log
+.DS_Store
+Thumbs.db
+chave-privada*.json
+.env

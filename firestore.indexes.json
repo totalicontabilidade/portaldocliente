@@ -1,0 +1,10 @@
+{
+  "indexes": [
+    { "collectionGroup": "uso", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "em", "order": "DESCENDING" } ] },
+    { "collectionGroup": "auditoria", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "em", "order": "DESCENDING" } ] },
+    { "collectionGroup": "anterior", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" } ] },
+    { "collectionGroup": "checklist", "queryScope": "COLLECTION_GROUP", "fields": [ { "fieldPath": "anoMes", "order": "ASCENDING" } ] },
+    { "collectionGroup": "documentos", "queryScope": "COLLECTION_GROUP", "fields": [ { "fieldPath": "em", "order": "DESCENDING" } ] }
+  ],
+  "fieldOverrides": []
+}

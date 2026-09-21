@@ -1,0 +1,188 @@
+rules_version = '2';
+
+// ============================================================
+// Totali · Portal do Cliente — regras do Firestore
+//
+// Princípio (o mesmo do Academy): a tela esconde, a regra impede.
+// Nada aqui confia no que o navegador manda. O que não estiver
+// escrito não existe: a última regra nega tudo o que sobrou.
+//
+// Quem é quem:
+//   cliente  e-mail e senha; existe em /empresas/{id}/acessos/{uid}
+//   equipe   e-mail e senha, e existe em /usuarios/{uid}
+//   admin    membro da equipe com papel "admin"
+//
+// Cloud Functions rodam com poder de administrador e passam por
+// cima destas regras: é assim que /auditoria fica fechada para
+// escrita de todo mundo e mesmo assim é escrita.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() { return request.auth != null; }
+    function ehEquipe() { return logado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)); }
+    function ehAdmin() { return ehEquipe() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.papel == 'admin'; }
+    function ehDonoDaEmpresa(empresaId) { return logado() && exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(request.auth.uid)); }
+    function equipeOuDono(empresaId) { return ehEquipe() || ehDonoDaEmpresa(empresaId); }
+    function tamanhoOk() { return request.resource.size < 200000; }
+    // A página da contabilidade anterior entra com login ANÔNIMO e prova o código do link.
+    function ehAnonimo() { return logado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function codigoAnteriorValido(codigo, empresaId) {
+      return codigo is string && codigo.size() >= 16
+             && exists(/databases/$(database)/documents/anterior/$(codigo))
+             && get(/databases/$(database)/documents/anterior/$(codigo)).data.empresaId == empresaId
+             && get(/databases/$(database)/documents/anterior/$(codigo)).data.ativo == true;
+    }
+
+    // ---------- Equipe ----------
+    match /usuarios/{uid} {
+      allow read: if ehEquipe();
+      allow create, update, delete: if ehAdmin();
+    }
+
+    // ---------- Clientes (vínculo uid → empresas) ----------
+    match /clientes/{uid} {
+      allow read: if logado() && request.auth.uid == uid || ehEquipe();
+      // criado só ao usar o convite (ver /convites); o cliente pode trocar a empresa atual
+      allow create: if logado() && request.auth.uid == uid && tamanhoOk()
+                    && request.resource.data.keys().hasOnly(['nome', 'email', 'empresas', 'empresaAtual', 'criadoEm'])
+                    && request.resource.data.empresas is list && request.resource.data.empresas.size() == 1
+                    && request.resource.data.email == request.auth.token.email;
+      allow update: if logado() && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresaAtual'])
+                    && request.resource.data.empresaAtual in resource.data.empresas;
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- Convites: lidos por quem tem o código; queimados ao usar ----------
+    match /convites/{codigo} {
+      allow get: if true;
+      allow list: if ehEquipe();
+      allow create: if ehEquipe() && request.resource.data.usado == false && codigo.size() >= 20;
+      allow update: if logado() && resource.data.usado == false
+                    && request.resource.data.usado == true
+                    && request.resource.data.usadoPor == request.auth.uid
+                    && request.resource.data.empresaId == resource.data.empresaId;
+      allow delete: if ehAdmin();
+    }
+
+    // ---------- Link da contabilidade anterior (página sem login) ----------
+    match /anterior/{codigo} {
+      allow get: if true;
+      allow list, create, update, delete: if ehEquipe();
+    }
+
+    // ---------- Conteúdo publicado pela equipe; lido por todos os logados ----------
+    match /conteudo/{doc} {
+      allow read: if logado();
+      allow write: if ehEquipe();
+    }
+    match /vitrine/{id} {
+      allow read: if logado();
+      allow write: if ehEquipe();
+    }
+
+    // ---------- Uso: o navegador do cliente só CRIA; a equipe lê ----------
+    match /uso/{id} {
+      allow create: if logado() && request.resource.data.uid == request.auth.uid
+                    && ehDonoDaEmpresa(request.resource.data.empresaId)
+                    && request.resource.data.keys().hasAll(['empresaId', 'uid', 'tipo', 'em'])
+                    && request.resource.data.tipo in ['abrir', 'tela', 'sessao', 'vitrine']
+                    && request.resource.size < 2000;
+      allow read: if ehEquipe();
+      allow update, delete: if false;
+    }
+
+    // ---------- Auditoria: só a Cloud Function escreve; admin lê ----------
+    match /auditoria/{id} {
+      allow read: if ehEquipe();
+      allow write: if false;
+    }
+
+    // ---------- Pedidos de abertura de senha (respondidos pela função) ----------
+    match /pedidosDeSenha/{id} {
+      allow create: if ehEquipe() && request.resource.data.pedidoPor == request.auth.uid;
+      allow get: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      allow list, update, delete: if false;
+    }
+
+    // ---------- Empresas ----------
+    match /empresas/{empresaId} {
+      allow read: if equipeOuDono(empresaId);
+      allow create: if ehEquipe() && tamanhoOk();
+      // a equipe edita tudo; o cliente só o que é dele
+      allow update: if (ehEquipe() && tamanhoOk())
+                    || (ehDonoDaEmpresa(empresaId)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['canalPreferido', 'formaRelatorio', 'marcos', 'feedback30', 'jornada'])
+                        // o cliente só pode marcar passos do LADO DELE (".c.") na jornada
+                        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['jornada'])
+                            || request.resource.data.jornada.diff(resource.data.jornada).affectedKeys().hasOnly(['passos'])));
+      allow delete: if ehAdmin();
+
+      match /acessos/{uid} {
+        allow read: if equipeOuDono(empresaId);
+        allow create: if logado() && request.auth.uid == uid;   // ao usar o convite
+        allow update: if (logado() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso'])) || ehEquipe();
+        allow delete: if ehEquipe();
+      }
+
+      match /mensagens/{id} {
+        allow read: if equipeOuDono(empresaId);
+        allow create: if equipeOuDono(empresaId)
+                      && request.resource.data.autor.uid == request.auth.uid
+                      && request.resource.data.autor.lado == (ehEquipe() ? 'equipe' : 'cliente')
+                      && request.resource.data.texto is string && request.resource.data.texto.size() <= 4000
+                      && request.resource.data.anexos is list && request.resource.data.anexos.size() <= 10
+                      && request.resource.data.keys().hasOnly(['autor', 'texto', 'anexos', 'em', 'lidaPor', 'reacoes', 'lidaEquipe'])
+                      && tamanhoOk();
+        // lidaPor e reações mudam; texto e autor nunca
+        allow update: if equipeOuDono(empresaId)
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lidaPor', 'lidaEquipe', 'reacoes']);
+        allow delete: if ehAdmin();
+      }
+
+      match /documentos/{id} {
+        allow read: if equipeOuDono(empresaId);
+        allow create: if tamanhoOk() && (
+                        (equipeOuDono(empresaId)
+                          && request.resource.data.origem in ['cliente', 'equipe']
+                          && (ehEquipe() || request.resource.data.origem == 'cliente'))
+                        || (ehAnonimo()
+                          && request.resource.data.origem == 'anterior'
+                          && codigoAnteriorValido(request.resource.data.codigo, empresaId)));
+        // equipe revisa e registra "visto"; cliente só remove o que ainda não foi aprovado
+        allow update: if ehEquipe()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'revisao', 'vistos']);
+        allow delete: if ehEquipe() || (ehDonoDaEmpresa(empresaId) && resource.data.origem == 'cliente' && resource.data.situacao != 'aprovado');
+      }
+
+      match /credenciais/{id} {
+        // a equipe vê que existe (rótulo, usuário); o pacote só a função abre
+        allow read: if equipeOuDono(empresaId);
+        allow create: if ehDonoDaEmpresa(empresaId) && request.resource.data.pacote.alg == 'RSA-OAEP-256+AES-GCM-256' && tamanhoOk();
+        allow update: if false;
+        allow delete: if equipeOuDono(empresaId);
+      }
+
+      match /checklist/{anoMes} {
+        allow read: if equipeOuDono(empresaId);
+        allow create, update: if equipeOuDono(empresaId) && tamanhoOk();
+        allow delete: if ehEquipe();
+      }
+
+      match /eventos/{id} {
+        allow read: if ehEquipe();
+        allow create: if equipeOuDono(empresaId) && tamanhoOk();
+        allow update, delete: if false;
+      }
+    }
+
+    // Consultas em grupo (painel): documentos e checklists de todas as empresas
+    match /{path=**}/documentos/{id} { allow read: if ehEquipe(); }
+    match /{path=**}/checklist/{anoMes} { allow read: if ehEquipe(); }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

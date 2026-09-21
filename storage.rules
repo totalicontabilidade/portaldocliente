@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Totali · Portal do Cliente — regras do Storage
+// Arquivos vivem em empresas/{empresaId}/documentos/{docId}/{nome}
+// e empresas/{empresaId}/chat/{anexoId}/{nome}. Quem lê e escreve é
+// quem pode ver a empresa: a equipe ou o cliente vinculado.
+// A página da contabilidade anterior (sem conta) entra com login
+// anônimo e prova o código do link nos metadados do arquivo.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function logado() { return request.auth != null; }
+    function ehEquipe() { return logado() && firestore.exists(/databases/(default)/documents/usuarios/$(request.auth.uid)); }
+    function ehDono(empresaId) { return logado() && firestore.exists(/databases/(default)/documents/empresas/$(empresaId)/acessos/$(request.auth.uid)); }
+    function ehAnonimo() { return logado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    // Contabilidade anterior: login anônimo + código do link nos metadados do arquivo
+    function codigoAnteriorValido(empresaId) {
+      return request.resource.metadata != null && 'codigo' in request.resource.metadata
+             && firestore.get(/databases/(default)/documents/anterior/$(request.resource.metadata.codigo)).data.empresaId == empresaId
+             && firestore.get(/databases/(default)/documents/anterior/$(request.resource.metadata.codigo)).data.ativo == true;
+    }
+    function tipoOk() {
+      return request.resource.contentType.matches('application/pdf|image/.*|application/xml|text/.*|application/zip|application/x-pkcs12|application/vnd.*|application/msword|audio/.*|video/.*|application/octet-stream');
+    }
+
+    match /empresas/{empresaId}/{area}/{id}/{nome} {
+      allow read: if ehEquipe() || ehDono(empresaId);
+      allow create: if (ehEquipe() || ehDono(empresaId) || (ehAnonimo() && area == 'documentos' && codigoAnteriorValido(empresaId)))
+                    && request.resource.size < 25 * 1024 * 1024 && tipoOk();
+      allow update: if false;
+      allow delete: if ehEquipe() || ehDono(empresaId);
+    }
+
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}
