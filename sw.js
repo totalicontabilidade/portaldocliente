@@ -9,10 +9,10 @@
    ============================================================ */
 var VERSAO = "v1";
 var CACHE = "totali-portal-" + VERSAO;
-var SHELL = ["./", "./index.html", "./equipe.html", "./anterior.html", "./css/tokens.css", "./css/app.css", "./assets/fonts/manrope-variable.woff2",
-  "./js/tema.js", "./js/util.js", "./js/icones.js", "./js/ui.js", "./js/seguranca.js", "./js/cripto.js", "./js/catalogo.js", "./js/jornada.js", "./js/dados.js", "./js/uso.js", "./js/chat.js", "./js/shell.js", "./js/app.js", "./js/painel.js", "./js/anterior.js", "./js/pwa.js", "./js/firebase-config.js", "./js/chave-publica.js",
+var SHELL = ["./", "./index.html", "./equipe.html", "./anterior.html", "./extratos.html", "./css/tokens.css", "./css/app.css", "./assets/fonts/manrope-variable.woff2",
+  "./js/tema.js", "./js/util.js", "./js/icones.js", "./js/ui.js", "./js/seguranca.js", "./js/cripto.js", "./js/catalogo.js", "./js/jornada.js", "./js/dados.js", "./js/uso.js", "./js/chat.js", "./js/shell.js", "./js/tour.js", "./js/notificacoes.js", "./js/pdf.js", "./js/onboarding.js", "./js/financeiro.js", "./js/extratos.js", "./js/agenda.js", "./js/relacionamento.js", "./js/conteudo-extra.js", "./js/app.js", "./js/painel.js", "./js/anterior.js", "./js/pwa.js", "./js/firebase-config.js", "./js/chave-publica.js",
   "./lib/firebase-app-compat.js", "./lib/firebase-app-check-compat.js", "./lib/firebase-auth-compat.js", "./lib/firebase-firestore-compat.js", "./lib/firebase-storage-compat.js",
-  "./assets/brand/puzzle-menu.svg", "./assets/brand/puzzle-login.svg", "./assets/brand/piece.svg", "./assets/totali-contabil-branca.png", "./assets/totali-portal-cor.png", "./assets/totali-simbolo.png", "./assets/icon-192.png", "./assets/favicon-32.png", "./manifest.webmanifest"];
+  "./assets/brand/calc-menu.svg", "./assets/brand/calc-login.svg", "./assets/brand/calc-piece.svg", "./assets/totali-contabil-branca.png", "./assets/totali-portal-cor.png", "./assets/totali-simbolo.png", "./assets/icon-192.png", "./assets/favicon-32.png", "./manifest.webmanifest"];
 
 self.addEventListener("install", function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); })); });
 self.addEventListener("activate", function (e) { e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); })); });

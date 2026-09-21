@@ -247,7 +247,9 @@
     return {
       versao: 1, criadoEm: agora,
       equipe: equipe, empresas: empresas, clientes: clientes, mensagens: mensagens, documentos: documentos, credenciais: credenciais,
-      uso: uso, checklists: checklists, auditoria: auditoria, vitrine: [], conteudo: {}, convites: {}, anterior: {}, feedback: {}
+      uso: uso, checklists: checklists, auditoria: auditoria, vitrine: [], conteudo: {}, convites: {}, anterior: {}, feedback: {},
+      /* Coleções genéricas (extratos, indicações, entregas, resumos…): caminho → {id: doc} */
+      generico: {}
     };
   }
 
@@ -260,6 +262,8 @@
       if (db) return db;
       try { db = JSON.parse(localStorage.getItem(CHAVE_DB) || "null"); } catch (e) { db = null; }
       if (!db || db.versao !== 1) { db = semente(); gravar(); }
+      /* Campos que entraram depois da primeira semente: um banco antigo no navegador não pode quebrar o portal */
+      if (!db.generico) db.generico = {};
       return db;
     }
     function gravar(tipo, detalhe) {
@@ -285,7 +289,7 @@
         var em = String(email || "").trim().toLowerCase();
         if (!em) return Promise.reject(new Error("Informe o e-mail."));
         var eq = db.equipe.filter(function (u) { return u.email === em; })[0];
-        if (eq && NOME_APP === "painel") { var s = { uid: eq.uid, nome: eq.nome, email: eq.email, papel: eq.papel, setor: eq.setor }; definirSessao(s); return ok(s); }
+        if (eq && NOME_APP === "painel") { var s = { uid: eq.uid, nome: eq.nome, email: eq.email, papel: eq.papel, setor: eq.setor, setores: eq.setores || [] }; definirSessao(s); return ok(s); }
         var cl = null; Object.keys(db.clientes).forEach(function (k) { if (db.clientes[k].email === em) cl = db.clientes[k]; });
         if (cl && NOME_APP === "portal") {
           var s2 = { uid: cl.uid, nome: cl.nome, email: cl.email, papel: "cliente", empresas: cl.empresas, empresaId: cl.empresas[0] };
@@ -514,6 +518,16 @@
       salvarFeedback: function (empresaId, texto, nota, por) { carregar(); db.feedback[empresaId] = { texto: U.txt(texto, 2000), nota: nota, em: Date.now(), por: por.nome }; gravar("feedback", empresaId); return ok(db.feedback[empresaId]); },
       feedback: function (empresaId) { carregar(); return ok(db.feedback[empresaId] || null); },
 
+      /* ---------- Coleções e documentos genéricos ----------
+         caminho: "extratos/abc" (documento) ou "empresas/x/entregas" (coleção).
+         Serve para os módulos novos não precisarem de um método cada. */
+      docObter: function (caminho) { carregar(); var p = caminho.split("/"); var col = p.slice(0, -1).join("/"), id = p[p.length - 1]; return ok((db.generico[col] || {})[id] || null); },
+      docSalvar: function (caminho, obj, mesclar) { carregar(); var p = caminho.split("/"); var col = p.slice(0, -1).join("/"), id = p[p.length - 1]; db.generico[col] = db.generico[col] || {}; var atual = db.generico[col][id]; db.generico[col][id] = Object.assign({}, mesclar && atual ? atual : {}, obj, { id: id, atualizadoEm: Date.now() }); gravar("generico", col); return ok(db.generico[col][id]); },
+      docApagar: function (caminho) { carregar(); var p = caminho.split("/"); var col = p.slice(0, -1).join("/"), id = p[p.length - 1]; if (db.generico[col]) delete db.generico[col][id]; gravar("generico", col); return ok(true); },
+      colListar: function (col, filtro) { carregar(); var lista = Object.keys(db.generico[col] || {}).map(function (k) { return db.generico[col][k]; }); if (filtro) lista = lista.filter(function (d) { return Object.keys(filtro).every(function (k) { return d[k] === filtro[k]; }); }); return ok(lista.sort(function (a, b) { return (b.criadoEm || b.atualizadoEm || 0) - (a.criadoEm || a.atualizadoEm || 0); })); },
+      colAdicionar: function (col, obj) { carregar(); var id = obj.id || U.id(); return Local.docSalvar(col + "/" + id, Object.assign({ criadoEm: Date.now() }, obj)); },
+      colGrupo: function (nome) { carregar(); var out = []; Object.keys(db.generico).forEach(function (col) { if (col.split("/").pop() === nome) Object.keys(db.generico[col]).forEach(function (k) { out.push(Object.assign({ _col: col }, db.generico[col][k])); }); }); return ok(out); },
+
       /* utilidades do demo */
       zerar: function () { localStorage.removeItem(CHAVE_DB); localStorage.removeItem(CHAVE_SESSAO + "-portal"); localStorage.removeItem(CHAVE_SESSAO + "-painel"); db = null; return IDB.limpar().then(function () { carregar(); avisar("zerado"); return true; }); }
     };
@@ -552,7 +566,7 @@
       if (!usuario) return Promise.resolve(null);
       if (perfilCache && perfilCache.uid === usuario.uid) return Promise.resolve(perfilCache);
       return db.collection("usuarios").doc(usuario.uid).get().then(function (s) {
-        if (s.exists && NOME_APP === "painel") { var d = s.data(); perfilCache = { uid: usuario.uid, nome: d.nome || usuario.email, email: usuario.email, papel: d.papel === "admin" ? "admin" : "equipe", setor: d.setor || "" }; return perfilCache; }
+        if (s.exists && NOME_APP === "painel") { var d = s.data(); perfilCache = { uid: usuario.uid, nome: d.nome || usuario.email, email: usuario.email, papel: d.papel === "admin" ? "admin" : "equipe", setor: d.setor || "", setores: Array.isArray(d.setores) ? d.setores : [] }; return perfilCache; }
         return db.collection("clientes").doc(usuario.uid).get().then(function (c) {
           if (!c.exists) return null;
           var d = c.data(); var emps = d.empresas || (d.empresaId ? [d.empresaId] : []);
@@ -728,8 +742,14 @@
       },
 
       equipe: function () { return lista(db.collection("usuarios")).then(function (l) { return l.map(function (u) { u.uid = u.id; return u; }); }); },
-      salvarMembro: function (m) { var uid = m.uid; if (!uid) return Promise.reject(new Error("No Firebase, o membro precisa existir no Authentication: informe o UID.")); return db.collection("usuarios").doc(uid).set({ nome: m.nome, email: m.email, papel: m.papel, setor: m.setor || "" }, { merge: true }); },
+      salvarMembro: function (m) { var uid = m.uid; if (!uid) return Promise.reject(new Error("No Firebase, o membro precisa existir no Authentication: informe o UID.")); return db.collection("usuarios").doc(uid).set({ nome: m.nome, email: m.email, papel: m.papel, setor: m.setor || "", setores: m.setores || [] }, { merge: true }); },
       removerMembro: function (uid) { return db.collection("usuarios").doc(uid).delete(); },
+      docObter: function (caminho) { return db.doc(caminho).get().then(docData); },
+      docSalvar: function (caminho, obj, mesclar) { var ref = db.doc(caminho); return ref.set(Object.assign({}, obj, { atualizadoEm: TS() }), { merge: !!mesclar }).then(function () { return Object.assign({ id: ref.id }, obj); }); },
+      docApagar: function (caminho) { return db.doc(caminho).delete(); },
+      colListar: function (col, filtro) { var q = db.collection(col); if (filtro) Object.keys(filtro).forEach(function (k) { q = q.where(k, "==", filtro[k]); }); return lista(q.limit(500)); },
+      colAdicionar: function (col, obj) { var ref = obj.id ? db.collection(col).doc(obj.id) : db.collection(col).doc(); return ref.set(Object.assign({}, obj, { criadoEm: TS() })).then(function () { return Object.assign({ id: ref.id }, obj); }); },
+      colGrupo: function (nome) { return lista(db.collectionGroup(nome).limit(2000)); },
       salvarFeedback: function (empresaId, texto, nota, por) { return db.collection("empresas").doc(empresaId).update({ feedback30: { texto: U.txt(texto, 2000), nota: nota, em: Date.now(), por: por.nome } }); },
       feedback: function (empresaId) { return db.collection("empresas").doc(empresaId).get().then(function (s) { return (s.data() || {}).feedback30 || null; }); },
       zerar: function () { return Promise.reject(new Error("Zerar só no modo local.")); }
@@ -759,7 +779,8 @@
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
    "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "registrarVitrine", "conteudo", "salvarConteudo",
-   "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar"
+   "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
+   "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });
 
   global.Dados = Dados;

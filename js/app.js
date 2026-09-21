@@ -38,7 +38,7 @@
   function iniciar() {
     Dados.pronto().then(function () {
       sessao = Dados.sessao();
-      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); }).catch(function () {}).then(rotear);
+      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); }).catch(function () {}).then(rotear);
     });
     global.addEventListener("hashchange", rotear);
     document.addEventListener("dados:mudou", function (e) {
@@ -73,10 +73,19 @@
     var telas = { "": telaInicio, inicio: telaInicio, jornada: telaInicio, feedback: telaFeedback, sistemas: r.param ? telaSistema : telaSistemas, abrir: telaAbrir, checklist: telaChecklist, documentos: telaDocumentos, cofre: telaCofre, chat: telaChat, perfil: telaPerfil, anterior: telaAnteriorInfo };
     if (chatAtual && r.nome !== "chat") { chatAtual.destruir(); chatAtual = null; }
     if (r.nome !== "abrir") Uso.fechar();
-    var fn = telas[r.nome] || telaInicio;
+    var extra = global.TelasPortal || {};
+    var fn = telas[r.nome] || extra[r.nome] || telaInicio;
     Uso.tela(r.nome || "inicio");
     fn(r);
   }
+
+  /* Contexto que os módulos (onboarding, financeiro, agenda, relacionamento…) usam sem tocar neste arquivo */
+  global.Portal = {
+    get sessao() { return sessao; }, get empresa() { return empresa; },
+    liberado: liberado, recarregar: function () { return carregarEmpresa(true); }, prepararAuto: prepararAuto,
+    docs: function () { return docsCache; }, invalidar: function () { docsCache = null; credCache = null; },
+    abrirFeedback: function () { abrirFeedback(); }, telaInicio: function () { telaInicio(); }, sair: function () { sair(); }
+  };
 
   function montarShell() {
     document.body.classList.add("logado");
@@ -85,13 +94,20 @@
       nav: [
         { grupo: "Minha empresa", itens: [
           { href: "#/inicio", rotulo: "Início", icone: "home" },
+          { href: "#/entrada", rotulo: "Entrada na Totali", icone: "clipboard", oculto: !!empresa.migracaoConcluidaEm && !!(empresa.financeiro && empresa.financeiro.concluidoEm) },
+          { href: "#/agenda", rotulo: "Agenda do mês", icone: "calendar" },
           { href: "#/chat", rotulo: "Chat com a Totali", icone: "chat" },
           { href: "#/documentos", rotulo: "Documentos", icone: "folder" },
           { href: "#/cofre", rotulo: "Cofre de senhas", icone: "key" }
         ] },
         { grupo: "Ferramentas", itens: [
           { href: "#/checklist", rotulo: "Checklist do mês", icone: "list-check", oculto: !liberado("checklist") },
-          { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" }
+          { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" },
+          { href: "#/historico", rotulo: "Linha do tempo", icone: "history" }
+        ] },
+        { grupo: "Totali", itens: [
+          { href: "#/indicar", rotulo: "Indicar um amigo", icone: "gift" },
+          { href: "#/ajuda", rotulo: "Ajuda e contatos", icone: "info" }
         ] }
       ],
       tabbar: [
@@ -106,6 +122,7 @@
     });
     Uso.iniciar(sessao, empresa.id);
     atualizarBadges();
+    if (global.Notificacoes) global.Notificacoes.iniciar({ empresaId: empresa.id, uid: sessao.uid, lado: "cliente" });
   }
 
   /* O rodapé da sidebar é o espaço permanente de banners dos sistemas que o
@@ -353,9 +370,12 @@
       else if (check && feitosCheck < itensCheck.length) hoje = cardHoje("list-check", "info", "Checklist do mês: faltam " + (itensCheck.length - feitosCheck), "Envie até o dia 20 para fechar o mês em dia.", "#/checklist", "Abrir checklist");
       else hoje = cardHoje("check-circle", "ok", "Tudo em dia por aqui", "Nada pendente para você hoje. Que tal uma aula rápida no Academy?", "#/sistemas/academy", "Ver o Academy");
 
+      var ganchos = (global.InicioExtras || []).map(function (f) { try { return f({ docs: docsCache, check: check, msgs: msgs, pendencias: pendencias, naoLidas: naoLidas }) || ""; } catch (e) { console.warn(e); return ""; } });
+      if (ganchos.some(function (g) { return g && g.hoje; }) && !pendencias.length && !naoLidas) hoje = ganchos.filter(function (g) { return g.hoje; })[0].hoje;
       var html = '<div class="pagina">' +
         '<div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(empresa.fantasia) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + " 👋</h1><p>" + "Cliente da Totali há " + U.num(U.diasEntre(empresa.criadaEm, Date.now())) + " dias. Aqui está o que importa hoje." + "</p></div></div>" +
         hoje +
+        ganchos.map(function (g) { return g && g.topo ? g.topo : ""; }).join("") +
         /* 4 ações primárias */
         '<div class="grade grade--4">' +
           acao("#/chat", "chat", "Chat", naoLidas ? naoLidas + " novas" : "Fale com a equipe", naoLidas) +
@@ -367,6 +387,7 @@
           '<div class="pilha">' +
             /* Checklist do mês */
             (liberado("checklist") ? '<div class="card"><div class="card__cab"><h2>Checklist de ' + U.esc(nomeMes(U.anoMes(Date.now()))) + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>' + feitosCheck + " de " + itensCheck.length + " itens enviados</span>" + (check && check.concluidoEm ? UI.badge("Mês em dia", "ok", "check") : "<span>faltam " + (itensCheck.length - feitosCheck) + "</span>") + "</div>" + UI.barra(U.pct(feitosCheck, itensCheck.length || 1), feitosCheck === itensCheck.length ? "barra--ok" : (U.pct(feitosCheck, itensCheck.length || 1) >= 70 ? "barra--gold" : "")) + "</div></div>" : "") +
+            ganchos.map(function (g) { return g && g.coluna ? g.coluna : ""; }).join("") +
             /* Últimas mensagens */
             '<div class="card"><div class="card__cab"><h2>Conversa com a Totali</h2><a class="btn btn--xs btn--contorno" href="#/chat">Abrir chat</a></div><div class="lista" style="padding-top:6px">' + (msgs.slice(-3).map(function (m) { return '<a class="lista__item" href="#/chat">' + UI.avatar(m.autor.nome, m.autor.lado === "equipe" ? "avatar--gold avatar--sm" : "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(m.autor.lado === "equipe" ? m.autor.nome + " · Totali" : "Você") + '</span><span class="lista__sub">' + U.esc(m.texto || "📎 anexo") + '</span></div><span class="lista__meta">' + U.relativo(m.em) + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma mensagem ainda. Sua equipe está a uma mensagem de distância.</div>') + "</div></div>" +
           "</div>" +
@@ -375,12 +396,15 @@
             '<div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo" style="display:flex;gap:12px;align-items:center;padding-top:10px">' + UI.avatar(empresa.gerenteNome || "Totali", "avatar--gold avatar--lg") + '<div><div class="f-800">' + U.esc(empresa.gerenteNome || "Equipe Totali") + '</div><div class="f-13 txt-2">Gerente de contas</div><a class="f-13 f-700" href="#/chat">Mandar mensagem →</a></div></div></div>' +
             /* Patrimônio (endowment) */
             '<div class="card"><div class="card__corpo"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Sua empresa na Totali</div><div class="grade grade--2 mt-8" style="gap:8px">' + kpiMini(docsCache.length, "documentos guardados") + kpiMini(aprovados, "aprovados pela equipe") + kpiMini(sistemasLib.length, "sistemas ativos") + kpiMini(U.diasEntre(empresa.criadaEm, Date.now()), "dias com a Totali") + "</div></div></div>" +
+            ganchos.map(function (g) { return g && g.lado ? g.lado : ""; }).join("") +
             /* Banners dos sistemas ainda não contratados (rotativo) */
             '<div id="bannerInicio"></div>' +
           "</div>" +
         "</div></div>";
       Shell.render(html); Vitrine.ligar(Shell.view());
       Banners.montar(UI.$("#bannerInicio"), campanhas);
+      (global.InicioExtras || []).forEach(function (f) { if (f.ligar) f.ligar(Shell.view()); });
+      if (global.Tour) global.Tour.talvez("portal-inicio");
     });
     function cardHoje(icone, tipo, titulo, texto, href, cta) {
       return '<a class="card card--clicavel entra" href="' + href + '" style="text-decoration:none;color:inherit;border-left:4px solid var(--' + ({ erro: "danger", gold: "gold", info: "info", ok: "success" }[tipo]) + ')"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--' + ({ erro: "danger-soft", gold: "gold-soft", info: "info-soft", ok: "success-soft" }[tipo]) + ');color:var(--' + ({ erro: "danger", gold: "gold-text", info: "info", ok: "success" }[tipo]) + ')">' + ic(icone) + '</span><div style="flex:1;min-width:0"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">' + U.esc(titulo) + '</div><div class="f-13 txt-2">' + U.esc(texto) + '</div></div><span class="btn btn--sm btn--primario so-desktop">' + U.esc(cta) + "</span>" + ic("chevron-right", "so-mobile") + "</div></a>";
@@ -658,6 +682,8 @@
           '<label class="interruptor"><input type="checkbox" id="pSom"' + (pref.som !== false ? " checked" : "") + '><span class="interruptor__pista"></span>' + ic("volume") + " Som ao enviar e receber mensagem</label>" +
           '<label class="interruptor"><input type="checkbox" id="pHap"' + (pref.haptica !== false ? " checked" : "") + '><span class="interruptor__pista"></span>' + ic("vibrate") + " Vibração curta ao confirmar (celular)</label>" +
           '<p class="f-12 txt-mudo">Som e vibração só acontecem no que você faz ou recebe. Nunca em propaganda.</p>' +
+          (global.Notificacoes && global.Notificacoes.suportado() ? '<label class="interruptor"><input type="checkbox" id="pAvisos"' + (global.Notificacoes.permissao() === "granted" && pref.avisos !== false ? " checked" : "") + (global.Notificacoes.permissao() === "denied" ? " disabled" : "") + '><span class="interruptor__pista"></span>' + ic("bell") + " Avisos no aparelho quando a Totali responder</label>" + (global.Notificacoes.permissao() === "denied" ? '<p class="f-12 txt-aviso">Bloqueado no navegador. Libere nas configurações do site.</p>' : /iPhone|iPad/.test(navigator.userAgent) ? '<p class="f-12 txt-mudo">No iPhone, os avisos só funcionam com o portal instalado na tela de início.</p>' : "") : "") +
+          '<div class="linha"><button type="button" class="btn btn--sm btn--contorno" data-acao="tour">' + ic("play") + 'Rever tutorial</button>' + (global.__instalar ? '<button type="button" class="btn btn--sm btn--gold" data-acao="instalar">' + ic("download") + "Instalar como aplicativo</button>" : "") + "</div>" +
         "</div></div>" +
         '<div class="card"><div class="card__cab"><h2>Minha empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px"><div class="linha linha--entre f-13"><span class="txt-2">Razão social</span><b>' + U.esc(empresa.nome) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">CNPJ</span><b class="num">' + U.esc(empresa.cnpj) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Regime</span><b>' + U.esc(empresa.regime) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Gerente de contas</span><b>' + U.esc(empresa.gerenteNome || "") + '</b></div><p class="f-12 txt-mudo mt-8">Algo errado? Avise pelo chat que a equipe corrige.</p></div></div>' +
         '<div class="card"><div class="card__cab"><h2>Privacidade</h2></div><div class="card__corpo pilha" style="padding-top:10px"><p class="f-13 txt-2">A Totali registra quais telas e sistemas você usa, para melhorar o atendimento e para a cobrança do que foi contratado. Nunca registra o conteúdo das mensagens, dos arquivos ou das senhas. Você pode pedir a exportação ou a exclusão dos seus dados pelo chat (LGPD, art. 18).</p>' + (Dados.ehDemo() ? '<button type="button" class="btn btn--sm btn--perigo" data-acao="zerar">' + ic("refresh") + "Zerar dados da demonstração</button>" : "") + "</div></div>" +
@@ -670,7 +696,8 @@
     UI.$("#pSom", v).addEventListener("change", function () { UI.definirPref("som", this.checked); if (this.checked) UI.som("enviado"); });
     UI.$("#pHap", v).addEventListener("change", function () { UI.definirPref("haptica", this.checked); if (this.checked) UI.vibrar(); });
     var emp = UI.$("#emp", v); if (emp) emp.addEventListener("change", function () { Dados.trocarEmpresa(this.value).then(function (s) { sessao = s; empresa = null; location.hash = "#/inicio"; rotear(); }); });
-    UI.delegar(v, { sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Apaga os dados fictícios deste navegador e recria a semente.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.hash = "#/entrar"; location.reload(); }); }); } });
+    var pAv = UI.$("#pAvisos", v); if (pAv) pAv.addEventListener("change", function () { var el = this; if (el.checked) { global.Notificacoes.pedir().then(function (p) { UI.definirPref("avisos", p === "granted"); if (p !== "granted") { el.checked = false; UI.toast("Avisos não autorizados pelo navegador.", "aviso"); } }); } else UI.definirPref("avisos", false); });
+    UI.delegar(v, { tour: function () { location.hash = "#/inicio"; setTimeout(function () { global.Tour.iniciar("portal-inicio"); }, 500); }, instalar: function () { if (global.__instalar) { global.__instalar.prompt(); global.__instalar = null; } }, sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Apaga os dados fictícios deste navegador e recria a semente.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.hash = "#/entrar"; location.reload(); }); }); } });
   }
 
   iniciar();

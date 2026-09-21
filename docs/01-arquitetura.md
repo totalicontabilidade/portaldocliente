@@ -78,13 +78,26 @@ resumos/{anoMes}                 agregação mensal de uso (função agendada)
 
 `{diaId}.{lado}.{índice}` onde lado é `c` (cliente) ou `e` (equipe). Exemplo: `d5.c.2` é o terceiro passo do cliente no D5. A regra do Firestore deixa o cliente alterar só `jornada.passos`; a UI só marca chaves `.c.`. Passos com `auto` são confirmados por fatos (documento enviado, senha guardada, canal escolhido) e aparecem "pelo sistema".
 
+### Entrada, financeiro e módulos novos (21/09/2026)
+
+- `empresas/{id}.entrada` = `{ itens: { "fiscal/livros-fiscais": {situacao, na, valor, docIds[], credencialId, procuracao, revisao{}}, "socios/{sid}/rg": {...} }, gruposNA{}, socios[], concluidoEm, avisoAutomaticoEm }` (`js/onboarding.js`).
+- `empresas/{id}.financeiro` = bancos, maquininhas, forma de relatórios, acessos (ids de credenciais), status, protocolo, termo (`js/financeiro.js`).
+- `empresas/{id}.nps[]`, `empresas/{id}/entregas/{id}` (guias e relatórios, para o sistema de entregas da equipe gravar), `empresas/{id}/resumos/{anoMes}`.
+- `indicacoes/{id}`, `extratos/{codigo}` (página sem login; só `confirmacoes` pode ser alterada sem equipe), `exclusoesDeConta/{id}`, `resumos/{anoMes}`.
+- `conteudo/{jornada|catalogo|agenda|lembretes|ajuda}`: tudo que a equipe edita sem código.
+- Departamentos da equipe: `usuarios/{uid}.setores[]` filtra "Documentos a conferir" e a aba Entrada (aviso, não permissão).
+
+### Integração com o sistema de entregas da equipe (futuro)
+
+O sistema de controle da equipe que o Raoni está desenvolvendo grava em `empresas/{id}/entregas/{id}` = `{ titulo, competencia, vencimento, url (https, Storage), tipo }`. O portal já mostra a tela "Guias e relatórios" lendo essa coleção e registra `vistoEm` quando o cliente abre. Basta o outro sistema usar o mesmo projeto Firebase (ou uma Cloud Function que copie).
+
 ### Liberações por cliente
 
 `empresas/{id}.liberacoes[sistemaId] = {ativo, desde, ate, plano}`. O portal só mostra como "liberado" o que está ativo e dentro da validade; o resto vira prévia com botão de interesse. `ate` permite o reverse trial (Checklist com 30 dias de cortesia ao cadastrar).
 
-### Checklist Contábil (integração)
+### Checklist Contábil (agora vive aqui)
 
-O portal grava e lê `empresas/{id}/checklist/{anoMes}`. O sistema Checklist Contábil externo pode: (a) gravar direto nessa coleção se estiver no mesmo projeto Firebase; (b) exportar CSV (empresaId, anoMes, itemId, feito, feitoEm) para importação; (c) expor um endpoint que uma Cloud Function sincronize por hora. A tela do painel "Checklist Contábil" mostra quais empresas concluíram o mês, quais não começaram, e exporta CSV.
+Decisão de 21/09/2026: o Checklist Contábil deixa de ser um sistema à parte e passa a existir só no portal. O portal grava e lê `empresas/{id}/checklist/{anoMes}` (itens com prazo, feito, aceite da equipe). A tela do painel mostra quais empresas concluíram o mês, quais não começaram, dá o aceite e exporta CSV. Os itens do mês vêm de `ITENS_CHECK_PADRAO` em `js/app.js`; quando o Raoni entregar o código do sistema antigo, os itens e regras dele migram para `conteudo/checklist` (editável no painel).
 
 ## 5. Auditoria de uso e cobrança
 

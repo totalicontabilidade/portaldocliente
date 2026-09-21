@@ -115,7 +115,7 @@ service cloud.firestore {
       allow update: if (ehEquipe() && tamanhoOk())
                     || (ehDonoDaEmpresa(empresaId)
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['canalPreferido', 'formaRelatorio', 'marcos', 'feedback30', 'jornada'])
+                             .hasOnly(['canalPreferido', 'formaRelatorio', 'marcos', 'feedback30', 'jornada', 'entrada', 'financeiro', 'nps'])
                         // o cliente só pode marcar passos do LADO DELE (".c.") na jornada
                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['jornada'])
                             || request.resource.data.jornada.diff(resource.data.jornada).affectedKeys().hasOnly(['passos'])));
@@ -178,6 +178,32 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+
+    // ---------- Módulos novos ----------
+    match /indicacoes/{id} {
+      allow create: if logado() && ehDonoDaEmpresa(request.resource.data.empresaId) && request.resource.size < 4000;
+      allow read: if ehEquipe() || (logado() && ehDonoDaEmpresa(resource.data.empresaId));
+      allow update: if ehEquipe();
+      allow delete: if ehAdmin();
+    }
+    // Página de extratos (sem login): lê pelo código e só marca "já autorizei"
+    match /extratos/{codigo} {
+      allow get: if true;
+      allow list, create, delete: if ehEquipe();
+      allow update: if ehEquipe() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmacoes', 'atualizadoEm']);
+    }
+    match /exclusoesDeConta/{id} {
+      allow create: if ehAdmin() && request.resource.data.pedidoPor == request.auth.uid;
+      allow get: if ehAdmin();
+      allow list, update, delete: if false;
+    }
+    match /resumos/{anoMes} { allow read: if ehEquipe(); allow write: if false; }
+    match /empresas/{empresaId}/entregas/{id} {
+      allow read: if equipeOuDono(empresaId);
+      allow create, delete: if ehEquipe();
+      allow update: if ehEquipe() || (ehDonoDaEmpresa(empresaId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vistoEm', 'atualizadoEm']));
+    }
+    match /empresas/{empresaId}/resumos/{anoMes} { allow read: if equipeOuDono(empresaId); allow write: if false; }
 
     // Consultas em grupo (painel): documentos e checklists de todas as empresas
     match /{path=**}/documentos/{id} { allow read: if ehEquipe(); }

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia · menu horizontal no portal</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/app.css">
+<style>
+  body { padding: 0; }
+  .topo { position: relative; overflow: hidden; background: var(--sidebar); color: #fff; }
+  .topo__in { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 14px 24px 0; display: flex; flex-direction: column; gap: 12px; }
+  .topo__linha { display: flex; align-items: center; gap: 14px; }
+  .topo__nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-bottom: 12px; }
+  .topo__nav a { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; font-weight: 800; color: var(--sidebar-foreground); text-decoration: none; white-space: nowrap; }
+  .topo__nav a:hover { background: rgba(255,255,255,.08); color: #fff; text-decoration: none; }
+  .topo__nav a.on { background: var(--gold); color: var(--gold-foreground); }
+  .topo__nav .badge { height: 18px; font-size: 10px; }
+  .topo .puzzle-layer { background-image: url("../assets/brand/calc-menu.svg"); width: 200%; height: 400%; left: -30%; top: -150%; opacity: .8; }
+  .topo .veu { position: absolute; inset: 0; background: linear-gradient(90deg, var(--sidebar) 35%, color-mix(in srgb, var(--sidebar) 45%, transparent) 100%); }
+  .nota { max-width: 1200px; margin: 0 auto; padding: 16px 24px 0; }
+  @media (max-width: 1023px) { .topo__nav { display: none; } }
+</style>
+<script src="../js/tema.js"></script>
+</head>
+<body>
+<div class="nota"><div class="aviso aviso--info"><b>Prévia:</b>&nbsp;o portal do cliente com menu horizontal no topo (desktop). No celular a barra inferior continua. Nada disto está no sistema ainda. <button type="button" class="btn btn--xs btn--contorno" onclick="document.documentElement.classList.toggle('dark')" style="margin-left:8px">Claro / escuro</button></div></div>
+<header class="topo" style="margin-top:12px">
+  <div class="puzzle-layer" aria-hidden="true"></div><div class="veu" aria-hidden="true"></div>
+  <div class="topo__in">
+    <div class="topo__linha">
+      <img src="../assets/totali-contabil-branca.png" alt="Totali" style="height:36px;width:auto">
+      <span class="f-12" style="color:var(--sidebar-muted)">Padaria Estrela do Sul</span>
+      <span class="esp"></span>
+      <button type="button" class="topbar__btn" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:#fff">☾</button>
+      <button type="button" class="topbar__btn" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:#fff">🔔<span class="pontinho">1</span></button>
+      <span class="topbar__avatar" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:#fff"><span class="avatar avatar--sm avatar--gold">JR</span><span>Joana</span></span>
+    </div>
+    <nav class="topo__nav">
+      <a class="on" href="#">Início</a><a href="#">Chat <span class="badge badge--gold">1</span></a><a href="#">Documentos</a><a href="#">Entrada</a><a href="#">Checklist do mês</a><a href="#">Agenda</a><a href="#">Sistemas</a><a href="#">Cofre</a><a href="#">Mais ▾</a>
+    </nav>
+  </div>
+</header>
+<main class="pagina" style="padding-top:20px">
+  <div class="cabecalho"><div><div class="cabecalho__kicker">Padaria Estrela do Sul</div><h1>Boa tarde, Joana 👋</h1><p>Cliente da Totali há 9 dias. Aqui está o que importa hoje.</p></div></div>
+  <a class="card card--clicavel" href="#" style="text-decoration:none;color:inherit;border-left:4px solid var(--danger)"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--danger-soft);color:var(--danger)">!</span><div style="flex:1"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">Um documento precisa de correção</div><div class="f-13 txt-2">rg-joana.jpg: a foto está cortada. Pode reenviar mostrando o documento inteiro?</div></div><span class="btn btn--sm btn--primario">Reenviar agora</span></div></a>
+  <div class="grade grade--4">
+    <div class="card"><div class="card__corpo"><div class="f-800">Chat</div><div class="f-12 txt-2">1 nova</div></div></div>
+    <div class="card"><div class="card__corpo"><div class="f-800">Documentos</div><div class="f-12 txt-2">2 aprovados</div></div></div>
+    <div class="card"><div class="card__corpo"><div class="f-800">Checklist</div><div class="f-12 txt-2">2/6 do mês</div></div></div>
+    <div class="card"><div class="card__corpo"><div class="f-800">Sistemas</div><div class="f-12 txt-2">3 liberados</div></div></div>
+  </div>
+  <div class="grade grade--lado">
+    <div class="pilha">
+      <div class="card"><div class="card__cab"><h2>Checklist de setembro de 2026</h2><a class="btn btn--xs btn--contorno" href="#">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>2 de 6 itens enviados</span><span>faltam 4</span></div><div class="barra"><i style="width:33%"></i></div></div></div>
+      <div class="card"><div class="card__cab"><h2>Próximos vencimentos</h2><a class="btn btn--xs btn--contorno" href="#">Agenda</a></div><div class="lista" style="padding-top:6px"><div class="lista__item"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--warning)">20</div><div class="lista__texto"><span class="lista__titulo">DAS · Simples Nacional</span><span class="lista__sub">Guia única do Simples.</span></div><span class="badge badge--aviso">vence em 3 dias</span></div><div class="lista__item"><div class="dia__d" style="width:40px;height:40px;font-size:12px">20</div><div class="lista__texto"><span class="lista__titulo">FGTS Digital</span><span class="lista__sub">Depósito do FGTS dos funcionários.</span></div><span class="badge">vence em 3 dias</span></div></div></div>
+      <div class="card"><div class="card__cab"><h2>Conversa com a Totali</h2><a class="btn btn--xs btn--contorno" href="#">Abrir chat</a></div><div class="lista" style="padding-top:6px"><div class="lista__item"><span class="avatar avatar--gold avatar--sm">MS</span><div class="lista__texto"><span class="lista__titulo">Marina Santos · Totali</span><span class="lista__sub">Recebido e aprovado ✅ Amanhã te mando o passo a passo do e-CAC.</span></div><span class="lista__meta">há 2 dias</span></div></div></div>
+    </div>
+    <div class="pilha">
+      <div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo" style="display:flex;gap:12px;align-items:center;padding-top:10px"><span class="avatar avatar--gold avatar--lg">MS</span><div><div class="f-800">Marina Santos</div><div class="f-13 txt-2">Gerente de contas</div></div></div></div>
+      <div class="banner"><span class="selo-sistema" style="background:#b91c1c">GE</span><div class="banner__texto"><span class="banner__kicker">Ainda não contratado · GE Rescisão</span><b class="banner__titulo">Simule a rescisão antes de decidir</b><span class="banner__desc">Uma rescisão calculada errada custa caro em multa e em processo.</span><a class="btn btn--xs btn--gold banner__cta" href="#">Ver como funciona</a></div></div>
+      <div class="banner banner--compacto"><span class="selo-sistema" style="background:#b45309">P</span><div class="banner__texto"><span class="banner__kicker">Ainda não contratado · Precify</span><b class="banner__titulo">Preço certo, margem visível</b><a class="btn btn--xs btn--gold banner__cta" href="#">Ver como funciona</a></div></div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
