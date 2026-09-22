@@ -100,12 +100,12 @@
      ============================================================ */
   function telaEntrada(r) {
     var P = global.Portal, e = P.empresa, sessao = P.sessao;
-    Shell.titulo("Entrada na Totali");
+    Shell.titulo("Lista de documentos");
     Shell.render(UI.esqueleto(6));
     P.prepararAuto().then(function () {
       var en = estado(e), prog = progresso(e), grupoAberto = r.query.g || "";
-      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Onboarding</div><h1>Entrada na Totali</h1><p>O que precisamos para assumir sua contabilidade sem lacunas. A maior parte vem da sua contabilidade anterior pelo link que a Totali envia a eles; você acompanha aqui e envia só o que é seu.</p></div>' +
-        '<div class="card card--gold" style="padding:10px 14px;display:flex;gap:12px;align-items:center">' + UI.anel(prog.pct, "", 56) + '<div><div class="f-800">' + prog.feitos + " de " + prog.total + ' itens</div><div class="f-12 txt-2">' + (prog.completo ? "Tudo entregue 🎉" : "faltam " + prog.faltam + (prog.obrigFaltam.length ? " · " + prog.obrigFaltam.length + " obrigatórios" : "")) + "</div></div></div></div>" +
+      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Sua entrada na Totali</div><h1>Lista de documentos</h1><p>Tudo o que precisamos para assumir sua contabilidade. Cada item tem um botão para enviar e um botão de ajuda explicando o que é e onde conseguir. A maior parte vem da sua contabilidade anterior; você envia só o que é seu.</p></div>' +
+        '<div class="card card--gold" style="padding:10px 14px;display:flex;gap:12px;align-items:center">' + UI.anel(prog.pct, "", 56) + '<div><div class="f-800">' + prog.feitos + " de " + prog.total + ' itens</div><div class="f-12 txt-2">' + (prog.completo ? "Tudo entregue" : "faltam " + prog.faltam + (prog.obrigFaltam.length ? " · " + prog.obrigFaltam.length + " obrigatórios" : "")) + "</div></div></div></div>" +
         (e.migracaoConcluidaEm ? '<div class="aviso aviso--ok">' + ic("check-circle") + "<div><b>Migração concluída pela Totali.</b>Você pode continuar enviando o que faltar, mas a operação já está ativa.</div></div>" : "") +
         '<div class="pilha">' + GRUPOS.map(function (g) {
           var alvos = g.escopo === "socio" ? en.socios : [null];
@@ -157,7 +157,7 @@
       var erros = files.map(U.validarArquivo).filter(Boolean); if (erros.length) return UI.toast(erros[0], "erro");
       var a = alvoUpload, k = chave(a.g, a.it, a.sid);
       Promise.all(files.map(function (f) { return Dados.enviarDocumento(e.id, { file: f, grupo: a.it.grupoDoc || a.g.grupoDoc, origem: "cliente", por: sessao.nome, observacao: a.it.nome + (a.sid ? " · " + (en.socios.filter(function (s) { return s.id === a.sid; })[0] || {}).nome : ""), item: k }); }))
-        .then(function (docs) { var reg = en.itens[k] || {}; reg.docIds = (reg.docIds || []).concat(docs.map(function (d) { return d.id; })); reg.situacao = "enviado"; reg.na = false; reg.em = Date.now(); delete reg.revisao; en.itens[k] = reg; var primeiro = Object.keys(en.itens).length === 1; return persistir(function () { if (primeiro) UI.celebrar("Primeiro documento enviado! 🎉"); else { UI.toast("Enviado. A equipe confere e você recebe o aceite aqui.", "ok"); UI.vibrar(); } telaEntrada({ query: { g: a.sid || a.g.id } }); }); })
+        .then(function (docs) { var reg = en.itens[k] || {}; reg.docIds = (reg.docIds || []).concat(docs.map(function (d) { return d.id; })); reg.situacao = "enviado"; reg.na = false; reg.em = Date.now(); delete reg.revisao; en.itens[k] = reg; var primeiro = Object.keys(en.itens).length === 1; return persistir(function () { if (primeiro) UI.celebrar("Primeiro documento enviado."); else { UI.toast("Enviado. A equipe confere e você recebe o aceite aqui.", "ok"); UI.vibrar(); } telaEntrada({ query: { g: a.sid || a.g.id } }); }); })
         .catch(function (err) { UI.toast(err.message || "Falha no envio.", "erro"); });
     });
     UI.delegar(v, {
@@ -224,7 +224,7 @@
         corrigir: function (b) { UI.perguntar("Pedir correção", "Motivo (o cliente lê exatamente isto)", "", { longo: true, ok: "Enviar" }).then(function (t) { if (!t) return; var reg = en.itens[b.dataset.k] || {}; reg.situacao = "pendencia"; reg.revisao = { por: sessao.nome, em: Date.now(), motivo: U.txt(t, 300) }; en.itens[b.dataset.k] = reg; (reg.docIds || []).forEach(function (id) { Dados.revisarDocumento(e.id, id, "pendencia", t, sessao); }); persistir(); }); },
         "na-equipe": function (b) { var reg = en.itens[b.dataset.k] || {}; reg.na = true; reg.situacao = "na"; reg.revisao = { por: sessao.nome, em: Date.now() }; en.itens[b.dataset.k] = reg; persistir(); },
         "ver-doc": function (b) { Dados.verDocumento(e.id, b.dataset.id, sessao).then(function () { return Dados.urlArquivo(porId[b.dataset.id]); }).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Documento de exemplo sem arquivo.", "info"); }); },
-        cobrar: function () { var faltam = prog.obrigFaltam.map(function (f) { return f.it.nome; }); var texto = "Oi! Para concluirmos a entrada da " + e.fantasia + " ainda faltam: " + (faltam.slice(0, 5).join(", ") || "alguns itens") + (faltam.length > 5 ? " e mais " + (faltam.length - 5) : "") + ". É só abrir Entrada na Totali no portal e enviar. Qualquer dúvida, responde por aqui 🙂"; Dados.enviarMensagem(e.id, { autor: { uid: sessao.uid, nome: sessao.nome, lado: "equipe" }, texto: texto }).then(function () { UI.toast("Cobrança enviada pelo chat.", "ok"); }); },
+        cobrar: function () { var faltam = prog.obrigFaltam.map(function (f) { return f.it.nome; }); var texto = "Oi! Para concluirmos a entrada da " + e.fantasia + " ainda faltam: " + (faltam.slice(0, 5).join(", ") || "alguns itens") + (faltam.length > 5 ? " e mais " + (faltam.length - 5) : "") + ". É só abrir Entrada na Totali no portal e enviar. Qualquer dúvida, responde por aqui"; Dados.enviarMensagem(e.id, { autor: { uid: sessao.uid, nome: sessao.nome, lado: "equipe" }, texto: texto }).then(function () { UI.toast("Cobrança enviada pelo chat.", "ok"); }); },
         "pdf-ficha": function () { if (global.PDF) global.PDF.ficha(e, en, GRUPOS, docs); },
         "pdf-dossie": function () { if (global.PDF) global.PDF.dossie(e, en, GRUPOS, docs); }
       });
@@ -248,7 +248,7 @@
     var e = global.Portal.empresa; var p = progresso(e);
     if (p.completo || e.migracaoConcluidaEm) return null;
     var prox = p.obrigFaltam[0];
-    return { hoje: '<a class="card card--clicavel entra" href="#/entrada' + (prox ? "?g=" + (prox.sid || prox.g.id) : "") + '" style="text-decoration:none;color:inherit;border-left:4px solid var(--gold)"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("clipboard") + '</span><div style="flex:1;min-width:0"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">' + (p.feitos ? "Entrada: faltam " + p.faltam + " itens" : "Vamos começar sua entrada na Totali") + '</div><div class="f-13 txt-2">' + (prox ? "Próximo: " + U.esc(prox.it.nome) : "Cadastre os sócios e envie o que só você tem.") + '</div></div><span class="btn btn--sm btn--primario so-desktop">Continuar · ' + p.pct + "%</span>" + ic("chevron-right", "so-mobile") + "</div></a>" };
+    return { hoje: '<a class="card card--clicavel card--hoje entra" href="#/entrada' + (prox ? "?g=" + (prox.sid || prox.g.id) : "") + '" style="text-decoration:none;color:inherit;--tom:var(--gold);border-left:4px solid var(--gold)"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("clipboard") + '</span><div style="flex:1;min-width:0"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">' + (p.feitos ? "Lista de documentos: faltam " + p.faltam + " itens" : "Vamos começar pela lista de documentos") + '</div><div class="f-13 txt-2">' + (prox ? "Próximo: " + U.esc(prox.it.nome) : "Cadastre os sócios e envie o que só você tem.") + '</div></div><span class="btn btn--sm btn--primario so-desktop">Continuar · ' + p.pct + "%</span>" + ic("chevron-right", "so-mobile") + "</div></a>" };
   });
 
   global.TelasPortal = global.TelasPortal || {}; global.TelasPortal.entrada = telaEntrada;

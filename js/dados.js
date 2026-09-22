@@ -392,7 +392,7 @@
       },
       resolverConversa: function (empresaId, por, proximoPasso) {
         carregar(); var e = db.empresas[empresaId]; e.conversaResolvidaEm = Date.now();
-        var texto = "✅ Resolvido por " + por.nome + "." + (proximoPasso ? " Próximo passo: " + proximoPasso : "");
+        var texto = "Resolvido por " + por.nome + "." + (proximoPasso ? " Próximo passo: " + proximoPasso : "");
         return Local.enviarMensagem(empresaId, { autor: { uid: "sistema", nome: "Totali", lado: "equipe", sistema: true }, texto: texto });
       },
       naoLidas: function (empresaId, uid, lado) {
@@ -666,7 +666,7 @@
       resolverConversa: function (empresaId, por, proximoPasso) {
         var self = this;
         return db.collection("empresas").doc(empresaId).update({ conversaResolvidaEm: Date.now() }).then(function () {
-          return self.enviarMensagem(empresaId, { autor: { uid: "sistema", nome: "Totali", lado: "equipe", sistema: true }, texto: "✅ Resolvido por " + por.nome + "." + (proximoPasso ? " Próximo passo: " + proximoPasso : "") });
+          return self.enviarMensagem(empresaId, { autor: { uid: "sistema", nome: "Totali", lado: "equipe", sistema: true }, texto: "Resolvido por " + por.nome + "." + (proximoPasso ? " Próximo passo: " + proximoPasso : "") });
         });
       },
       naoLidas: function (empresaId, uid, lado) { return this.mensagens(empresaId).then(function (ms) { return ms.filter(function (m) { return m.autor.lado !== lado && !(m.lidaPor || {})[uid]; }).length; }); },

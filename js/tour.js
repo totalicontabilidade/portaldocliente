@@ -16,13 +16,13 @@
     "portal-inicio": [
       { titulo: "Bem-vindo ao seu portal", texto: "Aqui você fala com a Totali, envia documentos e acompanha sua empresa. Vamos mostrar onde fica cada coisa. Leva 30 segundos." },
       { alvo: ".card[style*='border-left']", titulo: "O que importa hoje", texto: "Este cartão sempre mostra a coisa mais importante do dia: uma correção, uma mensagem nova ou o próximo passo. Toque nele e pronto." },
-      { alvo: ".grade--4", titulo: "As quatro ações", texto: "Chat, Documentos, Checklist e Sistemas. Tudo o que você faz no portal começa por um destes quatro." },
-      { alvo: ".tabbar, .sidebar__in", titulo: "O menu", texto: "No celular o menu fica embaixo; no computador, à esquerda. O Menu (☰) abre o restante: cofre de senhas, agenda, ajuda." },
+      { alvo: ".grade--4", titulo: "As quatro ações", texto: "Chat, Arquivos, Checklist e Sistemas. Tudo o que você faz no portal começa por um destes quatro." },
+      { alvo: ".tabbar, .sidebar__in", titulo: "O menu", texto: "No celular o menu fica embaixo; no computador, à esquerda. O botão Menu abre o restante: cofre de senhas, agenda, ajuda." },
       { alvo: "#bannerInicio, .sidebar__banner", titulo: "Sistemas da Totali", texto: "Aqui aparecem sistemas que podem ajudar a sua empresa. Se não interessar, toque em \"Agora não\" e ele some por duas semanas." },
       { titulo: "Pronto", texto: "Qualquer dúvida, o chat responde em horário comercial. Para rever este tutorial: Perfil › Rever tutorial." }
     ],
     "portal-entrada": [
-      { titulo: "Sua entrada na Totali", texto: "Esta lista tem tudo o que precisamos para assumir sua contabilidade. A maior parte vem da sua contabilidade anterior; você envia só o que é seu." },
+      { titulo: "Lista de documentos", texto: "Esta lista tem tudo o que precisamos para assumir sua contabilidade. A maior parte vem da sua contabilidade anterior; você envia só o que é seu." },
       { alvo: "details.card", titulo: "Por departamento", texto: "Cada bloco é um departamento. Toque para abrir. O contador mostra quantos itens já chegaram." },
       { alvo: ".passo .btn--primario", titulo: "Enviar, informar ou guardar", texto: "Cada item tem um botão: Enviar (arquivo ou foto), Informar (um dado) ou Informar acesso (senha, embaralhada no seu aparelho)." },
       { alvo: "[data-acao='item-na']", titulo: "Não se aplica", texto: "Se um item não faz sentido para a sua empresa, marque \"Não se aplica\". Ele sai da conta e ninguém vai cobrar." }
