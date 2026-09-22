@@ -115,7 +115,7 @@
   function telaEntrar() {
     Shell.desmontar();
     var demo = Dados.ehDemo();
-    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div>' +
+    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><div class="login__peca" aria-hidden="true"></div>' +
       '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
       '<h1 class="login__frase">O painel que <b>alimenta</b> o portal do cliente.</h1>' +
       '<p class="login__desc">Cadastre, libere sistemas, conduza os 30 dias de cada cliente, confira documentos e saiba quem usa o quê.</p>' +

@@ -174,7 +174,7 @@
     var demo = Dados.ehDemo();
     app.innerHTML =
       '<div class="login">' +
-        '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div>' +
+        '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><div class="login__peca" aria-hidden="true"></div>' +
           '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
           '<h1 class="login__frase">Sua empresa, <b>organizada</b> e <b>em dia</b>, num só lugar.</h1>' +
           '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e use os sistemas da Totali com um login só.</p>' +
