@@ -38,7 +38,7 @@
   function iniciar() {
     Dados.pronto().then(function () {
       sessao = Dados.sessao();
-      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); }).catch(function () {}).then(rotear);
+      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda"), Dados.conteudo("video"), Dados.conteudo("financeiro")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); if (r[4] && global.Video) global.Video.aplicar(r[4]); if (r[5] && global.Financeiro) global.Financeiro.aplicarCatalogo(r[5]); }).catch(function () {}).then(rotear);
     });
     global.addEventListener("hashchange", rotear);
     document.addEventListener("dados:mudou", function (e) {
@@ -65,6 +65,7 @@
 
   function rotear() {
     var r = Shell.rota();
+    if (/[?&]previa=login/.test(location.search)) return telaEntrar();   /* prévia de design: só a tela de login */
     if (r.nome === "convite") return telaConvite(r.param);
     if (r.nome === "sair") { sair(); return; }
     if (!sessao || sessao.papel !== "cliente") { document.body.classList.remove("logado"); return telaEntrar(); }

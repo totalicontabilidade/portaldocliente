@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navegação e padrão · opções</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/app.css">
+<style>
+  body { padding: 20px; }
+  .op { margin: 0 0 32px; }
+  .op h2 { display: flex; gap: 10px; align-items: center; font-size: 17px; margin-bottom: 4px; }
+  .op p.d { color: var(--text-2); font-size: 13px; margin-bottom: 12px; max-width: 90ch; }
+  .tag { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--gold); color: #182c43; font-weight: 800; }
+  .mock { position: relative; height: 520px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--background); box-shadow: var(--shadow-md); }
+  .mock .conteudo { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+  .navy { position: relative; overflow: hidden; background: var(--sidebar); color: #fff; }
+  .navy .pat { position: absolute; inset: 0; pointer-events: none; background-size: 240px 240px; }
+  .navy .pat.persp { width: 300%; height: 220%; left: -100%; top: -50%; transform: perspective(1400px) rotateX(38deg) rotateZ(-22deg); transform-origin: 50% 45%; }
+  .navy .pat.flat { background-size: 220px 220px; opacity: .9; }
+  .navy .pat.grande { background-size: 360px 360px; }
+  .navy .veu { position: absolute; inset: 0; background: linear-gradient(180deg, var(--sidebar) 0%, color-mix(in srgb, var(--sidebar) 88%, transparent) 14%, color-mix(in srgb, var(--sidebar) 50%, transparent) 40%, color-mix(in srgb, var(--sidebar) 28%, transparent) 75%, color-mix(in srgb, var(--sidebar) 22%, transparent) 100%); }
+  .navy .veu.h { background: linear-gradient(90deg, var(--sidebar) 30%, color-mix(in srgb, var(--sidebar) 60%, transparent) 70%, color-mix(in srgb, var(--sidebar) 30%, transparent) 100%); }
+  .navy .in { position: relative; z-index: 1; }
+  .m-side { display: grid; grid-template-columns: 240px 1fr; height: 100%; }
+  .m-side .side { padding: 16px 12px; display: flex; flex-direction: column; gap: 3px; }
+  .grupo { padding: 12px 10px 5px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--sidebar-muted); font-weight: 800; }
+  .it { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; font-size: 13.5px; font-weight: 700; color: var(--sidebar-foreground); }
+  .it.on { background: var(--sidebar-accent); color: #fff; }
+  .it .ic { opacity: .85; }
+  /* B: sidebar clara */
+  .clara { background: var(--card); border-right: 1px solid var(--border); color: var(--foreground); }
+  .clara .grupo { color: var(--muted-foreground); }
+  .clara .it { color: var(--text-2); } .clara .it.on { background: var(--primary-soft); color: var(--primary); }
+  .faixa { height: 6px; background: linear-gradient(90deg, var(--gold), var(--sidebar)); }
+  /* C/E: topo */
+  .topo .in { display: flex; align-items: center; gap: 14px; padding: 12px 22px; }
+  .abas-topo { display: flex; gap: 2px; padding: 0 22px; }
+  .abas-topo a { position: relative; padding: 10px 14px; font-size: 13.5px; font-weight: 800; color: var(--sidebar-foreground); }
+  .abas-topo a.on { color: #fff; } .abas-topo a.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--gold); }
+  .abas-clara { display: flex; gap: 2px; padding: 0 22px; background: var(--card); border-bottom: 1px solid var(--border); }
+  .abas-clara a { position: relative; padding: 12px 14px; font-size: 13.5px; font-weight: 800; color: var(--text-2); }
+  .abas-clara a.on { color: var(--primary); } .abas-clara a.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2.5px; background: var(--gold); border-radius: 3px 3px 0 0; }
+  /* D: trilho */
+  .m-trilho { display: grid; grid-template-columns: 84px 1fr; height: 100%; }
+  .trilho { padding: 14px 8px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+  .trilho .it { flex-direction: column; gap: 4px; font-size: 10.5px; padding: 9px 4px; text-align: center; }
+  .trilho .it .ic { width: 20px; height: 20px; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .cards .card { padding: 12px; }
+  .cards .card b { display: block; font-size: 13px; } .cards .card span { font-size: 12px; color: var(--text-2); }
+  .cab h1 { font-size: 22px; } .cab .k { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-text); font-weight: 800; }
+  .hoje { border-left: 4px solid var(--danger); }
+  .login-frame { width: 100%; height: 640px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+  .padroes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .padroes .navy { height: 260px; border-radius: 12px; padding: 16px; }
+  .padroes .navy .in { display: flex; flex-direction: column; gap: 6px; }
+  @media (max-width: 900px) { .padroes { grid-template-columns: 1fr; } .cards { grid-template-columns: 1fr 1fr; } .m-side { grid-template-columns: 200px 1fr; } }
+  .seletor { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 16px; }
+</style>
+<script src="../js/tema.js"></script>
+</head>
+<body>
+<h1>Opções de navegação e o padrão de calculadora refinado</h1>
+<p class="txt-2 f-13" style="max-width:90ch;margin:6px 0 14px">Cinco arranjos de menu para o portal do cliente (o painel da equipe continua com o menu lateral). O fundo navy usa o padrão refinado que você escolher abaixo; troque aqui para ver em todos os modelos ao mesmo tempo. Nada disto está no sistema ainda.</p>
+<div class="seletor">
+  <button type="button" class="btn btn--sm btn--contorno" onclick="document.documentElement.classList.toggle('dark')">Claro / escuro</button>
+  <span class="f-13 f-700">Padrão do fundo:</span>
+  <button type="button" class="chip" data-pat="calc-r1.svg" aria-pressed="true">R1 · relevo suave</button>
+  <button type="button" class="chip" data-pat="calc-r2.svg">R2 · relevo forte</button>
+  <button type="button" class="chip" data-pat="calc-r3.svg">R3 · com mostrador</button>
+  <button type="button" class="chip" data-pat="../../assets/brand/calc-menu.svg">Atual (modelo A)</button>
+</div>
+
+<section class="op"><h2><span class="tag">1</span>Padrão de calculadora refinado, de perto</h2><p class="d">Teclas com relevo real: degradê dourado, brilho no topo, sombra projetada e sinais gravados; dígitos em "vidro". Três intensidades. À esquerda, como fica no menu (perspectiva diagonal); no meio, plano; à direita, o cartão navy.</p>
+<div class="padroes">
+  <div class="navy"><div class="pat persp" data-p></div><div class="veu"></div><div class="in"><b>Menu lateral</b><span class="f-12" style="color:var(--sidebar-muted)">Padaria Estrela do Sul</span><div class="grupo">Minha empresa</div><div class="it on">Início</div><div class="it">Chat com a Totali</div><div class="it">Documentos</div></div></div>
+  <div class="navy"><div class="pat flat" data-p></div><div class="veu h"></div><div class="in"><b>Plano, sem perspectiva</b><span class="f-12" style="color:var(--sidebar-muted)">para faixas e cabeçalhos</span></div></div>
+  <div class="navy"><div class="pat persp grande" data-p></div><div class="veu h"></div><div class="in" style="display:flex;gap:14px;align-items:center;height:100%"><span class="anel" style="width:70px;height:70px"><svg viewBox="0 0 84 84"><circle class="anel__fundo" cx="42" cy="42" r="34"/><circle class="anel__valor" cx="42" cy="42" r="34" stroke-dasharray="213.6" stroke-dashoffset="70"/></svg><span class="anel__num">67%</span></span><div><div class="f-12" style="color:var(--sidebar-muted);letter-spacing:.1em;text-transform:uppercase;font-weight:800">Checklist do mês</div><div class="f-15 f-800">4 de 6 itens</div></div></div></div>
+</div></section>
+
+<section class="op"><h2><span class="tag">A</span>Menu lateral navy (como está)</h2><p class="d">Referência. Marca forte, banner dos sistemas no rodapé do menu, conteúdo à direita.</p>
+<div class="mock"><div class="m-side"><div class="navy side"><div class="pat persp" data-p></div><div class="veu"></div><div class="in" style="display:flex;flex-direction:column;gap:3px;height:100%"><img src="../assets/totali-contabil-branca.png" alt="Totali" style="height:36px;width:auto;margin:0 0 4px 8px"><div class="grupo">Minha empresa</div><div class="it on">Início</div><div class="it">Entrada na Totali</div><div class="it">Agenda do mês</div><div class="it">Chat com a Totali</div><div class="it">Documentos</div><div class="it">Cofre de senhas</div><div class="grupo">Ferramentas</div><div class="it">Checklist do mês</div><div class="it">Meus sistemas</div><div class="esp"></div><div class="banner banner--compacto" style="background:rgba(200,157,87,.1);border-color:rgba(200,157,87,.45);color:#fff"><div class="banner__texto"><span class="banner__kicker" style="color:var(--gold)">Ainda não contratado · Ponto</span><b class="banner__titulo">Ponto digital no celular</b></div></div></div></div><div class="conteudo" id="c1"></div></div></div></section>
+
+<section class="op"><h2><span class="tag">B</span>Menu lateral claro + faixa da marca</h2><p class="d">O menu perde o navy e fica branco (ou grafite no escuro), com ícones e o item ativo em azul. A marca aparece só na faixa dourada do topo e nos cartões navy. Mais leve e mais "aplicativo moderno" (Notion, Linear).</p>
+<div class="mock"><div class="faixa"></div><div class="m-side" style="height:calc(100% - 6px)"><div class="side clara"><img src="../assets/totali-portal-cor.png" alt="Totali" style="height:34px;width:auto;margin:0 0 6px 8px"><div class="grupo">Minha empresa</div><div class="it on">⌂ Início</div><div class="it">☰ Entrada na Totali</div><div class="it">▦ Agenda do mês</div><div class="it">✎ Chat com a Totali</div><div class="it">▤ Documentos</div><div class="it">⚿ Cofre de senhas</div><div class="grupo">Ferramentas</div><div class="it">✓ Checklist do mês</div><div class="it">▣ Meus sistemas</div><div class="esp"></div><div class="banner banner--compacto"><div class="banner__texto"><span class="banner__kicker">Ainda não contratado · Ponto</span><b class="banner__titulo">Ponto digital no celular</b></div></div></div><div class="conteudo" id="c2"></div></div></div></section>
+
+<section class="op"><h2><span class="tag">C</span>Topo navy com abas sublinhadas</h2><p class="d">Diferente das pílulas da prévia anterior: o topo é uma faixa navy com o padrão em plano, e o menu são abas com sublinhado dourado, como o Agência 100K usa nas configurações. O conteúdo ocupa a largura toda.</p>
+<div class="mock"><div class="navy topo"><div class="pat flat" data-p></div><div class="veu h"></div><div class="in"><img src="../assets/totali-contabil-branca.png" alt="Totali" style="height:32px;width:auto"><span class="f-12" style="color:var(--sidebar-muted)">Padaria Estrela do Sul</span><span class="esp"></span><span class="avatar avatar--sm avatar--gold">JR</span></div><div class="in abas-topo"><a class="on">Início</a><a>Entrada</a><a>Chat</a><a>Documentos</a><a>Checklist</a><a>Agenda</a><a>Sistemas</a><a>Mais ▾</a></div></div><div class="conteudo" id="c3"></div></div></section>
+
+<section class="op"><h2><span class="tag">D</span>Trilho de ícones com rótulo</h2><p class="d">Menu estreito (84 px) com ícone e nome embaixo, como apps de celular no computador. Sobra muito espaço para conteúdo e banners; o navy continua presente.</p>
+<div class="mock"><div class="m-trilho"><div class="navy trilho"><div class="pat persp" data-p></div><div class="veu"></div><div class="in" style="display:flex;flex-direction:column;gap:4px;height:100%"><img src="../assets/totali-simbolo.png" alt="" style="width:34px;margin:0 auto 8px"><div class="it on">⌂<br>Início</div><div class="it">☰<br>Entrada</div><div class="it">✎<br>Chat</div><div class="it">▤<br>Docs</div><div class="it">✓<br>Checklist</div><div class="it">▦<br>Agenda</div><div class="it">▣<br>Sistemas</div><div class="it">⚿<br>Cofre</div><div class="esp"></div><div class="it">⚙<br>Perfil</div></div></div><div class="conteudo" id="c4"></div></div></div></section>
+
+<section class="op"><h2><span class="tag">E</span>Topo claro com abas, navy só no cabeçalho de boas-vindas</h2><p class="d">Sem bloco navy grande: barra branca com abas azuis e a marca em cor. O navy entra num cartão de boas-vindas com o padrão, onde ficam a saudação e o "hoje". É o mais limpo dos cinco.</p>
+<div class="mock"><div class="abas-clara"><img src="../assets/totali-portal-cor.png" alt="Totali" style="height:30px;width:auto;margin:6px 16px 0 0"><a class="on">Início</a><a>Entrada</a><a>Chat</a><a>Documentos</a><a>Checklist</a><a>Agenda</a><a>Sistemas</a><span class="esp"></span><span class="avatar avatar--sm" style="margin:8px 0">JR</span></div><div class="conteudo"><div class="navy" style="border-radius:12px;padding:18px"><div class="pat persp grande" data-p></div><div class="veu h"></div><div class="in"><div class="f-12" style="color:var(--sidebar-muted);letter-spacing:.1em;text-transform:uppercase;font-weight:800">Padaria Estrela do Sul</div><h1 style="font-size:22px;color:#fff">Boa tarde, Joana 👋</h1><div class="f-13" style="color:var(--sidebar-foreground)">Cliente da Totali há 9 dias. Um documento precisa de correção.</div></div></div><div id="c5"></div></div></div></section>
+
+<section class="op"><h2><span class="tag">L</span>A tela de login, como está hoje</h2><p class="d">Página real do portal (com o padrão que estiver selecionado acima aplicado só nesta prévia). Alterne claro/escuro no botão do topo.</p>
+<iframe class="login-frame" id="loginFrame" src="../index.html?previa=login" title="Login"></iframe></section>
+
+<script>
+  const conteudo = (comCab) => (comCab ? '<div class="cab"><div class="k">Padaria Estrela do Sul</div><h1>Boa tarde, Joana 👋</h1></div>' : '') +
+    '<div class="card hoje"><div class="card__corpo" style="display:flex;gap:12px;align-items:center"><span class="selo-sistema" style="background:var(--danger-soft);color:var(--danger)">!</span><div style="flex:1"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><b class="f-15">Um documento precisa de correção</b><div class="f-13 txt-2">rg-joana.jpg: a foto está cortada.</div></div><span class="btn btn--sm btn--primario">Reenviar</span></div></div>' +
+    '<div class="cards"><div class="card"><b>Chat</b><span>1 nova</span></div><div class="card"><b>Documentos</b><span>2 aprovados</span></div><div class="card"><b>Checklist</b><span>2/6 do mês</span></div><div class="card"><b>Sistemas</b><span>3 liberados</span></div></div>' +
+    '<div class="grade grade--lado" style="gap:10px"><div class="card"><div class="card__cab"><h3>Próximos vencimentos</h3></div><div class="lista" style="padding-top:4px"><div class="lista__item" style="min-height:0;padding:8px 14px"><div class="dia__d" style="width:36px;height:36px;font-size:12px;border-color:var(--warning)">21</div><div class="lista__texto"><span class="lista__titulo f-13">DAS · Simples Nacional</span></div><span class="badge badge--aviso">vence hoje</span></div></div></div><div class="banner banner--compacto"><span class="selo-sistema" style="background:#b91c1c;width:36px;height:36px">GE</span><div class="banner__texto"><span class="banner__kicker">Ainda não contratado · GE Rescisão</span><b class="banner__titulo">Simule a rescisão antes de decidir</b><a class="btn btn--xs btn--gold banner__cta">Ver como funciona</a></div></div></div>';
+  ["c1", "c2", "c3", "c4"].forEach((id) => { document.getElementById(id).innerHTML = conteudo(true); });
+  document.getElementById("c5").innerHTML = conteudo(false).replace('<div class="card hoje">', '<div class="card hoje" style="margin-top:12px">');
+  function aplicarPadrao(arq) {
+    const url = arq.startsWith("../") ? "url('" + arq.replace("../../", "../") + "')" : "url('previa/" + arq + "')";
+    document.querySelectorAll("[data-p]").forEach((el) => { el.style.backgroundImage = url; });
+    /* Dentro do iframe a variável é resolvida a partir de css/app.css, então o caminho é relativo à pasta css/ */
+    const f = document.getElementById("loginFrame"); try { f.contentDocument.documentElement.style.setProperty("--padrao-login", arq.startsWith("../") ? "url('../assets/brand/calc-login.svg')" : "url('../design/previa/" + arq + "')"); } catch (e) {}
+  }
+  document.querySelectorAll("[data-pat]").forEach((b) => b.addEventListener("click", () => { document.querySelectorAll("[data-pat]").forEach((x) => x.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); aplicarPadrao(b.dataset.pat); }));
+  aplicarPadrao("calc-r1.svg");
+  document.getElementById("loginFrame").addEventListener("load", () => { const on = document.querySelector("[data-pat][aria-pressed='true']"); if (on) aplicarPadrao(on.dataset.pat); });
+</script>
+</body>
+</html>

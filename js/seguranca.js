@@ -24,7 +24,8 @@
   var UI = global.UI;
 
   /* ---------- 2. Anti-clickjacking ---------- */
-  try { if (global.top !== global.self) { global.top.location = global.self.location; } } catch (e) { document.documentElement.innerHTML = ""; }
+  /* Só outra ORIGEM é clickjacking; uma prévia interna (design/) na mesma origem pode embutir. */
+  try { if (global.top !== global.self && global.top.location.origin !== global.location.origin) { global.top.location = global.self.location; } } catch (e) { try { global.top.location = global.self.location; } catch (e2) { document.documentElement.innerHTML = ""; } }
 
   /* ---------- 1. Sessão ociosa ---------- */
   var LIMITES = { cliente: 30 * 60000, equipe: 20 * 60000, admin: 20 * 60000 };

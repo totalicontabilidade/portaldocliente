@@ -52,5 +52,31 @@
     });
   }
 
-  global.ConteudoExtra = { agenda: agenda, avisos: avisos, ajuda: ajuda, ABAS: [["agenda", "Agenda de obrigações"], ["avisos", "Aviso automático"], ["ajuda", "Ajuda e contatos"]] };
+  function financeiro(v, sessao) {
+    Dados.conteudo("financeiro").then(function (c) {
+      var F = global.Financeiro, bancos = (c && c.bancos && c.bancos.length) ? c.bancos.map(function (b) { return typeof b === "string" ? { nome: b } : b; }) : F.BANCOS.map(function (b) { return { nome: b }; }), maq = (c && c.maquinetas && c.maquinetas.length) ? c.maquinetas : F.MAQUINETAS;
+      var linha = function (i, comCred) { return '<div class="card"><div class="card__corpo grade grade--2" style="gap:8px"><div class="campo"><label class="campo__rotulo">Nome</label><input class="input" data-nome value="' + U.esc(i.nome) + '"></div>' + (comCred ? '<div class="campo"><label class="checar" style="margin-top:22px"><input type="checkbox" data-semcred' + (i.semCredencial ? " checked" : "") + '> Libera o contador pelo app (sem senha)</label></div><div class="campo" style="grid-column:span 2"><label class="campo__rotulo">Orientação ao cliente (opcional)</label><input class="input" data-orient value="' + U.esc(i.orientacao || "") + '"></div>' : "") + '<div><button type="button" class="btn btn--xs btn--fantasma" data-acao="rm">' + ic("trash", "ic--sm") + "Remover</button></div></div></div>"; };
+      v.innerHTML = '<div class="aviso aviso--info">' + ic("info") + "<div><b>Catálogo do Checklist Financeiro.</b>As listas que o cliente marca. Igual ao painel do sistema oficial: nome, e para maquininha, se libera o contador pelo próprio app (aí não pede senha) e uma orientação.</div></div>" +
+        '<h3 class="mt-12">Bancos</h3><div class="pilha" id="edBancos" style="gap:6px">' + bancos.map(function (b) { return linha(b, false); }).join("") + '</div><button type="button" class="btn btn--xs btn--contorno mt-8" data-acao="add-b">' + ic("plus", "ic--sm") + 'Banco</button>' +
+        '<h3 class="mt-12">Maquininhas</h3><div class="pilha" id="edMaq" style="gap:6px">' + maq.map(function (m) { return linha(m, true); }).join("") + '</div><button type="button" class="btn btn--xs btn--contorno mt-8" data-acao="add-m">' + ic("plus", "ic--sm") + 'Maquininha</button>' +
+        '<div class="modal__acoes"><button type="button" class="btn btn--primario" data-acao="salvar">' + ic("check") + "Publicar catálogo</button></div>";
+      UI.delegar(v, {
+        "add-b": function () { UI.$("#edBancos", v).insertAdjacentHTML("beforeend", linha({ nome: "" }, false)); },
+        "add-m": function () { UI.$("#edMaq", v).insertAdjacentHTML("beforeend", linha({ nome: "" }, true)); },
+        rm: function (b) { b.closest(".card").remove(); },
+        salvar: function () { var bs = UI.$$("#edBancos .card", v).map(function (c) { return c.querySelector("[data-nome]").value.trim(); }).filter(Boolean); var ms = UI.$$("#edMaq .card", v).map(function (c) { return { nome: c.querySelector("[data-nome]").value.trim(), semCredencial: c.querySelector("[data-semcred]").checked, orientacao: c.querySelector("[data-orient]").value.trim() }; }).filter(function (m) { return m.nome; }); Dados.salvarConteudo("financeiro", { bancos: bs, maquinetas: ms }, sessao).then(function () { F.aplicarCatalogo({ bancos: bs, maquinetas: ms }); UI.toast("Catálogo publicado.", "ok"); }); }
+      });
+    });
+  }
+  function video(v, sessao) {
+    Dados.conteudo("video").then(function (c) {
+      var V = global.Video ? global.Video.VIDEO : {}; c = c || {};
+      v.innerHTML = '<div class="aviso aviso--info">' + ic("info") + '<div><b>Vídeo de apresentação da tela inicial.</b>Suba no YouTube como <b>não listado</b> (não aparece em busca, mas quem tem o link assiste; "privado" não toca em site nenhum). Cole o endereço ou só o identificador. Vazio = sem vídeo.</div></div>' +
+        '<div class="card"><div class="card__corpo pilha"><div class="campo"><label class="campo__rotulo">Endereço ou identificador do YouTube</label><input class="input" id="vY" value="' + U.esc(c.youtube || V.youtube || "") + '" placeholder="https://www.youtube.com/watch?v=… ou dQw4w9WgXcQ"></div><div class="grade grade--2"><div class="campo"><label class="campo__rotulo">Título</label><input class="input" id="vT" maxlength="80" value="' + U.esc(c.titulo || V.titulo || "") + '"></div><div class="campo"><label class="campo__rotulo">Mostrar</label><select class="select" id="vM">' + [["30dias", "Nos primeiros 30 dias do cliente"], ["primeira", "Até o cliente assistir"], ["sempre", "Sempre (até ele dispensar)"]].map(function (o) { return '<option value="' + o[0] + '"' + ((c.mostrar || V.mostrar) === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select></div></div><div class="campo"><label class="campo__rotulo">Texto de apoio</label><input class="input" id="vX" maxlength="240" value="' + U.esc(c.texto || V.texto || "") + '"></div><div id="vPrev"></div><div class="modal__acoes"><button type="button" class="btn btn--primario" data-acao="salvar">' + ic("check") + "Publicar vídeo</button></div></div></div>";
+      var prev = function () { var id = global.Video.extrairId(UI.$("#vY", v).value); UI.$("#vPrev", v).innerHTML = id ? '<img src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt="" style="max-width:320px;border-radius:10px">' : (UI.$("#vY", v).value.trim() ? '<span class="f-12 txt-erro">Não reconheci o endereço do YouTube.</span>' : ""); };
+      UI.$("#vY", v).addEventListener("input", prev); prev();
+      UI.delegar(v, { salvar: function () { var id = global.Video.extrairId(UI.$("#vY", v).value); if (UI.$("#vY", v).value.trim() && !id) return UI.toast("Endereço do YouTube inválido.", "erro"); var obj = { youtube: id, titulo: UI.$("#vT", v).value.trim(), texto: UI.$("#vX", v).value.trim(), mostrar: UI.$("#vM", v).value }; Dados.salvarConteudo("video", obj, sessao).then(function () { global.Video.aplicar(obj); UI.toast(id ? "Vídeo publicado." : "Vídeo removido da tela inicial.", "ok"); }); } });
+    });
+  }
+  global.ConteudoExtra = { agenda: agenda, avisos: avisos, ajuda: ajuda, financeiro: financeiro, video: video, ABAS: [["agenda", "Agenda de obrigações"], ["avisos", "Aviso automático"], ["ajuda", "Ajuda e contatos"], ["financeiro", "Checklist Financeiro"], ["video", "Vídeo de apresentação"]] };
 })(window);
