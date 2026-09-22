@@ -15,7 +15,7 @@ Abra <http://localhost:8765/index.html> (portal) e <http://localhost:8765/equipe
 | Página | Quem | Login demo |
 |---|---|---|
 | `index.html` | cliente | joana@estreladosul.demo · pedro@studiovega.demo · rita@rota101.demo |
-| `equipe.html` | equipe | admin@totali.demo (admin) · marina@totali.demo (gerente) |
+| `equipe.html` | equipe | admin@totali.demo (admin) · marina@totali.demo (fiscal) · carlos@totali.demo (contábil) · ana@totali.demo (dep. pessoal) |
 | `anterior.html?c=CODIGO` | contabilidade anterior | sem login; o código sai da ficha do cliente |
 | `extratos.html?c=CODIGO` | cliente (Open Finance) | sem login; confere o CNPJ; o código sai da ficha › Financeiro |
 

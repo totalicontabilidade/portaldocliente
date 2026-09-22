@@ -22,13 +22,13 @@
    para as duas abas — portal e painel — se enxergarem).
 
    MODELO (resumo; detalhe em docs/01-arquitetura.md)
-     empresas/{id}                  cadastro, gerente, perfis[], liberacoes{}, jornada{}
+     empresas/{id}                  cadastro, responsaveis{setor:{uid,nome}}, perfis[], liberacoes{}, jornada{}
      empresas/{id}/acessos/{uid}
      empresas/{id}/mensagens/{id}   autor{uid,nome,lado}, texto, anexos[], em, lidaPor{}
      empresas/{id}/documentos/{id}  nome, grupo, origem, arquivo{}, situacao, revisao{}, vistos[]
      empresas/{id}/credenciais/{id} rotulo, tipo, pacote (envelope cifrado)
      empresas/{id}/checklist/{anoMes}
-     usuarios/{uid}                 equipe: nome, email, papel, setor
+     usuarios/{uid}                 equipe: nome, email, papel, setor, setores[]
      uso/{id}                       auditoria de uso (quem abriu o quê, quando, por quanto tempo)
      auditoria/{id}                 trilha do servidor (Cloud Function)
      vitrine/{id}                   campanhas
@@ -103,13 +103,14 @@
     var agora = Date.now(), D = U.DIA_MS;
     var equipe = [
       { uid: "eq_admin", nome: "Administrador Totali", email: "admin@totali.demo", papel: "admin", setor: "Direção", criadoEm: agora - 300 * D },
-      { uid: "eq_marina", nome: "Marina Santos", email: "marina@totali.demo", papel: "equipe", setor: "Gerente de contas", criadoEm: agora - 200 * D },
-      { uid: "eq_carlos", nome: "Carlos Lima", email: "carlos@totali.demo", papel: "equipe", setor: "Implantação", criadoEm: agora - 150 * D }
+      { uid: "eq_marina", nome: "Marina Santos", email: "marina@totali.demo", papel: "equipe", setor: "Fiscal", setores: ["fiscal"], criadoEm: agora - 200 * D },
+      { uid: "eq_carlos", nome: "Carlos Lima", email: "carlos@totali.demo", papel: "equipe", setor: "Contábil", setores: ["contabil", "societario"], criadoEm: agora - 150 * D },
+      { uid: "eq_ana", nome: "Ana Souza", email: "ana@totali.demo", papel: "equipe", setor: "Departamento pessoal", setores: ["trabalhista"], criadoEm: agora - 120 * D }
     ];
     var empresas = {
       emp_padaria: {
         id: "emp_padaria", nome: "Padaria Estrela do Sul Ltda", fantasia: "Padaria Estrela do Sul", cnpj: "12.345.678/0001-90", regime: "Simples Nacional",
-        perfis: ["com-funcionarios"], trilha: "B", gerenteUid: "eq_marina", gerenteNome: "Marina Santos", ativa: true, criadaEm: agora - 9 * D,
+        perfis: ["com-funcionarios"], trilha: "B", responsaveis: { fiscal: { uid: "eq_marina", nome: "Marina Santos" }, contabil: { uid: "eq_carlos", nome: "Carlos Lima" }, trabalhista: { uid: "eq_ana", nome: "Ana Souza" } }, ativa: true, criadaEm: agora - 9 * D,
         canalPreferido: "whatsapp", formaRelatorio: "portal", dor: "Não sabe quanto sobra no fim do mês; nunca recebeu um DRE explicado.",
         liberacoes: { checklist: { ativo: true, desde: agora - 9 * D, ate: 0, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: agora - 9 * D }, ponto: { ativo: true, desde: agora - 5 * D, plano: "mensal" } },
         jornada: { aceiteEm: agora - 8 * D, passos: {
@@ -124,7 +125,7 @@
       },
       emp_vega: {
         id: "emp_vega", nome: "Studio Vega Comunicação Ltda", fantasia: "Studio Vega", cnpj: "23.456.789/0001-01", regime: "Simples Nacional",
-        perfis: ["com-funcionarios", "agencias"], trilha: "B", gerenteUid: "eq_marina", gerenteNome: "Marina Santos", ativa: true, criadaEm: agora - 75 * D,
+        perfis: ["com-funcionarios", "agencias"], trilha: "B", responsaveis: { fiscal: { uid: "eq_marina", nome: "Marina Santos" }, contabil: { uid: "eq_carlos", nome: "Carlos Lima" }, trabalhista: { uid: "eq_ana", nome: "Ana Souza" } }, ativa: true, criadaEm: agora - 75 * D,
         canalPreferido: "portal", formaRelatorio: "email", dor: "Não sabe qual cliente dá lucro.",
         liberacoes: { checklist: { ativo: true, desde: agora - 75 * D, plano: "mensal" }, academy: { ativo: true, desde: agora - 75 * D }, agencia100k: { ativo: true, desde: agora - 60 * D, plano: "mensal" }, ponto: { ativo: true, desde: agora - 40 * D, plano: "mensal" } },
         jornada: { aceiteEm: agora - 74 * D, passos: {}, concluidaEm: agora - 44 * D, notas: {} },
@@ -132,7 +133,7 @@
       },
       emp_clinica: {
         id: "emp_clinica", nome: "Clínica Bem Viver Serviços Médicos Ltda", fantasia: "Clínica Bem Viver", cnpj: "34.567.890/0001-12", regime: "Lucro Presumido",
-        perfis: ["com-funcionarios"], trilha: "C", gerenteUid: "eq_carlos", gerenteNome: "Carlos Lima", ativa: true, criadaEm: agora - 4 * D,
+        perfis: ["com-funcionarios"], trilha: "C", responsaveis: { contabil: { uid: "eq_carlos", nome: "Carlos Lima" }, fiscal: { uid: "eq_marina", nome: "Marina Santos" } }, ativa: true, criadaEm: agora - 4 * D,
         canalPreferido: "", formaRelatorio: "", dor: "",
         liberacoes: { checklist: { ativo: true, desde: agora - 4 * D, ate: agora + 26 * D, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: agora - 4 * D } },
         jornada: { aceiteEm: agora - 4 * D, passos: { "d0.c.1": { em: agora - 4 * D, por: "Carlos Lima" }, "d0.e.2": { em: agora - 4 * D, por: "Carlos Lima" } }, notas: {} },
@@ -140,7 +141,7 @@
       },
       emp_oficina: {
         id: "emp_oficina", nome: "Oficina Rota 101 Ltda", fantasia: "Oficina Rota 101", cnpj: "45.678.901/0001-23", regime: "Simples Nacional",
-        perfis: ["com-funcionarios"], trilha: "A", gerenteUid: "eq_marina", gerenteNome: "Marina Santos", ativa: true, criadaEm: agora - 120 * D,
+        perfis: ["com-funcionarios"], trilha: "A", responsaveis: { fiscal: { uid: "eq_marina", nome: "Marina Santos" }, contabil: { uid: "eq_carlos", nome: "Carlos Lima" }, trabalhista: { uid: "eq_ana", nome: "Ana Souza" } }, ativa: true, criadaEm: agora - 120 * D,
         canalPreferido: "whatsapp", formaRelatorio: "whatsapp", dor: "",
         liberacoes: { checklist: { ativo: true, desde: agora - 120 * D, plano: "mensal" }, academy: { ativo: true, desde: agora - 120 * D }, gerescisao: { ativo: true, desde: agora - 20 * D, plano: "avulso" } },
         jornada: { aceiteEm: agora - 119 * D, passos: {}, concluidaEm: agora - 89 * D, notas: {} },
@@ -152,7 +153,7 @@
       var e = empresas[id];
       (global.JORNADA ? global.JORNADA.DIAS : []).forEach(function (d) {
         d.cliente.forEach(function (_, i) { e.jornada.passos["d" + d.dia + ".c." + i] = { em: e.jornada.aceiteEm + d.dia * D, por: "cliente" }; });
-        d.equipe.forEach(function (_, i) { e.jornada.passos["d" + d.dia + ".e." + i] = { em: e.jornada.aceiteEm + d.dia * D, por: e.gerenteNome }; });
+        d.equipe.forEach(function (_, i) { e.jornada.passos["d" + d.dia + ".e." + i] = { em: e.jornada.aceiteEm + d.dia * D, por: "Marina Santos" }; });
       });
     });
 
@@ -166,7 +167,7 @@
       return { id: U.id("m"), empresaId: empresaId, autor: { uid: uid, nome: nome, lado: lado }, texto: texto, anexos: [], em: agora - ha, lidaPor: lida ? { eq_marina: agora - ha + 60000, cli_joana: agora - ha + 60000 } : {}, reacoes: {} };
     };
     var mensagens = [
-      msg("emp_padaria", "equipe", "Marina Santos", "eq_marina", "Oi, Joana! Bem-vinda à Totali 😊 Eu sou a Marina, sua gerente de contas. Qualquer dúvida é por aqui mesmo.", 7 * D, true),
+      msg("emp_padaria", "equipe", "Marina Santos", "eq_marina", "Oi, Joana! Bem-vinda à Totali 😊 Eu sou a Marina, responsável pelo fiscal da sua empresa. O Carlos cuida do contábil e a Ana, da folha. Qualquer dúvida é por aqui mesmo.", 7 * D, true),
       msg("emp_padaria", "cliente", "Joana Ribeiro", "cli_joana", "Oi Marina! Obrigada 🙏 Já entrei no portal. Onde eu mando o certificado digital?", 7 * D - 3600000, true),
       msg("emp_padaria", "equipe", "Marina Santos", "eq_marina", "Em Documentos › Certificado digital. Se for A1, é o arquivo .pfx e a senha vai no cofre de senhas 🔐", 7 * D - 3900000, true),
       msg("emp_padaria", "cliente", "Joana Ribeiro", "cli_joana", "Enviei! 📎 Também guardei a senha do Simples.", 2 * D, true),
@@ -245,7 +246,7 @@
     ];
 
     return {
-      versao: 1, criadoEm: agora,
+      versao: 2, criadoEm: agora,
       equipe: equipe, empresas: empresas, clientes: clientes, mensagens: mensagens, documentos: documentos, credenciais: credenciais,
       uso: uso, checklists: checklists, auditoria: auditoria, vitrine: [], conteudo: {}, convites: {}, anterior: {}, feedback: {},
       /* Coleções genéricas (extratos, indicações, entregas, resumos…): caminho → {id: doc} */
@@ -261,7 +262,7 @@
     function carregar() {
       if (db) return db;
       try { db = JSON.parse(localStorage.getItem(CHAVE_DB) || "null"); } catch (e) { db = null; }
-      if (!db || db.versao !== 1) { db = semente(); gravar(); }
+      if (!db || db.versao !== 2) { db = semente(); gravar(); }
       /* Campos que entraram depois da primeira semente: um banco antigo no navegador não pode quebrar o portal */
       if (!db.generico) db.generico = {};
       return db;
@@ -315,7 +316,7 @@
         carregar();
         var id = "emp_" + U.slug(dados.fantasia || dados.nome).replace(/-/g, "") + U.id().slice(-4);
         var e = { id: id, nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A",
-          gerenteUid: por.uid, gerenteNome: por.nome, ativa: true, criadaEm: Date.now(), canalPreferido: "", formaRelatorio: "", dor: "",
+          responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: Date.now(), canalPreferido: "", formaRelatorio: "", dor: "",
           liberacoes: { checklist: { ativo: true, desde: Date.now(), ate: Date.now() + 30 * U.DIA_MS, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} }, acessos: [] };
         db.empresas[id] = e;
@@ -599,7 +600,7 @@
       salvarEmpresa: function (id, campos) { return db.collection("empresas").doc(id).set(campos, { merge: true }); },
       criarEmpresa: function (dados, por) {
         var ref = db.collection("empresas").doc();
-        var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", gerenteUid: por.uid, gerenteNome: por.nome, ativa: true, criadaEm: TS(),
+        var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: TS(),
           liberacoes: { checklist: { ativo: true, desde: Date.now(), ate: Date.now() + 30 * U.DIA_MS, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} } };
         var codigo = U.codigo(22);

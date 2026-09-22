@@ -50,7 +50,7 @@ storage.rules      Arquivos
 ## 4. Modelo de dados (Firestore)
 
 ```
-empresas/{id}                    nome, fantasia, cnpj, regime, perfis[], trilha (A|B|C), gerenteUid, gerenteNome,
+empresas/{id}                    nome, fantasia, cnpj, regime, perfis[], trilha (A|B|C), responsaveis{ fiscal|contabil|trabalhista|societario|financeiro: {uid, nome} },
                                  canalPreferido, formaRelatorio, dor, marcos{}, migracaoConcluidaEm, feedback30{},
                                  liberacoes{ sistemaId: {ativo, desde, ate, plano} },
                                  jornada{ aceiteEm, passos{ "d5.c.2": {em, por} }, notas{}, concluidaEm }

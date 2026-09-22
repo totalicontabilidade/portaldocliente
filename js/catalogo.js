@@ -159,8 +159,19 @@
     return true;
   }
 
+  /* Setores da Totali: cada empresa tem um responsável por setor (responsaveis{ setor: {uid, nome} }) */
+  var SETORES = [["fiscal", "Fiscal"], ["contabil", "Contábil"], ["trabalhista", "Dep. Pessoal"], ["societario", "Societário"], ["financeiro", "Financeiro"]];
+  function responsaveis(e) {
+    var r = (e && e.responsaveis) || {};
+    return SETORES.filter(function (s) { return r[s[0]] && r[s[0]].nome; }).map(function (s) { return { setor: s[0], rotulo: s[1], uid: r[s[0]].uid || "", nome: r[s[0]].nome }; });
+  }
+  function responsaveisTexto(e) { return responsaveis(e).map(function (x) { return x.nome + " - " + x.rotulo; }).join(", "); }
+
   global.CATALOGO = {
     SISTEMAS: SISTEMAS,
+    SETORES: SETORES,
+    responsaveis: responsaveis,
+    responsaveisTexto: responsaveisTexto,
     SISTEMAS_PADRAO: SISTEMAS_PADRAO,
     VITRINE: VITRINE,
     PERFIS: PERFIS,

@@ -39,6 +39,6 @@
 
 ## 5. O que ainda depende de você
 
-1. **Menu do portal**: A (lateral navy, atual), B (lateral claro), C (topo navy com abas), D (trilho de ícones) ou E (topo claro). Prévia em `design/navegacao.html`.
-2. **Checklist do mês** (extratos, notas, maquininhas, comprovantes): foi criação do portal; manter, ajustar ou remover?
-3. **Foto do gerente de contas**: o cartão "Quem cuida da sua empresa" ganha muito com foto real. Basta o campo `foto` em `usuarios/{uid}` (URL do Storage).
+1. ~~Menu do portal~~ — decidido em 22/09/2026: menu lateral navy (opção A) com o padrão de calculadora R3 completo.
+2. ~~Checklist do mês~~ — mantido (22/09/2026). Sugestões de ajuste enviadas ao Raoni.
+3. ~~Foto do gerente de contas~~ — não existe "gerente de contas": cada empresa tem um responsável por setor (Fiscal, Contábil, Dep. Pessoal, Societário, Financeiro), definidos na ficha do cliente e mostrados no cartão "Quem cuida da sua empresa".

@@ -35,7 +35,7 @@
   function linha(d, y) { if (y > 275) { d.addPage(); return 20; } return y; }
   function paragrafo(d, texto, y, tam, larg) { d.setFontSize(tam || 10); var ls = d.splitTextToSize(texto, larg || 182); ls.forEach(function (l) { y = linha(d, y); d.text(l, 14, y); y += (tam || 10) * 0.45; }); return y + 2; }
   function titulo(d, t, y) { y = linha(d, y); d.setFont("helvetica", "bold"); d.setFontSize(12); d.setTextColor.apply(d, NAVY); d.text(t, 14, y); d.setDrawColor.apply(d, OURO); d.setLineWidth(0.6); d.line(14, y + 1.5, 60, y + 1.5); d.setTextColor.apply(d, TINTA); d.setFont("helvetica", "normal"); return y + 8; }
-  function blocoEmpresa(d, e, y) { d.setFont("helvetica", "bold"); d.setFontSize(13); d.text(e.fantasia || e.nome, 14, y); d.setFont("helvetica", "normal"); d.setFontSize(9); d.setTextColor.apply(d, CINZA); d.text((e.nome || "") + " · CNPJ " + (e.cnpj || "") + " · " + (e.regime || "") + (e.gerenteNome ? " · gerente: " + e.gerenteNome : ""), 14, y + 5); d.setTextColor.apply(d, TINTA); return y + 14; }
+  function blocoEmpresa(d, e, y) { d.setFont("helvetica", "bold"); d.setFontSize(13); d.text(e.fantasia || e.nome, 14, y); d.setFont("helvetica", "normal"); d.setFontSize(9); d.setTextColor.apply(d, CINZA); d.text((e.nome || "") + " · CNPJ " + (e.cnpj || "") + " · " + (e.regime || "") + (CATALOGO.responsaveisTexto(e) ? " · responsáveis: " + CATALOGO.responsaveisTexto(e) : ""), 14, y + 5); d.setTextColor.apply(d, TINTA); return y + 14; }
   var ROT = { pendente: "pendente", enviado: "enviado", analise: "em análise", aprovado: "aprovado", pendencia: "correção pedida", na: "não se aplica", substituido: "atendido pela CNH" };
 
   function ficha(e, en, GRUPOS, docs) {

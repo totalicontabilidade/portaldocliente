@@ -142,12 +142,21 @@
     Dados.naoLidas(empresa.id, sessao.uid, "cliente").then(function (n) { Shell.badge("#/chat", n); UI.titulo(TITULO, n); });
   }
 
+  /* Quem cuida da empresa: um responsável por setor (fiscal, contábil, pessoal...). Não existe uma pessoa única para a empresa. */
+  function cardEquipe() {
+    var lista = CATALOGO.responsaveis(empresa);
+    var corpo = lista.length
+      ? lista.map(function (p) { return '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar(p.nome, "avatar--gold") + '<div class="lista__texto"><b class="f-13">' + U.esc(p.nome) + '</b><span class="lista__sub">' + U.esc(p.rotulo) + "</span></div></div>"; }).join("")
+      : '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar("Totali", "avatar--gold") + '<div class="lista__texto"><b class="f-13">Equipe Totali</b><span class="lista__sub">Em breve você conhece os responsáveis por setor</span></div></div>';
+    return '<div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:10px">' + corpo + '<a class="f-13 f-700" href="#/chat">Mandar mensagem →</a></div></div>';
+  }
+
   /* Fatos que a jornada marca sozinha (JORNADA.AUTOMACOES) */
   function autoFn(id) {
     var e = empresa || {};
     switch (id) {
       case "cadastro": return true;
-      case "gerente": return !!e.gerenteUid;
+      case "gerente": return CATALOGO.responsaveis(e).length > 0;
       case "convite": case "entrou": return true;
       case "canal": return !!e.canalPreferido;
       case "certificado": return (docsCache || []).some(function (d) { return d.grupo === "certificado" && d.situacao !== "pendencia"; });
@@ -392,7 +401,7 @@
           "</div>" +
           '<div class="pilha">' +
             /* Minha equipe (reciprocidade, rosto conhecido) */
-            '<div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo" style="display:flex;gap:12px;align-items:center;padding-top:10px">' + UI.avatar(empresa.gerenteNome || "Totali", "avatar--gold avatar--lg") + '<div><div class="f-800">' + U.esc(empresa.gerenteNome || "Equipe Totali") + '</div><div class="f-13 txt-2">Gerente de contas</div><a class="f-13 f-700" href="#/chat">Mandar mensagem →</a></div></div></div>' +
+            cardEquipe() +
             /* Patrimônio (endowment) */
             '<div class="card"><div class="card__corpo"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Sua empresa na Totali</div><div class="grade grade--2 mt-8" style="gap:8px">' + kpiMini(docsCache.length, "documentos guardados") + kpiMini(aprovados, "aprovados pela equipe") + kpiMini(sistemasLib.length, "sistemas ativos") + kpiMini(U.diasEntre(empresa.criadaEm, Date.now()), "dias com a Totali") + "</div></div></div>" +
             ganchos.map(function (g) { return g && g.lado ? g.lado : ""; }).join("") +
@@ -658,7 +667,7 @@
   function telaChat() {
     Shell.titulo("Chat com a Totali");
     var v = Shell.render("");
-    var cab = '<div class="chat__cab">' + UI.avatar(empresa.gerenteNome || "Totali", "avatar--gold") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(empresa.gerenteNome || "Equipe Totali") + ' · Totali</span><span class="chat__online">Responde em horário comercial</span></div><a class="btn btn--xs btn--contorno so-desktop" href="#/documentos">' + ic("folder", "ic--sm") + "Documentos</a></div>";
+    var cab = '<div class="chat__cab">' + UI.avatar("Totali", "avatar--gold") + '<div class="lista__texto"><span class="lista__titulo">Equipe Totali</span><span class="chat__online">' + U.esc(CATALOGO.responsaveisTexto(empresa) || "Responde em horário comercial") + '</span></div><a class="btn btn--xs btn--contorno so-desktop" href="#/documentos">' + ic("folder", "ic--sm") + "Documentos</a></div>";
     chatAtual = Chat.montar(v, { empresaId: empresa.id, eu: { uid: sessao.uid, nome: sessao.nome, lado: "cliente" }, cabecalho: cab,
       aoEnviar: function (m) { Vitrine.gatilho(m.texto); atualizarBadges(); },
       aoReceber: function () { atualizarBadges(); } });
@@ -684,7 +693,7 @@
           (global.Notificacoes && global.Notificacoes.suportado() ? '<label class="interruptor"><input type="checkbox" id="pAvisos"' + (global.Notificacoes.permissao() === "granted" && pref.avisos !== false ? " checked" : "") + (global.Notificacoes.permissao() === "denied" ? " disabled" : "") + '><span class="interruptor__pista"></span>' + ic("bell") + " Avisos no aparelho quando a Totali responder</label>" + (global.Notificacoes.permissao() === "denied" ? '<p class="f-12 txt-aviso">Bloqueado no navegador. Libere nas configurações do site.</p>' : /iPhone|iPad/.test(navigator.userAgent) ? '<p class="f-12 txt-mudo">No iPhone, os avisos só funcionam com o portal instalado na tela de início.</p>' : "") : "") +
           '<div class="linha"><button type="button" class="btn btn--sm btn--contorno" data-acao="tour">' + ic("play") + 'Rever tutorial</button>' + (global.__instalar ? '<button type="button" class="btn btn--sm btn--gold" data-acao="instalar">' + ic("download") + "Instalar como aplicativo</button>" : "") + "</div>" +
         "</div></div>" +
-        '<div class="card"><div class="card__cab"><h2>Minha empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px"><div class="linha linha--entre f-13"><span class="txt-2">Razão social</span><b>' + U.esc(empresa.nome) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">CNPJ</span><b class="num">' + U.esc(empresa.cnpj) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Regime</span><b>' + U.esc(empresa.regime) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Gerente de contas</span><b>' + U.esc(empresa.gerenteNome || "") + '</b></div><p class="f-12 txt-mudo mt-8">Algo errado? Avise pelo chat que a equipe corrige.</p></div></div>' +
+        '<div class="card"><div class="card__cab"><h2>Minha empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px"><div class="linha linha--entre f-13"><span class="txt-2">Razão social</span><b>' + U.esc(empresa.nome) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">CNPJ</span><b class="num">' + U.esc(empresa.cnpj) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Regime</span><b>' + U.esc(empresa.regime) + '</b></div>' + CATALOGO.responsaveis(empresa).map(function (p) { return '<div class="linha linha--entre f-13"><span class="txt-2">' + U.esc(p.rotulo) + '</span><b>' + U.esc(p.nome) + "</b></div>"; }).join("") + '<p class="f-12 txt-mudo mt-8">Algo errado? Avise pelo chat que a equipe corrige.</p></div></div>' +
         '<div class="card"><div class="card__cab"><h2>Privacidade</h2></div><div class="card__corpo pilha" style="padding-top:10px"><p class="f-13 txt-2">A Totali registra quais telas e sistemas você usa, para melhorar o atendimento e para a cobrança do que foi contratado. Nunca registra o conteúdo das mensagens, dos arquivos ou das senhas. Você pode pedir a exportação ou a exclusão dos seus dados pelo chat (LGPD, art. 18).</p>' + (Dados.ehDemo() ? '<button type="button" class="btn btn--sm btn--perigo" data-acao="zerar">' + ic("refresh") + "Zerar dados da demonstração</button>" : "") + "</div></div>" +
       "</div></div>");
     var v = Shell.view();

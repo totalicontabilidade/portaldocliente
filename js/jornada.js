@@ -39,16 +39,16 @@
       id: "d0", dia: 0, marco: true,
       titulo: "Boas-vindas",
       objetivo: "A Totali liga nas duas primeiras horas depois do aceite. É o gesto de maior impacto e menor custo de todo o processo.",
-      quem: "Sócio responsável e/ou gerente de contas",
+      quem: "Sócio responsável e/ou responsáveis da empresa",
       cliente: [
         { texto: "Proposta aceita e cadastro criado pela Totali", auto: "cadastro" },
-        { texto: "Receber a ligação de boas-vindas e conhecer seu gerente de contas", auto: "gerente" }
+        { texto: "Receber a ligação de boas-vindas e conhecer quem cuida de cada setor da sua empresa", auto: "gerente" }
       ],
       equipe: [
         { texto: "Registre o cliente no painel e classifique a trilha (A, B ou C).", auto: "cadastro" },
-        { texto: "Defina o gerente de contas no cadastro do cliente e comunique internamente.", auto: "gerente" },
+        { texto: "Defina os responsáveis por setor (fiscal, contábil, pessoal) no cadastro do cliente e comunique internamente.", auto: "gerente" },
         { texto: "Ligue. Não mande mensagem primeiro: ligue." },
-        { texto: "Apresente o gerente pelo nome e diga o que vem a seguir." },
+        { texto: "Apresente os responsáveis pelo nome e diga o que vem a seguir." },
         { texto: "Agende a reunião de boas-vindas ainda nessa ligação." },
         { texto: "Mande um WhatsApp curto confirmando o combinado." }
       ],
@@ -58,12 +58,12 @@
       id: "d1", dia: 1,
       titulo: "Kit de boas-vindas e abertura do canal",
       objetivo: "Você recebe, por escrito, tudo o que precisa para não ficar em dúvida sobre nada.",
-      quem: "Gerente de contas, com apoio da implantação",
+      quem: "Responsáveis da empresa, com apoio da implantação",
       cliente: [
         { texto: "Entrar no portal pelo convite e criar sua senha", auto: "entrou" },
         { texto: "Escolher como prefere falar com a gente (WhatsApp, portal ou telefone)", auto: "canal" },
         { texto: "Conferir os dados da empresa e avisar se algo estiver errado" },
-        { texto: "Conhecer quem cuida da sua empresa na tela Minha equipe" }
+        { texto: "Conhecer quem cuida de cada setor da sua empresa, na tela inicial" }
       ],
       equipe: [
         { texto: "Envie o convite do portal: é o kit de boas-vindas, com quem é quem, canais, horários e o passo a passo dos 30 dias.", auto: "convite" },
@@ -77,7 +77,7 @@
       id: "d2", dia: 2,
       titulo: "Reunião de boas-vindas",
       objetivo: "Entendemos o seu negócio e saímos com um plano combinado, não apenas apresentado.",
-      quem: "Gerente de contas. Sócio nas trilhas B e C",
+      quem: "Responsáveis da empresa. Sócio nas trilhas B e C",
       cliente: [
         { texto: "Participar da reunião de boas-vindas (30 min)" },
         { texto: "Contar qual é a maior dor da sua empresa hoje: ela vira a primeira entrega de valor" },
@@ -96,7 +96,7 @@
       id: "d5", dia: 5,
       titulo: "Documentos, acessos e autorizações",
       objetivo: "Reunimos tudo o que é necessário para operar, com o menor esforço possível para você.",
-      quem: "Analista de implantação, ou o gerente acompanhando",
+      quem: "Analista de implantação, ou o responsável do setor acompanhando",
       cliente: [
         { texto: "Enviar o certificado digital (arquivo A1 ou dados do A3)", auto: "certificado" },
         { texto: "Guardar as senhas dos portais (Simples, SEFAZ, Empregador Web) no cofre do portal", auto: "senhas" },
@@ -117,7 +117,7 @@
       id: "d8", dia: 8,
       titulo: "Transição do contador anterior",
       objetivo: "Assumimos a responsabilidade técnica sem lacunas e sem colocar você no meio de um conflito.",
-      quem: "Sócio responsável e/ou gerente",
+      quem: "Sócio responsável e/ou responsáveis da empresa",
       cliente: [
         { texto: "Informar o contato da contabilidade anterior (a gente fala com eles, você não precisa cobrar)" },
         { texto: "Enviar o distrato do contrato anterior, se houver" },
@@ -137,7 +137,7 @@
       id: "d12", dia: 12,
       titulo: "Implantação técnica",
       objetivo: "A operação fica pronta e você recebe um diagnóstico honesto da situação encontrada.",
-      quem: "Contábil, fiscal e folha, coordenados pelo gerente",
+      quem: "Contábil, fiscal e folha, cada responsável no seu setor",
       cliente: [
         { texto: "Nada a fazer: a Totali está implantando sua empresa. Você recebe o diagnóstico em uma página." },
         { texto: "Ler o diagnóstico e tirar dúvidas pelo chat" }
@@ -156,7 +156,7 @@
       id: "d15", dia: 15, marco: true,
       titulo: "A primeira entrega de valor",
       objetivo: "Um ganho concreto que você consiga perceber e contar para alguém.",
-      quem: "Gerente de contas, com a área técnica",
+      quem: "Responsáveis da empresa, com a área técnica",
       cliente: [
         { texto: "Receber a primeira entrega de valor: a solução da dor que você contou no D2" },
         { texto: "Conferir o resultado e dizer se fez sentido" }
@@ -174,12 +174,12 @@
       id: "d20", dia: 20,
       titulo: "Sua rotina com a Totali",
       objetivo: "Você aprende a trabalhar com a gente, para a rotina fluir sem atrito.",
-      quem: "Gerente de contas",
+      quem: "Responsáveis da empresa",
       cliente: [
         { texto: "Assistir à trilha 'Primeiros passos com a Totali' no Academy (12 min)", auto: "trilha" },
         { texto: "Escolher como quer receber os relatórios do mês", auto: "relatorios" },
         { texto: "Guardar o calendário do mês: o que enviar e quando" },
-        { texto: "Saber quem procurar quando seu gerente não estiver" }
+        { texto: "Saber quem procurar quando o responsável do setor não estiver" }
       ],
       equipe: [
         { texto: "Explique o ciclo mensal: o que ele envia, o que recebe e quando." },
@@ -195,7 +195,7 @@
       id: "d30", dia: 30, marco: true,
       titulo: "Fechamento dos 30 dias",
       objetivo: "Você avalia os 30 dias. Acontece mesmo que esteja tudo perfeito. Principalmente se estiver.",
-      quem: "Gerente de contas e sócio responsável",
+      quem: "Responsáveis da empresa e sócio responsável",
       cliente: [
         { texto: "Responder ao feedback dos 30 dias (uma pergunta aberta, 2 minutos)", auto: "feedback" },
         { texto: "Ver o resumo do que foi feito no seu primeiro mês" }
@@ -212,7 +212,7 @@
      JORNADA.autoCumprida(contexto, id); aqui é só o catálogo. */
   var AUTOMACOES = [
     { id: "cadastro", rotulo: "Cadastro criado pela Totali", como: "Verdadeiro assim que a empresa existe no painel." },
-    { id: "gerente", rotulo: "Gerente de contas definido", como: "Marca quando a empresa tem gerente no cadastro." },
+    { id: "gerente", rotulo: "Responsáveis por setor definidos", como: "Marca quando a empresa tem pelo menos um responsável de setor no cadastro." },
     { id: "convite", rotulo: "Convite do portal gerado", como: "Marca quando existe convite ou acesso ao portal." },
     { id: "entrou", rotulo: "O cliente entrou no portal", como: "Marca no primeiro acesso do cliente." },
     { id: "canal", rotulo: "Canal preferido informado", como: "Marca quando o cliente escolhe o canal no perfil." },
@@ -227,7 +227,7 @@
   ];
 
   var TRILHAS = {
-    A: "Empresa simples: MEI ou Simples Nacional, sem funcionários, um sócio. O gerente de contas conduz tudo.",
+    A: "Empresa simples: MEI ou Simples Nacional, sem funcionários, um sócio. Os responsáveis de setor conduzem tudo.",
     B: "Empresa com folha de pagamento, ou do Lucro Presumido, ou com mais de um sócio. O sócio responsável entra na reunião de boas-vindas e na primeira entrega de valor.",
     C: "Lucro Real, mais de uma empresa, transição com pendências fiscais ou faturamento grande. O sócio responsável acompanha a jornada inteira."
   };
