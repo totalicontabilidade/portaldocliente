@@ -16,11 +16,13 @@
   "prefer_related_applications": false,
   "icons": [
     { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     { "name": "Chat com a Totali", "short_name": "Chat", "url": "./index.html#/chat", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] },
     { "name": "Enviar documento", "short_name": "Documentos", "url": "./index.html#/documentos", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Minha jornada", "short_name": "Jornada", "url": "./index.html#/jornada", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Lista de documentos", "short_name": "Lista", "url": "./index.html#/entrada", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
   ]
 }

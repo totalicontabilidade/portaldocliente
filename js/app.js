@@ -175,13 +175,13 @@
     app.innerHTML =
       '<div class="login">' +
         '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div>' +
-          '<img class="login__logo-painel" src="assets/totali-contabil-branca.png" alt="Totali">' +
+          '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
           '<h1 class="login__frase">Sua empresa, <b>organizada</b> e <b>em dia</b>, num só lugar.</h1>' +
           '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e use os sistemas da Totali com um login só.</p>' +
           '<ol class="login__etapas">' + [["done", "Convite da Totali"], ["done", "Criar minha senha"], ["now", "Enviar os documentos de entrada"], ["", "Bancos e maquininhas"], ["", "Análise da Totali"], ["", "Contabilidade ativa: rotina do mês"]].map(function (e) { return '<li class="login__etapa" data-e="' + e[0] + '"><i>' + (e[0] === "done" ? ic("check", "ic--sm") : "") + "</i><span>" + e[1] + "</span></li>"; }).join("") + "</ol>" +
           '<div class="login__powered">powered by <b>Totali</b></div></section>' +
         '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate>' +
-          '<img class="login__logo" src="assets/totali-portal-cor.png" alt="Portal do Cliente Totali">' +
+          '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente">' +
           '<div><h2 class="login__titulo">Entrar</h2><p class="sub">Use o e-mail e a senha que você criou pelo convite da Totali.</p></div>' +
           '<div class="campo"><label class="campo__rotulo" for="email">E-mail</label><div class="input--icone">' + ic("mail") + '<input class="input" id="email" type="email" autocomplete="email" required inputmode="email" placeholder="voce@suaempresa.com.br"></div></div>' +
           '<div class="campo"><label class="campo__rotulo" for="senha">Senha</label><div class="input--icone">' + ic("key") + '<input class="input" id="senha" type="password" autocomplete="current-password" required><button type="button" class="acao" data-acao="mostrar">mostrar</button></div></div>' +
@@ -208,11 +208,11 @@
 
   function telaConvite(codigo) {
     Shell.desmontar();
-    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/totali-contabil-branca.png" alt="Totali" style="height:44px;width:auto"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
+    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/brand/logo-escuro.png" alt="Totali" style="height:52px;width:auto"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
     Dados.convite(codigo).then(function (c) {
       var caixa = UI.$("#caixaConvite");
-      if (!c) { caixa.innerHTML = '<img class="login__logo" src="assets/totali-portal-cor.png" alt="Portal do Cliente"><h1>Convite inválido</h1><p class="sub">Este link já foi usado ou não existe. Peça um novo à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>'; return; }
-      caixa.innerHTML = '<img class="login__logo" src="assets/totali-portal-cor.png" alt="Portal do Cliente"><h1>Criar meu acesso</h1><p class="sub">Você foi convidado para o portal de <b>' + U.esc(c.empresa) + "</b>. Crie sua senha: a partir daqui você entra com e-mail e senha, de qualquer aparelho.</p>" +
+      if (!c) { caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Convite inválido</h1><p class="sub">Este link já foi usado ou não existe. Peça um novo à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>'; return; }
+      caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Criar meu acesso</h1><p class="sub">Você foi convidado para o portal de <b>' + U.esc(c.empresa) + "</b>. Crie sua senha: a partir daqui você entra com e-mail e senha, de qualquer aparelho.</p>" +
         '<form id="formConvite" class="pilha" novalidate>' +
         '<div class="campo"><label class="campo__rotulo" for="nome">Seu nome</label><input class="input" id="nome" required autocomplete="name"></div>' +
         '<div class="campo"><label class="campo__rotulo" for="email">Seu e-mail</label><input class="input" id="email" type="email" required autocomplete="email"></div>' +

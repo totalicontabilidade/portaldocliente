@@ -53,7 +53,7 @@
   function montarShell() {
     document.body.classList.add("logado");
     Shell.montar({
-      raiz: app, org: "Painel da equipe", usuario: sessao, titulo: "Início", busca: true, logo: "assets/totali-contabil-branca.png",
+      raiz: app, org: "Painel da equipe", usuario: sessao, titulo: "Início", busca: true, logo: "assets/brand/logo-escuro.png",
       nav: [
         { grupo: "Atendimento", itens: [
           { href: "#/inicio", rotulo: "Início", icone: "home" },
@@ -116,12 +116,12 @@
     Shell.desmontar();
     var demo = Dados.ehDemo();
     app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div>' +
-      '<img class="login__logo-painel" src="assets/totali-contabil-branca.png" alt="Totali">' +
+      '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
       '<h1 class="login__frase">O painel que <b>alimenta</b> o portal do cliente.</h1>' +
       '<p class="login__desc">Cadastre, libere sistemas, conduza os 30 dias de cada cliente, confira documentos e saiba quem usa o quê.</p>' +
       '<ol class="login__etapas">' + [["done", "Cadastrar o cliente e enviar o convite"], ["done", "Conduzir a jornada de 30 dias"], ["now", "Conferir documentos e responder o chat"], ["", "Liberar sistemas e publicar campanhas"], ["", "Medir o uso e cobrar"]].map(function (e) { return '<li class="login__etapa" data-e="' + e[0] + '"><i>' + (e[0] === "done" ? ic("check", "ic--sm") : "") + "</i><span>" + e[1] + "</span></li>"; }).join("") + "</ol>" +
       '<div class="login__powered">powered by <b>Totali</b></div></section>' +
-      '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate><img class="login__logo" src="assets/totali-portal-cor.png" alt="Portal do Cliente"><div><h2 class="login__titulo">Painel da equipe</h2><p class="sub">Uso interno da Totali. Entre com o seu e-mail da equipe.</p></div>' +
+      '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate><img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><div><h2 class="login__titulo">Painel da equipe</h2><p class="sub">Uso interno da Totali. Entre com o seu e-mail da equipe.</p></div>' +
       '<div class="campo"><label class="campo__rotulo" for="email">E-mail</label><div class="input--icone">' + ic("mail") + '<input class="input" id="email" type="email" autocomplete="email" required></div></div>' +
       '<div class="campo"><label class="campo__rotulo" for="senha">Senha</label><div class="input--icone">' + ic("key") + '<input class="input" id="senha" type="password" autocomplete="current-password" required></div></div>' +
       '<p class="campo__erro" id="erroEntrar" hidden role="alert"></p><button class="btn btn--primario btn--bloco" type="submit" style="height:44px">Entrar</button>' +

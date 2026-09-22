@@ -22,7 +22,7 @@
   var GRUPOS = [["societario", "Contrato social e alterações"], ["contabil", "Balancetes, balanço e livros"], ["fiscal", "Declarações, SPED e guias"], ["pessoal", "Folha, fichas de registro e rescisões"], ["certificado", "Certificado digital"], ["outros", "Outros arquivos"]];
 
   function cabecalho(titulo, sub) {
-    return '<div class="login__painel" style="display:flex;min-height:200px;padding:28px"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/totali-contabil-branca.png" alt="Totali" style="height:40px;width:auto"><div><p class="login__frase" style="font-size:24px">' + titulo + '</p><p class="f-13" style="color:var(--sidebar-foreground);margin-top:8px">' + sub + "</p></div></div>";
+    return '<div class="login__painel" style="display:flex;min-height:200px;padding:28px"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente" style="height:48px;width:auto"><div><p class="login__frase" style="font-size:24px">' + titulo + '</p><p class="f-13" style="color:var(--sidebar-foreground);margin-top:8px">' + sub + "</p></div></div>";
   }
   var codigo = new URLSearchParams(location.search).get("c") || "";
   history.replaceState(null, "", location.pathname);

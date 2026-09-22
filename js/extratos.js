@@ -47,7 +47,7 @@
   function pagina() {
     var app = document.getElementById("app"); if (!app) return;
     var codigo = new URLSearchParams(location.search).get("c") || ""; history.replaceState(null, "", location.pathname);
-    function cab(t, s) { return '<div class="login__painel" style="display:flex;min-height:180px;padding:28px"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/totali-contabil-branca.png" alt="Totali" style="height:40px;width:auto"><div><p class="login__frase" style="font-size:24px">' + t + '</p><p class="f-13" style="color:var(--sidebar-foreground);margin-top:8px">' + s + "</p></div></div>"; }
+    function cab(t, s) { return '<div class="login__painel" style="display:flex;min-height:180px;padding:28px"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente" style="height:48px;width:auto"><div><p class="login__frase" style="font-size:24px">' + t + '</p><p class="f-13" style="color:var(--sidebar-foreground);margin-top:8px">' + s + "</p></div></div>"; }
     app.innerHTML = '<div class="pagina" style="max-width:760px">' + cab("Liberação de extratos", "Carregando…") + "</div>";
     Dados.pronto().then(function () { return codigo ? Dados.docObter("extratos/" + codigo) : null; }).then(function (reg) {
       if (!reg || !reg.ativo) { app.innerHTML = '<div class="pagina" style="max-width:760px">' + cab("Link inválido", "Este link não existe ou foi desativado. Peça um novo à Totali.") + "</div>"; return; }

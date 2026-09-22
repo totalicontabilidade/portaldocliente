@@ -36,8 +36,8 @@
       '<div class="puzzle-layer puzzle-menu" aria-hidden="true"></div><div class="sidebar__veu" aria-hidden="true"></div><div class="sidebar__brilho" aria-hidden="true"></div>' +
       '<div class="sidebar__in">' +
         '<div class="sidebar__topo"><a href="#/inicio" title="Tela inicial" style="min-width:0;display:flex;flex-direction:column;gap:4px">' +
-          '<img class="sidebar__logo" src="' + (estado.logo || "assets/totali-contabil-branca.png") + '" alt="Totali">' +
-          '<img class="sidebar__simbolo" src="assets/totali-simbolo.png" alt="">' +
+          '<img class="sidebar__logo" src="' + (estado.logo || "assets/brand/logo-escuro.png") + '" alt="Totali · Portal do Cliente">' +
+          '<img class="sidebar__simbolo" src="assets/brand/simbolo.png" alt="">' +
           '<span class="sidebar__org">' + U.esc(estado.org) + "</span></a>" +
           '<button type="button" class="sidebar__recolher" data-acao="recolher" aria-label="Recolher menu">' + ic("chevron-left", "ic--sm") + "</button></div>" +
         grupos + '<div class="esp"></div>' +
