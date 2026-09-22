@@ -40,5 +40,5 @@
 ## 5. O que ainda depende de você
 
 1. ~~Menu do portal~~ — decidido em 22/09/2026: menu lateral navy (opção A) com o padrão de calculadora R3 completo.
-2. ~~Checklist do mês~~ — mantido (22/09/2026). Sugestões de ajuste enviadas ao Raoni.
+2. ~~Checklist do mês~~ — mantido e virou "Envio do mês" (22/09/2026): itens por perfil da empresa, editável em Conteúdo, anexo marca o item, aviso antes do prazo e cobrança automática do atraso.
 3. ~~Foto do gerente de contas~~ — não existe "gerente de contas": cada empresa tem um responsável por setor (Fiscal, Contábil, Dep. Pessoal, Societário, Financeiro), definidos na ficha do cliente e mostrados no cartão "Quem cuida da sua empresa".

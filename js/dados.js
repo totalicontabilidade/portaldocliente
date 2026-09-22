@@ -27,7 +27,7 @@
      empresas/{id}/mensagens/{id}   autor{uid,nome,lado}, texto, anexos[], em, lidaPor{}
      empresas/{id}/documentos/{id}  nome, grupo, origem, arquivo{}, situacao, revisao{}, vistos[]
      empresas/{id}/credenciais/{id} rotulo, tipo, pacote (envelope cifrado)
-     empresas/{id}/checklist/{anoMes}
+     empresas/{id}/checklist/{anoMes} envio do mês: itens[{id, texto, prazoDia, grupo, feito, feitoEm, origem, aceite}], concluidoEm, avisoAutomaticoEm
      usuarios/{uid}                 equipe: nome, email, papel, setor, setores[]
      uso/{id}                       auditoria de uso (quem abriu o quê, quando, por quanto tempo)
      auditoria/{id}                 trilha do servidor (Cloud Function)
@@ -221,12 +221,12 @@
     var mes = U.anoMes(agora), mesAnt = U.anoMes(agora - 31 * D);
     var itensChecklist = function (feitos) {
       var base = [
-        { id: "extratos", texto: "Extratos bancários de todas as contas", prazoDia: 5 },
-        { id: "notas-venda", texto: "Notas fiscais de venda (XML ou relatório)", prazoDia: 8 },
-        { id: "notas-compra", texto: "Notas de compra e despesas", prazoDia: 8 },
-        { id: "maquininhas", texto: "Relatório das maquininhas", prazoDia: 8 },
-        { id: "folha", texto: "Alterações na folha (admissão, férias, faltas)", prazoDia: 10 },
-        { id: "impostos", texto: "Comprovantes dos impostos pagos", prazoDia: 20 }
+        { id: "extratos", texto: "Extratos bancários de todas as contas", prazoDia: 5, grupo: "mensal" },
+        { id: "notas-venda", texto: "Notas fiscais de venda (XML ou relatório)", prazoDia: 8, grupo: "mensal" },
+        { id: "notas-compra", texto: "Notas de compra e despesas", prazoDia: 8, grupo: "mensal" },
+        { id: "maquininhas", texto: "Relatório das maquininhas", prazoDia: 8, grupo: "mensal" },
+        { id: "folha", texto: "Alterações na folha (admissão, férias, faltas)", prazoDia: 10, grupo: "pessoal" },
+        { id: "impostos", texto: "Comprovantes dos impostos pagos", prazoDia: 20, grupo: "mensal" }
       ];
       return base.map(function (b, i) { return Object.assign({}, b, { feito: i < feitos, feitoEm: i < feitos ? agora - (20 - i) * D : 0, aceite: i < feitos - 1 ? { por: "Marina Santos", em: agora - (19 - i) * D } : null }); });
     };
@@ -408,7 +408,7 @@
         carregar();
         var f = dados.file, id = U.id("d");
         var reg = { id: id, empresaId: empresaId, nome: dados.nome || (f ? f.name : "arquivo"), grupo: dados.grupo || "outros", origem: dados.origem || "cliente", situacao: "enviado", em: Date.now(), por: dados.por,
-          arquivo: { id: f ? "arq_" + id : "", nome: f ? f.name : "", tamanho: f ? f.size : 0, mime: f ? f.type : "" }, revisao: null, vistos: [], observacao: U.txt(dados.observacao, 300) };
+          arquivo: { id: f ? "arq_" + id : "", nome: f ? f.name : "", tamanho: f ? f.size : 0, mime: f ? f.type : "" }, revisao: null, vistos: [], observacao: U.txt(dados.observacao, 300), item: dados.item ? U.txt(dados.item, 40) : "" };
         var p = f ? IDB.guardar("arq_" + id, f, f.name, f.type) : Promise.resolve();
         return p.then(function () {
           db.documentos.push(reg);
@@ -677,7 +677,7 @@
       enviarDocumento: function (empresaId, dados) {
         var f = dados.file, ref = subcol(empresaId, "documentos").doc();
         var caminho = "empresas/" + empresaId + "/documentos/" + ref.id + "/" + (f ? f.name.replace(/[^\w.\-]+/g, "_") : "sem-arquivo");
-        var reg = { empresaId: empresaId, nome: dados.nome || (f ? f.name : "arquivo"), grupo: dados.grupo || "outros", origem: dados.origem || "cliente", situacao: "enviado", em: TS(), por: dados.por, arquivo: { path: f ? caminho : "", nome: f ? f.name : "", tamanho: f ? f.size : 0, mime: f ? f.type : "" }, revisao: null, vistos: [], observacao: U.txt(dados.observacao, 300) };
+        var reg = { empresaId: empresaId, nome: dados.nome || (f ? f.name : "arquivo"), grupo: dados.grupo || "outros", origem: dados.origem || "cliente", situacao: "enviado", em: TS(), por: dados.por, arquivo: { path: f ? caminho : "", nome: f ? f.name : "", tamanho: f ? f.size : 0, mime: f ? f.type : "" }, revisao: null, vistos: [], observacao: U.txt(dados.observacao, 300), item: dados.item ? U.txt(dados.item, 40) : "" };
         if (dados.codigo) reg.codigo = dados.codigo;   /* contabilidade anterior: as regras conferem o código */
         var p = f ? storage.ref(caminho).put(f, { contentType: f.type, customMetadata: dados.codigo ? { codigo: dados.codigo } : {} }) : Promise.resolve();
         return Promise.resolve(p).then(function () { return ref.set(reg); }).then(function () { reg.id = ref.id; reg.em = Date.now(); return reg; });

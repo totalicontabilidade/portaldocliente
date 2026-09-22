@@ -27,7 +27,7 @@
     { id: "iss", nome: "ISS", dia: 10, regimes: ["Lucro Presumido", "Lucro Real"], desc: "Imposto sobre serviços (prefeitura). Confira o dia do seu município." },
     { id: "icms", nome: "ICMS", dia: 9, regimes: ["Lucro Presumido", "Lucro Real"], desc: "Imposto estadual sobre mercadorias (Sergipe: dia 9)." },
     { id: "salarios", nome: "Salários", dia: 5, regimes: ["*"], soComFuncionarios: true, regra: "antecipa", desc: "Pagamento dos funcionários (até o 5º dia útil)." },
-    { id: "docs-mes", nome: "Documentos do mês para a Totali", dia: 8, regimes: ["*"], regra: "antecipa", desc: "Extratos, notas e relatórios das maquininhas no Checklist do mês." },
+    { id: "docs-mes", nome: "Documentos do mês para a Totali", dia: 8, regimes: ["*"], regra: "antecipa", desc: "Extratos, notas e relatórios das maquininhas no Envio do mês." },
     { id: "pro-labore", nome: "Pró-labore e INSS dos sócios", dia: 20, regimes: ["*"], desc: "Retirada dos sócios e a contribuição sobre ela." }
   ];
   var LISTA = PADRAO.slice();

@@ -20,6 +20,19 @@
     if (!podeAvisar()) return;
     try { var n = new Notification(titulo, { body: texto, icon: "assets/icon-192.png", badge: "assets/favicon-32.png", tag: "totali-" + (url || "x") }); n.onclick = function () { global.focus(); if (url) location.hash = url; n.close(); }; } catch (e) {}
   }
+  /* Envio do mês: um aviso por dia quando algum item vence em até 2 dias (só se o aviso do navegador estiver ligado) */
+  function avisarEnvio(o) {
+    var am = U.anoMes(Date.now());
+    Dados.checklist(o.empresaId, am).then(function (salvo) {
+      var c = global.Envio.mes(o.empresa, salvo, am), r = global.Envio.resumo(c);
+      if (!r.proximos.length) return;
+      var chave = "totali-aviso-envio-" + am + "-" + new Date().getDate();
+      try { if (localStorage.getItem(chave)) return; localStorage.setItem(chave, "1"); } catch (e) { return; }
+      var it = r.proximos[0], d = global.Envio.diasParaPrazo(it, am);
+      avisar("Envio do mês", (r.proximos.length === 1 ? it.texto : r.proximos.length + " itens") + (d === 0 ? " vence hoje." : d === 1 ? " vence amanhã." : " vence em " + d + " dias.") + " Anexe pelo portal.", "#/checklist");
+    }).catch(function () {});
+  }
+
   var Notificacoes = {
     suportado: function () { return "Notification" in global; },
     permissao: function () { return "Notification" in global ? Notification.permission : "unsupported"; },
@@ -34,6 +47,7 @@
           else if (!ultimo && ult) ultimo = ult.id;
         });
       }
+      if (o.lado === "cliente" && o.envio && o.empresa && global.Envio && podeAvisar()) avisarEnvio(o);
       if (o.lado === "equipe") {
         var ultimoTotal = -1;
         var h = function () { Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); if (ultimoTotal >= 0 && n > ultimoTotal && (document.hidden || location.hash.indexOf("#/mensagens") !== 0)) { var c = cs.filter(function (x) { return x.naoLidas; })[0]; avisar("Mensagem de " + (c ? c.empresa : "cliente"), c && c.ultima ? c.ultima.texto : "", "#/mensagens" + (c ? "/" + c.empresaId : "")); } ultimoTotal = n; }); };

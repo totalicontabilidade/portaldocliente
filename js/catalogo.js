@@ -28,13 +28,13 @@
   var SISTEMAS_PADRAO = [
     {
       id: "checklist",
-      nome: "Checklist Contábil",
+      nome: "Envio do mês",
       tagline: "O fechamento do mês em uma lista só",
-      desc: "Tudo o que a sua empresa precisa enviar e conferir a cada mês, com prazo, responsável e o aceite da Totali em cada item.",
+      desc: "Tudo o que a sua empresa precisa enviar a cada mês, com prazo, aviso antes de vencer e o aceite da Totali em cada item. Anexou, marcou.",
       beneficios: ["Nunca mais esquecer um documento do mês", "Você vê o que a Totali já recebeu e aprovou", "Selo 'Em dia' quando o mês fecha completo"],
       cor: "#0f766e", icone: "list-check", modo: "interno", url: "", status: "disponivel", publico: ["todos"],
       prova: 0,
-      previa: { titulo: "Como é o checklist", texto: "Uma lista por mês: extratos, notas, folha, comprovantes. Cada item com prazo e um aceite da Totali. No fim do mês, o selo 'Em dia'.", itens: ["Extratos bancários (até dia 5)", "Notas de venda (até dia 8)", "Comprovantes de impostos (até dia 20)"] },
+      previa: { titulo: "Como é o envio do mês", texto: "Uma lista por mês, feita para a sua empresa: extratos, notas, folha, comprovantes. Cada item com prazo e um aceite da Totali. No fim do mês, o selo 'Em dia'.", itens: ["Extratos bancários (até dia 5)", "Notas de venda (até dia 8)", "Comprovantes de impostos (até dia 20)"] },
       gatilhos: ["extrato", "fechamento", "nota fiscal", "documento do mês"]
     },
     {

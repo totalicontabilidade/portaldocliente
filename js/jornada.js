@@ -42,13 +42,12 @@
       quem: "Sócio responsável e/ou responsáveis da empresa",
       cliente: [
         { texto: "Proposta aceita e cadastro criado pela Totali", auto: "cadastro" },
-        { texto: "Receber a ligação de boas-vindas e conhecer quem cuida de cada setor da sua empresa", auto: "gerente" }
+        { texto: "Receber a ligação de boas-vindas da Totali" }
       ],
       equipe: [
-        { texto: "Registre o cliente no painel e classifique a trilha (A, B ou C).", auto: "cadastro" },
-        { texto: "Defina os responsáveis por setor (fiscal, contábil, pessoal) no cadastro do cliente e comunique internamente.", auto: "gerente" },
+        { texto: "Registre o cliente no painel e classifique a trilha (A, B ou C). Se quiser, informe os responsáveis por setor.", auto: "cadastro" },
         { texto: "Ligue. Não mande mensagem primeiro: ligue." },
-        { texto: "Apresente os responsáveis pelo nome e diga o que vem a seguir." },
+        { texto: "Apresente quem vai cuidar da empresa e diga o que vem a seguir." },
         { texto: "Agende a reunião de boas-vindas ainda nessa ligação." },
         { texto: "Mande um WhatsApp curto confirmando o combinado." }
       ],
@@ -63,7 +62,7 @@
         { texto: "Entrar no portal pelo convite e criar sua senha", auto: "entrou" },
         { texto: "Escolher como prefere falar com a gente (WhatsApp, portal ou telefone)", auto: "canal" },
         { texto: "Conferir os dados da empresa e avisar se algo estiver errado" },
-        { texto: "Conhecer quem cuida de cada setor da sua empresa, na tela inicial" }
+        { texto: "Conhecer a equipe da Totali na tela inicial" }
       ],
       equipe: [
         { texto: "Envie o convite do portal: é o kit de boas-vindas, com quem é quem, canais, horários e o passo a passo dos 30 dias.", auto: "convite" },
@@ -212,7 +211,6 @@
      JORNADA.autoCumprida(contexto, id); aqui é só o catálogo. */
   var AUTOMACOES = [
     { id: "cadastro", rotulo: "Cadastro criado pela Totali", como: "Verdadeiro assim que a empresa existe no painel." },
-    { id: "gerente", rotulo: "Responsáveis por setor definidos", como: "Marca quando a empresa tem pelo menos um responsável de setor no cadastro." },
     { id: "convite", rotulo: "Convite do portal gerado", como: "Marca quando existe convite ou acesso ao portal." },
     { id: "entrou", rotulo: "O cliente entrou no portal", como: "Marca no primeiro acesso do cliente." },
     { id: "canal", rotulo: "Canal preferido informado", como: "Marca quando o cliente escolhe o canal no perfil." },

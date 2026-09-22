@@ -16,7 +16,7 @@
     "portal-inicio": [
       { titulo: "Bem-vindo ao seu portal", texto: "Aqui você fala com a Totali, envia documentos e acompanha sua empresa. Vamos mostrar onde fica cada coisa. Leva 30 segundos." },
       { alvo: ".card[style*='border-left']", titulo: "O que importa hoje", texto: "Este cartão sempre mostra a coisa mais importante do dia: uma correção, uma mensagem nova ou o próximo passo. Toque nele e pronto." },
-      { alvo: ".grade--4", titulo: "As quatro ações", texto: "Chat, Arquivos, Checklist e Sistemas. Tudo o que você faz no portal começa por um destes quatro." },
+      { alvo: ".grade--4", titulo: "As quatro ações", texto: "Chat, Arquivos, Envio do mês e Sistemas. Tudo o que você faz no portal começa por um destes quatro." },
       { alvo: ".tabbar, .sidebar__in", titulo: "O menu", texto: "No celular o menu fica embaixo; no computador, à esquerda. O botão Menu abre o restante: cofre de senhas, agenda, ajuda." },
       { alvo: "#bannerInicio, .sidebar__banner", titulo: "Sistemas da Totali", texto: "Aqui aparecem sistemas que podem ajudar a sua empresa. Se não interessar, toque em \"Agora não\" e ele some por duas semanas." },
       { titulo: "Pronto", texto: "Qualquer dúvida, o chat responde em horário comercial. Para rever este tutorial: Perfil › Rever tutorial." }

@@ -59,7 +59,7 @@ empresas/{id}/mensagens/{id}     autor{uid, nome, lado, sistema?}, texto, anexos
 empresas/{id}/documentos/{id}    nome, grupo, origem (cliente|anterior|equipe), arquivo{path, nome, tamanho, mime},
                                  situacao (enviado|analise|aprovado|pendencia), revisao{por, em, motivo}, vistos[{por, em}], codigo?
 empresas/{id}/credenciais/{id}   rotulo, tipo, usuario, por, em, pacote (envelope RSA-OAEP + AES-GCM)
-empresas/{id}/checklist/{anoMes} itens[{id, texto, prazoDia, feito, feitoEm, aceite{por, em}}], concluidoEm
+empresas/{id}/checklist/{anoMes} itens[{id, texto, prazoDia, grupo, feito, feitoEm, origem, aceite{por, em}}], concluidoEm, avisoAutomaticoEm
 empresas/{id}/eventos/{id}       rastro auxiliar (navegador); não probatório
 clientes/{uid}                   nome, email, empresas[], empresaAtual
 usuarios/{uid}                   equipe: nome, email, papel (admin|equipe), setor
@@ -95,9 +95,9 @@ O sistema de controle da equipe que o Raoni está desenvolvendo grava em `empres
 
 `empresas/{id}.liberacoes[sistemaId] = {ativo, desde, ate, plano}`. O portal só mostra como "liberado" o que está ativo e dentro da validade; o resto vira prévia com botão de interesse. `ate` permite o reverse trial (Checklist com 30 dias de cortesia ao cadastrar).
 
-### Checklist Contábil (agora vive aqui)
+### Envio do mês (antes "Checklist do mês")
 
-Decisão de 21/09/2026: o Checklist Contábil deixa de ser um sistema à parte e passa a existir só no portal. O portal grava e lê `empresas/{id}/checklist/{anoMes}` (itens com prazo, feito, aceite da equipe). A tela do painel mostra quais empresas concluíram o mês, quais não começaram, dá o aceite e exporta CSV. Os itens do mês vêm de `ITENS_CHECK_PADRAO` em `js/app.js`; quando o Raoni entregar o código do sistema antigo, os itens e regras dele migram para `conteudo/checklist` (editável no painel).
+Decisão de 21/09/2026: o Checklist Contábil deixa de ser um sistema à parte e passa a existir só no portal. O portal grava e lê `empresas/{id}/checklist/{anoMes}` (itens com prazo, feito, aceite da equipe). A tela do painel mostra quais empresas concluíram o mês, quais não começaram, dá o aceite e exporta CSV. Os itens do mês vêm de `conteudo/envio` (Painel › Conteúdo › Envio do mês) ou do padrão em `js/envio.js`. Cada item tem `so` (todos | banco | maquininhas | funcionarios) e cada empresa só recebe o que vale para ela; a lista do mês corrente é reconciliada na hora (`Envio.mes`). Anexar em Meus arquivos com o item escolhido fecha o item (`Envio.marcar`, o documento guarda `item`). O portal avisa 2 dias antes do prazo (notificação do navegador) e `cobrarEnvio` (functions/lembretes.js) manda no chat, uma vez por semana, o que passou do prazo em mais de 2 dias.
 
 ## 5. Auditoria de uso e cobrança
 

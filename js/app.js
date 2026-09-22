@@ -38,7 +38,7 @@
   function iniciar() {
     Dados.pronto().then(function () {
       sessao = Dados.sessao();
-      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda"), Dados.conteudo("video"), Dados.conteudo("financeiro")]).then(function (r) { if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); if (r[4] && global.Video) global.Video.aplicar(r[4]); if (r[5] && global.Financeiro) global.Financeiro.aplicarCatalogo(r[5]); }).catch(function () {}).then(rotear);
+      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda"), Dados.conteudo("video"), Dados.conteudo("financeiro"), Dados.conteudo("envio")]).then(function (r) { if (r[6] && global.Envio) global.Envio.aplicar(r[6]); if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); if (r[4] && global.Video) global.Video.aplicar(r[4]); if (r[5] && global.Financeiro) global.Financeiro.aplicarCatalogo(r[5]); }).catch(function () {}).then(rotear);
     });
     global.addEventListener("hashchange", rotear);
     document.addEventListener("dados:mudou", function (e) {
@@ -102,7 +102,7 @@
           { href: "#/cofre", rotulo: "Cofre de senhas", icone: "key" }
         ] },
         { grupo: "Ferramentas", itens: [
-          { href: "#/checklist", rotulo: "Checklist do mês", icone: "list-check", oculto: !liberado("checklist") },
+          { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check", oculto: !liberado("checklist") },
           { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" },
           { href: "#/historico", rotulo: "Histórico", icone: "history" }
         ] },
@@ -123,7 +123,7 @@
     });
     Uso.iniciar(sessao, empresa.id);
     atualizarBadges();
-    if (global.Notificacoes) global.Notificacoes.iniciar({ empresaId: empresa.id, uid: sessao.uid, lado: "cliente" });
+    if (global.Notificacoes) global.Notificacoes.iniciar({ empresaId: empresa.id, uid: sessao.uid, lado: "cliente", empresa: empresa, envio: liberado("checklist") });
   }
 
   /* O rodapé da sidebar é o espaço permanente de banners dos sistemas que o
@@ -147,7 +147,7 @@
     var lista = CATALOGO.responsaveis(empresa);
     var corpo = lista.length
       ? lista.map(function (p) { return '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar(p.nome, "avatar--gold") + '<div class="lista__texto"><b class="f-13">' + U.esc(p.nome) + '</b><span class="lista__sub">' + U.esc(p.rotulo) + "</span></div></div>"; }).join("")
-      : '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar("Totali", "avatar--gold") + '<div class="lista__texto"><b class="f-13">Equipe Totali</b><span class="lista__sub">Em breve você conhece os responsáveis por setor</span></div></div>';
+      : '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar("Totali", "avatar--gold") + '<div class="lista__texto"><b class="f-13">Equipe Totali</b><span class="lista__sub">Fale com a gente pelo chat, em horário comercial</span></div></div>';
     return '<div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:10px">' + corpo + '<a class="f-13 f-700" href="#/chat">Mandar mensagem →</a></div></div>';
   }
 
@@ -156,7 +156,6 @@
     var e = empresa || {};
     switch (id) {
       case "cadastro": return true;
-      case "gerente": return CATALOGO.responsaveis(e).length > 0;
       case "convite": case "entrou": return true;
       case "canal": return !!e.canalPreferido;
       case "certificado": return (docsCache || []).some(function (d) { return d.grupo === "certificado" && d.situacao !== "pendencia"; });
@@ -364,7 +363,8 @@
     Shell.titulo("Início");
     var v = Shell.render(UI.esqueleto(6));
     Promise.all([prepararAuto(), Dados.checklist(empresa.id, U.anoMes(Date.now())), Vitrine.campanhas(), Dados.mensagens(empresa.id)]).then(function (r) {
-      var check = r[1], campanhas = r[2], msgs = r[3];
+      var check = (liberado("checklist") && global.Envio) ? global.Envio.mes(empresa, r[1], U.anoMes(Date.now())) : null, campanhas = r[2], msgs = r[3];
+      var rEnvio = check ? global.Envio.resumo(check) : null;
       var naoLidas = msgs.filter(function (m) { return m.autor.lado === "equipe" && !(m.lidaPor || {})[sessao.uid]; }).length;
       var pendencias = docsCache.filter(function (d) { return d.situacao === "pendencia"; });
       var aprovados = docsCache.filter(function (d) { return d.situacao === "aprovado"; }).length;
@@ -375,7 +375,8 @@
       var hoje = "";
       if (pendencias.length) hoje = cardHoje("alert", "erro", "Um documento precisa de correção", pendencias[0].nome + ": " + (pendencias[0].revisao && pendencias[0].revisao.motivo || ""), "#/documentos", "Reenviar agora");
       else if (naoLidas) hoje = cardHoje("chat", "gold", U.plural(naoLidas, "Sua equipe respondeu", "Você tem " + naoLidas + " mensagens novas"), "Toque para ler e responder.", "#/chat", "Abrir o chat");
-      else if (check && feitosCheck < itensCheck.length) hoje = cardHoje("list-check", "info", "Checklist do mês: faltam " + (itensCheck.length - feitosCheck), "Envie até o dia 20 para fechar o mês em dia.", "#/checklist", "Abrir checklist");
+      else if (rEnvio && rEnvio.atrasados.length) hoje = cardHoje("list-check", "erro", "Envio do mês: " + U.plural(rEnvio.atrasados.length, "1 item passou do prazo", rEnvio.atrasados.length + " itens passaram do prazo"), rEnvio.atrasados[0].texto + ". Anexe pelo portal e o item fecha sozinho.", "#/checklist", "Abrir envio do mês");
+      else if (rEnvio && rEnvio.proximos.length) hoje = cardHoje("list-check", "info", "Envio do mês: " + rEnvio.proximos[0].texto, (function (d) { return d === 0 ? "Vence hoje." : d === 1 ? "Vence amanhã." : "Vence em " + d + " dias."; })(global.Envio.diasParaPrazo(rEnvio.proximos[0], check.anoMes)) + " Anexe pelo portal e o item fecha sozinho.", "#/checklist", "Abrir envio do mês");
       else hoje = cardHoje("check-circle", "ok", "Tudo em dia por aqui", "Nada pendente para você hoje. Que tal uma aula rápida no Academy?", "#/sistemas/academy", "Ver o Academy");
 
       var ganchos = (global.InicioExtras || []).map(function (f) { try { return f({ docs: docsCache, check: check, msgs: msgs, pendencias: pendencias, naoLidas: naoLidas }) || ""; } catch (e) { console.warn(e); return ""; } });
@@ -388,13 +389,13 @@
         '<div class="grade grade--4">' +
           acao("#/chat", "chat", "Chat", naoLidas ? naoLidas + " novas" : "Fale com a equipe", naoLidas) +
           acao("#/documentos", "folder", "Documentos", aprovados + " aprovados") +
-          (liberado("checklist") ? acao("#/checklist", "list-check", "Checklist", feitosCheck + "/" + itensCheck.length + " do mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
+          (liberado("checklist") ? acao("#/checklist", "list-check", "Envio", feitosCheck + "/" + itensCheck.length + " do mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
           acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +
         "</div>" +
         '<div class="grade grade--lado">' +
           '<div class="pilha">' +
-            /* Checklist do mês */
-            (liberado("checklist") ? '<div class="card"><div class="card__cab"><h2>Checklist de ' + U.esc(nomeMes(U.anoMes(Date.now()))) + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>' + feitosCheck + " de " + itensCheck.length + " itens enviados</span>" + (check && check.concluidoEm ? UI.badge("Mês em dia", "ok", "check") : "<span>faltam " + (itensCheck.length - feitosCheck) + "</span>") + "</div>" + UI.barra(U.pct(feitosCheck, itensCheck.length || 1), feitosCheck === itensCheck.length ? "barra--ok" : (U.pct(feitosCheck, itensCheck.length || 1) >= 70 ? "barra--gold" : "")) + "</div></div>" : "") +
+            /* Envio do mês */
+            (liberado("checklist") ? '<div class="card"><div class="card__cab"><h2>Envio de ' + U.esc(nomeMes(U.anoMes(Date.now()))) + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>' + feitosCheck + " de " + itensCheck.length + " itens enviados</span>" + (check && check.concluidoEm ? UI.badge("Mês em dia", "ok", "check") : "<span>faltam " + (itensCheck.length - feitosCheck) + "</span>") + "</div>" + UI.barra(U.pct(feitosCheck, itensCheck.length || 1), feitosCheck === itensCheck.length ? "barra--ok" : (U.pct(feitosCheck, itensCheck.length || 1) >= 70 ? "barra--gold" : "")) + "</div></div>" : "") +
             ganchos.map(function (g) { return g && g.coluna ? g.coluna : ""; }).join("") +
             /* Últimas mensagens */
             '<div class="card"><div class="card__cab"><h2>Conversa com a Totali</h2><a class="btn btn--xs btn--contorno" href="#/chat">Abrir chat</a></div><div class="lista" style="padding-top:6px">' + (msgs.slice(-3).map(function (m) { return '<a class="lista__item" href="#/chat">' + UI.avatar(m.autor.nome, m.autor.lado === "equipe" ? "avatar--gold avatar--sm" : "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(m.autor.lado === "equipe" ? m.autor.nome + " · Totali" : "Você") + '</span><span class="lista__sub">' + U.esc(m.texto || "Anexo") + '</span></div><span class="lista__meta">' + U.relativo(m.em) + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma mensagem ainda. Sua equipe está a uma mensagem de distância.</div>') + "</div></div>" +
@@ -501,40 +502,32 @@
   }
 
   /* ============================================================
-     Checklist Contábil (integrado)
+     Envio do mês (itens e regras em js/envio.js; registro em checklist/{anoMes})
      ============================================================ */
-  var ITENS_CHECK_PADRAO = [
-    { id: "extratos", texto: "Extratos bancários de todas as contas", prazoDia: 5, grupo: "mensal" },
-    { id: "notas-venda", texto: "Notas fiscais de venda (XML ou relatório)", prazoDia: 8, grupo: "mensal" },
-    { id: "notas-compra", texto: "Notas de compra e despesas", prazoDia: 8, grupo: "mensal" },
-    { id: "maquininhas", texto: "Relatório das maquininhas", prazoDia: 8, grupo: "mensal" },
-    { id: "folha", texto: "Alterações na folha (admissão, férias, faltas)", prazoDia: 10, grupo: "pessoal" },
-    { id: "impostos", texto: "Comprovantes dos impostos pagos", prazoDia: 20, grupo: "mensal" }
-  ];
   function telaChecklist(r) {
     if (!liberado("checklist")) { location.hash = "#/sistemas/checklist"; return; }
-    Shell.titulo("Checklist do mês");
+    Shell.titulo("Envio do mês");
     var anoMes = r.query.mes || U.anoMes(Date.now());
     Uso.abrir("checklist", "interno");
     Shell.render(UI.esqueleto(6));
     Promise.all([Dados.checklist(empresa.id, anoMes), Dados.checklists(empresa.id)]).then(function (res) {
-      var c = res[0] || { empresaId: empresa.id, anoMes: anoMes, itens: ITENS_CHECK_PADRAO.map(function (i) { return Object.assign({ feito: false, feitoEm: 0, aceite: null }, i); }) };
+      var c = global.Envio.mes(empresa, res[0], anoMes);
       var hist = res[1];
       var feitos = c.itens.filter(function (i) { return i.feito; }).length, pct = U.pct(feitos, c.itens.length);
       var meses = []; for (var i = 0; i < 6; i++) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); meses.push(U.anoMes(d)); }
       var emDia = hist.filter(function (h) { return h.concluidoEm; }).length;
       var partes = anoMes.split("-");
-      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Checklist Contábil</div><h1>' + U.esc(nomeMes(anoMes)) + '</h1><p>Marque o que já enviou. Cada item ganha o aceite da Totali quando conferido. Mês completo = selo "Em dia".</p></div>' +
+      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Envio do mês</div><h1>' + U.esc(nomeMes(anoMes)) + '</h1><p>Anexe cada documento pelo botão do item: ele fica marcado sozinho. Se já mandou por outro caminho, toque no item. A Totali confere e dá o aceite; mês completo = selo "Em dia".</p></div>' +
         '<div class="cabecalho__acoes"><select class="select" id="selMes" style="min-height:36px;width:auto">' + meses.map(function (m) { return '<option value="' + m + '"' + (m === anoMes ? " selected" : "") + ">" + nomeMes(m) + "</option>"; }).join("") + "</select></div></div>" +
         '<div class="grade grade--lado"><div class="pilha">' +
           '<div class="card"><div class="card__corpo"><div class="linha linha--entre"><div><div class="f-800 f-15">' + feitos + " de " + c.itens.length + ' itens</div><div class="f-12 txt-2">' + (c.concluidoEm ? "Concluído em " + U.data(c.concluidoEm) : "faltam " + (c.itens.length - feitos)) + "</div></div>" + (c.concluidoEm ? '<span class="badge badge--ok">' + ic("check") + "Mês em dia</span>" : UI.anel(pct, "", 56)) + "</div>" + UI.barra(pct, pct === 100 ? "barra--ok" : pct >= 70 ? "barra--gold" : "") + "</div></div>" +
           '<div class="pilha" style="gap:6px">' + c.itens.map(function (it, i) {
             var prazo = new Date(Number(partes[0]), Number(partes[1]) - 1, it.prazoDia).getTime();
             var atrasado = !it.feito && Date.now() > prazo + U.DIA_MS * 2;
-            return '<button type="button" class="passo entra" data-feito="' + (it.feito ? 1 : 0) + '" data-acao="item" data-i="' + i + '"><span class="passo__check">' + ic("check", "ic--sm") + '</span><span class="passo__texto">' + U.esc(it.texto) + '<div class="passo__meta">até dia ' + it.prazoDia + (it.feito ? " · enviado " + U.relativo(it.feitoEm) : atrasado ? ' · <span class="txt-erro f-700">passou do prazo</span>' : "") + (it.aceite ? ' · <span class="txt-ok f-700">aceito por ' + U.esc(it.aceite.por) + "</span>" : it.feito ? " · aguardando conferência" : "") + '</div></span><a class="btn btn--xs btn--contorno" href="#/documentos?grupo=' + (it.grupo || "mensal") + '" data-acao="anexar">' + ic("upload", "ic--sm") + "Anexar</a></button>";
+            return '<button type="button" class="passo entra" data-feito="' + (it.feito ? 1 : 0) + '" data-acao="item" data-i="' + i + '"><span class="passo__check">' + ic("check", "ic--sm") + '</span><span class="passo__texto">' + U.esc(it.texto) + '<div class="passo__meta">até dia ' + it.prazoDia + (it.feito ? " · enviado " + U.relativo(it.feitoEm) : atrasado ? ' · <span class="txt-erro f-700">passou do prazo</span>' : "") + (it.aceite ? ' · <span class="txt-ok f-700">aceito por ' + U.esc(it.aceite.por) + "</span>" : it.feito ? (it.origem === "documento" ? " · pelo arquivo anexado" : "") + " · aguardando conferência" : "") + '</div></span><a class="btn btn--xs btn--contorno" href="#/documentos?grupo=' + (it.grupo || "mensal") + '&item=' + encodeURIComponent(it.id) + '" data-acao="anexar">' + ic("upload", "ic--sm") + "Anexar</a></button>";
           }).join("") + "</div>" +
         '</div><div class="pilha">' +
-          '<div class="card"><div class="card__cab"><h2>Meses em dia</h2></div><div class="card__corpo" style="padding-top:10px"><div class="f-800" style="font-size:28px">' + emDia + ' <small class="f-13 txt-2">' + U.plural(emDia, "mês", "meses") + ' completo' + (emDia === 1 ? "" : "s") + '</small></div><div class="pilha mt-8" style="gap:4px">' + hist.slice(0, 6).map(function (h) { var f = h.itens.filter(function (x) { return x.feito; }).length; return '<a class="linha linha--entre f-13" href="#/checklist?mes=' + h.anoMes + '" style="text-decoration:none;color:inherit"><span>' + nomeMes(h.anoMes) + "</span>" + (h.concluidoEm ? UI.badge("em dia", "ok", "check") : UI.badge(f + "/" + h.itens.length, "aviso")) + "</a>"; }).join("") + "</div></div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Meses em dia</h2></div><div class="card__corpo" style="padding-top:10px"><div class="f-800" style="font-size:28px">' + emDia + ' <small class="f-13 txt-2">' + U.plural(emDia, "mês", "meses") + ' completo' + (emDia === 1 ? "" : "s") + '</small></div><div class="pilha mt-8" style="gap:4px">' + hist.slice(0, 6).map(function (h) { if (h.anoMes === anoMes) h = c; var f = h.itens.filter(function (x) { return x.feito; }).length; return '<a class="linha linha--entre f-13" href="#/checklist?mes=' + h.anoMes + '" style="text-decoration:none;color:inherit"><span>' + nomeMes(h.anoMes) + "</span>" + (h.concluidoEm ? UI.badge("em dia", "ok", "check") : UI.badge(f + "/" + h.itens.length, "aviso")) + "</a>"; }).join("") + "</div></div></div>" +
           '<div class="aviso aviso--info">' + ic("info") + "<div><b>Tolerância de 48 h</b>Um atraso de um dia não tira o seu selo. Avisamos antes, e o mês só conta como atrasado depois de dois dias.</div></div>" +
         "</div></div></div>";
       var v = Shell.render(html);
@@ -594,15 +587,20 @@
       var v = Shell.render(html);
       var solta = UI.$("#solta", v), inp = UI.$("#arqInput", v), cam = UI.$("#camInput", v);
       var grupoPre = r.query.grupo || "";
+      var itensMes = (liberado("checklist") && global.Envio) ? global.Envio.itensPara(empresa) : [];
       function enviar(files, grupo) {
         var lista = Array.prototype.slice.call(files || []); if (!lista.length) return;
+        var itemPre = r.query.item || "";
+        var itemSel = itensMes.length ? '<div class="campo"><label class="campo__rotulo" for="itemMes">É um item do envio do mês?</label><select class="select" id="itemMes"><option value="">Não, é outro documento</option>' + itensMes.map(function (i) { return '<option value="' + i.id + '"' + (i.id === itemPre ? " selected" : "") + ">" + U.esc(i.texto) + "</option>"; }).join("") + "</select></div>" : "";
         var erros = lista.map(U.validarArquivo).filter(Boolean); if (erros.length) return UI.toast(erros[0], "erro");
-        UI.modal({ titulo: "Enviar " + lista.length + " arquivo" + (lista.length > 1 ? "s" : ""), corpo: '<div class="pilha"><div class="campo"><label class="campo__rotulo" for="grp">O que é</label><select class="select" id="grp">' + GRUPOS_DOC.map(function (g) { return '<option value="' + g.id + '"' + (g.id === (grupo || grupoPre) ? " selected" : "") + ">" + U.esc(g.rotulo) + "</option>"; }).join("") + '</select></div><div class="campo"><label class="campo__rotulo" for="obs">Observação (opcional)</label><input class="input" id="obs" placeholder="Ex.: RG da sócia Joana"></div><div class="pilha" style="gap:4px">' + lista.map(function (f) { return '<div class="f-13 linha">' + ic("file", "ic--sm") + U.esc(f.name) + ' <span class="txt-mudo">' + U.tamanho(f.size) + "</span></div>"; }).join("") + "</div></div>",
+        UI.modal({ titulo: "Enviar " + lista.length + " arquivo" + (lista.length > 1 ? "s" : ""), corpo: '<div class="pilha"><div class="campo"><label class="campo__rotulo" for="grp">O que é</label><select class="select" id="grp">' + GRUPOS_DOC.map(function (g) { return '<option value="' + g.id + '"' + (g.id === (grupo || grupoPre) ? " selected" : "") + ">" + U.esc(g.rotulo) + "</option>"; }).join("") + '</select></div>' + itemSel + '<div class="campo"><label class="campo__rotulo" for="obs">Observação (opcional)</label><input class="input" id="obs" placeholder="Ex.: RG da sócia Joana"></div><div class="pilha" style="gap:4px">' + lista.map(function (f) { return '<div class="f-13 linha">' + ic("file", "ic--sm") + U.esc(f.name) + ' <span class="txt-mudo">' + U.tamanho(f.size) + "</span></div>"; }).join("") + "</div></div>",
           acoes: [{ rotulo: "Cancelar" }, { rotulo: "Enviar", classe: "btn--primario", icone: "upload", ao: function (c) {
             var grp = c.querySelector("#grp").value, obs = c.querySelector("#obs").value;
+            var selItem = c.querySelector("#itemMes"), itemId = selItem ? selItem.value : "";
             var primeiro = docsCache.filter(function (d) { return d.origem === "cliente"; }).length === 0;
-            Promise.all(lista.map(function (f) { return Dados.enviarDocumento(empresa.id, { file: f, grupo: grp, origem: "cliente", por: sessao.nome, observacao: obs }); })).then(function () {
+            Promise.all(lista.map(function (f) { return Dados.enviarDocumento(empresa.id, { file: f, grupo: grp, origem: "cliente", por: sessao.nome, observacao: obs, item: itemId }); })).then(function () {
               if (primeiro) UI.celebrar("Primeiro documento enviado. A equipe já foi avisada."); else { UI.toast("Enviado. A equipe confere e você recebe o aceite aqui.", "ok"); UI.vibrar(); }
+              if (itemId) { r.query.item = ""; global.Envio.marcar(empresa, U.anoMes(Date.now()), itemId, "documento").then(function (m) { if (m.completou) UI.celebrar("Mês de " + nomeMes(m.check.anoMes).split(" de ")[0] + " 100% em dia!"); else if (m.mudou) UI.toast("Marcado no envio do mês. Faltam " + global.Envio.resumo(m.check).faltam + ".", "ok"); }); }
               docsCache = null; telaDocumentos(r);
             }).catch(function (e) { UI.toast(e.message || "Falha no envio.", "erro"); });
           } }] });
@@ -615,7 +613,7 @@
         solta.addEventListener("drop", function (e) { enviar(e.dataTransfer.files); });
         inp.addEventListener("change", function () { enviar(inp.files); inp.value = ""; });
         cam.addEventListener("change", function () { enviar(cam.files); cam.value = ""; });
-        if (grupoPre && !r.query.aba) setTimeout(function () { UI.toast("Anexe o arquivo: já deixei o tipo selecionado.", "info"); }, 200);
+        if (grupoPre && !r.query.aba) setTimeout(function () { UI.toast(r.query.item ? "Anexe o arquivo: o item do envio do mês fecha sozinho." : "Anexe o arquivo: já deixei o tipo selecionado.", "info"); }, 200);
       }
       UI.delegar(v, {
         aba: function (b) { location.hash = "#/documentos?aba=" + b.dataset.aba; },

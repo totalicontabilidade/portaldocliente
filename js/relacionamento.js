@@ -24,7 +24,7 @@
     { q: "Tirei foto do documento. Serve?", a: "Serve, desde que dê para ler tudo. Superfície plana, sem sombra e sem cortar as bordas. Frente e verso quando houver." },
     { q: "Quem vê os meus documentos?", a: "Somente a equipe da Totali responsável pela sua empresa, exclusivamente para os serviços contratados, conforme a LGPD." },
     { q: "Posso usar o portal pelo celular?", a: "Sim, ele foi feito primeiro para o celular. Instale como aplicativo: no Android, o navegador oferece \"Instalar\"; no iPhone, Compartilhar › Adicionar à Tela de Início." },
-    { q: "O que é o Checklist do mês?", a: "A lista do que enviar todo mês (extratos, notas, maquininhas, comprovantes), com prazo e aceite da Totali. Mês completo ganha o selo \"Em dia\"." }
+    { q: "O que é o Envio do mês?", a: "A lista do que enviar todo mês, feita para a sua empresa (extratos, notas, maquininhas, comprovantes), com prazo e aceite da Totali. Anexe o arquivo pelo item e ele fica marcado sozinho. Mês completo ganha o selo \"Em dia\"." }
   ];
   function aplicarConteudo(bruto) { if (!bruto) return; if (bruto.org) Object.keys(ORG).forEach(function (k) { if (typeof bruto.org[k] === "string") ORG[k] = U.txt(bruto.org[k], 300, ORG[k]); }); if (Array.isArray(bruto.faq) && bruto.faq.length) { FAQ.length = 0; bruto.faq.forEach(function (f) { var q = U.txt(f.q, 200), a = U.txt(f.a, 1500); if (q && a) FAQ.push({ q: q, a: a }); }); } }
 
