@@ -63,7 +63,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* Padrão de calculadora: PLANO, levemente inclinado. A perspectiva do quebra-cabeça achatava as teclas. */
 .puzzle-layer { position: absolute; pointer-events: none; background-size: 280px auto; transform: rotate(-8deg) scale(1.18); transform-origin: 50% 50%; }
 .puzzle-menu { background-image: var(--padrao-menu, url("../assets/brand/calc-menu.svg")); inset: -12%; width: auto; height: auto; }
-.puzzle-login { background-image: var(--padrao-login, url("../assets/brand/calc-login.svg")); inset: -12%; width: auto; height: auto; background-size: 340px auto; }
+.puzzle-login { background-image: var(--padrao-login, url("../assets/brand/calc-login.svg")); inset: -12%; width: auto; height: auto; background-size: 300px auto; }
 .puzzle-piece { position: absolute; width: 150px; height: 150px; right: -20px; bottom: -20px; background: url("../assets/brand/calc-piece.svg") center / contain no-repeat; }
 /* Véu do menu: os mesmos valores do Agência 100K (sidebar.tsx) */
 .sidebar__veu { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, #182c43 0%, rgba(24, 44, 67, .9) 14%, rgba(24, 44, 67, .55) 40%, rgba(24, 44, 67, .3) 75%, rgba(24, 44, 67, .22) 100%); }
@@ -491,7 +491,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 1024px) { .login__painel { display: flex; } }
 .login__painel .puzzle-login { position: absolute; z-index: 0; opacity: 1; } /* precisa vencer a regra "> *" abaixo, senão o padrão vira um bloco vazio */
 /* No login a calculadora aparece de verdade: véu só atrás do texto, canto inferior direito livre */
-.login__painel .veu { position: absolute; inset: 0; background: linear-gradient(165deg, #182c43 22%, rgba(24, 44, 67, .84) 50%, rgba(24, 44, 67, .2) 100%); }
+.login__painel .veu { position: absolute; inset: 0; background: linear-gradient(165deg, #182c43 26%, rgba(24, 44, 67, .88) 54%, rgba(24, 44, 67, .25) 100%); }
 .login__painel .brilho { position: absolute; right: -208px; bottom: -256px; width: 640px; height: 640px; border-radius: 50%; background: radial-gradient(circle, rgba(200, 157, 87, .30), transparent 60%); }
 .login__painel > * { position: relative; z-index: 1; }
 .login__logo-painel { height: 76px; width: auto; }
