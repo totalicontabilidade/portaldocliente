@@ -2,12 +2,16 @@
    Totali · Portal do Cliente
    sw.js — service worker (shell offline)
 
-   Navegação (HTML): rede primeiro, cache como reserva.
-   Demais recursos da própria origem: cache primeiro, atualizando
-   por baixo. Nada de terceiros no cache. Suba a VERSAO a cada
-   publicação.
+   HTML, JS e CSS da própria origem: REDE PRIMEIRO, cache só como
+   reserva (offline). Foi a lição do GitHub Pages em 23/09/2026: com
+   cache primeiro, quem já tinha o portal aberto ficava com código
+   velho por vários acessos, misturando arquivos de versões diferentes
+   (tela do convite carregando para sempre, logo esticada).
+   Fontes, imagens e as bibliotecas do Firebase (lib/): cache primeiro,
+   porque não mudam entre publicações. Nada de terceiros no cache.
+   A VERSAO só serve para limpar a reserva antiga; suba quando quiser.
    ============================================================ */
-var VERSAO = "v1";
+var VERSAO = "2026-09-23a";
 var CACHE = "totali-portal-" + VERSAO;
 var SHELL = ["./", "./index.html", "./equipe.html", "./anterior.html", "./extratos.html", "./css/tokens.css", "./css/app.css", "./assets/fonts/manrope-variable.woff2",
   "./js/tema.js", "./js/util.js", "./js/icones.js", "./js/ui.js", "./js/seguranca.js", "./js/cripto.js", "./js/catalogo.js", "./js/jornada.js", "./js/dados.js", "./js/uso.js", "./js/chat.js", "./js/shell.js", "./js/tour.js", "./js/notificacoes.js", "./js/pdf.js", "./js/onboarding.js", "./js/financeiro.js", "./js/extratos.js", "./js/agenda.js", "./js/relacionamento.js", "./js/video.js", "./js/conteudo-extra.js", "./js/app.js", "./js/painel.js", "./js/anterior.js", "./js/pwa.js", "./js/firebase-config.js", "./js/chave-publica.js",
@@ -19,9 +23,16 @@ self.addEventListener("activate", function (e) { e.waitUntil(caches.keys().then(
 self.addEventListener("fetch", function (e) {
   var req = e.request; if (req.method !== "GET") return;
   var url = new URL(req.url); if (url.origin !== location.origin) return;
-  if (req.mode === "navigate") { e.respondWith(fetch(req).then(function (r) { var c = r.clone(); caches.open(CACHE).then(function (ca) { ca.put(req, c); }); return r; }).catch(function () { return caches.match(req).then(function (r) { return r || caches.match("./index.html"); }); })); return; }
+  var guardar = function (r) { if (r && r.status === 200 && r.type === "basic") { var c = r.clone(); caches.open(CACHE).then(function (ca) { ca.put(req, c); }); } return r; };
+  var codigo = req.mode === "navigate" || /\.(html|js|css|webmanifest|json)$/.test(url.pathname) || /\/$/.test(url.pathname);
+  if (codigo) {
+    /* rede primeiro: o que está publicado é o que vale; cache só se a rede falhar */
+    e.respondWith(fetch(req, { cache: "no-cache" }).then(guardar).catch(function () { return caches.match(req).then(function (hit) { return hit || (req.mode === "navigate" ? caches.match("./index.html") : Response.error()); }); }));
+    return;
+  }
+  /* imagens, fontes e lib/: cache primeiro, atualizando por baixo */
   e.respondWith(caches.match(req).then(function (hit) {
-    var rede = fetch(req).then(function (r) { if (r && r.status === 200) { var c = r.clone(); caches.open(CACHE).then(function (ca) { ca.put(req, c); }); } return r; }).catch(function () { return hit; });
+    var rede = fetch(req).then(guardar).catch(function () { return hit; });
     return hit || rede;
   }));
 });

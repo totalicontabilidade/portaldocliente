@@ -16,8 +16,11 @@
     navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
     return;
   }
+  /* Quando um service worker novo assume, recarrega uma vez: assim ninguém fica com código velho depois de uma publicação. */
+  var recarregou = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function () { if (recarregou) return; recarregou = true; if (navigator.serviceWorker.controller) location.reload(); });
   global.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").then(function (reg) {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
       reg.addEventListener("updatefound", function () {
         var nw = reg.installing; if (!nw) return;
         nw.addEventListener("statechange", function () { if (nw.state === "installed" && navigator.serviceWorker.controller && global.UI) global.UI.toast("Nova versão disponível. Feche e abra o portal para atualizar.", "info", null, 6000); });
