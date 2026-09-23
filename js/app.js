@@ -186,7 +186,7 @@
     var demo = Dados.ehDemo();
     app.innerHTML =
       '<div class="login">' +
-        '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><div class="login__peca" aria-hidden="true"></div>' +
+        '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"><div class="puzzle-piece" aria-hidden="true"></div></div><div class="veu"></div><div class="brilho"></div>' +
           '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
           '<h1 class="login__frase">Sua empresa, <b>organizada</b> e <b>em dia</b>, num só lugar.</h1>' +
           '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e use os sistemas da Totali com um login só.</p>' +
@@ -220,7 +220,7 @@
 
   function telaConvite(codigo) {
     Shell.desmontar();
-    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali" style="height:52px"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
+    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"><div class="puzzle-piece" aria-hidden="true"></div></div><div class="veu"></div><div class="brilho"></div><img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali" style="height:52px"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
     Dados.convite(codigo).then(function (c) {
       var caixa = UI.$("#caixaConvite");
       if (!c) { caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Convite inválido</h1><p class="sub">Este link já foi usado ou não existe. Peça um novo à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>'; return; }
