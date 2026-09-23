@@ -25,7 +25,9 @@ service cloud.firestore {
     function ehAdmin() { return ehEquipe() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.papel == 'admin'; }
     function ehDonoDaEmpresa(empresaId) { return logado() && exists(/databases/$(database)/documents/empresas/$(empresaId)/acessos/$(request.auth.uid)); }
     function equipeOuDono(empresaId) { return ehEquipe() || ehDonoDaEmpresa(empresaId); }
-    function tamanhoOk() { return request.resource.size < 200000; }
+    // Limite de tamanho: as regras não medem bytes; o que dá para medir é o número de campos do documento.
+    // (request.resource.size não existe e derrubava TODA gravação que passava por aqui, inclusive o convite do cliente.)
+    function tamanhoOk() { return request.resource.data.size() <= 120; }
     // A página da contabilidade anterior entra com login ANÔNIMO e prova o código do link.
     function ehAnonimo() { return logado() && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
     function codigoAnteriorValido(codigo, empresaId) {
