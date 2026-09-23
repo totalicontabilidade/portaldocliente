@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Totali · Portal do Cliente — regras do Storage
+// Totali · Portal do Cliente — regras do Storage (consultam o Firestore: exige o papel Firebase Rules Firestore Service Agent para o agente service-NUMERO@gcp-sa-firebasestorage; o CLI só concede em modo interativo)
 // Arquivos vivem em empresas/{empresaId}/documentos/{docId}/{nome}
 // e empresas/{empresaId}/chat/{anexoId}/{nome}. Quem lê e escreve é
 // quem pode ver a empresa: a equipe ou o cliente vinculado.
