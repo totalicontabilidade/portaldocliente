@@ -13,17 +13,17 @@
    não é senha: é o endereço do projeto. Quem protege o banco são
    as regras (firestore.rules e storage.rules).
 
-   Sugestão: reaproveitar o projeto do Academy (portaldocliente-8cc7d)
-   para o cliente ter UM login só nos dois sistemas e a chave pública
-   de senhas ser a mesma. Ver docs/01-arquitetura.md, seção Firebase.
+   Projeto: portal-cliente-totali ("Portal do Cliente"), criado em
+   23/09/2026, separado do Academy (totali-academy). Para voltar ao
+   modo demo local, basta trocar os valores por "COLE_AQUI".
    ============================================================ */
 window.FIREBASE_CONFIG = {
-  apiKey: "COLE_AQUI",
-  authDomain: "COLE_AQUI.firebaseapp.com",
-  projectId: "COLE_AQUI",
-  storageBucket: "COLE_AQUI.firebasestorage.app",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI"
+  apiKey: "AIzaSyBvldSKE8hMyA7JrZTUAHaMz4w7l5wLhW0",
+  authDomain: "portal-cliente-totali.firebaseapp.com",
+  projectId: "portal-cliente-totali",
+  storageBucket: "portal-cliente-totali.firebasestorage.app",
+  messagingSenderId: "96139869297",
+  appId: "1:96139869297:web:e130b35ba5d1521542afd0"
 };
 
 /* App Check: chave do site reCAPTCHA v3 (ou Enterprise) criada no console do
