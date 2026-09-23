@@ -1,10 +1,92 @@
 {
   "indexes": [
-    { "collectionGroup": "uso", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "em", "order": "DESCENDING" } ] },
-    { "collectionGroup": "auditoria", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "em", "order": "DESCENDING" } ] },
-    { "collectionGroup": "anterior", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "empresaId", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" } ] },
-    { "collectionGroup": "checklist", "queryScope": "COLLECTION_GROUP", "fields": [ { "fieldPath": "anoMes", "order": "ASCENDING" } ] },
-    { "collectionGroup": "documentos", "queryScope": "COLLECTION_GROUP", "fields": [ { "fieldPath": "em", "order": "DESCENDING" } ] }
+    {
+      "collectionGroup": "uso",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "em",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "auditoria",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "em",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "anterior",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ativo",
+          "order": "ASCENDING"
+        }
+      ]
+    }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "checklist",
+      "fieldPath": "anoMes",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "order": "DESCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documentos",
+      "fieldPath": "em",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "order": "DESCENDING"
+        },
+        {
+          "queryScope": "COLLECTION",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
 }
