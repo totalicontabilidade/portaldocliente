@@ -22,15 +22,19 @@
   function nomeMes(am) { var p = am.split("-"); return MESES[Number(p[1]) - 1] + " de " + p[0]; }
   function admin() { return sessao && sessao.papel === "admin"; }
 
+  /* O que a equipe publica (conteudo/*) só pode ser lido logado: carrega quando a sessão existe, inclusive logo após o login. */
+  function carregarConteudo() {
+    return Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda"), Dados.conteudo("video"), Dados.conteudo("financeiro"), Dados.conteudo("envio")]).then(function (r) { if (r[6] && global.Envio) global.Envio.aplicar(r[6]); if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); if (r[4] && global.Video) global.Video.aplicar(r[4]); if (r[5] && global.Financeiro) global.Financeiro.aplicarCatalogo(r[5]); }).catch(function () {});
+  }
   function iniciar() {
     Dados.pronto().then(function () {
       sessao = Dados.sessao();
-      Promise.all([Dados.conteudo("jornada"), Dados.conteudo("catalogo"), Dados.conteudo("agenda"), Dados.conteudo("ajuda"), Dados.conteudo("video"), Dados.conteudo("financeiro"), Dados.conteudo("envio")]).then(function (r) { if (r[6] && global.Envio) global.Envio.aplicar(r[6]); if (r[0]) JORNADA.aplicar(r[0]); if (r[1]) CATALOGO.aplicar(r[1]); if (r[2] && global.Agenda) global.Agenda.aplicar(r[2]); if (r[3] && global.Relacionamento) global.Relacionamento.aplicarConteudo(r[3]); if (r[4] && global.Video) global.Video.aplicar(r[4]); if (r[5] && global.Financeiro) global.Financeiro.aplicarCatalogo(r[5]); }).catch(function () {}).then(rotear);
+      (sessao ? carregarConteudo() : Promise.resolve()).then(rotear);
     });
     global.addEventListener("hashchange", rotear);
     document.addEventListener("dados:mudou", function (e) {
       var t = e.detail && e.detail.tipo;
-      if (t === "sessao") { var s = Dados.sessao(); if (!!s !== !!sessao || (s && sessao && s.uid !== sessao.uid)) { sessao = s; rotear(); } return; }
+      if (t === "sessao") { var s = Dados.sessao(); if (!!s !== !!sessao || (s && sessao && s.uid !== sessao.uid)) { sessao = s; (s ? carregarConteudo() : Promise.resolve()).then(rotear); } return; }
       if (["mensagem", "remoto", "lidas"].indexOf(t) > -1) atualizarBadges();
       if (t === "remoto") { var r = Shell.rota().nome; if (["inicio", "clientes", "jornadas", "checklist", "uso"].indexOf(r) > -1) rotear(); }
     });
