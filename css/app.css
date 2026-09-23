@@ -152,8 +152,10 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cabecalho h1 { font-size: 22px; } @media (min-width: 640px) { .cabecalho h1 { font-size: 26px; } }
 .cabecalho p { color: var(--text-2); font-size: 13.5px; max-width: 60ch; }
 .cabecalho__acoes { display: flex; gap: 8px; flex-wrap: wrap; }
-.grade { display: grid; gap: 12px; grid-template-columns: 1fr; }
-.grade--2 { grid-template-columns: 1fr; } .grade--3 { grid-template-columns: 1fr; } .grade--4 { grid-template-columns: 1fr 1fr; }
+/* minmax(0, 1fr) e min-width: 0: sem isso um filho largo (banner, tabela, texto sem quebra) empurra a coluna para fora da tela no celular */
+.grade { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.grade > * { min-width: 0; }
+.grade--2 { grid-template-columns: minmax(0, 1fr); } .grade--3 { grid-template-columns: minmax(0, 1fr); } .grade--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 640px) { .grade--2, .grade--3 { grid-template-columns: repeat(2, 1fr); } .grade--4 { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1024px) { .grade--3 { grid-template-columns: repeat(3, 1fr); } .grade--4 { grid-template-columns: repeat(4, 1fr); } .grade--lado { grid-template-columns: minmax(0, 1fr) 320px; } }
 .pilha { display: flex; flex-direction: column; gap: 12px; }

@@ -394,7 +394,7 @@
         ganchos.map(function (g) { return g && g.topo ? g.topo : ""; }).join("") +
         /* 4 ações primárias */
         '<div class="grade grade--4">' +
-          acao("#/chat", "chat", "Chat", naoLidas ? naoLidas + " novas" : "Fale com a equipe", naoLidas) +
+          acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
           acao("#/documentos", "folder", "Documentos", aprovados + " aprovados") +
           (liberado("checklist") ? acao("#/checklist", "list-check", "Envio", feitosCheck + "/" + itensCheck.length + " do mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
           acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +

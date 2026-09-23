@@ -107,7 +107,7 @@
       var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Sua entrada na Totali</div><h1>Lista de documentos</h1><p>Tudo o que precisamos para assumir sua contabilidade. Cada item tem um botão para enviar e um botão de ajuda explicando o que é e onde conseguir. A maior parte vem da sua contabilidade anterior; você envia só o que é seu.</p></div>' +
         '<div class="card card--gold" style="padding:10px 14px;display:flex;gap:12px;align-items:center">' + UI.anel(prog.pct, "", 56) + '<div><div class="f-800">' + prog.feitos + " de " + prog.total + ' itens</div><div class="f-12 txt-2">' + (prog.completo ? "Tudo entregue" : "faltam " + prog.faltam + (prog.obrigFaltam.length ? " · " + prog.obrigFaltam.length + " obrigatórios" : "")) + "</div></div></div></div>" +
         (e.migracaoConcluidaEm ? '<div class="aviso aviso--ok">' + ic("check-circle") + "<div><b>Migração concluída pela Totali.</b>Você pode continuar enviando o que faltar, mas a operação já está ativa.</div></div>" : "") +
-        '<div class="pilha">' + GRUPOS.map(function (g) {
+        (global.Financeiro ? global.Financeiro.cartaoCadastro(e, false) : "") + '<div class="pilha">' + GRUPOS.map(function (g) {
           var alvos = g.escopo === "socio" ? en.socios : [null];
           var na = !!en.gruposNA[g.id];
           var itensHtml = "";

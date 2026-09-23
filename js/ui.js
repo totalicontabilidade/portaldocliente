@@ -178,13 +178,21 @@
     /* Rolagem suave até um elemento, respeitando reduced motion */
     rolarPara: function (el) { if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); },
     /* Instala listeners por delegação num container: data-acao="x" */
+    /* Um ouvinte por tela. O #view é o MESMO elemento a vida toda; sem esta trava, cada tela aberta deixava o
+       seu ouvinte lá, e um clique disparava a ação de todas as telas já visitadas (bug de 23/09/2026: um
+       "Enviar" virou 8 envios e a navegação ficava mais lenta a cada tela). O ouvinte lembra qual conteúdo
+       existia quando foi ligado; se o conteúdo foi trocado, ele se desliga sozinho. */
     delegar: function (raiz, mapa) {
-      raiz.addEventListener("click", function (e) {
+      var dono = raiz.firstElementChild;
+      function h(e) {
+        if (dono === null) dono = raiz.firstElementChild;
+        if (!dono || !raiz.contains(dono)) { raiz.removeEventListener("click", h); return; }
         var alvo = e.target.closest("[data-acao]");
         if (!alvo || !raiz.contains(alvo)) return;
         var fn = mapa[alvo.dataset.acao];
         if (fn) { e.preventDefault(); fn(alvo, e); }
-      });
+      }
+      raiz.addEventListener("click", h);
     }
   };
   global.UI = UI;
