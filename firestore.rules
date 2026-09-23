@@ -92,7 +92,7 @@ service cloud.firestore {
                     && ehDonoDaEmpresa(request.resource.data.empresaId)
                     && request.resource.data.keys().hasAll(['empresaId', 'uid', 'tipo', 'em'])
                     && request.resource.data.tipo in ['abrir', 'tela', 'sessao', 'vitrine']
-                    && request.resource.size < 2000;
+                    && request.resource.data.size() <= 20;
       allow read: if ehEquipe();
       allow update, delete: if false;
     }
@@ -118,10 +118,8 @@ service cloud.firestore {
       allow update: if (ehEquipe() && tamanhoOk())
                     || (ehDonoDaEmpresa(empresaId)
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['canalPreferido', 'formaRelatorio', 'marcos', 'feedback30', 'jornada', 'entrada', 'financeiro', 'nps'])
-                        // o cliente só pode marcar passos do LADO DELE (".c.") na jornada
-                        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['jornada'])
-                            || request.resource.data.jornada.diff(resource.data.jornada).affectedKeys().hasOnly(['passos'])));
+                             .hasOnly(['canalPreferido', 'formaRelatorio', 'marcos', 'feedback30', 'entrada', 'financeiro', 'nps']));
+                        // a jornada de 30 dias é controle interno: o cliente não a vê nem a altera (os passos dele são marcados pelos fatos)
       allow delete: if ehAdmin();
 
       match /acessos/{uid} {
@@ -151,9 +149,10 @@ service cloud.firestore {
         allow create: if tamanhoOk() && (
                         (equipeOuDono(empresaId)
                           && request.resource.data.origem in ['cliente', 'equipe']
-                          && (ehEquipe() || request.resource.data.origem == 'cliente'))
+                          && (ehEquipe() || (request.resource.data.origem == 'cliente' && request.resource.data.situacao == 'enviado')))
                         || (ehAnonimo()
                           && request.resource.data.origem == 'anterior'
+                          && request.resource.data.situacao == 'enviado'
                           && codigoAnteriorValido(request.resource.data.codigo, empresaId)));
         // equipe revisa e registra "visto"; cliente só remove o que ainda não foi aprovado
         allow update: if ehEquipe()
@@ -184,7 +183,7 @@ service cloud.firestore {
 
     // ---------- Módulos novos ----------
     match /indicacoes/{id} {
-      allow create: if logado() && ehDonoDaEmpresa(request.resource.data.empresaId) && request.resource.size < 4000;
+      allow create: if logado() && ehDonoDaEmpresa(request.resource.data.empresaId) && request.resource.data.size() <= 20;
       allow read: if ehEquipe() || (logado() && ehDonoDaEmpresa(resource.data.empresaId));
       allow update: if ehEquipe();
       allow delete: if ehAdmin();

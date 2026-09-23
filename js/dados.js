@@ -44,7 +44,10 @@
   var CHAVE_SESSAO = "totali-portal-sessao";
   var NOME_APP = (location.pathname.indexOf("equipe") > -1) ? "painel" : "portal";   /* sessões separadas por página (lição do Academy) */
 
+  /* Demonstração local para testes de tela: só em localhost e só com ?demo=1 (dados fictícios no navegador). No site publicado isso não existe. */
+  var demoLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]demo=1/.test(location.search);
   function configurado() {
+    if (demoLocal) return false;
     var c = global.FIREBASE_CONFIG;
     return !!(c && c.apiKey && c.projectId && String(c.apiKey).indexOf("COLE_") !== 0 && typeof global.firebase !== "undefined");
   }
@@ -743,7 +746,8 @@
       salvarConteudo: function (chave, obj, por) { return db.collection("conteudo").doc(chave).set(Object.assign({}, obj, { atualizadoEm: TS(), por: por ? por.uid : "" })); },
 
       checklist: function (empresaId, anoMes) { return subcol(empresaId, "checklist").doc(anoMes).get().then(docData); },
-      checklists: function (empresaId) { return lista(subcol(empresaId, "checklist").orderBy(fb.firestore.FieldPath.documentId(), "desc").limit(12)); },
+      /* sem orderBy: ordenar pelo id em ordem decrescente exige um índice que o Firestore não cria sozinho, e a falta dele travava o Envio do mês, a ficha e o Histórico (23/09/2026). São no máximo algumas dezenas de meses: ordena aqui. */
+      checklists: function (empresaId) { return lista(subcol(empresaId, "checklist")).then(function (l) { return l.sort(function (a, b) { return a.id < b.id ? 1 : -1; }).slice(0, 12).map(function (c) { c.anoMes = c.anoMes || c.id; c.itens = c.itens || []; return c; }); }); },
       listarChecklists: function (anoMes) { return lista(db.collectionGroup("checklist").where("anoMes", "==", anoMes)); },
       salvarChecklist: function (empresaId, anoMes, obj) {
         var reg = Object.assign({ empresaId: empresaId, anoMes: anoMes }, obj, { atualizadoEm: TS() });

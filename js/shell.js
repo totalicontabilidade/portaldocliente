@@ -115,10 +115,31 @@
     render: function (html) {
       var v = UI.$("#view"); if (!v) return null;
       v.innerHTML = html; v.scrollTop = 0;
+      vigiar(v);
       return v;
     },
     view: function () { return UI.$("#view"); },
     estado: estado
   };
+  /* Rede de segurança (23/09/2026): se uma tela fica só no esqueleto de carregamento, é porque uma consulta
+     falhou (permissão, índice, rede). Em vez de carregar para sempre, mostra o motivo e um botão para tentar de novo. */
+  var vigia = { timer: 0, erro: "" };
+  function soEsqueleto(v) { return !!(v && v.querySelector(".esqueleto") && !v.querySelector("h1, h2, .card, form, table, .vazio")); }
+  function telaDeErro(v, motivo) {
+    if (!soEsqueleto(v)) return;
+    v.innerHTML = '<div class="pagina"><div class="card"><div class="card__corpo pilha"><h2>Esta tela não abriu</h2><p class="f-13 txt-2">Algo impediu o carregamento. Tente de novo; se continuar, mande esta mensagem para a Totali pelo chat.</p>' + (motivo ? '<div class="codigo f-12">' + String(motivo).replace(/[<>&]/g, "") .slice(0, 300) + "</div>" : "") + '<div class="linha"><button type="button" class="btn btn--primario btn--sm" id="tentarDeNovo">Tentar de novo</button><a class="btn btn--contorno btn--sm" href="#/inicio">Ir para o início</a></div></div></div></div>';
+    var b = v.querySelector("#tentarDeNovo"); if (b) b.addEventListener("click", function () { global.dispatchEvent(new HashChangeEvent("hashchange")); });
+  }
+  function vigiar(v) {
+    clearTimeout(vigia.timer); vigia.erro = "";
+    if (!soEsqueleto(v)) return;
+    vigia.timer = setTimeout(function () { telaDeErro(v, vigia.erro || "A tela demorou mais de 20 segundos para responder."); }, 20000);
+  }
+  global.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason || {}; vigia.erro = (r.code ? r.code + ": " : "") + (r.message || String(r));
+    var v = document.getElementById("view");
+    if (soEsqueleto(v)) { clearTimeout(vigia.timer); telaDeErro(v, vigia.erro); }
+  });
+
   global.Shell = Shell;
 })(window);
