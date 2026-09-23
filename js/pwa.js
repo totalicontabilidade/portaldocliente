@@ -16,9 +16,16 @@
     navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
     return;
   }
-  /* Quando um service worker novo assume, recarrega uma vez: assim ninguém fica com código velho depois de uma publicação. */
-  var recarregou = false;
-  navigator.serviceWorker.addEventListener("controllerchange", function () { if (recarregou) return; recarregou = true; if (navigator.serviceWorker.controller) location.reload(); });
+  /* Quando um service worker novo assume, a página precisa recarregar uma vez para ninguém ficar com código
+     velho. Mas NUNCA no meio do que a pessoa está fazendo (lição de 23/09/2026: o Raoni preenchia o convite e
+     a tela "voltava ao zero"). Só recarrega quando a aba está escondida, ou ao trocar de tela, e nunca com
+     um campo preenchido. */
+  var pendente = false;
+  function formularioEmUso() { return Array.prototype.some.call(document.querySelectorAll("input, textarea, select"), function (el) { return el === document.activeElement || (el.value && el.type !== "hidden" && el.type !== "checkbox" && el.type !== "submit"); }); }
+  function recarregarSePuder() { if (!pendente || formularioEmUso()) return; pendente = false; location.reload(); }
+  navigator.serviceWorker.addEventListener("controllerchange", function () { if (!navigator.serviceWorker.controller) return; pendente = true; if (document.hidden) recarregarSePuder(); else if (global.UI) global.UI.toast("Nova versão do portal pronta. Ela entra na próxima tela.", "info"); });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) recarregarSePuder(); });
+  global.addEventListener("hashchange", function () { setTimeout(recarregarSePuder, 50); });
   global.addEventListener("load", function () {
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
       reg.addEventListener("updatefound", function () {
