@@ -566,7 +566,8 @@
     function perfil() {
       if (!usuario) return Promise.resolve(null);
       if (perfilCache && perfilCache.uid === usuario.uid) return Promise.resolve(perfilCache);
-      return db.collection("usuarios").doc(usuario.uid).get().then(function (s) {
+      var equipe = NOME_APP === "painel" ? db.collection("usuarios").doc(usuario.uid).get() : Promise.resolve({ exists: false });
+      return equipe.then(function (s) {
         if (s.exists && NOME_APP === "painel") { var d = s.data(); perfilCache = { uid: usuario.uid, nome: d.nome || usuario.email, email: usuario.email, papel: d.papel === "admin" ? "admin" : "equipe", setor: d.setor || "", setores: Array.isArray(d.setores) ? d.setores : [] }; return perfilCache; }
         return db.collection("clientes").doc(usuario.uid).get().then(function (c) {
           if (!c.exists) return null;
@@ -576,7 +577,7 @@
         });
       });
     }
-    var pronta = new Promise(function (res) { auth.onAuthStateChanged(function (u) { usuario = u; perfilCache = null; perfil().then(function () { avisar("sessao"); res(true); }); }); });
+    var pronta = new Promise(function (res) { auth.onAuthStateChanged(function (u) { usuario = u; perfilCache = null; perfil().catch(function (e) { console.warn("perfil", e && e.code); return null; }).then(function () { avisar("sessao"); res(true); }); }); });
 
     function subcol(empresaId, nome) { return db.collection("empresas").doc(empresaId).collection(nome); }
     function anotar(empresaId, tipo, detalhe, por) {
@@ -614,16 +615,24 @@
       criarConvite: function (empresaId, por) { var c = U.codigo(22); return db.collection("empresas").doc(empresaId).get().then(function (s) { return db.collection("convites").doc(c).set({ empresaId: empresaId, empresa: s.exists ? (s.data().fantasia || s.data().nome || "") : "", criadoEm: TS(), por: por.uid, usado: false }); }).then(function () { return c; }); },
       convite: function (codigo) { return db.collection("convites").doc(codigo).get().then(function (s) { var c = docData(s); if (!c || c.usado) return null; /* quem chega pelo link não está logado: o nome vem do próprio convite; sem ele, tenta a empresa e aceita não conseguir */ if (c.empresa) return { codigo: codigo, empresaId: c.empresaId, empresa: c.empresa }; return db.collection("empresas").doc(c.empresaId).get().then(function (e) { return { codigo: codigo, empresaId: c.empresaId, empresa: e.exists ? e.data().fantasia : "" }; }).catch(function () { return { codigo: codigo, empresaId: c.empresaId, empresa: "sua empresa" }; }); }); },
       usarConvite: function (codigo, dados) {
-        var empresaId;
+        var empresaId, email = String(dados.email || "").trim().toLowerCase();
         return db.collection("convites").doc(codigo).get().then(function (s) {
           var c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado."); empresaId = c.empresaId;
-          return auth.createUserWithEmailAndPassword(dados.email, dados.senha);
+          return auth.createUserWithEmailAndPassword(email, dados.senha).catch(function (e) {
+            if (e && e.code === "auth/email-already-in-use") throw new Error("Este e-mail já tem uma conta. Entre pela tela de login com a sua senha, ou use \"Esqueci a senha\".");
+            if (e && e.code === "auth/weak-password") throw new Error("Senha fraca demais para o Firebase. Use pelo menos 10 caracteres.");
+            throw e;
+          });
         }).then(function (cred) {
           var uid = cred.user.uid, lote = db.batch();
-          lote.set(db.collection("clientes").doc(uid), { nome: dados.nome, email: dados.email, empresas: [empresaId], empresaAtual: empresaId, criadoEm: TS() });
-          lote.set(subcol(empresaId, "acessos").doc(uid), { nome: dados.nome, email: dados.email, criadoEm: TS(), ultimoAcesso: TS() });
+          /* o e-mail gravado precisa ser o mesmo do token (as regras conferem), por isso em minúsculas */
+          lote.set(db.collection("clientes").doc(uid), { nome: dados.nome, email: email, empresas: [empresaId], empresaAtual: empresaId, criadoEm: TS() });
+          lote.set(subcol(empresaId, "acessos").doc(uid), { nome: dados.nome, email: email, criadoEm: TS(), ultimoAcesso: TS() });
           lote.update(db.collection("convites").doc(codigo), { usado: true, usadoEm: TS(), usadoPor: uid });
-          return lote.commit();
+          return lote.commit().catch(function (e) {
+            /* não deixa conta pela metade: sem vínculo, apaga o login recém-criado para o convite poder ser usado de novo */
+            return cred.user.delete().catch(function () {}).then(function () { throw new Error("Não foi possível concluir o acesso (" + (e && e.code || "erro") + "). Tente de novo pelo mesmo link."); });
+          });
         }).then(function () { perfilCache = null; return perfil(); });
       },
       marcarPasso: function (empresaId, chave, feito, por) {

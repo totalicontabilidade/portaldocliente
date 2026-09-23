@@ -37,7 +37,8 @@ service cloud.firestore {
 
     // ---------- Equipe ----------
     match /usuarios/{uid} {
-      allow read: if ehEquipe();
+      // a equipe lê todos; qualquer pessoa logada pode conferir o próprio registro (o cliente recebe "não existe")
+      allow read: if ehEquipe() || (logado() && request.auth.uid == uid);
       allow create, update, delete: if ehAdmin();
     }
 
