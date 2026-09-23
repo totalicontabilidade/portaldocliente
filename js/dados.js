@@ -604,15 +604,15 @@
           liberacoes: { checklist: { ativo: true, desde: Date.now(), ate: Date.now() + 30 * U.DIA_MS, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} } };
         var codigo = U.codigo(22);
-        return ref.set(e).then(function () { return db.collection("convites").doc(codigo).set({ empresaId: ref.id, criadoEm: TS(), por: por.uid, usado: false }); })
+        return ref.set(e).then(function () { return db.collection("convites").doc(codigo).set({ empresaId: ref.id, empresa: e.fantasia, criadoEm: TS(), por: por.uid, usado: false }); })
           .then(function () { e.id = ref.id; return { empresa: e, convite: codigo }; });
       },
       liberar: function (empresaId, sistemaId, dados, por) {
         var o = {}; o["liberacoes." + sistemaId] = Object.assign({ desde: Date.now() }, dados);
         return db.collection("empresas").doc(empresaId).update(o).then(function () { return anotar(empresaId, dados.ativo ? "liberacao:ativada" : "liberacao:desativada", sistemaId, por.uid); });
       },
-      criarConvite: function (empresaId, por) { var c = U.codigo(22); return db.collection("convites").doc(c).set({ empresaId: empresaId, criadoEm: TS(), por: por.uid, usado: false }).then(function () { return c; }); },
-      convite: function (codigo) { return db.collection("convites").doc(codigo).get().then(function (s) { var c = docData(s); if (!c || c.usado) return null; return db.collection("empresas").doc(c.empresaId).get().then(function (e) { return { codigo: codigo, empresaId: c.empresaId, empresa: e.exists ? e.data().fantasia : "" }; }); }); },
+      criarConvite: function (empresaId, por) { var c = U.codigo(22); return db.collection("empresas").doc(empresaId).get().then(function (s) { return db.collection("convites").doc(c).set({ empresaId: empresaId, empresa: s.exists ? (s.data().fantasia || s.data().nome || "") : "", criadoEm: TS(), por: por.uid, usado: false }); }).then(function () { return c; }); },
+      convite: function (codigo) { return db.collection("convites").doc(codigo).get().then(function (s) { var c = docData(s); if (!c || c.usado) return null; /* quem chega pelo link não está logado: o nome vem do próprio convite; sem ele, tenta a empresa e aceita não conseguir */ if (c.empresa) return { codigo: codigo, empresaId: c.empresaId, empresa: c.empresa }; return db.collection("empresas").doc(c.empresaId).get().then(function (e) { return { codigo: codigo, empresaId: c.empresaId, empresa: e.exists ? e.data().fantasia : "" }; }).catch(function () { return { codigo: codigo, empresaId: c.empresaId, empresa: "sua empresa" }; }); }); },
       usarConvite: function (codigo, dados) {
         var empresaId;
         return db.collection("convites").doc(codigo).get().then(function (s) {

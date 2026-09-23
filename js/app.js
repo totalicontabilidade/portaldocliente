@@ -216,7 +216,7 @@
 
   function telaConvite(codigo) {
     Shell.desmontar();
-    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img src="assets/brand/logo-escuro.png" alt="Totali" style="height:52px;width:auto"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
+    app.innerHTML = '<div class="login"><section class="login__painel"><div class="puzzle-layer puzzle-login"></div><div class="veu"></div><div class="brilho"></div><img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali" style="height:52px"><p class="login__frase">Bem-vindo à <b>Totali</b>.</p><p class="f-12" style="color:var(--sidebar-muted)">powered by <b style="color:var(--gold)">Totali</b></p></section><section class="login__form"><div class="login__caixa" id="caixaConvite">' + UI.esqueleto(4) + "</div></section></div>";
     Dados.convite(codigo).then(function (c) {
       var caixa = UI.$("#caixaConvite");
       if (!c) { caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Convite inválido</h1><p class="sub">Este link já foi usado ou não existe. Peça um novo à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>'; return; }
@@ -238,6 +238,9 @@
           .catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
         });
       });
+    }).catch(function (err) {
+      console.warn("convite", err);
+      UI.$("#caixaConvite").innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Não foi possível abrir o convite</h1><p class="sub">Tente de novo em instantes. Se continuar, peça um novo link à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>';
     });
   }
 
