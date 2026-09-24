@@ -729,7 +729,7 @@
         return ref.set({ empresaId: empresaId, chave: id, pedidoPor: por.uid, chavePublica: chavePublicaTemp, em: TS() }).then(function () {
           return new Promise(function (res, rej) {
             var t = setTimeout(function () { off(); rej(new Error("O servidor não respondeu. Tente de novo.")); }, 20000);
-            var off = ref.onSnapshot(function (s) { var d = s.data() || {}; if (d.concluidoEm) { clearTimeout(t); off(); d.erro ? rej(new Error(d.erro)) : res({ resposta: d.resposta }); } });
+            var off = ref.onSnapshot(function (s) { var d = s.data() || {}; if (d.concluidoEm) { clearTimeout(t); off(); ref.delete().catch(function () {}); /* lida a resposta, o pedido não precisa ficar guardado */ d.erro ? rej(new Error(d.erro)) : res({ resposta: d.resposta }); } });
           });
         });
       },

@@ -30,4 +30,4 @@ window.FIREBASE_CONFIG = {
    Firebase › App Check › Apps. Não é segredo: fica no código do site. Antes era reCAPTCHA v3, descontinuado. Criada no console do
    Firebase. Com ela, só o nosso site consegue falar com Firestore, Storage e
    Functions. Vazia = App Check desligado (aceitável só em desenvolvimento). */
-window.APP_CHECK_SITE_KEY = "";
+window.APP_CHECK_SITE_KEY = "6LebJc0tAAAAAAvnt3TB_9OYyReMUa7rerveH1vV";   // criada em 24/09/2026, domínios: totalicontabilidade.github.io e localhost

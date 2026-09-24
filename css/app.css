@@ -642,3 +642,8 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 /* .login__peca saiu: a peça dourada agora é .puzzle-piece dentro de .puzzle-login, em perspectiva, como no Agência 100K */
 .login__peca::before { content: ""; position: absolute; inset: -40%; border-radius: 50%; background: radial-gradient(circle, rgba(200, 157, 87, .35), transparent 62%); z-index: -1; }
 @media (max-height: 720px) { .login__peca { width: 130px; height: 130px; bottom: 72px; } }
+
+/* Cartão "Bancos e maquininhas" (cadastro): no celular o botão desce para baixo do texto, que antes era cortado */
+.cartao-cadastro { flex-wrap: nowrap; }
+.cartao-cadastro .lista__sub { white-space: normal; overflow: visible; text-overflow: clip; }
+@media (max-width: 639px) { .cartao-cadastro { flex-wrap: wrap; } .cartao-cadastro > .lista__texto { flex: 1 1 calc(100% - 60px) !important; } .cartao-cadastro > .btn { width: 100%; justify-content: center; } }

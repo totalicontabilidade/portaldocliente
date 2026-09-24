@@ -107,7 +107,9 @@ service cloud.firestore {
     match /pedidosDeSenha/{id} {
       allow create: if ehEquipe() && request.resource.data.pedidoPor == request.auth.uid;
       allow get: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
-      allow list, update, delete: if false;
+      // quem pediu apaga depois de ler a resposta; o que sobrar (aba fechada no meio) some pelo TTL do campo expiraEm
+      allow delete: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      allow list, update: if false;
     }
 
     // ---------- Empresas ----------

@@ -84,8 +84,9 @@ exports.abrirCredencial = onDocumentCreated(
     const pedido = snap.data() || {};
     const db = getFirestore();
 
+    /* expiraEm: a política de TTL do Firestore apaga o pedido sozinha depois de 1 hora, caso o painel não apague */
     const responder = (dados) =>
-      snap.ref.set({ ...dados, concluidoEm: FieldValue.serverTimestamp() }, { merge: true });
+      snap.ref.set({ ...dados, concluidoEm: FieldValue.serverTimestamp(), expiraEm: new Date(Date.now() + 3600 * 1000) }, { merge: true });
 
     /* Confere o crachá aqui dentro também. A regra do Firestore já
        exige equipe, mas ela pode ser republicada errada um dia — e
@@ -220,8 +221,9 @@ exports.trocarSenhaDeMembro = onDocumentCreated(
     const pedido = snap.data() || {};
     const db = getFirestore();
 
+    /* expiraEm: a política de TTL do Firestore apaga o pedido sozinha depois de 1 hora, caso o painel não apague */
     const responder = (dados) =>
-      snap.ref.set({ ...dados, concluidoEm: FieldValue.serverTimestamp() }, { merge: true });
+      snap.ref.set({ ...dados, concluidoEm: FieldValue.serverTimestamp(), expiraEm: new Date(Date.now() + 3600 * 1000) }, { merge: true });
 
     /* O crachá é conferido aqui dentro também: a regra do Firestore
        já exige administrador, mas ela pode ser republicada errada

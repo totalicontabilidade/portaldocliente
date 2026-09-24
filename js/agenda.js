@@ -53,17 +53,29 @@
     }
     return out.sort(function (a, b) { return a.vence - b.vence; });
   }
+  /* O que a pessoa faz com cada vencimento (teste de usabilidade, 24/09/2026: a agenda só listava datas) */
+  function acaoDe(o) {
+    if (o.id === "docs-mes") return { href: "#/checklist", rotulo: "Abrir envio do mês" };
+    if (o.id === "esocial-folha") return { href: "#/documentos?grupo=pessoal&item=folha", rotulo: "Enviar alterações" };
+    if (o.id === "salarios") return null;
+    return { href: "#/documentos?grupo=mensal&item=impostos", rotulo: "Enviar comprovante" };
+  }
   function itemHtml(x) {
     var tom = x.em < 0 ? "erro" : x.em <= 3 ? "aviso" : x.em <= 7 ? "gold" : "";
     var rot = x.em < 0 ? "venceu há " + (-x.em) + "d" : x.em === 0 ? "vence hoje" : x.em === 1 ? "vence amanhã" : "vence em " + x.em + " dias";
     return '<div class="lista__item" style="min-height:0;padding:10px 16px"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--' + (tom === "erro" ? "danger" : tom === "aviso" ? "warning" : tom === "gold" ? "gold" : "border") + ')">' + new Date(x.vence).getDate() + '</div><div class="lista__texto"><span class="lista__titulo">' + U.esc(x.o.nome) + '</span><span class="lista__sub">' + U.esc(x.o.desc) + "</span></div>" + UI.badge(rot, tom === "gold" ? "gold" : tom, x.em <= 3 ? "clock" : "") + "</div>";
+  }
+  function itemComAcao(x) {
+    var a = acaoDe(x.o), h = itemHtml(x);
+    if (!a) return h;
+    return h.replace(/<\/div>$/, '<a class="btn btn--xs btn--contorno" href="' + a.href + '" style="margin-left:8px;white-space:nowrap">' + ic("upload", "ic--sm") + a.rotulo + "</a></div>");
   }
   function telaAgenda() {
     var e = global.Portal.empresa; Shell.titulo("Agenda do mês");
     var lista = proximas(e, 60);
     var porMes = U.agrupar(lista, function (x) { return U.anoMes(x.vence); });
     Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(e.regime) + "</div><h1>Agenda de obrigações</h1><p>Os vencimentos da sua empresa nos próximos 60 dias. A Totali cuida da apuração; você acompanha e paga em dia.</p></div></div>" +
-      Object.keys(porMes).map(function (am) { var p = am.split("-"); return '<div class="card"><div class="card__cab"><h2>' + ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][Number(p[1]) - 1] + " de " + p[0] + '</h2></div><div class="lista" style="padding-top:6px">' + porMes[am].map(itemHtml).join("") + "</div></div>"; }).join("") +
+      Object.keys(porMes).map(function (am) { var p = am.split("-"); return '<div class="card"><div class="card__cab"><h2>' + ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][Number(p[1]) - 1] + " de " + p[0] + '</h2></div><div class="lista" style="padding-top:6px">' + porMes[am].map(itemComAcao).join("") + "</div></div>"; }).join("") +
       '<div class="aviso aviso--info">' + ic("info") + "<div><b>Datas de referência.</b>Alguns prazos mudam por município ou por decisão do governo. Quando isso acontecer, avisamos pelo chat.</div></div></div>");
   }
   global.InicioExtras = global.InicioExtras || [];
