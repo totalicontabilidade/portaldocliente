@@ -548,7 +548,13 @@
     var fb = global.firebase;
     var app = fb.initializeApp(global.FIREBASE_CONFIG, "totali-" + NOME_APP);
     /* App Check antes de qualquer chamada: prova que a requisição vem do nosso site (docs/02-seguranca.md) */
-    try { if (global.APP_CHECK_SITE_KEY && app.appCheck) app.appCheck().activate(global.APP_CHECK_SITE_KEY, true); } catch (e) { console.warn("App Check", e); }
+    /* App Check com Fraud Defense (reCAPTCHA Enterprise): o reCAPTCHA v3 clássico foi descontinuado pelo Google.
+       Sem chave (APP_CHECK_SITE_KEY vazio) fica desligado, e o site funciona igual. */
+    try {
+      if (global.APP_CHECK_SITE_KEY && app.appCheck && global.firebase.appCheck && global.firebase.appCheck.ReCaptchaEnterpriseProvider) {
+        app.appCheck().activate(new global.firebase.appCheck.ReCaptchaEnterpriseProvider(global.APP_CHECK_SITE_KEY), true);
+      }
+    } catch (e) { console.warn("App Check", e); }
     var auth = app.auth(), db = app.firestore(), storage = app.storage();
     var TS = fb.firestore.FieldValue.serverTimestamp;
     var usuario = null, perfilCache = null;

@@ -26,7 +26,8 @@ window.FIREBASE_CONFIG = {
   appId: "1:96139869297:web:e130b35ba5d1521542afd0"
 };
 
-/* App Check: chave do site reCAPTCHA v3 (ou Enterprise) criada no console do
+/* App Check: chave de SITE do Fraud Defense (reCAPTCHA Enterprise), a mesma registrada em
+   Firebase › App Check › Apps. Não é segredo: fica no código do site. Antes era reCAPTCHA v3, descontinuado. Criada no console do
    Firebase. Com ela, só o nosso site consegue falar com Firestore, Storage e
    Functions. Vazia = App Check desligado (aceitável só em desenvolvimento). */
 window.APP_CHECK_SITE_KEY = "";
