@@ -322,7 +322,7 @@
      ============================================================ */
   var Banners = {
     itens: function (campanhas) {
-      var lista = (campanhas || []).map(function (c) { var s = CATALOGO.por(c.sistemaId); return { id: c.id, sistema: s, titulo: c.titulo, texto: c.texto, cta: c.cta || "Conhecer", campanha: true }; });
+      var lista = (campanhas || []).map(function (c) { var s = CATALOGO.por(c.sistemaId); return { id: c.id, sistema: s, titulo: c.titulo, texto: c.texto, cta: c.cta || "Conhecer", campanha: true, imagem: c.imagem && c.imagem.url ? c.imagem.url : "" }; });
       var perfis = empresa.perfis || [], st = Vitrine.estado();
       CATALOGO.SISTEMAS.forEach(function (s) {
         if (liberado(s.id) || lista.some(function (x) { return x.sistema.id === s.id; })) return;
@@ -334,6 +334,10 @@
     },
     html: function (it, compacto) {
       var s = it.sistema;
+      /* campanha com arte própria: a imagem inteira é o banner (clicável); o título vira o texto alternativo */
+      if (it.imagem) return '<div class="banner banner--imagem' + (compacto ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '">' +
+        '<button type="button" class="banner__fechar" data-acao="banner-fechar" aria-label="Agora não">' + ic("x", "ic--sm") + "</button>" +
+        '<a class="banner__arte" href="#/sistemas/' + s.id + '" data-acao="banner-clique"><img src="' + U.esc(it.imagem) + '" alt="' + U.esc(it.titulo) + '" loading="lazy"></a></div>';
       return '<div class="banner' + (compacto ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '" style="--cor:' + s.cor + '">' +
         '<button type="button" class="banner__fechar" data-acao="banner-fechar" aria-label="Agora não">' + ic("x", "ic--sm") + "</button>" +
         '<span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + "</span>" +
@@ -345,7 +349,8 @@
       var alvos = [el, UI.$("#bannerSidebar")].filter(Boolean);
       if (Banners._timer) { clearInterval(Banners._timer); Banners._timer = null; }
       if (!itens.length) { alvos.forEach(function (a) { a.innerHTML = ""; }); return; }
-      var i = Math.floor(Math.random() * itens.length);
+      /* começa pela campanha feita pela equipe (a de maior prioridade); sem campanha, sorteia entre as sugestões */
+      var i = itens[0] && itens[0].campanha ? 0 : Math.floor(Math.random() * itens.length);
       function desenhar() {
         var it = itens[i % itens.length];
         alvos.forEach(function (a) { if (!document.body.contains(a)) return; a.innerHTML = Banners.html(it, a.id === "bannerSidebar" || compacto) + (itens.length > 1 ? '<div class="banner__pontos">' + itens.map(function (_, k) { return '<i' + (k === i % itens.length ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : ""); });

@@ -490,6 +490,9 @@
       vitrine: function () { carregar(); return ok(db.vitrine); },
       salvarCampanha: function (c) { carregar(); var i = db.vitrine.findIndex(function (x) { return x.id === c.id; }); if (i > -1) db.vitrine[i] = c; else db.vitrine.push(c); gravar("vitrine"); return ok(c); },
       removerCampanha: function (id) { carregar(); db.vitrine = db.vitrine.filter(function (x) { return x.id !== id; }); gravar("vitrine"); return ok(true); },
+      /* demonstração: a imagem vai junto da campanha, como data URL (fica só neste navegador) */
+      guardarImagemVitrine: function (campanhaId, blob) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res({ url: r.result, path: "" }); }; r.onerror = rej; r.readAsDataURL(blob); }); },
+      removerImagemVitrine: function () { return ok(true); },
       registrarVitrine: function (ev) { return Local.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
 
       /* conteúdo */
@@ -746,6 +749,14 @@
       vitrine: function () { return lista(db.collection("vitrine")); },
       salvarCampanha: function (c) { return db.collection("vitrine").doc(c.id).set(c); },
       removerCampanha: function (id) { return db.collection("vitrine").doc(id).delete(); },
+      /* imagem do banner: vitrine/{campanha}/{arquivo} no Storage (só a equipe grava; qualquer pessoa logada lê) */
+      guardarImagemVitrine: function (campanhaId, blob) {
+        var ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+        var caminho = "vitrine/" + campanhaId + "/banner-" + Date.now() + "." + ext;
+        var ref = storage.ref(caminho);
+        return ref.put(blob, { contentType: blob.type, cacheControl: "public, max-age=31536000" }).then(function () { return ref.getDownloadURL(); }).then(function (url) { return { url: url, path: caminho }; });
+      },
+      removerImagemVitrine: function (path) { return path ? storage.ref(path).delete().catch(function () {}) : Promise.resolve(); },
       registrarVitrine: function (ev) { return this.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
 
       conteudo: function (chave) { return db.collection("conteudo").doc(chave).get().then(docData); },
@@ -798,7 +809,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

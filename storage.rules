@@ -30,6 +30,14 @@ service firebase.storage {
       allow delete: if ehEquipe() || ehDono(empresaId);
     }
 
+    // Imagens dos banners de divulgação (Painel › Vitrine): a equipe envia, todo mundo logado vê
+    match /vitrine/{campanha}/{nome} {
+      allow read: if logado();
+      allow create: if ehEquipe() && request.resource.size < 3 * 1024 * 1024 && request.resource.contentType.matches('image/(png|jpeg|webp)');
+      allow update: if false;
+      allow delete: if ehEquipe();
+    }
+
     match /{allPaths=**} { allow read, write: if false; }
   }
 }

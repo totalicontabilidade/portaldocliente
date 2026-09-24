@@ -592,8 +592,6 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .card { box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 16px rgba(15, 23, 42, .05); border-color: color-mix(in srgb, var(--border) 85%, transparent); }
 .dark .card { box-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 20px rgba(0, 0, 0, .25); }
 .card__cab h2, .card__cab h3 { font-size: 16px; letter-spacing: -.01em; }
-.btn--primario { background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 92%, #fff) 0%, var(--primary) 100%); box-shadow: 0 1px 2px rgba(15, 23, 42, .18), inset 0 1px 0 rgba(255, 255, 255, .12); }
-.btn--gold { background: linear-gradient(180deg, #d9b26c 0%, var(--gold) 100%); box-shadow: 0 1px 2px rgba(15, 23, 42, .16), inset 0 1px 0 rgba(255, 255, 255, .28); }
 .selo-sistema { position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(15, 23, 42, .18), inset 0 1px 0 rgba(255, 255, 255, .25); }
 .selo-sistema::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, .22), transparent 55%); pointer-events: none; }
 .kpi__valor { letter-spacing: -.03em; }
@@ -647,3 +645,65 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .cartao-cadastro { flex-wrap: nowrap; }
 .cartao-cadastro .lista__sub { white-space: normal; overflow: visible; text-overflow: clip; }
 @media (max-width: 639px) { .cartao-cadastro { flex-wrap: wrap; } .cartao-cadastro > .lista__texto { flex: 1 1 calc(100% - 60px) !important; } .cartao-cadastro > .btn { width: 100%; justify-content: center; } }
+
+/* ============================================================
+   22 · Botões contemporâneos (24/09/2026)
+   Sem degradê e sem brilho interno (o efeito de chanfro deixava o visual antigo).
+   Cor sólida, canto mais redondo, peso 700, sombra só ao passar o mouse,
+   pequena elevação no hover e anel de foco para quem usa teclado.
+   Só aparência: classes e comportamento não mudaram.
+   ============================================================ */
+.btn { border-radius: 10px; font-weight: 700; letter-spacing: -.005em; box-shadow: none;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .2s ease, transform .16s ease; }
+.btn:active { transform: translateY(0) scale(.98); }
+.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.btn .ic { opacity: .95; }
+
+.btn--primario { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.btn--primario:hover { background: color-mix(in srgb, var(--primary) 90%, #fff); transform: translateY(-1px);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--primary) 70%, transparent); }
+.dark .btn--primario:hover { background: color-mix(in srgb, var(--primary) 88%, #fff); box-shadow: 0 8px 18px -8px rgba(0, 0, 0, .6); }
+
+.btn--gold { background: var(--gold); color: var(--gold-foreground); border-color: transparent; }
+.btn--gold:hover { background: color-mix(in srgb, var(--gold) 88%, #fff); transform: translateY(-1px);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--gold) 80%, transparent); }
+
+.btn--contorno { background: transparent; border-color: var(--border); color: var(--foreground); }
+.btn--contorno:hover { background: var(--muted); border-color: color-mix(in srgb, var(--foreground) 22%, var(--border)); }
+
+.btn--fantasma { background: transparent; }
+.btn--fantasma:hover { background: var(--muted); color: var(--foreground); }
+
+.btn--perigo { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.btn--perigo:hover { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+
+.btn--sm { border-radius: 9px; }
+.btn--xs { border-radius: 8px; font-weight: 700; }
+.btn--icone { border-radius: 10px; }
+.btn:disabled, .btn[aria-disabled="true"] { transform: none; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .btn, .btn:hover, .btn:active { transform: none; transition: none; } }
+
+/* Botões sobre o fundo escuro (menu lateral, cartões navy, banners): contorno translúcido em vez de caixa branca */
+.sidebar .btn--contorno, .card--navy .btn--contorno, .banner .btn--contorno, .login__painel .btn--contorno { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .22); color: #fff; }
+.sidebar .btn--contorno:hover, .card--navy .btn--contorno:hover, .banner .btn--contorno:hover { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .35); }
+
+/* Segmentos (Sim/Não, tema) e chips no mesmo espírito: planos, cantos redondos */
+.segmentos { border-radius: 11px; padding: 3px; }
+.segmentos button { border-radius: 8px; font-weight: 700; transition: background-color .16s ease, color .16s ease, box-shadow .16s ease; }
+.segmentos button[aria-pressed="true"] { box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 0 0 1px var(--border); }
+.chip { font-weight: 600; transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+.chip:hover { border-color: color-mix(in srgb, var(--foreground) 22%, var(--border)); }
+.chip:focus-visible, .segmentos button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Banner com arte própria (Painel › Vitrine › Imagem do banner) */
+.banner--imagem { padding: 0 !important; background: var(--card) !important; border: 1px solid var(--border) !important; display: block; }
+.banner--imagem::before, .banner--imagem::after { display: none !important; }
+.banner__arte { display: block; line-height: 0; }
+.banner__arte img { display: block; width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: inherit; transition: transform .3s ease; }
+.banner__arte:hover img { transform: scale(1.015); }
+.banner--imagem.banner--compacto .banner__arte img { aspect-ratio: 4 / 3; }
+.banner--imagem .banner__fechar { z-index: 2; background: rgba(15, 23, 42, .55); color: #fff; }
+.banner--imagem .banner__fechar:hover { background: rgba(15, 23, 42, .75); }
+.imagem-banner { display: grid; place-items: center; min-height: 90px; padding: 8px; border: 1px dashed var(--border); border-radius: 12px; background: var(--muted); margin-bottom: 6px; }
+.imagem-banner img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 8px; }
+.vitrine__miniatura { display: block; width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 10px; margin-top: 10px; border: 1px solid var(--border); }
