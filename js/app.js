@@ -545,6 +545,8 @@
           if (e.target.closest("[data-acao=anexar]")) return;
           var i = Number(b.dataset.i); var it = c.itens[i];
           var novo = !it.feito;
+          /* marcar sem anexar é para quem já mandou por outro caminho: pergunta, para um toque acidental não dar o item como enviado */
+          if (novo && !b.dataset.confirmado) { UI.confirmar("Marcar como enviado?", "Use só se você já mandou “" + it.texto + "” por outro caminho (e-mail, WhatsApp, em mãos). Para enviar pelo portal, toque em Anexar.", { ok: "Já enviei" }).then(function (ok) { if (ok) { b.dataset.confirmado = "1"; b.click(); } }); return; }
           it.feito = novo; it.feitoEm = novo ? Date.now() : 0; if (!novo) it.aceite = null;
           var todos = c.itens.every(function (x) { return x.feito; });
           Dados.salvarChecklist(empresa.id, anoMes, { itens: c.itens }).then(function () {

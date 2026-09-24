@@ -139,7 +139,7 @@
       if (it.kind === "arquivo") acoes += '<button type="button" class="btn btn--xs btn--primario" data-acao="item-arquivo" data-g="' + g.id + '" data-i="' + it.id + '" data-sid="' + (sid || "") + '">' + ic("upload", "ic--sm") + (reg.docIds && reg.docIds.length ? "Enviar mais" : "Enviar") + "</button>";
       if (it.kind === "acesso") acoes += '<button type="button" class="btn btn--xs btn--primario" data-acao="item-acesso" data-g="' + g.id + '" data-i="' + it.id + '" data-sid="' + (sid || "") + '">' + ic("lock", "ic--sm") + (sit === "pendente" ? "Informar acesso" : "Atualizar") + "</button>" + (it.aceitaArquivo ? '<button type="button" class="btn btn--xs btn--contorno" data-acao="item-arquivo" data-g="' + g.id + '" data-i="' + it.id + '" data-sid="' + (sid || "") + '">' + ic("upload", "ic--sm") + "Arquivo A1</button>" : "") + (it.id === "certificado-digital" ? '<button type="button" class="btn btn--xs btn--contorno" data-acao="item-procuracao" data-k="' + chave(g, it, sid) + '">Vou conceder procuração</button>' : "");
       if (it.kind === "dado") acoes += '<button type="button" class="btn btn--xs btn--primario" data-acao="item-dado" data-g="' + g.id + '" data-i="' + it.id + '" data-sid="' + (sid || "") + '">' + ic("pencil", "ic--sm") + (reg.valor ? "Alterar" : "Informar") + "</button>";
-      if (!it.obrigatorio || it.kind !== "arquivo" || true) acoes += '<button type="button" class="btn btn--xs btn--fantasma" data-acao="item-na" data-k="' + chave(g, it, sid) + '" data-v="1">Não se aplica</button>';
+      if (!it.obrigatorio || it.kind !== "arquivo" || true) acoes += '<button type="button" class="btn btn--xs btn--fantasma" data-acao="item-na" data-k="' + chave(g, it, sid) + '" data-v="1"' + (it.obrigatorio ? ' data-obrig="1" data-nome="' + U.esc(it.nome) + '"' : "") + '>Não se aplica</button>';
     }
     return '<div class="passo" style="cursor:default;align-items:flex-start" data-k="' + chave(g, it, sid) + '"><span class="passo__check" style="' + (conta(sit) ? "background:var(--success);border-color:var(--success);color:#fff" : sit === "pendencia" ? "border-color:var(--danger)" : "") + '">' + ic("check", "ic--sm") + '</span><div style="flex:1;min-width:0"><div class="linha" style="gap:6px"><b class="f-13">' + U.esc(it.nome) + "</b>" + (it.obrigatorio ? '<span class="badge badge--gold" style="height:18px;font-size:10px">obrigatório</span>' : "") + sitBadge(sit) + '</div><div class="f-12 txt-2">' + U.esc(it.resumo) + (it.fonte === "anterior" ? ' <span class="txt-mudo">· costuma vir da contabilidade anterior</span>' : "") + "</div>" +
       (reg.valor && it.kind === "dado" ? '<div class="f-12"><b>' + U.esc(reg.valor) + "</b></div>" : "") + (reg.procuracao ? '<div class="f-12 txt-ok">Procuração eletrônica informada</div>' : "") +
@@ -162,7 +162,12 @@
     });
     UI.delegar(v, {
       "grupo-na": function (b) { en.gruposNA[b.dataset.g] = b.checked; persistir(); },
-      "item-na": function (b) { var reg = en.itens[b.dataset.k] || {}; reg.na = b.dataset.v === "1"; if (reg.na) reg.situacao = "na"; else reg.situacao = reg.docIds && reg.docIds.length ? "enviado" : ""; en.itens[b.dataset.k] = reg; persistir(); },
+      "item-na": function (b) {
+        /* item obrigatório marcado por engano some da lista de pendências: pergunta antes (teste de usabilidade, 24/09/2026) */
+        var aplicar = function () { var reg = en.itens[b.dataset.k] || {}; reg.na = b.dataset.v === "1"; if (reg.na) reg.situacao = "na"; else reg.situacao = reg.docIds && reg.docIds.length ? "enviado" : ""; en.itens[b.dataset.k] = reg; persistir(); UI.toast(reg.na ? "Marcado como não se aplica. Dá para desfazer no próprio item." : "Item voltou para a lista.", "ok"); };
+        if (b.dataset.v === "1" && b.dataset.obrig) UI.confirmar("Não se aplica à sua empresa?", "“" + b.dataset.nome + "” costuma ser obrigatório. Marque só se a sua empresa realmente não tem esse documento; na dúvida, pergunte no chat.", { ok: "Não se aplica" }).then(function (ok) { if (ok) aplicar(); });
+        else aplicar();
+      },
       "item-arquivo": function (b) { var a = acharItem(b.dataset.g, b.dataset.i); alvoUpload = { g: a.g, it: a.it, sid: b.dataset.sid || null }; inp.click(); },
       "item-dado": function (b) {
         var a = acharItem(b.dataset.g, b.dataset.i), k = chave(a.g, a.it, b.dataset.sid || null), reg = en.itens[k] || {};
@@ -225,12 +230,18 @@
         "na-equipe": function (b) { var reg = en.itens[b.dataset.k] || {}; reg.na = true; reg.situacao = "na"; reg.revisao = { por: sessao.nome, em: Date.now() }; en.itens[b.dataset.k] = reg; persistir(); },
         "ver-doc": function (b) { Dados.verDocumento(e.id, b.dataset.id, sessao).then(function () { return Dados.urlArquivo(porId[b.dataset.id]); }).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Documento de exemplo sem arquivo.", "info"); }); },
         cobrar: function () { var faltam = prog.obrigFaltam.map(function (f) { return f.it.nome; }); var texto = "Oi! Para concluirmos a entrada da " + e.fantasia + " ainda faltam: " + (faltam.slice(0, 5).join(", ") || "alguns itens") + (faltam.length > 5 ? " e mais " + (faltam.length - 5) : "") + ". É só abrir Entrada na Totali no portal e enviar. Qualquer dúvida, responde por aqui"; Dados.enviarMensagem(e.id, { autor: { uid: sessao.uid, nome: sessao.nome, lado: "equipe" }, texto: texto }).then(function () { UI.toast("Cobrança enviada pelo chat.", "ok"); }); },
-        "pdf-ficha": function () { if (global.PDF) global.PDF.ficha(e, en, GRUPOS, docs); },
-        "pdf-dossie": function () { if (global.PDF) global.PDF.dossie(e, en, GRUPOS, docs); }
+        "pdf-ficha": function () { gerarPdf(function () { return global.PDF.ficha(e, en, GRUPOS, docs); }); },
+        "pdf-dossie": function () { gerarPdf(function () { return global.PDF.dossie(e, en, GRUPOS, docs); }); }
       });
     });
   }
 
+  /* PDF com retorno para quem clicou: antes o botão não dizia nada (nem que baixou, nem que falhou) */
+  function gerarPdf(fn) {
+    if (!global.PDF) return UI.toast("Gerador de PDF indisponível. Recarregue a página.", "erro");
+    UI.toast("Gerando o PDF…", "info");
+    Promise.resolve().then(fn).then(function () { UI.toast("PDF pronto: veja na pasta de downloads.", "ok"); }).catch(function (err) { UI.toast("Não foi possível gerar o PDF: " + (err && err.message || "erro"), "erro"); });
+  }
   function telaEntradaPainel() {
     var Pn = global.Painel;
     Shell.titulo("Entrada (documentos)");
