@@ -11,7 +11,7 @@
    porque não mudam entre publicações. Nada de terceiros no cache.
    A VERSAO só serve para limpar a reserva antiga; suba quando quiser.
    ============================================================ */
-var VERSAO = "2026-09-25o";
+var VERSAO = "2026-09-25p";
 var CACHE = "totali-portal-" + VERSAO;
 var SHELL = ["./", "./index.html", "./equipe.html", "./anterior.html", "./extratos.html", "./css/tokens.css", "./css/app.css", "./assets/fonts/manrope-variable.woff2",
   "./js/tema.js", "./js/util.js", "./js/icones.js", "./js/ui.js", "./js/seguranca.js", "./js/cripto.js", "./js/catalogo.js", "./js/jornada.js", "./js/dados.js", "./js/uso.js", "./js/chat.js", "./js/shell.js", "./js/tour.js", "./js/notificacoes.js", "./js/pdf.js", "./js/onboarding.js", "./js/financeiro.js", "./js/extratos.js", "./js/agenda.js", "./js/relacionamento.js", "./js/video.js", "./js/conteudo-extra.js", "./js/app.js", "./js/painel.js", "./js/anterior.js", "./js/pwa.js", "./js/firebase-config.js", "./js/chave-publica.js",
@@ -27,7 +27,7 @@ self.addEventListener("fetch", function (e) {
   var codigo = req.mode === "navigate" || /\.(html|js|css|webmanifest|json)$/.test(url.pathname) || /\/$/.test(url.pathname);
   if (codigo) {
     /* rede primeiro: o que está publicado é o que vale; cache só se a rede falhar */
-    e.respondWith(fetch(req, { cache: "no-cache" }).then(guardar).catch(function () { return caches.match(req).then(function (hit) { return hit || (req.mode === "navigate" ? caches.match("./index.html") : Response.error()); }); }));
+    e.respondWith(fetch(req, { cache: "no-cache" }).then(guardar).catch(function () { return caches.match(req, { ignoreSearch: true }).then(function (hit) { return hit || (req.mode === "navigate" ? caches.match("./index.html") : Response.error()); }); }));
     return;
   }
   /* imagens, fontes e lib/: cache primeiro, atualizando por baixo */
