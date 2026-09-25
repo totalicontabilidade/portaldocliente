@@ -107,7 +107,7 @@
     if (sessao.papel !== "admin") { v.innerHTML = '<div class="aviso aviso--info">' + ic("lock") + "<div><b>Só administrador</b>A configuração do e-mail automático fica com quem administra o painel.</div></div>"; return; }
     Dados.configEmail().then(function (c) {
       c = c || {}; var ev = c.eventos || {}, as = c.assuntos || {};
-      var portal = c.linkPortal || (location.origin + location.pathname.replace(/equipe(\.html)?$/, ""));
+      var portal = c.linkPortal || (U.urlPortal(""));
       var campo = function (rot, html, ajuda) { return '<div class="campo"><label class="campo__rotulo">' + rot + "</label>" + html + (ajuda ? '<span class="campo__ajuda">' + ajuda + "</span>" : "") + "</div>"; };
       v.innerHTML = '<div class="aviso aviso--info">' + ic("mail") + '<div><b>Avisos por e-mail ao cliente</b>Com isto ligado, o cliente recebe e-mail em tudo o que precisa saber, mesmo sem abrir o portal. Cada cliente pode desligar para si em Perfil. Para WhatsApp, as telas de cobrança têm o botão <b>Abrir no WhatsApp</b> com o texto pronto.</div></div>' +
         '<div class="card"><div class="card__corpo pilha">' +

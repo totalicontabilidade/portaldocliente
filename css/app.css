@@ -451,7 +451,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .modal__fechar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: var(--text-2); }
 .modal__fechar:hover { background: var(--muted); }
 .modal__acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-@media (max-width: 639px) { .modal__acoes .btn { flex: 1; } }
+@media (max-width: 639px) { .modal__acoes .btn { flex: 1; } .modal__acoes .btn--sm { flex: none; } }
 @keyframes subir { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 .toasts { position: fixed; z-index: 400; left: 12px; right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 @media (min-width: 640px) { .toasts { left: auto; right: 24px; bottom: 24px; width: 360px; } }
