@@ -122,8 +122,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .topbar__btn:hover { color: var(--foreground); }
 .topbar__btn .pontinho { position: absolute; right: -5px; top: -5px; display: grid; place-items: center; height: 18px; min-width: 18px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 800; }
 .topbar__avatar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 4px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); }
-.topbar__avatar span { display: none; font-size: 12.5px; font-weight: 700; }
-@media (min-width: 640px) { .topbar__avatar span { display: inline; } }
+.topbar__avatar > span:not(.avatar) { display: none; font-size: 12.5px; font-weight: 700; }
+@media (min-width: 640px) { .topbar__avatar > span:not(.avatar) { display: inline; } }
 
 /* Gaveta (menu no celular) */
 .gaveta { position: fixed; inset: 0; z-index: 200; display: none; }
@@ -166,7 +166,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* ---------- 5. Cards ---------- */
 .card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
 .card__corpo { padding: 16px; }
-.card__cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 0; }
+.card__cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; padding: 14px 16px 0; }
+.card__cab > h2, .card__cab > h3 { flex: 1 1 auto; min-width: 0; }
 .card__cab h2, .card__cab h3 { font-size: 15px; }
 .card__cab .sub { font-size: 12.5px; color: var(--text-2); font-weight: 600; }
 .card--navy { position: relative; overflow: hidden; background: var(--sidebar); color: #fff; border-color: transparent; }
@@ -770,4 +771,27 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .sidebar[data-mini] .sidebar__troca span, .sidebar[data-mini] .sidebar__troca .ic:last-child { display: none; }
 
 /* Novo cliente: campo que veio da Receita Federal (some ao editar) */
-.input--receita { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
+.input--receita { background-color: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
+/* Topo no celular com troca de empresa: nada encolhe o avatar; o tema fica no Perfil */
+.topbar__avatar, .topbar__btn, .topbar__menu { flex: none; }
+@media (max-width: 479px) {
+  /* a página já tem o título grande logo abaixo: no topo fica a empresa, que é o que muda */
+  .topbar:has(.topbar__empresa) .topbar__titulo { display: none; }
+  .topbar:has(.topbar__empresa) .topbar__esp { display: none; }
+  .topbar__empresa { flex: 1; min-width: 0; max-width: none; justify-content: flex-start; }
+  .topbar__empresa span { flex: 1; text-align: left; }
+  .topbar:has(.topbar__empresa) [data-acao="tema"] { display: none; }
+}
+
+/* Agenda: no celular o prazo e o botão descem para a linha de baixo (antes espremiam o nome e partiam o dia) */
+.agenda-item { flex-wrap: wrap; row-gap: 6px; }
+.agenda-item .dia__d { flex: none; }
+.agenda-item .lista__texto { flex: 1 1 55%; min-width: 0; }
+@media (max-width: 639px) {
+  .agenda-item .lista__texto { flex-basis: calc(100% - 56px); }
+  .agenda-item > .badge, .agenda-item > .btn { margin-left: 52px !important; }
+}
+
+/* Linha de documento: o nome nunca é espremido; se faltar espaço, os botões descem (ficha › Lista de documentos no celular) */
+.doc { flex-wrap: wrap; }
+.doc > :nth-child(2) { flex: 1 1 160px !important; min-width: 0; }

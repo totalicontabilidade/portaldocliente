@@ -63,7 +63,7 @@
   function itemHtml(x) {
     var tom = x.em < 0 ? "erro" : x.em <= 3 ? "aviso" : x.em <= 7 ? "gold" : "";
     var rot = x.em < 0 ? "venceu há " + (-x.em) + "d" : x.em === 0 ? "vence hoje" : x.em === 1 ? "vence amanhã" : "vence em " + x.em + " dias";
-    return '<div class="lista__item" style="min-height:0;padding:10px 16px"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--' + (tom === "erro" ? "danger" : tom === "aviso" ? "warning" : tom === "gold" ? "gold" : "border") + ')">' + new Date(x.vence).getDate() + '</div><div class="lista__texto"><span class="lista__titulo">' + U.esc(x.o.nome) + '</span><span class="lista__sub">' + U.esc(x.o.desc) + "</span></div>" + UI.badge(rot, tom === "gold" ? "gold" : tom, x.em <= 3 ? "clock" : "") + "</div>";
+    return '<div class="lista__item agenda-item" style="min-height:0;padding:10px 16px"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--' + (tom === "erro" ? "danger" : tom === "aviso" ? "warning" : tom === "gold" ? "gold" : "border") + ')">' + new Date(x.vence).getDate() + '</div><div class="lista__texto"><span class="lista__titulo">' + U.esc(x.o.nome) + '</span><span class="lista__sub">' + U.esc(x.o.desc) + "</span></div>" + UI.badge(rot, tom === "gold" ? "gold" : tom, x.em <= 3 ? "clock" : "") + "</div>";
   }
   function itemComAcao(x) {
     var a = acaoDe(x.o), h = itemHtml(x);
