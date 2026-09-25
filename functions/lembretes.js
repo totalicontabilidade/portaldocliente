@@ -134,7 +134,6 @@ function valePara(item, e) {
   if (item.so === "banco") return f.temBanco !== false;
   return true;
 }
-function liberado(e, id) { const l = (e.liberacoes || {})[id]; return !!(l && l.ativo && !(l.ate && ms(l.ate) < Date.now())); }
 
 exports.cobrarEnvio = onSchedule({ schedule: "30 * * * *", timeZone: "America/Maceio", region: REGIAO }, async () => {
   const db = getFirestore();
@@ -149,7 +148,7 @@ exports.cobrarEnvio = onSchedule({ schedule: "30 * * * *", timeZone: "America/Ma
   for (const doc of emps.docs) {
     if (enviados >= MAXIMO_POR_RODADA) { console.warn("limite por rodada atingido (envio)"); break; }
     const e = doc.data();
-    if (!liberado(e, "checklist")) continue;
+    /* Envio do mês é parte do portal (não é sistema contratado): vale para toda empresa ativa com acesso */
     const acessos = await doc.ref.collection("acessos").limit(1).get(); if (acessos.empty) continue;
     const ref = doc.ref.collection("checklist").doc(anoMes);
     const salvo = await ref.get(); const reg = salvo.exists ? salvo.data() : {};

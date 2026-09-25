@@ -31,6 +31,12 @@ service firebase.storage {
     }
 
     // Imagens dos banners de divulgação (Painel › Vitrine): a equipe envia, todo mundo logado vê
+    match /sistemas/{sistema}/{nome} {
+      allow read: if logado();
+      allow create: if ehEquipe() && request.resource.size < 1024 * 1024 && request.resource.contentType.matches('image/(png|jpeg|webp)');
+      allow update: if false;
+      allow delete: if ehEquipe();
+    }
     match /vitrine/{campanha}/{nome} {
       allow read: if logado();
       allow create: if ehEquipe() && request.resource.size < 3 * 1024 * 1024 && request.resource.contentType.matches('image/(png|jpeg|webp)');

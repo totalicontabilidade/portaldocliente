@@ -135,6 +135,7 @@
   function destaqueSidebar() { return '<div class="sidebar__banner" id="bannerSidebar"></div>'; }
 
   function liberado(sistemaId) {
+    if (sistemaId === "checklist") return true; /* Envio do mês é parte do portal, não sistema: sempre aberto */
     var l = empresa && empresa.liberacoes && empresa.liberacoes[sistemaId];
     if (!l || !l.ativo) return false;
     if (l.ate && U.ms(l.ate) < Date.now()) return false;
@@ -263,7 +264,7 @@
         var st = Vitrine.estado(), agora = Date.now();
         return todas.filter(function (c) {
           if (!c.ativo) return false;
-          var s = CATALOGO.por(c.sistemaId); if (!s) return false;
+          var s = CATALOGO.por(c.sistemaId); if (!s || s.oculto) return false;
           if (c.inicio && agora < U.ms(c.inicio)) return false;
           if (c.fim && agora > U.ms(c.fim)) return false;
           if (c.publico === "sem-sistema" && liberado(c.sistemaId)) return false;
@@ -281,7 +282,7 @@
     /* O chat chama isto quando o cliente fala de um assunto que um sistema resolve (ex.: demissão → GE Rescisão) */
     gatilho: function (textoMsg) {
       var t = String(textoMsg || "").toLowerCase(), st = Vitrine.estado();
-      CATALOGO.SISTEMAS.forEach(function (s) {
+      CATALOGO.visiveis().forEach(function (s) {
         if (liberado(s.id)) return;
         if ((s.gatilhos || []).some(function (g) { return t.indexOf(g) > -1; })) {
           CATALOGO.VITRINE.concat([]).forEach(function (c) { if (c.sistemaId === s.id && c.gatilho) { st[c.id] = Object.assign(st[c.id] || {}, { gatilhoEm: Date.now(), impressoes: 0 }); } });
@@ -296,7 +297,7 @@
       return '<div class="vitrine' + (faixa ? " vitrine--faixa" : "") + ' entra" data-campanha="' + U.esc(c.id) + '" data-sistema="' + U.esc(c.sistemaId) + '">' +
         '<button type="button" class="vitrine__fechar" data-acao="vitrine-fechar" aria-label="Não mostrar de novo">' + ic("x", "ic--sm") + "</button>" +
         '<div class="vitrine__corpo">' +
-          '<span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + "</span>" +
+          '' + CATALOGO.selo(s) +
           '<div style="flex:1;min-width:0"><span class="vitrine__kicker">' + ic("sparkles", "ic--sm") + (liberado(s.id) ? "Dica · " : "Sugestão para sua empresa · ") + U.esc(s.nome) + '</span><div class="vitrine__titulo">' + U.esc(c.titulo) + '</div><div class="vitrine__texto">' + U.esc(c.texto) + "</div>" +
           (s.prova > 0 ? '<div class="vitrine__prova mt-4">' + ic("users", "ic--sm") + U.num(s.prova) + " clientes da Totali já usam</div>" : "") +
           '<div class="vitrine__acoes"><a class="btn btn--sm btn--gold" href="#/sistemas/' + s.id + '" data-acao="vitrine-clique">' + U.esc(c.cta || "Conhecer") + '</a><button type="button" class="btn btn--sm btn--fantasma" data-acao="vitrine-fechar">Agora não</button></div></div>' +
@@ -320,12 +321,18 @@
      vibração, sem escassez falsa, e "agora não" esconde aquele item
      por 14 dias. Vive na sidebar (desktop), no Início e em Sistemas.
      ============================================================ */
+  /* ponto de foco escolhido no painel (arrastando o recorte): object-position em % */
+  function focoEstilo(f) {
+    if (!f) return "";
+    var x = Math.max(0, Math.min(100, Math.round(Number(f.x)))), y = Math.max(0, Math.min(100, Math.round(Number(f.y))));
+    return isNaN(x) || isNaN(y) ? "" : ' style="object-position:' + x + "% " + y + '%"';
+  }
   var Banners = {
     _vistos: {},
     itens: function (campanhas) {
-      var lista = (campanhas || []).map(function (c) { var s = CATALOGO.por(c.sistemaId); return { id: c.id, sistema: s, titulo: c.titulo, texto: c.texto, cta: c.cta || "Conhecer", campanha: true, imagem: c.imagem && c.imagem.url ? c.imagem.url : "" }; });
+      var lista = (campanhas || []).map(function (c) { var s = CATALOGO.por(c.sistemaId); return { id: c.id, sistema: s, titulo: c.titulo, texto: c.texto, cta: c.cta || "Conhecer", campanha: true, imagem: c.imagem && c.imagem.url ? c.imagem.url : "", foco: c.foco }; });
       var perfis = empresa.perfis || [], st = Vitrine.estado();
-      CATALOGO.SISTEMAS.forEach(function (s) {
+      CATALOGO.visiveis().forEach(function (s) {
         if (liberado(s.id) || lista.some(function (x) { return x.sistema.id === s.id; })) return;
         if (!(s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; }))) return;
         var e = st["b-" + s.id] || {}; if (e.fechadaEm && Date.now() - e.fechadaEm < 14 * U.DIA_MS) return;
@@ -339,10 +346,10 @@
          Só no menu lateral ela é recortada no centro (4:3); no Início e em Sistemas aparece inteira. */
       if (it.imagem) return '<div class="banner banner--imagem' + (lateral ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '">' +
         '<button type="button" class="banner__fechar" data-acao="banner-fechar" aria-label="Agora não">' + ic("x", "ic--sm") + "</button>" +
-        '<a class="banner__arte" href="#/sistemas/' + s.id + '" data-acao="banner-clique"><img src="' + U.esc(it.imagem) + '" alt="' + U.esc(it.titulo) + '" loading="lazy"></a></div>';
+        '<a class="banner__arte" href="#/sistemas/' + s.id + '" data-acao="banner-clique"><img src="' + U.esc(it.imagem) + '" alt="' + U.esc(it.titulo) + '" loading="lazy"' + focoEstilo(it.foco) + "></a></div>";
       return '<div class="banner' + (compacto ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '" style="--cor:' + s.cor + '">' +
         '<button type="button" class="banner__fechar" data-acao="banner-fechar" aria-label="Agora não">' + ic("x", "ic--sm") + "</button>" +
-        '<span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + "</span>" +
+        '' + CATALOGO.selo(s) +
         '<div class="banner__texto"><span class="banner__kicker">' + (s.status === "breve" ? "Em breve" : "Sugestão para sua empresa") + " · " + U.esc(s.nome) + '</span><b class="banner__titulo">' + U.esc(it.titulo) + "</b>" + (compacto ? "" : '<span class="banner__desc">' + U.esc(it.texto) + "</span>") +
         '<a class="btn btn--xs btn--gold banner__cta" href="#/sistemas/' + s.id + '" data-acao="banner-clique">' + U.esc(it.cta) + "</a></div></div>";
     },
@@ -385,7 +392,7 @@
       var pendencias = docsCache.filter(function (d) { return d.situacao === "pendencia"; });
       var aprovados = docsCache.filter(function (d) { return d.situacao === "aprovado"; }).length;
       var itensCheck = check ? check.itens : [], feitosCheck = itensCheck.filter(function (i) { return i.feito; }).length;
-      var sistemasLib = CATALOGO.SISTEMAS.filter(function (s) { return liberado(s.id); });
+      var sistemasLib = CATALOGO.visiveis().filter(function (s) { return liberado(s.id); });
 
       /* "Hoje": um passo só, o mais urgente (goal-gradient) */
       var hoje = "";
@@ -461,7 +468,7 @@
   function cardSistema(s, lib) {
     var l = empresa.liberacoes && empresa.liberacoes[s.id];
     var ate = l && l.ate ? U.ms(l.ate) : 0;
-    return '<div class="card sistema entra' + (lib ? "" : " sistema--bloqueado") + '"><div class="sistema__topo"><span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + '</span><div style="flex:1;min-width:0"><div class="sistema__nome">' + U.esc(s.nome) + '</div><div class="sistema__tag">' + U.esc(s.tagline) + "</div></div>" + (s.status === "breve" ? UI.badge("Em breve", "info") : lib ? UI.badge(ate ? "até " + U.dataCurta(ate) : "Ativo", ate && ate - Date.now() < 7 * U.DIA_MS ? "aviso" : "ok", "check") : UI.badge("Conheça", "gold")) + "</div>" +
+    return '<div class="card sistema entra' + (lib ? "" : " sistema--bloqueado") + '"><div class="sistema__topo">' + CATALOGO.selo(s) + '<div style="flex:1;min-width:0"><div class="sistema__nome">' + U.esc(s.nome) + '</div><div class="sistema__tag">' + U.esc(s.tagline) + "</div></div>" + (s.status === "breve" ? UI.badge("Em breve", "info") : lib ? UI.badge(ate ? "até " + U.dataCurta(ate) : "Ativo", ate && ate - Date.now() < 7 * U.DIA_MS ? "aviso" : "ok", "check") : UI.badge("Conheça", "gold")) + "</div>" +
       '<div class="sistema__desc">' + U.esc(s.desc) + "</div>" +
       (lib ? "" : '<ul class="sistema__beneficios">' + s.beneficios.map(function (b) { return "<li>" + ic("check", "ic--sm") + U.esc(b) + "</li>"; }).join("") + "</ul>") +
       '<div class="sistema__acoes">' + (lib ? '<a class="btn btn--sm btn--primario" href="#/sistemas/' + s.id + '">' + ic(s.modo === "externo" ? "external" : "arrow-right") + "Abrir</a>" : '<a class="btn btn--sm btn--gold" href="#/sistemas/' + s.id + '">' + ic("eye") + (s.status === "breve" ? "Entrar na lista de espera" : "Ver como funciona") + "</a>") + (s.prova > 0 ? '<span class="sistema__uso">' + U.num(s.prova) + " clientes usam</span>" : "") + "</div></div>";
@@ -469,7 +476,7 @@
   function telaSistemas() {
     Shell.titulo("Meus sistemas");
     var perfis = empresa.perfis || [];
-    var todos = CATALOGO.SISTEMAS.filter(function (s) { return liberado(s.id) || s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; }); });
+    var todos = CATALOGO.visiveis().filter(function (s) { return liberado(s.id) || s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; }); });
     var libs = todos.filter(function (s) { return liberado(s.id); }), outros = todos.filter(function (s) { return !liberado(s.id); });
     Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Ferramentas</div><h1>Meus sistemas</h1><p>Tudo o que a Totali disponibilizou para a sua empresa, com um login só. Os demais você pode conhecer aqui.</p></div></div>' +
       '<div id="bannerSistemas"></div>' +
@@ -479,7 +486,8 @@
     Vitrine.campanhas().then(function (c) { Banners.montar(UI.$("#bannerSistemas"), c, true); });
   }
   function telaSistema(r) {
-    var s = CATALOGO.por(r.param); if (!s) return telaSistemas();
+    if (r.param === "checklist") { location.hash = "#/checklist"; return; }
+    var s = CATALOGO.por(r.param); if (!s || s.oculto) return telaSistemas();
     Shell.titulo(s.nome);
     if (liberado(s.id) && s.status !== "breve") {
       if (s.modo === "interno") { location.hash = "#/" + s.id; return; }
@@ -499,7 +507,7 @@
         '<div class="card"><div class="card__cab"><h2>' + U.esc(p.titulo || "Como funciona") + '</h2></div><div class="card__corpo" style="padding-top:10px"><p class="txt-2 f-13">' + U.esc(p.texto || "") + '</p><div class="pilha mt-12" style="gap:6px">' + (p.itens || []).map(function (it, i) { return '<div class="passo" style="cursor:default"><span class="passo__p">' + (i + 1) + '</span><span class="passo__texto">' + U.esc(it) + "</span></div>"; }).join("") + "</div></div></div>" +
         '<div class="card"><div class="card__corpo"><h3>O que você ganha</h3><ul class="sistema__beneficios mt-8">' + s.beneficios.map(function (b) { return "<li>" + ic("check") + U.esc(b) + "</li>"; }).join("") + "</ul></div></div>" +
       '</div><div class="pilha">' +
-        '<div class="card card--gold"><div class="card__corpo pilha"><span class="selo-sistema" style="background:' + s.cor + '">' + ic(s.icone) + '</span><div class="f-800 f-15">' + (s.status === "breve" ? "Quer ser dos primeiros?" : "Quer ver funcionando na sua empresa?") + '</div><p class="f-13 txt-2">' + (s.status === "breve" ? "Entre na lista de espera. Quem entra agora ajuda a definir o que vem primeiro." : "Sem compromisso: a gente mostra em 15 minutos, pelo chat ou por chamada.") + '</p><button type="button" class="btn btn--gold btn--bloco" data-acao="interesse">' + ic("chat") + (s.status === "breve" ? "Entrar na lista de espera" : "Quero conhecer o " + U.esc(s.nome)) + "</button>" + (s.prova > 0 ? '<div class="vitrine__prova">' + ic("users", "ic--sm") + U.num(s.prova) + " clientes da Totali já usam</div>" : "") + "</div></div>" +
+        '<div class="card card--gold"><div class="card__corpo pilha">' + CATALOGO.selo(s) + '<div class="f-800 f-15">' + (s.status === "breve" ? "Quer ser dos primeiros?" : "Quer ver funcionando na sua empresa?") + '</div><p class="f-13 txt-2">' + (s.status === "breve" ? "Entre na lista de espera. Quem entra agora ajuda a definir o que vem primeiro." : "Sem compromisso: a gente mostra em 15 minutos, pelo chat ou por chamada.") + '</p><button type="button" class="btn btn--gold btn--bloco" data-acao="interesse">' + ic("chat") + (s.status === "breve" ? "Entrar na lista de espera" : "Quero conhecer o " + U.esc(s.nome)) + "</button>" + (s.prova > 0 ? '<div class="vitrine__prova">' + ic("users", "ic--sm") + U.num(s.prova) + " clientes da Totali já usam</div>" : "") + "</div></div>" +
         '<a class="btn btn--contorno btn--bloco" href="#/sistemas">' + ic("arrow-left") + "Voltar aos sistemas</a>" +
       "</div></div></div>");
     UI.delegar(Shell.view(), { interesse: function (b) {
@@ -514,7 +522,7 @@
     Shell.titulo(s.nome);
     Uso.abrir(s.id, "embutido");
     if (s.id === "academy" && !(empresa.marcos && empresa.marcos.academy)) Dados.salvarEmpresa(empresa.id, { marcos: Object.assign(empresa.marcos || {}, { academy: Date.now() }) }).then(function () { empresa.marcos = Object.assign(empresa.marcos || {}, { academy: Date.now() }); });
-    Shell.render('<div class="embutido"><div class="embutido__barra"><a class="btn btn--xs btn--fantasma" href="#/sistemas">' + ic("arrow-left") + 'Sistemas</a><span class="selo-sistema" style="background:' + s.cor + ';width:28px;height:28px;border-radius:8px">' + ic(s.icone, "ic--sm") + '</span><b class="f-13">' + U.esc(s.nome) + '</b><span class="esp"></span><a class="btn btn--xs btn--contorno" href="' + U.esc(s.url) + '" target="_blank" rel="noopener">' + ic("external", "ic--sm") + 'Abrir em nova aba</a></div><iframe src="' + U.esc(s.url) + '" title="' + U.esc(s.nome) + '" allow="camera; microphone; geolocation" referrerpolicy="no-referrer"></iframe></div>');
+    Shell.render('<div class="embutido"><div class="embutido__barra"><a class="btn btn--xs btn--fantasma" href="#/sistemas">' + ic("arrow-left") + 'Sistemas</a>' + CATALOGO.selo(s, "selo-sistema--sm") + '<b class="f-13">' + U.esc(s.nome) + '</b><span class="esp"></span><a class="btn btn--xs btn--contorno" href="' + U.esc(s.url) + '" target="_blank" rel="noopener">' + ic("external", "ic--sm") + 'Abrir em nova aba</a></div><iframe src="' + U.esc(s.url) + '" title="' + U.esc(s.nome) + '" allow="camera; microphone; geolocation" referrerpolicy="no-referrer"></iframe></div>');
   }
 
   /* ============================================================

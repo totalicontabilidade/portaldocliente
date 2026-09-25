@@ -111,4 +111,5 @@
     return '<svg class="ic' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + d + "</svg>";
   };
   global.ic.tem = function (n) { return !!P[n]; };
+  global.ic.nomes = function () { return Object.keys(P); };
 })(window);

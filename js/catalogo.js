@@ -7,8 +7,7 @@
      nome, tagline, desc, beneficios[]   texto de vitrine
      cor         cor do selo (só decoração; semântica nunca por cor)
      icone       ícone do selo (js/icones.js)
-     modo        "interno"  tela dentro deste portal (Checklist)
-                 "embutido" abre em iframe dentro do shell
+     modo        "embutido" abre em iframe dentro do shell
                  "externo"  abre em aba nova
      url         endereço do sistema (embutido/externo). Vazio = ainda sem endereço
      status      "disponivel" | "breve" (RH 360 está em desenvolvimento)
@@ -18,25 +17,18 @@
      previa      o que mostrar a quem ainda não contratou (empty state que vende)
      gatilhos    palavras no chat que fazem a vitrine sugerir o sistema
 
-   O painel pode sobrescrever url, status, prova e textos em
-   conteudo/catalogo. O que vier de lá passa por CATALOGO.aplicar().
+   O Envio do mês NÃO é sistema: é parte do portal, sempre aberto
+   para todo cliente (id interno "checklist" só nos registros).
+
+   Tudo se edita no painel (Conteúdo do portal › Sistemas): textos,
+   cor, ícone, público, endereço, e sistemas novos criados lá. Fica em
+   conteudo/catalogo e passa por CATALOGO.aplicar(), campo a campo.
    ============================================================ */
 (function (global) {
   "use strict";
   var U = global.U;
 
   var SISTEMAS_PADRAO = [
-    {
-      id: "checklist",
-      nome: "Envio do mês",
-      tagline: "O fechamento do mês em uma lista só",
-      desc: "Tudo o que a sua empresa precisa enviar a cada mês, com prazo, aviso antes de vencer e o aceite da Totali em cada item. Anexou, marcou.",
-      beneficios: ["Nunca mais esquecer um documento do mês", "Você vê o que a Totali já recebeu e aprovou", "Selo 'Em dia' quando o mês fecha completo"],
-      cor: "#0f766e", icone: "list-check", modo: "interno", url: "", status: "disponivel", publico: ["todos"],
-      prova: 0,
-      previa: { titulo: "Como é o envio do mês", texto: "Uma lista por mês, feita para a sua empresa: extratos, notas, folha, comprovantes. Cada item com prazo e um aceite da Totali. No fim do mês, o selo 'Em dia'.", itens: ["Extratos bancários (até dia 5)", "Notas de venda (até dia 8)", "Comprovantes de impostos (até dia 20)"] },
-      gatilhos: ["extrato", "fechamento", "nota fiscal", "documento do mês"]
-    },
     {
       id: "ponto",
       nome: "Ponto Totali",
@@ -129,18 +121,36 @@
 
   /* Sobrescreve com o que a equipe publicou (conteudo/catalogo). Só
      campos conhecidos, saneados; o resto fica no padrão. */
+  var ID_OK = /^[a-z0-9][a-z0-9-]{1,29}$/, RESERVADOS = ["checklist", "portal", "previa"];
+  function linhas(x, max, n) { return (Array.isArray(x) ? x : []).map(function (t) { return U.txt(t, max); }).filter(Boolean).slice(0, n); }
   function aplicar(bruto) {
     if (!bruto || typeof bruto !== "object") return false;
     var lista = Array.isArray(bruto.sistemas) ? bruto.sistemas : [];
     lista.forEach(function (b) {
-      var s = por(b && b.id); if (!s) return;
+      if (!b || !ID_OK.test(String(b.id || "")) || RESERVADOS.indexOf(b.id) > -1) return;
+      var s = por(b.id);
+      if (!s) {
+        /* sistema criado pela equipe no painel */
+        if (!U.txt(b.nome, 40)) return;
+        s = { id: b.id, nome: "", tagline: "", desc: "", beneficios: [], cor: "#475569", icone: "grid", modo: "externo", url: "", status: "disponivel", publico: ["todos"], prova: 0, previa: { titulo: "", texto: "", itens: [] }, gatilhos: [], proprio: true };
+        SISTEMAS.push(s);
+      }
+      if (typeof b.nome === "string") s.nome = U.txt(b.nome, 40, s.nome);
+      if (typeof b.cor === "string" && /^#[0-9a-f]{6}$/i.test(b.cor)) s.cor = b.cor;
+      if (typeof b.icone === "string" && global.ic && global.ic.tem(b.icone)) s.icone = b.icone;
+      if (Array.isArray(b.publico)) { var pub = b.publico.filter(function (x) { return PERFIS.some(function (q) { return q.id === x; }); }); if (pub.length) s.publico = pub; }
+      if (b.previa && typeof b.previa === "object") s.previa = { titulo: U.txt(b.previa.titulo, 80), texto: U.txt(b.previa.texto, 400), itens: linhas(b.previa.itens, 80, 6) };
+      if (Array.isArray(b.gatilhos)) s.gatilhos = b.gatilhos.map(function (g) { return U.txt(String(g).toLowerCase(), 30); }).filter(Boolean).slice(0, 15);
+      if (typeof b.oculto === "boolean") s.oculto = b.oculto;
+      if (b.logo === null) s.logo = null;
+      else if (b.logo && typeof b.logo.url === "string" && /^(https:\/\/|data:image\/(png|jpeg|webp);)/.test(b.logo.url)) s.logo = { url: b.logo.url, path: U.txt(b.logo.path, 200) };
       if (typeof b.url === "string") s.url = U.urlSegura(b.url);
       if (b.status === "disponivel" || b.status === "breve") s.status = b.status;
       if (typeof b.prova === "number" && b.prova >= 0) s.prova = Math.round(b.prova);
       if (typeof b.tagline === "string") s.tagline = U.txt(b.tagline, 80, s.tagline);
       if (typeof b.desc === "string") s.desc = U.txt(b.desc, 300, s.desc);
-      if (Array.isArray(b.beneficios)) s.beneficios = b.beneficios.map(function (x) { return U.txt(x, 80); }).filter(Boolean).slice(0, 4);
-      if (b.modo === "interno" || b.modo === "embutido" || b.modo === "externo") s.modo = b.modo;
+      if (Array.isArray(b.beneficios)) s.beneficios = linhas(b.beneficios, 80, 6);
+      if (b.modo === "embutido" || b.modo === "externo") s.modo = b.modo;
     });
     if (Array.isArray(bruto.vitrine)) {
       var v = bruto.vitrine.map(function (c, i) {
@@ -177,11 +187,20 @@
     PERFIS: PERFIS,
     por: por,
     aplicar: aplicar,
+    /* selo do sistema: a logo enviada pela equipe ou, sem logo, o ícone na cor do sistema */
+    selo: function (s, cls) {
+      var logo = s && s.logo && s.logo.url;
+      return '<span class="selo-sistema' + (cls ? " " + cls : "") + (logo ? " selo-sistema--logo" : "") + '" style="background:' + (logo ? "#fff" : U.esc(s.cor)) + '">' + (logo ? '<img src="' + U.esc(logo) + '" alt="">' : global.ic(s.icone, cls && cls.indexOf("sm") > -1 ? "ic--sm" : "")) + "</span>";
+    },
+    /* o que o cliente vê (sistemas ocultos pela equipe ficam fora da vitrine, da lista e dos banners) */
+    visiveis: function () { return SISTEMAS.filter(function (s) { return !s.oculto; }); },
+    /* sistema criado pela equipe, excluído no painel */
+    remover: function (id) { for (var i = SISTEMAS.length - 1; i >= 0; i--) if (SISTEMAS[i].id === id && SISTEMAS[i].proprio) SISTEMAS.splice(i, 1); },
     /* Sistemas que fazem sentido para o perfil desta empresa */
     paraPerfil: function (perfis) {
       perfis = perfis && perfis.length ? perfis : ["todos"];
       return SISTEMAS.filter(function (s) {
-        return s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; });
+        return !s.oculto && s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; });
       });
     }
   };

@@ -320,7 +320,7 @@
         var id = "emp_" + U.slug(dados.fantasia || dados.nome).replace(/-/g, "") + U.id().slice(-4);
         var e = { id: id, nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A",
           responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: Date.now(), canalPreferido: "", formaRelatorio: "", dor: "",
-          liberacoes: { checklist: { ativo: true, desde: Date.now(), ate: Date.now() + 30 * U.DIA_MS, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: Date.now() } },
+          liberacoes: { academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} }, acessos: [] };
         db.empresas[id] = e;
         var codigo = U.codigo(22);
@@ -493,6 +493,8 @@
       /* demonstração: a imagem vai junto da campanha, como data URL (fica só neste navegador) */
       guardarImagemVitrine: function (campanhaId, blob) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res({ url: r.result, path: "" }); }; r.onerror = rej; r.readAsDataURL(blob); }); },
       removerImagemVitrine: function () { return ok(true); },
+      guardarLogoSistema: function (sistemaId, blob) { return Local.guardarImagemVitrine(sistemaId, blob); },
+      removerLogoSistema: function () { return ok(true); },
       registrarVitrine: function (ev) { return Local.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
 
       /* conteúdo */
@@ -614,7 +616,7 @@
       criarEmpresa: function (dados, por) {
         var ref = db.collection("empresas").doc();
         var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: TS(),
-          liberacoes: { checklist: { ativo: true, desde: Date.now(), ate: Date.now() + 30 * U.DIA_MS, plano: "cortesia 30 dias" }, academy: { ativo: true, desde: Date.now() } },
+          liberacoes: { academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} } };
         var codigo = U.codigo(22);
         return ref.set(e).then(function () { return db.collection("convites").doc(codigo).set({ empresaId: ref.id, empresa: e.fantasia, criadoEm: TS(), por: por.uid, usado: false }); })
@@ -757,6 +759,13 @@
         return ref.put(blob, { contentType: blob.type, cacheControl: "public, max-age=31536000" }).then(function () { return ref.getDownloadURL(); }).then(function (url) { return { url: url, path: caminho }; });
       },
       removerImagemVitrine: function (path) { return path ? storage.ref(path).delete().catch(function () {}) : Promise.resolve(); },
+      /* logo de sistema: sistemas/{id}/logo-{ts}.{ext} no Storage (só a equipe grava; qualquer pessoa logada lê) */
+      guardarLogoSistema: function (sistemaId, blob) {
+        var ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
+        var caminho = "sistemas/" + sistemaId + "/logo-" + Date.now() + "." + ext, ref = storage.ref(caminho);
+        return ref.put(blob, { contentType: blob.type, cacheControl: "public, max-age=31536000" }).then(function () { return ref.getDownloadURL(); }).then(function (url) { return { url: url, path: caminho }; });
+      },
+      removerLogoSistema: function (path) { return path ? storage.ref(path).delete().catch(function () {}) : Promise.resolve(); },
       registrarVitrine: function (ev) { return this.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
 
       conteudo: function (chave) { return db.collection("conteudo").doc(chave).get().then(docData); },
@@ -809,7 +818,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

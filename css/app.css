@@ -712,11 +712,42 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 /* Prévia da arte no editor da Vitrine: quadro com o recorte do menu lateral marcado + como fica em cada lugar */
 .imagem-banner:has(.previa-arte) { display: block; }
 .imagem-banner__quadro { position: relative; overflow: hidden; border-radius: 8px; line-height: 0; }
-.imagem-banner__quadro img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; }
-.imagem-banner__guia { position: absolute; top: 0; bottom: 0; left: 22.2%; width: 55.6%; border: 2px dashed #fff; border-radius: 4px; box-shadow: 0 0 0 999px rgba(15, 23, 42, .5); pointer-events: none; }
+.imagem-banner__quadro img { display: block; width: 100%; height: auto; }
+.imagem-banner__guia { position: absolute; top: 0; left: 22.2%; width: 55.6%; height: 100%; border: 2px dashed #fff; border-radius: 4px; box-shadow: 0 0 0 999px rgba(15, 23, 42, .5); cursor: grab; touch-action: none; display: grid; place-items: end center; padding-bottom: 8px; }
+.imagem-banner__guia.arrastando { cursor: grabbing; border-style: solid; }
+.imagem-banner__guia:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.imagem-banner__dica { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(15, 23, 42, .7); color: #fff; font-size: 11px; font-weight: 700; line-height: 1.2; pointer-events: none; user-select: none; }
 .previa-arte { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; align-items: start; margin-top: 12px; }
 .previa-arte__lugar { display: grid; gap: 6px; min-width: 0; }
 .previa-arte__rotulo { font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--text-2); }
 .previa-arte__menu { padding: 10px; border-radius: 10px; background: var(--sidebar); }
 .previa-arte .banner { margin: 0; pointer-events: none; }
 @media (max-width: 559px) { .previa-arte { grid-template-columns: 1fr; } .previa-arte__lugar--lateral { max-width: 220px; } }
+
+/* Abas: no computador quebram linha (todas visíveis); no celular deslizam, com a barra fina à mostra */
+@media (min-width: 640px) { .abas { flex-wrap: wrap; overflow-x: visible; } }
+@media (max-width: 639px) { .abas { scrollbar-width: thin; padding-bottom: 2px; } .abas::-webkit-scrollbar { display: block; height: 4px; } .abas::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; } }
+
+/* Conteúdo › Sistemas: um cartão recolhível por sistema */
+.sis-ed > summary { list-style: none; cursor: pointer; gap: 10px; }
+.sis-ed > summary::-webkit-details-marker { display: none; }
+.sis-ed__selo { width: 32px; height: 32px; border-radius: 8px; }
+.sis-ed__seta { transition: transform .2s ease; color: var(--text-2); }
+.sis-ed[open] .sis-ed__seta { transform: rotate(180deg); }
+.sis-ed__cor { padding: 4px; height: 44px; cursor: pointer; }
+.sis-ed__icones > summary { list-style: none; display: inline-flex; gap: 8px; }
+.sis-ed__icones > summary::-webkit-details-marker { display: none; }
+.sis-ed__grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; margin-top: 8px; max-height: 176px; overflow-y: auto; padding: 6px; border: 1px solid var(--border); border-radius: 10px; }
+.sis-ed__grade label { display: grid; place-items: center; height: 38px; border-radius: 8px; cursor: pointer; color: var(--text-2); }
+.sis-ed__grade label:hover { background: var(--muted); color: var(--foreground); }
+.sis-ed__grade input { position: absolute; opacity: 0; pointer-events: none; }
+.sis-ed__grade label:has(input:checked) { background: var(--primary); color: #fff; }
+.sis-ed__grade label:has(input:focus-visible) { outline: 2px solid var(--gold); }
+
+/* Logo real do sistema no lugar do ícone (enviada em Conteúdo › Sistemas) */
+.selo-sistema--logo { padding: 4px; border: 1px solid var(--border); overflow: hidden; }
+.selo-sistema--logo img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.selo-sistema--sm { width: 32px; height: 32px; border-radius: 8px; }
+.sis-ed__logo { gap: 8px; }
+.sis-ed__logo-previa { display: inline-grid; place-items: center; min-width: 56px; min-height: 56px; }
+.sis-ed__logo-previa img { width: 56px; height: 56px; object-fit: contain; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
