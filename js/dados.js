@@ -324,7 +324,7 @@
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} }, acessos: [] };
         db.empresas[id] = e;
         var codigo = U.codigo(22);
-        db.convites[codigo] = { empresaId: id, criadoEm: Date.now(), por: por.nome, usado: false };
+        db.convites[codigo] = { empresaId: id, empresas: [id], criadoEm: Date.now(), por: por.nome, usado: false };
         db.auditoria.push({ id: U.id("a"), empresaId: id, tipo: "empresa:criada", por: por.nome, em: Date.now(), detalhe: e.fantasia });
         gravar("empresa", id);
         return ok({ empresa: e, convite: codigo });
@@ -649,9 +649,11 @@
         var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: TS(),
           liberacoes: { academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} } };
-        var codigo = U.codigo(22);
-        return ref.set(e).then(function () { return db.collection("convites").doc(codigo).set({ empresaId: ref.id, empresa: e.fantasia, criadoEm: TS(), por: por.uid, usado: false }); })
-          .then(function () { e.id = ref.id; return { empresa: e, convite: codigo }; });
+        var codigo = U.codigo(22), lote = db.batch();
+        /* empresa e convite no mesmo lote: ou grava os dois, ou nenhum (antes, com o convite recusado, sobrava empresa sem convite) */
+        lote.set(ref, e);
+        lote.set(db.collection("convites").doc(codigo), { empresaId: ref.id, empresas: [ref.id], empresa: e.fantasia, nomes: [e.fantasia], criadoEm: TS(), por: por.uid, usado: false });
+        return lote.commit().then(function () { e.id = ref.id; return { empresa: e, convite: codigo }; });
       },
       liberar: function (empresaId, sistemaId, dados, por) {
         var o = {}; o["liberacoes." + sistemaId] = Object.assign({ desde: Date.now() }, dados);

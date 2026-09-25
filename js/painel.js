@@ -254,7 +254,7 @@
     Shell.titulo("Novo cliente");
     Shell.render('<div class="pagina" style="max-width:720px"><div class="cabecalho"><div><div class="cabecalho__kicker">Cadastro</div><h1>Novo cliente</h1><p>Cadastre a empresa e gere o link de convite. O D0 da jornada nasce marcado: proposta aceita e cadastro criado.</p></div></div>' +
       '<form class="card" id="fNovo" novalidate><div class="card__corpo pilha">' +
-        '<div class="campo"><label class="campo__rotulo" for="cnpj">CNPJ</label><div class="linha" style="flex-wrap:nowrap;gap:6px"><input class="input num" id="cnpj" inputmode="numeric" required autocomplete="off" placeholder="00.000.000/0000-00"><button type="button" class="btn btn--contorno" id="btnReceita" style="white-space:nowrap">' + ic("search", "ic--sm") + 'Buscar na Receita</button></div><span class="campo__ajuda" id="ajCnpj">Comece pelo CNPJ: razão social, nome fantasia e regime vêm da Receita Federal. Tudo continua editável.</span></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="cnpj">CNPJ</label><input class="input num" id="cnpj" inputmode="numeric" required autocomplete="off" placeholder="00.000.000/0000-00"><span class="campo__ajuda" id="ajCnpj">Comece pelo CNPJ: razão social, nome fantasia e regime vêm sozinhos da Receita Federal. Tudo continua editável.</span></div>' +
         '<div id="receitaInfo"></div>' +
         '<div class="grade grade--2"><div class="campo"><label class="campo__rotulo" for="nome">Razão social</label><input class="input" id="nome" required></div><div class="campo"><label class="campo__rotulo" for="fantasia">Nome fantasia</label><input class="input" id="fantasia"><span class="campo__ajuda">É o nome que aparece no portal e no painel.</span></div>' +
         '<div class="campo"><label class="campo__rotulo" for="regime">Regime</label><select class="select" id="regime"><option>MEI</option><option selected>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option></select><span class="campo__ajuda" id="ajRegime"></span></div>' +
@@ -265,7 +265,7 @@
         '<p class="campo__erro" id="erroNovo" hidden></p><div class="modal__acoes"><a class="btn btn--contorno" href="#/clientes">Cancelar</a><button class="btn btn--primario" type="submit">' + ic("check") + "Cadastrar e gerar convite</button></div></div></form></div>");
     var v = Shell.view();
     var auto = {}, ultimoCnpj = "", mexeu = { regime: false, trilha: false };
-    var campoCnpj = UI.$("#cnpj", v), ajCnpj = UI.$("#ajCnpj", v), btnReceita = UI.$("#btnReceita", v);
+    var campoCnpj = UI.$("#cnpj", v), ajCnpj = UI.$("#ajCnpj", v);
     function preencher(id, valor) {
       var el = UI.$("#" + id, v); if (!valor) return;
       if (!el.value.trim() || el.value === auto[id]) { el.value = valor; auto[id] = valor; el.classList.add("input--receita"); }
@@ -273,15 +273,24 @@
     ["nome", "fantasia"].forEach(function (id) { UI.$("#" + id, v).addEventListener("input", function () { this.classList.remove("input--receita"); }); });
     UI.$("#regime", v).addEventListener("change", function () { mexeu.regime = true; this.classList.remove("input--receita"); UI.$("#ajRegime", v).textContent = ""; });
     UI.$("#trilha", v).addEventListener("change", function () { mexeu.trilha = true; });
-    function buscarReceita(forcar) {
+    /* busca sozinha; se não achar, tenta de novo (3 tentativas rápidas) e só então pede para preencher à mão */
+    function consultarComRepeticao(d, tentativa) {
+      return consultarCnpj(d).catch(function (err) {
+        if (tentativa >= 3 || d !== campoCnpj.value.replace(/\D/g, "")) throw err;
+        return new Promise(function (res) { setTimeout(res, 700 * tentativa); }).then(function () { return consultarComRepeticao(d, tentativa + 1); });
+      });
+    }
+    function buscarReceita() {
       var d = campoCnpj.value.replace(/\D/g, "");
-      if (d.length !== 14) { if (forcar) { ajCnpj.textContent = "Digite os 14 números do CNPJ."; campoCnpj.focus(); } return; }
+      UI.$("#receitaInfo", v).innerHTML = "";
+      if (d.length !== 14) return;
       if (!U.cnpjValido(campoCnpj.value)) { ajCnpj.textContent = "Este CNPJ não é válido. Confira os números."; return; }
-      if (d === ultimoCnpj && !forcar) return;
+      if (d === ultimoCnpj) return;
       ultimoCnpj = d;
       var ja = empresas.filter(function (x) { return String(x.cnpj || "").replace(/\D/g, "") === d; })[0];
-      ajCnpj.textContent = "Buscando na Receita Federal…"; btnReceita.disabled = true;
-      consultarCnpj(d).then(function (r) {
+      ajCnpj.textContent = "Buscando na Receita Federal…";
+      consultarComRepeticao(d, 1).then(function (r) {
+        if (d !== campoCnpj.value.replace(/\D/g, "")) return;
         preencher("nome", r.razao); preencher("fantasia", r.fantasia || tituloBonito(r.razao));
         if (!mexeu.regime) {
           var sel = UI.$("#regime", v), aj = UI.$("#ajRegime", v);
@@ -302,12 +311,14 @@
           (ja ? '<br><b class="f-12">Este CNPJ já está cadastrado: <a href="#/clientes/' + ja.id + '">' + U.esc(ja.fantasia) + "</a>.</b>" : "") + "</div></div>";
         ajCnpj.textContent = "Preenchido com os dados da Receita Federal. Confira e mude o que quiser.";
       }).catch(function () {
-        ajCnpj.textContent = "Não consegui consultar a Receita agora. Preencha à mão ou toque em Buscar na Receita de novo.";
+        if (d !== campoCnpj.value.replace(/\D/g, "")) return;
+        ajCnpj.textContent = "Comece pelo CNPJ: razão social, nome fantasia e regime vêm sozinhos da Receita Federal. Tudo continua editável.";
+        UI.$("#receitaInfo", v).innerHTML = '<div class="aviso aviso--info">' + ic("info") + "<div><b>Não encontrei os dados na Receita</b>Preencha a razão social, o nome fantasia e o regime manualmente." + (ja ? '<br><b class="f-12">Este CNPJ já está cadastrado: <a href="#/clientes/' + ja.id + '">' + U.esc(ja.fantasia) + "</a>.</b>" : "") + "</div></div>";
         ultimoCnpj = "";
-      }).then(function () { btnReceita.disabled = false; });
+        var nome = UI.$("#nome", v); if (!nome.value) nome.focus();
+      });
     }
-    campoCnpj.addEventListener("input", function () { this.value = U.cnpj(this.value); if (this.value.replace(/\D/g, "").length === 14) buscarReceita(false); });
-    btnReceita.addEventListener("click", function () { buscarReceita(true); });
+    campoCnpj.addEventListener("input", function () { this.value = U.cnpj(this.value); buscarReceita(); });
     setTimeout(function () { campoCnpj.focus(); }, 0);
     UI.$("#trilha", v).addEventListener("change", function () { UI.$("#ajTrilha", v).textContent = JORNADA.TRILHAS[this.value]; });
     Dados.equipe().then(function (eq) { UI.$$("[name=nResp]", v).forEach(function (sel) { var setor = sel.dataset.setor; eq.slice().sort(function (a, b) { return ((b.setores || []).indexOf(setor) > -1) - ((a.setores || []).indexOf(setor) > -1); }).forEach(function (m) { var o = document.createElement("option"); o.value = m.uid; o.textContent = m.nome; sel.appendChild(o); }); }); });
