@@ -91,7 +91,7 @@ exports.trocarChaveCofre = onDocumentCreated(
       const fp = impressao(pub.n);
       await db.doc("publico/cofre").set({ chavePublica: pub, impressao: fp, trocadaEm: FieldValue.serverTimestamp(), por: nomeAutor });
       await responder({ etapa: "pronto", concluidoEm: FieldValue.serverTimestamp(), recifradas, falhas, impressao: fp, erro: "" });
-      await db.collection("auditoria").add({ tipo: "cofre:chave-trocada", por: nomeAutor, uid: quem, detalhe: recifradas + " senhas recifradas" + (falhas ? ", " + falhas + " com falha" : ""), em: FieldValue.serverTimestamp() });
+      await db.collection("auditoria").add({ tipo: "cofre:chave-trocada", por: nomeAutor, uid: quem, detalhe: recifradas + (recifradas === 1 ? " senha recifrada" : " senhas recifradas") + (falhas ? ", " + falhas + " com falha" : ""), em: FieldValue.serverTimestamp() });
     } catch (e) {
       console.error("falha ao trocar a chave do cofre", e && e.message);
       await responder({ erro: "não foi possível trocar a chave: " + (e && e.message || "erro"), concluidoEm: FieldValue.serverTimestamp() });

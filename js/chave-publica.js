@@ -1,22 +1,14 @@
 /* ============================================================
    Totali · Portal do Cliente
-   chave-publica.js — a chave PÚBLICA da Totali para o cofre de senhas
+   chave-publica.js — RESERVA da chave pública do cofre de senhas
 
-   Com ela o portal TRANCA; só a chave privada (Secret Manager,
-   segredo `chave-privada-credenciais`) ABRE. Cole aqui o JWK
-   público gerado no painel (Segurança › Gerar par de chaves) — ou
-   o mesmo do Academy, se o projeto Firebase for compartilhado.
-
-   Enquanto for null, o cofre avisa que o canal seguro não está
-   configurado e não deixa guardar senha.
+   Desde 25/09/2026 a chave é trocada pelo painel (Segurança ›
+   Trocar a chave do cofre): o servidor gera o par, guarda a privada
+   no Secret Manager (segredo `chave-privada-credenciais`), cifra de
+   novo as senhas guardadas e publica a pública em publico/cofre.
+   Portal, painel e páginas de link leem de lá (js/dados.js).
+   Este arquivo só vale se essa leitura falhar; foi alinhado com a
+   chave publicada em 25/09/2026. Não precisa mexer aqui depois de
+   uma troca: a chave antiga continua abrindo o que foi fechado com ela.
    ============================================================ */
-window.CHAVE_PUBLICA = {
-  "alg": "RSA-OAEP-256",
-  "e": "AQAB",
-  "ext": true,
-  "key_ops": [
-    "encrypt"
-  ],
-  "kty": "RSA",
-  "n": "vvGT-voySO-OSBYQ_DRrMZHWqoQmgkRB09A7ysCUr7uXjOa7wCLYc7fXgfwFhAKVzVvnuB3QR25h1aogJ8UowNwuzaBE-U-P-xe_btU_7mSuuXuyD1wIqlIVhj-kc4afYcu_3Z6Y_cjX618zV0qqQCfhWV_oT-SsmTBXoD9FuMl_M-58dPmazcPe3qglrV8KcPgLgIjeejKmbcsPwhtLZowmxnGYlq5gzucT1Nk9iv11zMUA4oF_cq0vDA0e3B4kRg0ZYtcilfKuLocIApqNZF_gRMFi0G_w6SfOYCh0Cfe9MWJ66mRMpf2YpCNtrFGunTa2mDbT6E4uyucIxPsHMqP1qdhU7wHA40giG0SAzByVjwWxuI8TGH2-E1OF7s_B24um-PSgSjyletsyWXJqyHCX7oxfUjXqJYgLV0iIBIaCEHl0LzY4daKblHg7aQ5ijTWni8jrOlAdsBZIixe1GrNnX868nww6l60GGpT_H55-psu_FroamIjQ-rst1n4J"
-};
+window.CHAVE_PUBLICA = {"kty": "RSA", "n": "rnT4vC69oLZ_7M4BFGpN6ILwvbEQSpkVwTOPFiHqsJ7jwbOy87jJ0fWBOVoyNtcboJvmRO18UtvGtGIyeDx9-SayhWqhDCN4wbnDGhmtrF9egqKG0nnfGwmO9_dpmBN1TfBjDQ2v6gqDz_gn7Nt_BmWCeAn_C00pxH10cfMYKAQOdR0L9ytqxOdgN2caNAgHhyEiiusQdGu06G_Y21UOdRods0efSzuCMce_1Q8PAimddzQ4BpbdfWsfgxRX4zrI4q1yYqm_ELY2-YzvakC1oMh2IFFb7J8lzzEj1kYYbxoz5txFjb9lrh2o21Yrjqf-ZsacECHTt_HDZpx04-SV6pbLJyCIH2PgtY76b1wmGkxBXGePN3SXd0d6LKajr1wA51thT78XqOjWrjX4e4-7dGuwLsyNoDoH_q0hYlK_MQvvpFcKQ1mwze8psU8fuqX3ptyD_O79AT1eY0yLXskxCW8xPIw0TZ1yuSOplZZKr7klr0wzBg2VRA55C0S1s13T", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true, "key_ops": ["encrypt"]};
