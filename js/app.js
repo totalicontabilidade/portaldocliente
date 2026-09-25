@@ -391,6 +391,7 @@
       var naoLidas = msgs.filter(function (m) { return m.autor.lado === "equipe" && !(m.lidaPor || {})[sessao.uid]; }).length;
       var pendencias = docsCache.filter(function (d) { return d.situacao === "pendencia"; });
       var aprovados = docsCache.filter(function (d) { return d.situacao === "aprovado"; }).length;
+      var emAnalise = docsCache.filter(function (d) { return d.situacao === "enviado" || d.situacao === "analise"; }).length;
       var itensCheck = check ? check.itens : [], feitosCheck = itensCheck.filter(function (i) { return i.feito; }).length;
       var sistemasLib = CATALOGO.visiveis().filter(function (s) { return liberado(s.id); });
 
@@ -405,18 +406,19 @@
       var ganchos = (global.InicioExtras || []).map(function (f) { try { return f({ docs: docsCache, check: check, msgs: msgs, pendencias: pendencias, naoLidas: naoLidas }) || ""; } catch (e) { console.warn(e); return ""; } });
       if (ganchos.some(function (g) { return g && g.hoje; }) && !pendencias.length && !naoLidas) hoje = ganchos.filter(function (g) { return g.hoje; })[0].hoje;
       var html = '<div class="pagina">' +
-        '<div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(empresa.fantasia) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + "</h1><p>" + "Cliente da Totali há " + U.num(U.diasEntre(empresa.criadaEm, Date.now())) + " dias. Aqui está o que importa hoje." + "</p></div></div>" +
+        '<div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(empresa.fantasia) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + "</h1><p>" + (function (d) { return d < 1 ? "Bem-vindo à Totali! Aqui está o que importa hoje." : "Cliente da Totali há " + U.plural(d, "1 dia", U.num(d) + " dias") + ". Aqui está o que importa hoje."; })(U.diasEntre(empresa.criadaEm, Date.now())) + "</p></div></div>" +
         hoje +
         ganchos.map(function (g) { return g && g.topo ? g.topo : ""; }).join("") +
         /* 4 ações primárias */
         '<div class="grade grade--4">' +
           acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
-          acao("#/documentos", "folder", "Documentos", aprovados + " aprovados") +
+          acao("#/documentos", "folder", "Documentos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
           (liberado("checklist") ? acao("#/checklist", "list-check", "Envio", itensCheck.length ? feitosCheck + "/" + itensCheck.length + " do mês" : "nada este mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
           acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +
         "</div>" +
         '<div class="grade grade--lado">' +
           '<div class="pilha">' +
+            ganchos.map(function (g) { return g && g.colunaTopo && g.hoje !== hoje ? g.colunaTopo : ""; }).join("") +
             /* Envio do mês */
             (liberado("checklist") && itensCheck.length ? '<div class="card"><div class="card__cab"><h2>Envio de ' + U.esc(nomeMes(U.anoMes(Date.now()))) + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>' + feitosCheck + " de " + U.plural(itensCheck.length, "1 item enviado", itensCheck.length + " itens enviados") + "</span>" + (check && check.concluidoEm ? UI.badge("Mês em dia", "ok", "check") : "<span>" + U.plural(itensCheck.length - feitosCheck, "falta 1", "faltam " + (itensCheck.length - feitosCheck)) + "</span>") + "</div>" + UI.barra(U.pct(feitosCheck, itensCheck.length || 1), feitosCheck === itensCheck.length ? "barra--ok" : (U.pct(feitosCheck, itensCheck.length || 1) >= 70 ? "barra--gold" : "")) + "</div></div>" : "") +
             ganchos.map(function (g) { return g && g.coluna ? g.coluna : ""; }).join("") +

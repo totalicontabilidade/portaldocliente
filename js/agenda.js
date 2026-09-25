@@ -80,7 +80,7 @@
   }
   global.InicioExtras = global.InicioExtras || [];
   global.InicioExtras.push(function () {
-    var e = global.Portal.empresa, lista = proximas(e, 10);
+    var e = global.Portal.empresa, lista = proximas(e, 30);
     if (!lista.length) return null;
     var urgente = lista.filter(function (x) { return x.em >= 0 && x.em <= 3; })[0];
     return {
