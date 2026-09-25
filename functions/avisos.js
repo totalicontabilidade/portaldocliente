@@ -10,8 +10,10 @@
    e só esta função abre).
 
    Quando manda (cada um pode ser desligado no painel):
-     • mensagem da equipe no chat (no máximo 1 e-mail a cada 20 min
-       por empresa, para uma conversa não virar uma caixa cheia);
+     • mensagem da equipe no chat que o cliente NÃO leu em 10 min
+       (sugestão aceita em 25/09/2026: quem está conversando no portal
+       não recebe e-mail; várias mensagens seguidas viram um e-mail só,
+       e no máximo 1 a cada 20 min por empresa);
      • cobranças e avisos automáticos (mensagens do sistema);
      • documento novo que a Totali mandou ao portal;
      • documento que a equipe devolveu pedindo correção;
@@ -23,11 +25,14 @@
 "use strict";
 
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { abrir } = require("./chaves");
 
 const REGIAO = "southamerica-east1";
 const INTERVALO_CHAT_MS = 20 * 60 * 1000;
+/* mensagem da equipe só vira e-mail se o cliente não ler em 10 min (quem está no portal conversando não recebe nada) */
+const ESPERA_LEITURA_MS = 10 * 60 * 1000;
 const PORTAL_PADRAO = "https://totalicontabilidade.github.io/portaldocliente/";
 
 const PADRAO = {
@@ -108,32 +113,74 @@ async function destinatarios(db, empresaId) {
 
 function trecho(t, n) { t = String(t || "").trim(); return t.length > n ? t.slice(0, n - 1) + "…" : t; }
 
-/* 1. Mensagem da Totali no chat (da equipe ou automática) */
+/* 1. Mensagem da Totali no chat.
+   Automática (cobrança, resumo): e-mail na hora.
+   Da equipe: fica pendente em avisosPendentes/{empresa}; a rodada de 5 em 5 min manda só se ninguém da empresa leu em 10 min. */
 exports.avisarMensagemPorEmail = onDocumentCreated({ document: "empresas/{empresaId}/mensagens/{msgId}", region: REGIAO }, async (event) => {
   const m = (event.data && event.data.data()) || {};
   if (!m.autor || m.autor.lado !== "equipe") return;
   const db = getFirestore(), empresaId = event.params.empresaId;
   const cfg = await configuracao(db);
   if (!cfg || !cfg.ligado) return;
-  const automatica = !!m.autor.sistema, tipo = automatica ? "cobrancas" : "chat";
-  if (!cfg.eventos[tipo]) return;
-  /* conversa não vira enxurrada: 1 e-mail de chat a cada 20 min por empresa (automáticas sempre vão) */
-  const marca = db.doc("avisosEmail/" + empresaId);
+  const automatica = !!m.autor.sistema;
   if (!automatica) {
-    const ult = await marca.get();
-    const em = ult.exists ? Number((ult.data() || {}).ultimoChat) || 0 : 0;
-    if (Date.now() - em < INTERVALO_CHAT_MS) return;
+    if (!cfg.eventos.chat) return;
+    await db.doc("avisosPendentes/" + empresaId).set({ empresaId, desde: FieldValue.serverTimestamp(), msgs: FieldValue.arrayUnion(event.params.msgId) }, { merge: true })
+      .then(() => db.doc("avisosPendentes/" + empresaId).get())
+      .then((p) => { const d = p.data() || {}; if (d.primeira) return null; return p.ref.set({ primeira: Date.now() }, { merge: true }); });
+    return;
   }
+  if (!cfg.eventos.cobrancas) return;
   const para = await destinatarios(db, empresaId);
   if (!para.length) return;
   try {
-    await enviar(db, cfg, para, cfg.assuntos[tipo], {
-      titulo: automatica ? "Aviso da Totali" : (m.autor.nome || "A Totali") + " respondeu no portal",
-      texto: trecho(m.texto || (m.anexos && m.anexos.length ? "Mandamos um arquivo para você no chat." : ""), 900),
+    await enviar(db, cfg, para, cfg.assuntos.cobrancas, {
+      titulo: "Aviso da Totali",
+      texto: trecho(m.texto || "", 900),
       botao: "Abrir a conversa", link: cfg.linkPortal + "#/chat"
-    }, { tipo, empresaId });
-    if (!automatica) await marca.set({ ultimoChat: Date.now() }, { merge: true });
-  } catch (e) { console.error("e-mail do chat não saiu", empresaId, e && e.message); }
+    }, { tipo: "cobrancas", empresaId });
+  } catch (e) { console.error("e-mail de aviso automático não saiu", empresaId, e && e.message); }
+});
+
+/* Rodada de 5 em 5 min: mensagens da equipe que ninguém da empresa leu em 10 min viram um e-mail só. */
+exports.enviarAvisosDoChat = onSchedule({ schedule: "*/5 * * * *", timeZone: "America/Maceio", region: REGIAO }, async () => {
+  const db = getFirestore();
+  const pend = await db.collection("avisosPendentes").where("primeira", "<=", Date.now() - ESPERA_LEITURA_MS).limit(100).get();
+  if (pend.empty) return;
+  const cfg = await configuracao(db);
+  for (const p of pend.docs) {
+    const d = p.data() || {}, empresaId = d.empresaId || p.id;
+    try {
+      if (!cfg || !cfg.ligado || !cfg.eventos.chat) { await p.ref.delete(); continue; }
+      const emp = db.collection("empresas").doc(empresaId);
+      const acessos = await emp.collection("acessos").get();
+      const clientes = new Set(acessos.docs.map((a) => a.id));
+      const naoLidas = [];
+      for (const id of (d.msgs || []).slice(-20)) {
+        const s = await emp.collection("mensagens").doc(id).get();
+        if (!s.exists) continue;
+        const m = s.data() || {};
+        const leu = Object.keys(m.lidaPor || {}).some((uid) => clientes.has(uid));
+        if (!leu) naoLidas.push(m);
+      }
+      if (!naoLidas.length) { await p.ref.delete(); continue; }
+      /* conversa não vira enxurrada: no máximo 1 e-mail de chat a cada 20 min por empresa (a pendência espera) */
+      const marca = db.doc("avisosEmail/" + empresaId);
+      const ult = await marca.get();
+      if (Date.now() - (ult.exists ? Number((ult.data() || {}).ultimoChat) || 0 : 0) < INTERVALO_CHAT_MS) continue;
+      const para = acessos.docs.map((a) => a.data() || {}).filter((x) => x.email && x.avisosEmail !== false).map((x) => x.email);
+      await p.ref.delete();
+      if (!para.length) continue;
+      const ultima = naoLidas[naoLidas.length - 1];
+      const quem = (ultima.autor && ultima.autor.nome) || "A Totali";
+      await enviar(db, cfg, para, cfg.assuntos.chat, {
+        titulo: naoLidas.length > 1 ? "Você tem " + naoLidas.length + " mensagens da Totali" : quem + " respondeu no portal",
+        texto: trecho(ultima.texto || (ultima.anexos && ultima.anexos.length ? "Mandamos um arquivo para você no chat." : ""), 900) + (naoLidas.length > 1 ? "\n\n(e mais " + (naoLidas.length - 1) + " no chat)" : ""),
+        botao: "Abrir a conversa", link: cfg.linkPortal + "#/chat"
+      }, { tipo: "chat", empresaId });
+      await marca.set({ ultimoChat: Date.now() }, { merge: true });
+    } catch (e) { console.error("aviso de chat não saiu", empresaId, e && e.message); }
+  }
 });
 
 /* 2. Documento novo da Totali, ou documento devolvido para correção */
