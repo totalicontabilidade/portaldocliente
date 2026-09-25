@@ -36,7 +36,7 @@ const PADRAO = {
   ligado: true, hora: 10, diasUteis: true, envioLigado: true,
   envioCorpo: "Passando para lembrar que ainda {faltam}. É só abrir o portal, em Envio do mês, e anexar: dá para tirar foto pelo celular, e o item fecha sozinho. Qualquer dúvida, responda por aqui.",
   saudacaoCom: "Olá, {nome}!", saudacaoSem: "Olá!",
-  corpo: "Passando para lembrar que ainda {faltam} para concluirmos a entrada da sua empresa aqui na Totali.\n\nÉ só abrir o portal, em Entrada na Totali, e enviar: dá para tirar foto pelo celular. Se algum item não se aplica à sua empresa, marque \"não se aplica\". Qualquer dúvida, responda por aqui mesmo que a gente resolve."
+  corpo: "Passando para lembrar que ainda {faltam} para concluirmos a entrada da sua empresa aqui na Totali.\n\nÉ só abrir o portal, em Lista de documentos, e enviar: dá para tirar foto pelo celular. Se algum item não se aplica à sua empresa, marque \"não se aplica\". Qualquer dúvida, responda por aqui mesmo que a gente resolve."
 };
 const texto = (v, max) => (typeof v === "string" && v.trim() ? v.slice(0, max) : "");
 async function configuracao(db) {

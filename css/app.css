@@ -751,3 +751,10 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .sis-ed__logo { gap: 8px; }
 .sis-ed__logo-previa { display: inline-grid; place-items: center; min-width: 56px; min-height: 56px; }
 .sis-ed__logo-previa img { width: 56px; height: 56px; object-fit: contain; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+
+/* Chat do painel: copiar ou levar ao WhatsApp o texto que a Totali mandou (inclusive cobrança automática) */
+.msg__acoes { display: flex; gap: 4px; justify-content: flex-end; margin-top: 2px; opacity: .55; transition: opacity .15s ease; }
+.msg:hover .msg__acoes, .msg__acoes:focus-within { opacity: 1; }
+.msg__acoes button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text-2); }
+.msg__acoes button:hover { background: var(--muted); color: var(--foreground); }
+@media (hover: none) { .msg__acoes { opacity: 1; } }

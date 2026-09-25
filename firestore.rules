@@ -112,6 +112,31 @@ service cloud.firestore {
       allow list, update: if false;
     }
 
+    // ---------- Pedidos de e-mail (teste, cobrança pronta, convite) — enviados pela função avisos.js ----------
+    match /pedidosDeEmail/{id} {
+      allow create: if ehEquipe() && request.resource.data.pedidoPor == request.auth.uid && request.resource.data.size() <= 12;
+      allow get, delete: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      allow list, update: if false;
+    }
+
+    // ---------- Troca da chave do cofre (função cofre.js; só administrador) ----------
+    match /pedidosDeTrocaDeChave/{id} {
+      allow create: if ehAdmin() && request.resource.data.pedidoPor == request.auth.uid;
+      allow get: if ehAdmin();
+      allow list, update, delete: if false;
+    }
+
+    // ---------- Chave pública do cofre: pública por natureza (só tranca); quem grava é a função ----------
+    match /publico/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------- Configuração do e-mail: só administrador; a senha vai selada com a chave do cofre ----------
+    match /configPrivada/{doc} {
+      allow read, write: if ehAdmin();
+    }
+
     // ---------- Empresas ----------
     match /empresas/{empresaId} {
       allow read: if equipeOuDono(empresaId);
@@ -127,7 +152,8 @@ service cloud.firestore {
       match /acessos/{uid} {
         allow read: if equipeOuDono(empresaId);
         allow create: if logado() && request.auth.uid == uid;   // ao usar o convite
-        allow update: if (logado() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso'])) || ehEquipe();
+        // o cliente mexe só no que é dele: último acesso, avisos por e-mail e o WhatsApp para a Totali falar com ele
+        allow update: if (logado() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso', 'avisosEmail', 'whatsapp'])) || ehEquipe();
         allow delete: if ehEquipe();
       }
 

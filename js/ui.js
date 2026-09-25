@@ -171,7 +171,14 @@
       return '<div class="pilha" style="gap:8px">' + s + "</div>";
     },
     copiar: function (texto, aviso) {
-      return navigator.clipboard.writeText(texto).then(function () { UI.toast(aviso || "Copiado.", "ok"); }, function () { UI.toast("Não deu para copiar. Selecione e copie à mão.", "aviso"); });
+      /* plano B (navegador antigo ou área de transferência bloqueada): seleção + execCommand */
+      function classico() {
+        var t = document.createElement("textarea"); t.value = texto; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select();
+        var ok = false; try { ok = document.execCommand("copy"); } catch (e) {} t.remove(); return ok;
+      }
+      var fim = function (ok) { if (ok) UI.toast(aviso || "Copiado.", "ok"); else UI.toast("Não deu para copiar. Selecione e copie à mão.", "aviso"); return ok; };
+      if (!navigator.clipboard || !navigator.clipboard.writeText) return Promise.resolve(fim(classico()));
+      return navigator.clipboard.writeText(texto).then(function () { return fim(true); }, function () { return fim(classico()); });
     },
     /* Título da aba com contador de não lidas */
     titulo: function (base, n) { document.title = (n ? "(" + n + ") " : "") + base; },

@@ -54,27 +54,14 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const { abrirEnvelope, fecharPara } = require("./envelope");
+const { fecharPara } = require("./envelope");
 
 const REGIAO = "southamerica-east1";
-const SEGREDO = "chave-privada-credenciais";
 
-/* A chave é lida uma vez por instância e fica na memória dela.
-   Buscar no Secret Manager a cada pedido custaria uma chamada de
-   rede por senha aberta, sem ganho nenhum de segurança. */
-let chaveCache = null;
-
-async function chavePrivada() {
-  if (chaveCache) return chaveCache;
-  const { SecretManagerServiceClient } = require("@google-cloud/secret-manager");
-  const cliente = new SecretManagerServiceClient();
-  const projeto = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
-  const [versao] = await cliente.accessSecretVersion({
-    name: `projects/${projeto}/secrets/${SEGREDO}/versions/latest`
-  });
-  chaveCache = JSON.parse(versao.payload.data.toString("utf8"));
-  return chaveCache;
-}
+/* As chaves privadas (todas as versões ativas do segredo, a mais nova primeiro) ficam
+   em functions/chaves.js: depois que a chave passou a ser trocável pelo painel, uma
+   credencial pode estar na chave nova ou, por instantes, ainda na velha. */
+const { abrir } = require("./chaves");
 
 exports.abrirCredencial = onDocumentCreated(
   { document: "pedidosDeSenha/{pedidoId}", region: REGIAO },
@@ -113,7 +100,7 @@ exports.abrirCredencial = onDocumentCreated(
 
     let conteudo;
     try {
-      conteudo = abrirEnvelope(pacote, await chavePrivada());
+      conteudo = await abrir(pacote);
     } catch (e) {
       console.error("falha ao abrir credencial", empresaId, chave, e && e.message);
       return responder({ erro: "não foi possível abrir esta credencial" });
@@ -252,7 +239,7 @@ exports.trocarSenhaDeMembro = onDocumentCreated(
 
     let conteudo;
     try {
-      conteudo = abrirEnvelope(pedido.pacote, await chavePrivada());
+      conteudo = await abrir(pedido.pacote);
     } catch (e) {
       console.error("falha ao abrir a senha selada", e && e.message);
       return responder({ erro: "não foi possível abrir a senha enviada" });

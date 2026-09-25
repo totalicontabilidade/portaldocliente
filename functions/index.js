@@ -7,6 +7,9 @@
    lembretes.js   cobrança automática da entrada, no ritmo da jornada
    resumo.js      resumo mensal de uso e resumo do mês para o cliente
    exclusao.js    apaga a conta de login de cliente encerrado
+   cofre.js       troca a chave do cofre pelo painel (recifra tudo)
+   avisos.js      avisos por e-mail ao cliente (SMTP configurado no painel)
+   (chaves.js e envelope.js são peças, não funções)
 
    Publicar: firebase deploy --only functions
    Região: southamerica-east1 (São Paulo), igual ao Academy.
@@ -21,3 +24,5 @@ Object.assign(exports, require("./senhas"));
 Object.assign(exports, require("./lembretes"));
 Object.assign(exports, require("./resumo"));
 Object.assign(exports, require("./exclusao"));
+Object.assign(exports, require("./cofre"));
+Object.assign(exports, require("./avisos"));

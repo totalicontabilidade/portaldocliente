@@ -107,7 +107,10 @@
           (m.texto ? texto(m.texto) : "") +
           ((m.anexos || []).length ? '<div class="msg__anexos">' + m.anexos.map(anexoHtml).join("") + "</div>" : "") +
           (so ? "" : '<div class="msg__hora">' + U.hora(m.em) + (doMeuLado ? '<span class="' + (lida ? "lida" : "") + '">' + ic(lida ? "checkcheck" : "check", "ic--sm") + "</span>" : "") + "</div>") +
-        "</div>" + (reacoes ? '<div class="msg__reacoes">' + reacoes + "</div>" : "") + "</div></div>";
+        "</div>" + (reacoes ? '<div class="msg__reacoes">' + reacoes + "</div>" : "") +
+        /* no painel, texto da Totali (inclusive cobrança automática) sai daqui para o WhatsApp ou onde for */
+        (eu.lado === "equipe" && m.autor.lado === "equipe" && m.texto ? '<div class="msg__acoes"><button type="button" data-copiar="' + m.id + '">' + ic("copy", "ic--sm") + 'Copiar</button><button type="button" data-wa="' + m.id + '">' + ic("whatsapp", "ic--sm") + "WhatsApp</button></div>" : "") +
+        "</div></div>";
     }
     function desenhar() {
       if (!mensagens.length) { lista.innerHTML = '<div class="chat__vazio">' + ic("chat", "ic--xl") + "<b>" + (eu.lado === "cliente" ? "Fale com a sua equipe" : "Nenhuma mensagem ainda") + "</b><span>" + (eu.lado === "cliente" ? "Respondemos em horário comercial. Pode mandar áudio, foto ou arquivo." : "Comece a conversa com o cliente.") + "</span></div>"; return; }
@@ -123,6 +126,13 @@
     lista.addEventListener("click", function (e) {
       var a = e.target.closest("[data-anexo]");
       if (a) { e.preventDefault(); var anexo = acharAnexo(a.dataset.anexo); if (anexo) Dados.urlAnexo(anexo).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Arquivo indisponível.", "aviso"); }); return; }
+      var cp = e.target.closest("[data-copiar], [data-wa]");
+      if (cp) {
+        var msg = mensagens.filter(function (x) { return x.id === (cp.dataset.copiar || cp.dataset.wa); })[0];
+        if (msg && cp.dataset.copiar) UI.copiar(msg.texto, "Texto copiado.");
+        else if (msg) global.open("https://wa.me/" + (opts.whatsapp || "") + "?text=" + encodeURIComponent(msg.texto), "_blank", "noopener");
+        return;
+      }
       var r = e.target.closest("[data-reagir]");
       if (r) { Dados.reagir(empresaId, r.dataset.msg, r.dataset.reagir, eu.uid); return; }
       var b = e.target.closest(".msg__bolha");

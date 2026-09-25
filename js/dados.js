@@ -494,6 +494,12 @@
       guardarImagemVitrine: function (campanhaId, blob) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res({ url: r.result, path: "" }); }; r.onerror = rej; r.readAsDataURL(blob); }); },
       removerImagemVitrine: function () { return ok(true); },
       guardarLogoSistema: function (sistemaId, blob) { return Local.guardarImagemVitrine(sistemaId, blob); },
+      /* demonstração: não há servidor; responde como se tivesse dado certo */
+      pedirAoServidor: function (colecao, dados, ms, aoMudar) { return new Promise(function (res) { setTimeout(function () { res(colecao === "pedidosDeTrocaDeChave" ? { impressao: "DEMO 0000 0000 0000", recifradas: 0, falhas: 0, demo: true } : { enviados: 1, demo: true }); }, 700); }); },
+      configEmail: function () { carregar(); return ok(db.conteudo.__email || null); },
+      chaveDoCofre: function () { return ok(null); },
+      salvarConfigEmail: function (c) { carregar(); db.conteudo.__email = Object.assign({}, db.conteudo.__email || {}, c); gravar("conteudo"); return ok(true); },
+      salvarMeuAcesso: function (empresaId, uid, dados) { carregar(); var e = db.empresas[empresaId]; (e && e.acessos || []).forEach(function (a) { if (a.uid === uid) Object.assign(a, dados); }); gravar("empresa", empresaId); return ok(true); },
       removerLogoSistema: function () { return ok(true); },
       registrarVitrine: function (ev) { return Local.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
 
@@ -562,6 +568,12 @@
     } catch (e) { console.warn("App Check", e); }
     var auth = app.auth(), db = app.firestore(), storage = app.storage();
     var TS = fb.firestore.FieldValue.serverTimestamp;
+    /* Chave pública do cofre: desde 25/09/2026 ela é trocada pelo painel e publicada em publico/cofre
+       (leitura aberta: só tranca). O js/chave-publica.js fica como reserva até a primeira troca. */
+    global.CHAVE_PUBLICA_PRONTA = db.collection("publico").doc("cofre").get().then(function (s) {
+      var d = s.exists ? s.data() : null;
+      if (d && d.chavePublica && d.chavePublica.n) global.CHAVE_PUBLICA = d.chavePublica;
+    }).catch(function () {});
     var usuario = null, perfilCache = null;
     var listeners = [];
 
@@ -760,6 +772,29 @@
       },
       removerImagemVitrine: function (path) { return path ? storage.ref(path).delete().catch(function () {}) : Promise.resolve(); },
       /* logo de sistema: sistemas/{id}/logo-{ts}.{ext} no Storage (só a equipe grava; qualquer pessoa logada lê) */
+      /* Pedido ao servidor (e-mail, troca da chave do cofre): grava, espera a função responder e devolve a resposta.
+         Mesmo padrão dos pedidos de senha: onCall é proibido pela política da organização. */
+      pedirAoServidor: function (colecao, dados, ms, aoMudar) {
+        var ref = db.collection(colecao).doc();
+        return ref.set(Object.assign({ pedidoPor: auth.currentUser.uid, em: TS() }, dados)).then(function () {
+          return new Promise(function (res, rej) {
+            var off = function () {};
+            var t = setTimeout(function () { off(); rej(new Error("O servidor não respondeu a tempo. Tente de novo em instantes.")); }, ms || 60000);
+            off = ref.onSnapshot(function (s) {
+              var d = s.data() || {};
+              if (aoMudar) aoMudar(d);
+              if (!d.concluidoEm) return;
+              clearTimeout(t); off();
+              if (colecao === "pedidosDeEmail") ref.delete().catch(function () {});
+              if (d.erro) rej(new Error(d.erro)); else res(d);
+            }, function (e) { clearTimeout(t); rej(e); });
+          });
+        });
+      },
+      chaveDoCofre: function () { return db.collection("publico").doc("cofre").get().then(function (s) { return s.exists ? s.data() : null; }); },
+      configEmail: function () { return db.collection("configPrivada").doc("email").get().then(function (s) { return s.exists ? s.data() : null; }); },
+      salvarConfigEmail: function (c) { return db.collection("configPrivada").doc("email").set(Object.assign({}, c, { atualizadoEm: TS() }), { merge: true }); },
+      salvarMeuAcesso: function (empresaId, uid, dados) { return subcol(empresaId, "acessos").doc(uid).update(dados); },
       guardarLogoSistema: function (sistemaId, blob) {
         var ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
         var caminho = "sistemas/" + sistemaId + "/logo-" + Date.now() + "." + ext, ref = storage.ref(caminho);
@@ -818,7 +853,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

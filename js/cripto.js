@@ -113,6 +113,10 @@
 
     /* ---------- Cifrar (no aparelho do cliente) ---------- */
     cifrar: function (objeto) {
+      /* espera a chave pública publicada no banco (trocada pelo painel) antes de trancar */
+      return Promise.resolve(global.CHAVE_PUBLICA_PRONTA).then(function () { return Cripto.cifrarAgora(objeto); });
+    },
+    cifrarAgora: function (objeto) {
       if (!Cripto.configurada) return Promise.reject(new Error("canal-nao-configurado"));
 
       var texto = JSON.stringify(objeto);
