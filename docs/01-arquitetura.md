@@ -93,7 +93,7 @@ O sistema de controle da equipe que o Raoni está desenvolvendo grava em `empres
 
 ### Liberações por cliente
 
-`empresas/{id}.liberacoes[sistemaId] = {ativo, desde, ate, plano}`. O portal só mostra como "liberado" o que está ativo e dentro da validade; o resto vira prévia com botão de interesse. `ate` permite o reverse trial (Checklist com 30 dias de cortesia ao cadastrar).
+`empresas/{id}.liberacoes[sistemaId] = {ativo, desde, ate, plano}`. O portal só mostra como "liberado" o que está ativo e dentro da validade; o resto vira prévia com botão de interesse. `ate` permite cortesia por prazo. O Envio do mês não passa por liberação: é parte do portal, aberto para toda empresa (decisão de 25/09/2026); prazos anteriores à entrada da empresa não entram na lista nem são cobrados. Sistemas novos, logo, cor, ícone e textos são criados no painel (Conteúdo › Sistemas → conteudo/catalogo).
 
 ### Envio do mês (antes "Checklist do mês")
 

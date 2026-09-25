@@ -70,7 +70,9 @@
     if (salvo && anoMes !== U.anoMes(Date.now())) itens = antigos;
     else {
       var porId = {}; antigos.forEach(function (a) { porId[a.id] = a; });
-      var base = itensPara(empresa);
+      /* prazo que venceu antes de a empresa entrar na Totali não é cobrado (quem entra dia 25 não começa atrasado) */
+      var inicio = U.ms(empresa.aceiteEm) || U.ms(empresa.criadaEm) || 0;
+      var base = itensPara(empresa).filter(function (i) { return (porId[i.id] && porId[i.id].feito) || prazoMs(anoMes, i.prazoDia) >= inicio; });
       itens = base.map(function (i) { return porId[i.id] ? Object.assign({}, porId[i.id], { texto: i.texto, prazoDia: i.prazoDia, grupo: i.grupo }) : novo(i); });
       antigos.forEach(function (a) { if (a.feito && !base.some(function (b) { return b.id === a.id; })) itens.push(a); });
     }

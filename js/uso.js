@@ -106,7 +106,7 @@
       var C = global.CATALOGO;
       return U.csv(linhas.map(function (r) {
         var s = C.por(r.sistemaId);
-        return [r.empresa, r.empresaId, s ? s.nome : r.sistemaId, r.aberturas, Math.round(r.segundos / 60), r.diasAtivos, r.qtdPessoas, Object.keys(r.pessoas).map(function (k) { return r.pessoas[k]; }).join(", "), r.ultimo ? U.dataHora(r.ultimo) : "", r.celular, r.computador];
+        return [r.empresa, r.empresaId, global.CATALOGO ? global.CATALOGO.nomeDe(r.sistemaId) : r.sistemaId, r.aberturas, Math.round(r.segundos / 60), r.diasAtivos, r.qtdPessoas, Object.keys(r.pessoas).map(function (k) { return r.pessoas[k]; }).join(", "), r.ultimo ? U.dataHora(r.ultimo) : "", r.celular, r.computador];
       }), ["Empresa", "Id", "Sistema", "Aberturas", "Minutos", "Dias ativos", "Pessoas", "Quem", "Último uso", "No celular", "No computador"]);
     }
   };

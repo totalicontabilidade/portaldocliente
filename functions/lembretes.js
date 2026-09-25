@@ -154,7 +154,8 @@ exports.cobrarEnvio = onSchedule({ schedule: "30 * * * *", timeZone: "America/Ma
     const salvo = await ref.get(); const reg = salvo.exists ? salvo.data() : {};
     const ultimo = ms(reg.avisoAutomaticoEm); if (ultimo && Date.now() - ultimo < DIAS_ENTRE_AVISOS * DIA) continue;
     const feitos = new Set((reg.itens || []).filter((i) => i.feito).map((i) => i.id));
-    const atrasados = catalogo.filter((i) => valePara(i, e) && !feitos.has(i.id) && Date.now() > new Date(ano, mes - 1, i.prazoDia, 23, 59, 59).getTime() + TOLERANCIA_DIAS * DIA);
+    const inicio = ms(e.aceiteEm) || ms(e.criadaEm) || 0; /* prazo vencido antes de a empresa entrar não se cobra */
+    const atrasados = catalogo.filter((i) => { const prazo = new Date(ano, mes - 1, i.prazoDia, 23, 59, 59).getTime(); return valePara(i, e) && !feitos.has(i.id) && prazo >= inicio && Date.now() > prazo + TOLERANCIA_DIAS * DIA; });
     if (!atrasados.length) continue;
     const primeiro = acessos.docs[0].data().nome || "";
     const saud = primeiro ? cfg.saudacaoCom.replace("{nome}", primeiro.split(" ")[0]) : cfg.saudacaoSem;

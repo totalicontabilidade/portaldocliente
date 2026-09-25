@@ -43,7 +43,7 @@
       var d = novo(J), y = cabecalho(d, "Ficha do cliente", U.data(Date.now()));
       y = blocoEmpresa(d, e, y);
       var O = global.Onboarding, prog = O ? O.progresso({ entrada: en }) : { feitos: 0, total: 0, pct: 0 };
-      y = paragrafo(d, "Entrada: " + prog.feitos + " de " + prog.total + " itens (" + prog.pct + "%). Senhas guardadas no cofre não constam deste documento.", y, 10);
+      y = paragrafo(d, "Entrada: " + prog.feitos + " de " + prog.total + (prog.total === 1 ? " item (" : " itens (") + prog.pct + "%). Senhas guardadas no cofre não constam deste documento.", y, 10);
       GRUPOS.forEach(function (g) {
         y = titulo(d, g.titulo + (en.gruposNA && en.gruposNA[g.id] ? " · não se aplica" : ""), y);
         if (en.gruposNA && en.gruposNA[g.id]) return;
