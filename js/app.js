@@ -321,6 +321,7 @@
      por 14 dias. Vive na sidebar (desktop), no Início e em Sistemas.
      ============================================================ */
   var Banners = {
+    _vistos: {},
     itens: function (campanhas) {
       var lista = (campanhas || []).map(function (c) { var s = CATALOGO.por(c.sistemaId); return { id: c.id, sistema: s, titulo: c.titulo, texto: c.texto, cta: c.cta || "Conhecer", campanha: true, imagem: c.imagem && c.imagem.url ? c.imagem.url : "" }; });
       var perfis = empresa.perfis || [], st = Vitrine.estado();
@@ -354,7 +355,9 @@
       function desenhar() {
         var it = itens[i % itens.length];
         alvos.forEach(function (a) { if (!document.body.contains(a)) return; a.innerHTML = Banners.html(it, a.id === "bannerSidebar" || compacto) + (itens.length > 1 ? '<div class="banner__pontos">' + itens.map(function (_, k) { return '<i' + (k === i % itens.length ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : ""); });
-        Uso.vitrine(it.id, it.sistema.id, "impressao");
+        /* conta a impressão uma vez por banner em cada abertura do portal, não a cada rodízio de 9 s
+           (aba esquecida aberta gravava ~400 registros por hora) */
+        if (!Banners._vistos[it.id]) { Banners._vistos[it.id] = true; Uso.vitrine(it.id, it.sistema.id, "impressao"); }
       }
       desenhar();
       Banners._timer = setInterval(function () { if (document.hidden) return; i++; desenhar(); }, 9000);
