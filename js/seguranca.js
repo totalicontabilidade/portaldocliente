@@ -6,8 +6,8 @@
    do Storage, o App Check e as Cloud Functions (docs/02-seguranca.md).
    Este arquivo cuida do que só o navegador pode fazer:
 
-     1. Sessão ociosa encerra sozinha (cliente 30 min, equipe 20 min),
-        com aviso 60 s antes. Celular esquecido aberto não é porta.
+     1. A sessão fica aberta até a pessoa tocar em Sair (não expira
+        por inatividade).
      2. A página recusa ser embutida por outro site (clickjacking).
         A CSP em <meta> não aceita frame-ancestors; então é aqui.
      3. Senha nova: tamanho mínimo, variedade e conferência contra a
@@ -27,18 +27,9 @@
   /* Só outra ORIGEM é clickjacking; uma prévia interna (design/) na mesma origem pode embutir. */
   try { if (global.top !== global.self && global.top.location.origin !== global.location.origin) { global.top.location = global.self.location; } } catch (e) { try { global.top.location = global.self.location; } catch (e2) { document.documentElement.innerHTML = ""; } }
 
-  /* ---------- 1. Sessão ociosa ---------- */
-  var LIMITES = { cliente: 30 * 60000, equipe: 20 * 60000, admin: 20 * 60000 };
-  var ultimaAtividade = Date.now(), avisoEl = null, avisado = false;
-  function papel() { var s = global.Dados && global.Dados.sessao(); return s ? s.papel : ""; }
-  function atividade() { ultimaAtividade = Date.now(); if (avisado) { avisado = false; if (avisoEl) { avisoEl.remove(); avisoEl = null; } } }
-  ["pointerdown", "keydown", "scroll", "touchstart"].forEach(function (ev) { document.addEventListener(ev, atividade, { passive: true }); });
-  setInterval(function () {
-    var p = papel(); if (!p) return;
-    var limite = LIMITES[p] || LIMITES.cliente, ocioso = Date.now() - ultimaAtividade;
-    if (ocioso >= limite) { avisado = false; if (avisoEl) { avisoEl.remove(); avisoEl = null; } location.hash = "#/sair"; return; }
-    if (ocioso >= limite - 60000 && !avisado) { avisado = true; avisoEl = UI.toast("Por segurança, sua sessão encerra em 1 minuto sem atividade. Toque na tela para continuar.", "aviso", null, 60000); }
-  }, 5000);
+  /* ---------- 1. Sessão ---------- */
+  /* Sem encerramento por inatividade (pedido do Raoni, 25/09/2026): a sessão fica aberta até a pessoa tocar em Sair.
+     Continuam valendo: segredos do cofre somem ao trocar de aba (item 4) e Sair limpa o aparelho (item 5). */
 
   /* ---------- 4. Segredos na tela ---------- */
   function esconderSegredos() {
@@ -82,5 +73,5 @@
     try { sessionStorage.clear(); } catch (e) {}
   }
 
-  global.Seguranca = { avaliarSenha: avaliarSenha, senhaVazada: senhaVazada, copiarSegredo: copiarSegredo, esconderSegredos: esconderSegredos, limparAparelho: limparAparelho, LIMITES: LIMITES };
+  global.Seguranca = { avaliarSenha: avaliarSenha, senhaVazada: senhaVazada, copiarSegredo: copiarSegredo, esconderSegredos: esconderSegredos, limparAparelho: limparAparelho };
 })(window);

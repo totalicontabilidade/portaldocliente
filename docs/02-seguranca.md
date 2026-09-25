@@ -9,7 +9,7 @@
 | Cliente A lê dados do cliente B | manipular o navegador, chamar a API direto | regras do Firestore e do Storage por empresa; nenhuma consulta sem `empresaId` do vínculo |
 | Alguém de fora escreve no banco | API do Firebase é pública por natureza | regras negam tudo por padrão; App Check exige que a chamada venha do nosso site |
 | Roubo de senha do cliente | phishing, vazamento em outro site | conferência contra senhas vazadas (HIBP), mínimo de 10 caracteres, bloqueio de tentativas do Firebase, sessão ociosa encerra |
-| Roubo de conta da equipe | é o pior caso: abre senhas de clientes | 2FA obrigatória (decisão sua, seção 4), sessão de 20 min, toda abertura de senha registrada e recifrada para a aba |
+| Roubo de conta da equipe | é o pior caso: abre senhas de clientes | 2FA obrigatória (decisão sua, seção 4), toda abertura de senha registrada e recifrada para a aba |
 | Vazamento de senhas guardadas | banco, backup, aparelho do cliente | criptografia ponta a ponta: cifra no aparelho, abre só a Cloud Function com a privada no Secret Manager; no banco só há envelope |
 | XSS (script injetado pela tela) | texto de mensagem, nome de arquivo, campo de cadastro | todo texto passa por `U.esc()`; CSP sem `unsafe-inline` em script e sem CDN; links só https |
 | Clickjacking | embutir o portal num site malicioso | `X-Frame-Options: DENY` no hosting + frame-busting em `js/seguranca.js` |
@@ -23,7 +23,7 @@
 - **Regras** (`firestore.rules`, `storage.rules`): negam tudo por padrão; validam quem é equipe, quem é dono, tamanho de documento, tipos de arquivo, campos permitidos em cada atualização (o cliente só muda `canalPreferido`, `formaRelatorio`, `marcos`, `feedback30` e os passos dele na jornada).
 - **CSP** em cada página: só a própria origem, sem scripts inline, sem CDN; conexões só com Firebase, App Check e HIBP.
 - **App Check** ligado no código (`js/dados.js`): basta a chave reCAPTCHA em `js/firebase-config.js`. Sem App Check, qualquer script com a apiKey fala com o projeto; com ele, só o nosso site.
-- **Sessões separadas** para portal e painel, e encerramento por inatividade (`js/seguranca.js`).
+- **Sessões separadas** para portal e painel; a sessão fica aberta até a pessoa tocar em Sair (sem encerramento por inatividade, decisão de 25/09/2026).
 - **Senhas novas** conferidas contra vazamentos e política mínima.
 - **Cofre de senhas** ponta a ponta, abertura registrada, segredo some ao perder o foco.
 - **Cabeçalhos HTTP** de proteção em `firebase.json` (HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP/CORP). Valem no Firebase Hosting; o GitHub Pages não deixa configurar cabeçalhos.
