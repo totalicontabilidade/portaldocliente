@@ -333,10 +333,11 @@
       });
       return lista;
     },
-    html: function (it, compacto) {
+    html: function (it, compacto, lateral) {
       var s = it.sistema;
-      /* campanha com arte própria: a imagem inteira é o banner (clicável); o título vira o texto alternativo */
-      if (it.imagem) return '<div class="banner banner--imagem' + (compacto ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '">' +
+      /* campanha com arte própria: a imagem inteira é o banner (clicável); o título vira o texto alternativo.
+         Só no menu lateral ela é recortada no centro (4:3); no Início e em Sistemas aparece inteira. */
+      if (it.imagem) return '<div class="banner banner--imagem' + (lateral ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '">' +
         '<button type="button" class="banner__fechar" data-acao="banner-fechar" aria-label="Agora não">' + ic("x", "ic--sm") + "</button>" +
         '<a class="banner__arte" href="#/sistemas/' + s.id + '" data-acao="banner-clique"><img src="' + U.esc(it.imagem) + '" alt="' + U.esc(it.titulo) + '" loading="lazy"></a></div>';
       return '<div class="banner' + (compacto ? " banner--compacto" : "") + '" data-id="' + U.esc(it.id) + '" data-sistema="' + s.id + '" style="--cor:' + s.cor + '">' +
@@ -354,7 +355,7 @@
       var i = itens[0] && itens[0].campanha ? 0 : Math.floor(Math.random() * itens.length);
       function desenhar() {
         var it = itens[i % itens.length];
-        alvos.forEach(function (a) { if (!document.body.contains(a)) return; a.innerHTML = Banners.html(it, a.id === "bannerSidebar" || compacto) + (itens.length > 1 ? '<div class="banner__pontos">' + itens.map(function (_, k) { return '<i' + (k === i % itens.length ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : ""); });
+        alvos.forEach(function (a) { if (!document.body.contains(a)) return; a.innerHTML = Banners.html(it, a.id === "bannerSidebar" || compacto, a.id === "bannerSidebar") + (itens.length > 1 ? '<div class="banner__pontos">' + itens.map(function (_, k) { return '<i' + (k === i % itens.length ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : ""); });
         /* conta a impressão uma vez por banner em cada abertura do portal, não a cada rodízio de 9 s
            (aba esquecida aberta gravava ~400 registros por hora) */
         if (!Banners._vistos[it.id]) { Banners._vistos[it.id] = true; Uso.vitrine(it.id, it.sistema.id, "impressao"); }

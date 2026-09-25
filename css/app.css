@@ -706,5 +706,17 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .banner--imagem > .banner__fechar { position: absolute; top: 8px; right: 8px; left: auto; z-index: 2; background: rgba(15, 23, 42, .55); color: #fff; }
 .banner--imagem .banner__fechar:hover { background: rgba(15, 23, 42, .75); }
 .imagem-banner { display: grid; place-items: center; min-height: 90px; padding: 8px; border: 1px dashed var(--border); border-radius: 12px; background: var(--muted); margin-bottom: 6px; }
-.imagem-banner img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 8px; }
+.imagem-banner > img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 8px; }
 .vitrine__miniatura { display: block; width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 10px; margin-top: 10px; border: 1px solid var(--border); }
+
+/* Prévia da arte no editor da Vitrine: quadro com o recorte do menu lateral marcado + como fica em cada lugar */
+.imagem-banner:has(.previa-arte) { display: block; }
+.imagem-banner__quadro { position: relative; overflow: hidden; border-radius: 8px; line-height: 0; }
+.imagem-banner__quadro img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; }
+.imagem-banner__guia { position: absolute; top: 0; bottom: 0; left: 22.2%; width: 55.6%; border: 2px dashed #fff; border-radius: 4px; box-shadow: 0 0 0 999px rgba(15, 23, 42, .5); pointer-events: none; }
+.previa-arte { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; align-items: start; margin-top: 12px; }
+.previa-arte__lugar { display: grid; gap: 6px; min-width: 0; }
+.previa-arte__rotulo { font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--text-2); }
+.previa-arte__menu { padding: 10px; border-radius: 10px; background: var(--sidebar); }
+.previa-arte .banner { margin: 0; pointer-events: none; }
+@media (max-width: 559px) { .previa-arte { grid-template-columns: 1fr; } .previa-arte__lugar--lateral { max-width: 220px; } }
