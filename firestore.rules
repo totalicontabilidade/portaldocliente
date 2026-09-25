@@ -44,17 +44,31 @@ service cloud.firestore {
       allow create, update, delete: if ehAdmin();
     }
 
+    // O convite depois do lote (getAfter): usado por esta pessoa. Um link pode valer para várias empresas (empresas[]).
+    function conviteUsadoPorMim(codigo) {
+      return codigo is string && getAfter(/databases/$(database)/documents/convites/$(codigo)).data.usadoPor == request.auth.uid;
+    }
+    function empresasDoConvite(codigo) { return getAfter(/databases/$(database)/documents/convites/$(codigo)).data.empresas; }
+
     // ---------- Clientes (vínculo uid → empresas) ----------
     match /clientes/{uid} {
       allow read: if logado() && request.auth.uid == uid || ehEquipe();
-      // criado só ao usar o convite (ver /convites); o cliente pode trocar a empresa atual
+      // criado só ao usar o convite, com exatamente as empresas do convite
       allow create: if logado() && request.auth.uid == uid && tamanhoOk()
-                    && request.resource.data.keys().hasOnly(['nome', 'email', 'empresas', 'empresaAtual', 'criadoEm'])
-                    && request.resource.data.empresas is list && request.resource.data.empresas.size() == 1
+                    && request.resource.data.keys().hasOnly(['nome', 'email', 'empresas', 'empresaAtual', 'criadoEm', 'convite'])
+                    && conviteUsadoPorMim(request.resource.data.convite)
+                    && request.resource.data.empresas is list
+                    && request.resource.data.empresas.toSet() == empresasDoConvite(request.resource.data.convite).toSet()
+                    && request.resource.data.empresaAtual in request.resource.data.empresas
                     && request.resource.data.email == request.auth.token.email;
-      allow update: if logado() && request.auth.uid == uid
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresaAtual'])
-                    && request.resource.data.empresaAtual in resource.data.empresas;
+      // o cliente troca a empresa atual entre as suas; ou, usando outro convite, soma as empresas dele
+      allow update: if logado() && request.auth.uid == uid && (
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresaAtual'])
+                        && request.resource.data.empresaAtual in resource.data.empresas)
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresas', 'empresaAtual', 'ultimoConvite'])
+                        && conviteUsadoPorMim(request.resource.data.ultimoConvite)
+                        && request.resource.data.empresas.toSet() == resource.data.empresas.toSet().union(empresasDoConvite(request.resource.data.ultimoConvite).toSet())
+                        && request.resource.data.empresaAtual in request.resource.data.empresas));
       allow delete: if ehAdmin();
     }
 
@@ -62,11 +76,17 @@ service cloud.firestore {
     match /convites/{codigo} {
       allow get: if true;
       allow list: if ehEquipe();
-      allow create: if ehEquipe() && request.resource.data.usado == false && codigo.size() >= 20;
-      allow update: if logado() && resource.data.usado == false
-                    && request.resource.data.usado == true
-                    && request.resource.data.usadoPor == request.auth.uid
-                    && request.resource.data.empresaId == resource.data.empresaId;
+      allow create: if ehEquipe() && request.resource.data.usado == false && codigo.size() >= 20
+                    && request.resource.data.empresas is list && request.resource.data.empresaId in request.resource.data.empresas;
+      // quem usa: queima o convite sem mexer nas empresas; a equipe: muda as empresas enquanto não foi usado
+      allow update: if (logado() && resource.data.usado == false
+                        && request.resource.data.usado == true
+                        && request.resource.data.usadoPor == request.auth.uid
+                        && request.resource.data.empresaId == resource.data.empresaId
+                        && request.resource.data.empresas == resource.data.empresas)
+                    || (ehEquipe() && resource.data.usado == false
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresas', 'nomes', 'empresa'])
+                        && request.resource.data.empresas is list && request.resource.data.empresaId in request.resource.data.empresas);
       allow delete: if ehAdmin();
     }
 
@@ -151,7 +171,11 @@ service cloud.firestore {
 
       match /acessos/{uid} {
         allow read: if equipeOuDono(empresaId);
-        allow create: if logado() && request.auth.uid == uid;   // ao usar o convite
+        // ao usar o convite: só com convite usado por esta pessoa e que inclua ESTA empresa
+        // (antes de 25/09/2026 bastava estar logado: qualquer um podia se incluir numa empresa sabendo o id)
+        allow create: if logado() && request.auth.uid == uid
+                      && conviteUsadoPorMim(request.resource.data.convite)
+                      && empresaId in empresasDoConvite(request.resource.data.convite);
         // o cliente mexe só no que é dele: último acesso, avisos por e-mail e o WhatsApp para a Totali falar com ele
         allow update: if (logado() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso', 'avisosEmail', 'whatsapp'])) || ehEquipe();
         allow delete: if ehEquipe();

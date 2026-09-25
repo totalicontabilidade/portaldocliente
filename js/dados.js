@@ -338,17 +338,31 @@
         gravar("liberacao", empresaId);
         return ok(e.liberacoes[sistemaId]);
       },
-      criarConvite: function (empresaId, por) { carregar(); var c = U.codigo(22); db.convites[c] = { empresaId: empresaId, criadoEm: Date.now(), por: por.nome, usado: false }; gravar("convite"); return ok(c); },
-      convite: function (codigo) { carregar(); var c = db.convites[codigo]; if (!c || c.usado) return ok(null); var e = db.empresas[c.empresaId]; return ok({ codigo: codigo, empresaId: c.empresaId, empresa: e ? e.fantasia : "" }); },
+      /* um link pode valer para várias empresas da mesma pessoa (empresas[]; a primeira é a que abre) */
+      criarConvite: function (empresaId, por, extras) { carregar(); var c = U.codigo(22), emps = U.unicos([empresaId].concat(extras || [])); db.convites[c] = { empresaId: empresaId, empresas: emps, criadoEm: Date.now(), por: por.nome, usado: false }; gravar("convite"); return ok(c); },
+      atualizarConviteEmpresas: function (codigo, empresas) { carregar(); var c = db.convites[codigo]; if (!c || c.usado) return Promise.reject(new Error("Convite já usado.")); c.empresas = U.unicos([c.empresaId].concat(empresas || [])); gravar("convite"); return ok(c.empresas); },
+      convite: function (codigo) { carregar(); var c = db.convites[codigo]; if (!c || c.usado) return ok(null); var emps = c.empresas || [c.empresaId]; var nomes = emps.map(function (id) { var e = db.empresas[id]; return e ? e.fantasia : ""; }); return ok({ codigo: codigo, empresaId: c.empresaId, empresas: emps, nomes: nomes, empresa: nomes[0] }); },
+      nomesEmpresas: function (ids) { carregar(); return ok((ids || []).map(function (id) { var e = db.empresas[id]; return { id: id, nome: e ? e.fantasia : id }; })); },
+      entrarComConvite: function (codigo, email) {
+        carregar(); var c = db.convites[codigo]; if (!c || c.usado) return Promise.reject(new Error("Convite inválido ou já usado."));
+        var uid = Object.keys(db.clientes).filter(function (k) { return String(db.clientes[k].email).toLowerCase() === String(email).trim().toLowerCase(); })[0];
+        if (!uid) return Promise.reject(new Error("Não achamos conta com este e-mail. Use Criar meu acesso."));
+        var cl = db.clientes[uid], emps = c.empresas || [c.empresaId];
+        emps.forEach(function (id) { if ((cl.empresas || []).indexOf(id) > -1) return; cl.empresas.push(id); var e = db.empresas[id]; e.acessos = e.acessos || []; e.acessos.push({ uid: uid, nome: cl.nome, email: cl.email, criadoEm: Date.now(), ultimoAcesso: Date.now() }); });
+        c.usado = true; c.usadoEm = Date.now(); gravar("acesso", c.empresaId);
+        var s = { uid: uid, nome: cl.nome, email: cl.email, papel: "cliente", empresas: cl.empresas.slice(), empresaId: c.empresaId };
+        definirSessao(s); return ok(s);
+      },
       usarConvite: function (codigo, dados) {
         carregar(); var c = db.convites[codigo]; if (!c || c.usado) return Promise.reject(new Error("Convite inválido ou já usado."));
         var uid = "cli_" + U.id().slice(-8);
-        db.clientes[uid] = { uid: uid, nome: dados.nome, email: String(dados.email).toLowerCase(), empresas: [c.empresaId], papel: "cliente" };
-        var e = db.empresas[c.empresaId]; e.acessos = e.acessos || []; e.acessos.push({ uid: uid, nome: dados.nome, email: dados.email, criadoEm: Date.now(), ultimoAcesso: Date.now() });
+        var emps = c.empresas || [c.empresaId];
+        db.clientes[uid] = { uid: uid, nome: dados.nome, email: String(dados.email).toLowerCase(), empresas: emps.slice(), papel: "cliente" };
+        emps.forEach(function (id) { var e = db.empresas[id]; if (!e) return; e.acessos = e.acessos || []; e.acessos.push({ uid: uid, nome: dados.nome, email: dados.email, criadoEm: Date.now(), ultimoAcesso: Date.now() }); });
         c.usado = true; c.usadoEm = Date.now();
         db.auditoria.push({ id: U.id("a"), empresaId: c.empresaId, tipo: "acesso:criado", por: dados.nome, em: Date.now(), detalhe: dados.email });
         gravar("acesso", c.empresaId);
-        var s = { uid: uid, nome: dados.nome, email: dados.email, papel: "cliente", empresas: [c.empresaId], empresaId: c.empresaId };
+        var s = { uid: uid, nome: dados.nome, email: dados.email, papel: "cliente", empresas: emps.slice(), empresaId: c.empresaId };
         definirSessao(s);
         return ok(s);
       },
@@ -568,6 +582,7 @@
     } catch (e) { console.warn("App Check", e); }
     var auth = app.auth(), db = app.firestore(), storage = app.storage();
     var TS = fb.firestore.FieldValue.serverTimestamp;
+    function nomesDe(ids) { return Promise.all(ids.map(function (id) { return db.collection("empresas").doc(id).get().then(function (s) { return s.exists ? (s.data().fantasia || s.data().nome || "") : ""; }).catch(function () { return ""; }); })); }
     /* Chave pública do cofre: desde 25/09/2026 ela é trocada pelo painel e publicada em publico/cofre
        (leitura aberta: só tranca). O js/chave-publica.js fica como reserva até a primeira troca. */
     global.CHAVE_PUBLICA_PRONTA = db.collection("publico").doc("cofre").get().then(function (s) {
@@ -638,22 +653,54 @@
         var o = {}; o["liberacoes." + sistemaId] = Object.assign({ desde: Date.now() }, dados);
         return db.collection("empresas").doc(empresaId).update(o).then(function () { return anotar(empresaId, dados.ativo ? "liberacao:ativada" : "liberacao:desativada", sistemaId, por.uid); });
       },
-      criarConvite: function (empresaId, por) { var c = U.codigo(22); return db.collection("empresas").doc(empresaId).get().then(function (s) { return db.collection("convites").doc(c).set({ empresaId: empresaId, empresa: s.exists ? (s.data().fantasia || s.data().nome || "") : "", criadoEm: TS(), por: por.uid, usado: false }); }).then(function () { return c; }); },
-      convite: function (codigo) { return db.collection("convites").doc(codigo).get().then(function (s) { var c = docData(s); if (!c || c.usado) return null; /* quem chega pelo link não está logado: o nome vem do próprio convite; sem ele, tenta a empresa e aceita não conseguir */ if (c.empresa) return { codigo: codigo, empresaId: c.empresaId, empresa: c.empresa }; return db.collection("empresas").doc(c.empresaId).get().then(function (e) { return { codigo: codigo, empresaId: c.empresaId, empresa: e.exists ? e.data().fantasia : "" }; }).catch(function () { return { codigo: codigo, empresaId: c.empresaId, empresa: "sua empresa" }; }); }); },
-      usarConvite: function (codigo, dados) {
-        var empresaId, email = String(dados.email || "").trim().toLowerCase();
+      /* Convite: empresaId é a que abre primeiro; empresas[] são todas as que o link libera (pessoa com várias
+         empresas). nomes[] vai junto porque quem abre o link ainda não está logado e não lê as empresas. */
+      criarConvite: function (empresaId, por, extras) {
+        var c = U.codigo(22), emps = U.unicos([empresaId].concat(extras || []));
+        return nomesDe(emps).then(function (nomes) { return db.collection("convites").doc(c).set({ empresaId: empresaId, empresas: emps, empresa: nomes[0], nomes: nomes, criadoEm: TS(), por: por.uid, usado: false }); }).then(function () { return c; });
+      },
+      atualizarConviteEmpresas: function (codigo, empresas) {
+        var ref = db.collection("convites").doc(codigo);
+        return ref.get().then(function (s) { var c = docData(s); if (!c || c.usado) throw new Error("Convite já usado."); var emps = U.unicos([c.empresaId].concat(empresas || [])); return nomesDe(emps).then(function (nomes) { return ref.update({ empresas: emps, nomes: nomes, empresa: nomes[0] }).then(function () { return emps; }); }); });
+      },
+      nomesEmpresas: function (ids) { return nomesDe(ids || []).then(function (n) { return (ids || []).map(function (id, i) { return { id: id, nome: n[i] || id }; }); }); },
+      /* Quem já tem conta usa o link entrando com a senha: as empresas do convite somam às que já tinha. */
+      entrarComConvite: function (codigo, email, senha) {
+        var c;
         return db.collection("convites").doc(codigo).get().then(function (s) {
-          var c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado."); empresaId = c.empresaId;
+          c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado.");
+          return auth.signInWithEmailAndPassword(String(email).trim().toLowerCase(), senha).catch(function (e) { throw new Error(e && (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential" || e.code === "auth/invalid-login-credentials") ? "E-mail ou senha não conferem." : (e && e.message || "Não foi possível entrar.")); });
+        }).then(function (cred) {
+          var uid = cred.user.uid, refCli = db.collection("clientes").doc(uid);
+          return refCli.get().then(function (cs) {
+            if (!cs.exists) throw new Error("Esta conta não é de cliente do portal.");
+            var cl = cs.data(), atuais = cl.empresas || [], emps = c.empresas || [c.empresaId];
+            var novas = emps.filter(function (id) { return atuais.indexOf(id) === -1; });
+            var lote = db.batch();
+            lote.update(db.collection("convites").doc(codigo), { usado: true, usadoEm: TS(), usadoPor: uid });
+            if (novas.length) {
+              lote.update(refCli, { empresas: atuais.concat(novas), empresaAtual: c.empresaId, ultimoConvite: codigo });
+              novas.forEach(function (id) { lote.set(subcol(id, "acessos").doc(uid), { nome: cl.nome || "", email: cl.email, criadoEm: TS(), ultimoAcesso: TS(), convite: codigo }); });
+            }
+            return lote.commit();
+          });
+        }).then(function () { perfilCache = null; return perfil(); });
+      },
+      convite: function (codigo) { return db.collection("convites").doc(codigo).get().then(function (s) { var c = docData(s); if (!c || c.usado) return null; /* quem chega pelo link não está logado: o nome vem do próprio convite; sem ele, tenta a empresa e aceita não conseguir */ if (c.empresa) return { codigo: codigo, empresaId: c.empresaId, empresa: c.empresa, empresas: c.empresas || [c.empresaId], nomes: c.nomes || [c.empresa] }; return db.collection("empresas").doc(c.empresaId).get().then(function (e) { return { codigo: codigo, empresaId: c.empresaId, empresa: e.exists ? e.data().fantasia : "" }; }).catch(function () { return { codigo: codigo, empresaId: c.empresaId, empresa: "sua empresa" }; }); }); },
+      usarConvite: function (codigo, dados) {
+        var empresaId, empresasConv, email = String(dados.email || "").trim().toLowerCase();
+        return db.collection("convites").doc(codigo).get().then(function (s) {
+          var c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado."); empresaId = c.empresaId; empresasConv = c.empresas || [c.empresaId];
           return auth.createUserWithEmailAndPassword(email, dados.senha).catch(function (e) {
-            if (e && e.code === "auth/email-already-in-use") throw new Error("Este e-mail já tem uma conta. Entre pela tela de login com a sua senha, ou use \"Esqueci a senha\".");
+            if (e && e.code === "auth/email-already-in-use") { var x = new Error("Este e-mail já tem conta no portal. Toque em \"Já tenho conta\" e entre com a sua senha: as empresas deste convite entram na sua conta."); x.jaTemConta = true; throw x; }
             if (e && e.code === "auth/weak-password") throw new Error("Senha fraca demais para o Firebase. Use pelo menos 10 caracteres.");
             throw e;
           });
         }).then(function (cred) {
           var uid = cred.user.uid, lote = db.batch();
           /* o e-mail gravado precisa ser o mesmo do token (as regras conferem), por isso em minúsculas */
-          lote.set(db.collection("clientes").doc(uid), { nome: dados.nome, email: email, empresas: [empresaId], empresaAtual: empresaId, criadoEm: TS() });
-          lote.set(subcol(empresaId, "acessos").doc(uid), { nome: dados.nome, email: email, criadoEm: TS(), ultimoAcesso: TS() });
+          lote.set(db.collection("clientes").doc(uid), { nome: dados.nome, email: email, empresas: empresasConv, empresaAtual: empresaId, criadoEm: TS(), convite: codigo });
+          empresasConv.forEach(function (id) { lote.set(subcol(id, "acessos").doc(uid), { nome: dados.nome, email: email, criadoEm: TS(), ultimoAcesso: TS(), convite: codigo }); });
           lote.update(db.collection("convites").doc(codigo), { usado: true, usadoEm: TS(), usadoPor: uid });
           return lote.commit().catch(function (e) {
             /* não deixa conta pela metade: sem vínculo, apaga o login recém-criado para o convite poder ser usado de novo */
@@ -853,7 +900,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

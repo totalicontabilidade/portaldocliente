@@ -758,3 +758,13 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .msg__acoes button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--text-2); }
 .msg__acoes button:hover { background: var(--muted); color: var(--foreground); }
 @media (hover: none) { .msg__acoes { opacity: 1; } }
+
+/* Troca de empresa (pessoa com mais de uma empresa no portal) */
+.topbar__empresa { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--foreground); font-size: 13px; font-weight: 700; }
+.topbar__empresa span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar__empresa:hover { border-color: var(--gold); }
+@media (max-width: 639px) { .topbar__empresa { max-width: 140px; padding: 0 8px; } }
+.sidebar__troca { display: flex; align-items: center; gap: 8px; width: calc(100% - 4px); margin: 2px 2px 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .06); color: #fff; font-size: 12px; font-weight: 700; text-align: left; }
+.sidebar__troca span { flex: 1; }
+.sidebar__troca:hover { background: rgba(255, 255, 255, .12); }
+.sidebar[data-mini] .sidebar__troca span, .sidebar[data-mini] .sidebar__troca .ic:last-child { display: none; }

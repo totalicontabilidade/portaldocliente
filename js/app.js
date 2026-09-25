@@ -92,10 +92,21 @@
     abrirFeedback: function () { abrirFeedback(); }, telaInicio: function () { telaInicio(); }, sair: function () { sair(); }
   };
 
+  /* Pessoa com várias empresas: escolhe aqui (topo da tela, menu lateral e Perfil). Recarrega para tudo
+     (chat, avisos, documentos) passar a olhar a empresa nova. */
+  function escolherEmpresa() {
+    Dados.nomesEmpresas(sessao.empresas || []).then(function (lista) {
+      UI.modal({ titulo: "Trocar de empresa", corpo: '<p class="f-13 txt-2">Você acompanha estas empresas no portal. Escolha qual abrir.</p><div class="pilha mt-8" style="gap:6px">' + lista.map(function (x) { var atual = x.id === empresa.id; return '<button type="button" class="btn ' + (atual ? "btn--primario" : "btn--contorno") + ' btn--bloco" style="justify-content:flex-start" data-emp="' + U.esc(x.id) + '"' + (atual ? ' aria-current="true"' : "") + ">" + ic("building", "ic--sm") + U.esc(x.nome) + (atual ? ' <span class="f-12" style="margin-left:auto;opacity:.8">aberta agora</span>' : "") + "</button>"; }).join("") + "</div>", acoes: [{ rotulo: "Fechar" }] });
+      setTimeout(function () {
+        UI.$$(".modal [data-emp]").forEach(function (b) { b.addEventListener("click", function () { var id = b.dataset.emp; if (id === empresa.id) { var f = UI.$(".modal .modal__fechar"); if (f) f.click(); return; } b.disabled = true; Dados.trocarEmpresa(id).then(function () { location.hash = "#/inicio"; location.reload(); }); }); });
+      }, 0);
+    });
+  }
   function montarShell() {
     document.body.classList.add("logado");
     Shell.montar({
       raiz: app, org: empresa.fantasia, usuario: sessao, titulo: "Início",
+      trocaEmpresa: (sessao.empresas || []).length > 1, aoTrocarEmpresa: escolherEmpresa,
       nav: [
         { grupo: "Minha empresa", itens: [
           { href: "#/inicio", rotulo: "Início", icone: "home" },
@@ -225,13 +236,35 @@
     Dados.convite(codigo).then(function (c) {
       var caixa = UI.$("#caixaConvite");
       if (!c) { caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Convite inválido</h1><p class="sub">Este link já foi usado ou não existe. Peça um novo à sua equipe na Totali.</p><a class="btn btn--primario" href="#/entrar">Ir para o login</a>'; return; }
-      caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Criar meu acesso</h1><p class="sub">Você foi convidado para o portal de <b>' + U.esc(c.empresa) + "</b>. Crie sua senha: a partir daqui você entra com e-mail e senha, de qualquer aparelho.</p>" +
+      var nomes = (c.nomes && c.nomes.length ? c.nomes : [c.empresa]).filter(Boolean), quais = nomes.map(function (n) { return "<b>" + U.esc(n) + "</b>"; });
+      var paraQuem = quais.length > 1 ? "das empresas " + quais.slice(0, -1).join(", ") + " e " + quais[quais.length - 1] : "de " + (quais[0] || "sua empresa");
+      caixa.innerHTML = '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente"><h1>Criar meu acesso</h1><p class="sub">Você foi convidado para o portal ' + paraQuem + ". Crie sua senha: a partir daqui você entra com e-mail e senha, de qualquer aparelho." + (quais.length > 1 ? " Dentro do portal você troca de uma empresa para outra pelo topo da tela." : "") + "</p>" +
         '<form id="formConvite" class="pilha" novalidate>' +
         '<div class="campo"><label class="campo__rotulo" for="nome">Seu nome</label><input class="input" id="nome" required autocomplete="name"></div>' +
         '<div class="campo"><label class="campo__rotulo" for="email">Seu e-mail</label><input class="input" id="email" type="email" required autocomplete="email"></div>' +
         '<div class="campo"><label class="campo__rotulo" for="senha">Crie uma senha</label><input class="input" id="senha" type="password" required minlength="10" autocomplete="new-password"><span class="campo__ajuda">Mínimo de 10 caracteres, misturando letras e números. Conferimos contra senhas vazadas.</span></div>' +
         '<p class="campo__erro" id="erroConvite" hidden role="alert"></p>' +
-        '<button class="btn btn--primario btn--bloco" type="submit" style="height:44px">Criar acesso e entrar</button></form>';
+        '<button class="btn btn--primario btn--bloco" type="submit" style="height:44px">Criar acesso e entrar</button>' +
+        '<button type="button" class="btn btn--fantasma btn--bloco" id="jaTenho">Já tenho conta no portal</button></form>' +
+        /* quem já usa o portal (outra empresa) entra com a senha de sempre e as empresas do convite somam às dele */
+        '<form id="formJaTenho" class="pilha" novalidate hidden><p class="f-13 txt-2">Entre com o e-mail e a senha que você já usa no portal. ' + (quais.length > 1 ? "As empresas deste convite" : "A empresa deste convite") + " passa" + (quais.length > 1 ? "m" : "") + ' a aparecer na sua conta.</p>' +
+        '<div class="campo"><label class="campo__rotulo" for="emailJa">Seu e-mail</label><input class="input" id="emailJa" type="email" required autocomplete="email"></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="senhaJa">Sua senha</label><input class="input" id="senhaJa" type="password" required autocomplete="current-password"></div>' +
+        '<p class="campo__erro" id="erroJa" hidden role="alert"></p>' +
+        '<button class="btn btn--primario btn--bloco" type="submit" style="height:44px">Entrar e adicionar</button>' +
+        '<button type="button" class="btn btn--fantasma btn--bloco" id="criarNovo">Ainda não tenho conta</button></form>';
+      function modoJaTenho(sim, email, aviso) {
+        UI.$("#formConvite").hidden = sim; UI.$("#formJaTenho").hidden = !sim; UI.$("h1", caixa).textContent = sim ? "Entrar e adicionar" : "Criar meu acesso";
+        if (sim) { if (email) UI.$("#emailJa").value = email; var ej = UI.$("#erroJa"); ej.hidden = !aviso; ej.textContent = aviso || ""; UI.$(email ? "#senhaJa" : "#emailJa").focus(); }
+      }
+      UI.$("#jaTenho").addEventListener("click", function () { modoJaTenho(true, UI.$("#email").value.trim()); });
+      UI.$("#criarNovo").addEventListener("click", function () { modoJaTenho(false); });
+      UI.$("#formJaTenho").addEventListener("submit", function (e) {
+        e.preventDefault(); var erro = UI.$("#erroJa"), email = UI.$("#emailJa").value.trim(), senha = UI.$("#senhaJa").value;
+        if (!U.emailValido(email) || !senha) { erro.textContent = "Informe o e-mail e a senha."; erro.hidden = false; return; }
+        Dados.entrarComConvite(codigo, email, senha).then(function (s) { sessao = s; empresa = null; history.replaceState(null, "", location.pathname); location.hash = "#/inicio"; rotear(); UI.vibrar(); })
+          .catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+      });
       UI.$("#formConvite").addEventListener("submit", function (e) {
         e.preventDefault();
         var nome = UI.$("#nome").value.trim(), email = UI.$("#email").value.trim(), senha = UI.$("#senha").value, erro = UI.$("#erroConvite");
@@ -240,7 +273,7 @@
         global.Seguranca.senhaVazada(senha).then(function (vazou) {
           if (vazou) { erro.textContent = "Essa senha já apareceu em vazamentos na internet. Escolha outra."; erro.hidden = false; return; }
           return Dados.usarConvite(codigo, { nome: nome, email: email, senha: senha }).then(function (s) { sessao = s; empresa = null; history.replaceState(null, "", location.pathname); location.hash = "#/inicio"; rotear(); UI.vibrar(); })
-          .catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+          .catch(function (err) { if (err && err.jaTemConta) return modoJaTenho(true, email, err.message); erro.textContent = err.message; erro.hidden = false; });
         });
       });
     }).catch(function (err) {
@@ -716,7 +749,7 @@
           '<label class="interruptor"><input type="checkbox" id="pEmail"' + (meu.avisosEmail !== false ? " checked" : "") + '><span class="interruptor__pista"></span>' + ic("mail") + " Avisos por e-mail</label>" +
           '<p class="f-12 txt-mudo">Chegam em ' + U.esc(sessao.email) + ": mensagem nova da Totali, documento para corrigir e lembretes de prazo.</p>" +
           '<div class="campo"><span class="campo__rotulo">Como quer receber os relatórios do mês</span><div class="segmentos" id="relatorios">' + [["portal", "No portal"], ["email", "E-mail"], ["whatsapp", "WhatsApp"]].map(function (c) { return '<button type="button" data-v="' + c[0] + '" aria-pressed="' + (empresa.formaRelatorio === c[0]) + '">' + c[1] + "</button>"; }).join("") + "</div></div>" +
-          (sessao.empresas && sessao.empresas.length > 1 ? '<div class="campo"><label class="campo__rotulo" for="emp">Empresa</label><select class="select" id="emp">' + sessao.empresas.map(function (id) { return '<option value="' + id + '"' + (id === empresa.id ? " selected" : "") + ">" + id + "</option>"; }).join("") + "</select></div>" : "") +
+          (sessao.empresas && sessao.empresas.length > 1 ? '<div class="campo"><span class="campo__rotulo">Empresa aberta</span><div class="linha" style="gap:8px"><b>' + U.esc(empresa.fantasia) + '</b><button type="button" class="btn btn--sm btn--contorno" data-acao="trocar-emp">' + ic("building", "ic--sm") + "Trocar de empresa</button></div><span class=\"campo__ajuda\">Você acompanha " + sessao.empresas.length + " empresas no portal.</span></div>" : "") +
         "</div></div>" +
         '<div class="card"><div class="card__cab"><h2>Aparência e avisos</h2></div><div class="card__corpo pilha" style="padding-top:10px">' +
           '<div class="campo"><span class="campo__rotulo">Tema</span><div class="segmentos" id="tema">' + [["claro", "sun", "Claro"], ["escuro", "moon", "Escuro"], ["sistema", "monitor", "Sistema"]].map(function (t) { return '<button type="button" data-v="' + t[0] + '" aria-pressed="' + (tema === t[0]) + '">' + ic(t[1], "ic--sm") + " " + t[2] + "</button>"; }).join("") + "</div></div>" +
@@ -736,10 +769,9 @@
     segm("tema", function (val) { global.Tema.definir(val); Shell.redesenhar(); telaPerfil(); });
     UI.$("#pSom", v).addEventListener("change", function () { UI.definirPref("som", this.checked); if (this.checked) UI.som("enviado"); });
     UI.$("#pHap", v).addEventListener("change", function () { UI.definirPref("haptica", this.checked); if (this.checked) UI.vibrar(); });
-    var emp = UI.$("#emp", v); if (emp) emp.addEventListener("change", function () { Dados.trocarEmpresa(this.value).then(function (s) { sessao = s; empresa = null; location.hash = "#/inicio"; rotear(); }); });
     var pAv = UI.$("#pAvisos", v); if (pAv) pAv.addEventListener("change", function () { var el = this; if (el.checked) { global.Notificacoes.pedir().then(function (p) { UI.definirPref("avisos", p === "granted"); if (p !== "granted") { el.checked = false; UI.toast("Avisos não autorizados pelo navegador.", "aviso"); } }); } else UI.definirPref("avisos", false); });
     UI.$("#pEmail", v).addEventListener("change", function () { var val = this.checked; Dados.salvarMeuAcesso(empresa.id, sessao.uid, { avisosEmail: val }).then(function () { meu.avisosEmail = val; UI.toast(val ? "Avisos por e-mail ligados." : "Avisos por e-mail desligados.", "ok"); }).catch(function () { UI.toast("Não foi possível salvar agora.", "erro"); }); });
-    UI.delegar(v, { "salvar-whats": function () { var inp = UI.$("#meuWhats", v), n = inp.value.replace(/\D/g, ""); if (n && (n.length < 10 || n.length > 13)) { UI.toast("Confira o número: DDD e telefone.", "aviso"); inp.focus(); return; } Dados.salvarMeuAcesso(empresa.id, sessao.uid, { whatsapp: inp.value.trim() }).then(function () { meu.whatsapp = inp.value.trim(); UI.toast(n ? "WhatsApp salvo." : "WhatsApp removido.", "ok"); }).catch(function () { UI.toast("Não foi possível salvar agora.", "erro"); }); },
+    UI.delegar(v, { "trocar-emp": function () { escolherEmpresa(); }, "salvar-whats": function () { var inp = UI.$("#meuWhats", v), n = inp.value.replace(/\D/g, ""); if (n && (n.length < 10 || n.length > 13)) { UI.toast("Confira o número: DDD e telefone.", "aviso"); inp.focus(); return; } Dados.salvarMeuAcesso(empresa.id, sessao.uid, { whatsapp: inp.value.trim() }).then(function () { meu.whatsapp = inp.value.trim(); UI.toast(n ? "WhatsApp salvo." : "WhatsApp removido.", "ok"); }).catch(function () { UI.toast("Não foi possível salvar agora.", "erro"); }); },
       tour: function () { location.hash = "#/inicio"; setTimeout(function () { global.Tour.iniciar("portal-inicio"); }, 500); }, instalar: function () { if (global.__instalar) { global.__instalar.prompt(); global.__instalar = null; } }, sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Apaga os dados fictícios deste navegador e recria a semente.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.hash = "#/entrar"; location.reload(); }); }); } });
   }
 

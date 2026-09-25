@@ -40,6 +40,7 @@
           '<img class="sidebar__simbolo" src="assets/brand/simbolo.png" alt="">' +
           '<span class="sidebar__org">' + U.esc(estado.org) + "</span></a>" +
           '<button type="button" class="sidebar__recolher" data-acao="recolher" aria-label="Recolher menu">' + ic("chevron-left", "ic--sm") + "</button></div>" +
+        (estado.trocaEmpresa ? '<button type="button" class="sidebar__troca" data-acao="trocar-empresa" title="Trocar de empresa">' + ic("building", "ic--sm") + "<span>Trocar de empresa</span>" + ic("chevron-right", "ic--sm") + "</button>" : "") +
         grupos + '<div class="esp"></div>' +
         (estado.destaque || "") +
         '<a class="sidebar__item" href="#/perfil" title="Perfil e preferências">' + ic("settings") + "<span>" + (estado.usuario && estado.usuario.papel !== "cliente" ? "Configurações" : "Perfil") + "</span></a>" +
@@ -61,6 +62,7 @@
       '<div class="topbar__titulo" id="topbarTitulo">' + U.esc(estado.titulo) + "</div>" +
       (estado.busca ? '<button type="button" class="topbar__busca" data-acao="busca" aria-label="Buscar">' + ic("search") + "<span>Buscar cliente ou tela…</span><kbd>Ctrl K</kbd></button>" : "") +
       '<div class="topbar__esp"></div>' +
+      (estado.trocaEmpresa ? '<button type="button" class="topbar__empresa" data-acao="trocar-empresa" title="Trocar de empresa" aria-label="Empresa aberta: ' + U.esc(estado.org) + '. Trocar de empresa">' + ic("building", "ic--sm") + "<span>" + U.esc(estado.org) + "</span>" + ic("chevron-down", "ic--sm") + "</button>" : "") +
       '<button type="button" class="topbar__btn" data-acao="tema" aria-label="Alternar tema" title="Claro / escuro">' + ic(Tema.escuro() ? "sun" : "moon") + "</button>" +
       '<a class="topbar__btn" href="' + (u.papel === "cliente" ? "#/chat" : "#/mensagens") + '" aria-label="Mensagens">' + ic("bell") + (bChat ? '<span class="pontinho">' + (bChat > 99 ? "99+" : bChat) + "</span>" : "") + "</a>" +
       '<a class="topbar__avatar" href="#/perfil" aria-label="Perfil">' + UI.avatar(u.nome || "?", "avatar--sm " + (u.papel === "cliente" ? "" : "avatar--gold")) + "<span>" + U.esc(U.primeiroNome(u.nome)) + "</span></a>" +
@@ -97,13 +99,26 @@
       raiz = opts.raiz; Object.assign(estado, opts);
       try { estado.mini = localStorage.getItem("totali-portal-mini") === "1"; } catch (e) {}
       desenhar();
-      UI.delegar(raiz, {
+      /* Ouvinte FIXO na raiz, e não UI.delegar: a casca se redesenha sozinha a cada badge (mensagem nova) e o
+         UI.delegar se desliga quando o conteúdo é trocado; com ele, Menu, tema e busca paravam de responder
+         depois do primeiro badge (achado no checkup de 25/09/2026). Cliques dentro da tela (#view) são das telas. */
+      var acoes = {
         menu: function () { UI.$("#gaveta").setAttribute("open", ""); },
         "fechar-menu": function () { UI.$("#gaveta").removeAttribute("open"); },
         recolher: function () { estado.mini = !estado.mini; try { localStorage.setItem("totali-portal-mini", estado.mini ? "1" : "0"); } catch (e) {} UI.$$(".sidebar", raiz).forEach(function (s) { s.toggleAttribute("data-mini", estado.mini); }); },
         tema: function (b) { Tema.alternar(); b.innerHTML = ic(Tema.escuro() ? "sun" : "moon"); },
-        busca: function () { if (estado.aoBuscar) estado.aoBuscar(); }
-      });
+        busca: function () { if (estado.aoBuscar) estado.aoBuscar(); },
+        "trocar-empresa": function () { if (estado.aoTrocarEmpresa) estado.aoTrocarEmpresa(); }
+      };
+      if (!raiz._cascaLigada) {
+        raiz._cascaLigada = true;
+        raiz.addEventListener("click", function (e) {
+          var alvo = e.target.closest("[data-acao]");
+          if (!alvo || !raiz.contains(alvo) || alvo.closest("#view")) return;
+          var fn = acoes[alvo.dataset.acao];
+          if (fn) { e.preventDefault(); fn(alvo, e); }
+        });
+      }
       global.addEventListener("hashchange", function () { desenharAtivo(); if (estado.aoNavegar) estado.aoNavegar(rota()); });
       document.addEventListener("keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && estado.aoBuscar) { e.preventDefault(); estado.aoBuscar(); } });
     },

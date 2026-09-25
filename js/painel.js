@@ -260,9 +260,30 @@
   function linkConvite(codigo) { return location.origin + location.pathname.replace(/equipe\.html$/, "") + "index.html#/convite/" + codigo; }
   function mostrarConvite(e, codigo) {
     var link = linkConvite(codigo);
-    var msg = "Olá! Aqui é da Totali. Criamos o portal da " + e.fantasia + ". Entre por este link para criar sua senha e acompanhar seus primeiros 30 dias com a gente: " + link;
-    UI.modal({ titulo: "Convite do portal · " + e.fantasia, corpo: '<p class="f-13 txt-2">O link vale uma vez: ao abrir, o cliente cria a senha e o convite é queimado.</p><div class="codigo mt-8">' + U.esc(link) + '</div><div class="campo mt-12"><span class="campo__rotulo">Mensagem sugerida</span><textarea class="textarea" id="msgConv">' + U.esc(msg) + '</textarea></div><div class="campo"><label class="campo__rotulo" for="convEmail">E-mail do cliente (para enviar por e-mail)</label><input class="input" id="convEmail" type="email" placeholder="cliente@empresa.com.br"></div>',
+    /* Pessoa com mais de uma empresa: o mesmo link libera todas as marcadas; no portal ela troca pelo topo da tela. */
+    var outras = empresas.filter(function (x) { return x.id !== e.id && x.ativa !== false; }).sort(function (a, b) { return String(a.fantasia).localeCompare(String(b.fantasia)); });
+    var escolhidas = [e.id];
+    function textoConvite() {
+      var nomes = escolhidas.map(function (id) { var x = empresas.filter(function (y) { return y.id === id; })[0]; return x ? x.fantasia : ""; }).filter(Boolean);
+      var quais = nomes.length > 1 ? "das empresas " + nomes.slice(0, -1).join(", ") + " e " + nomes[nomes.length - 1] : "da " + nomes[0];
+      return "Olá! Aqui é da Totali. Criamos o portal " + quais + ". Entre por este link para criar sua senha" + (nomes.length > 1 ? " (se você já usa o portal, é só entrar com a sua senha)" : "") + " e acompanhar seus primeiros 30 dias com a gente: " + link;
+    }
+    var msg = textoConvite();
+    UI.modal({ titulo: "Convite do portal · " + e.fantasia, corpo: '<p class="f-13 txt-2">O link vale uma vez: ao abrir, o cliente cria a senha e o convite é queimado.</p><div class="codigo mt-8">' + U.esc(link) + "</div>" +
+      (outras.length ? '<details class="mt-12 convite-outras"><summary class="f-13 f-800" style="cursor:pointer">' + ic("building", "ic--sm") + ' A mesma pessoa tem outras empresas na Totali?</summary><div class="campo__ajuda mt-4">Marque as outras empresas dela: este mesmo link libera todas. No portal ela troca de empresa pelo topo da tela.</div>' + (outras.length > 8 ? '<input class="input mt-8" id="convBusca" placeholder="Buscar empresa…" aria-label="Buscar empresa">' : "") + '<div class="pilha mt-8" id="convOutras" style="gap:4px;max-height:180px;overflow:auto">' + outras.map(function (x) { return '<label class="checar" data-nome="' + U.esc(String(x.fantasia).toLowerCase()) + '"><input type="checkbox" value="' + x.id + '"> ' + U.esc(x.fantasia) + ' <span class="f-12 txt-2">' + U.esc(x.cnpj || "") + "</span></label>"; }).join("") + "</div></details>" : "") +
+      '<div class="campo mt-12"><span class="campo__rotulo">Mensagem sugerida</span><textarea class="textarea" id="msgConv">' + U.esc(msg) + '</textarea></div><div class="campo"><label class="campo__rotulo" for="convEmail">E-mail do cliente (para enviar por e-mail)</label><input class="input" id="convEmail" type="email" placeholder="cliente@empresa.com.br"></div>',
       acoes: [{ rotulo: "Copiar link", icone: "copy", manter: true, ao: function () { UI.copiar(link, "Link copiado."); } }, { rotulo: "Copiar mensagem", icone: "copy", manter: true, ao: function (c) { UI.copiar(c.querySelector("#msgConv").value, "Mensagem copiada."); } }, { rotulo: "Abrir no WhatsApp", classe: "btn--gold", icone: "whatsapp", manter: true, ao: function (c) { global.open("https://wa.me/" + whatsappDe(e) + "?text=" + encodeURIComponent(c.querySelector("#msgConv").value), "_blank", "noopener"); } }, { rotulo: "Enviar por e-mail", icone: "mail", manter: true, ao: function (c) { var para = c.querySelector("#convEmail").value.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para)) { UI.toast("Informe o e-mail do cliente.", "aviso"); c.querySelector("#convEmail").focus(); return; } UI.toast("Enviando o convite…", "info"); Dados.pedirAoServidor("pedidosDeEmail", { tipo: "convite", para: para, empresaId: e.id, texto: c.querySelector("#msgConv").value, link: link }, 60000).then(function () { UI.toast("Convite enviado para " + para + ".", "ok"); }).catch(function (err) { UI.toast(err.message, "erro", null, 9000); }); } }, { rotulo: "Ir para a ficha", classe: "btn--primario", ao: function () { location.hash = "#/clientes/" + e.id; } }] });
+    setTimeout(function () { ligarConviteOutras(codigo, e, function (emps) { escolhidas = emps; var t = document.getElementById("msgConv"); if (t) t.value = textoConvite(); }); }, 0);
+  }
+
+  function ligarConviteOutras(codigo, e, aoMudar) {
+    var lista = document.getElementById("convOutras"); if (!lista) return;
+    lista.addEventListener("change", function () {
+      var marcadas = Array.prototype.map.call(lista.querySelectorAll("input:checked"), function (i) { return i.value; });
+      Dados.atualizarConviteEmpresas(codigo, marcadas).then(function (emps) { aoMudar(emps); UI.toast(emps.length > 1 ? "O link agora vale para " + emps.length + " empresas." : "O link vale só para " + e.fantasia + ".", "ok"); }).catch(function (err) { UI.toast("Não foi possível mudar o convite: " + err.message, "erro"); });
+    });
+    var busca = document.getElementById("convBusca");
+    if (busca) busca.addEventListener("input", function () { var q = busca.value.trim().toLowerCase(); Array.prototype.forEach.call(lista.children, function (l) { l.hidden = q && l.dataset.nome.indexOf(q) === -1; }); });
   }
 
   /* ---------- Ficha do cliente ---------- */

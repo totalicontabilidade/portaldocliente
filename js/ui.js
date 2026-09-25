@@ -189,11 +189,15 @@
        seu ouvinte lá, e um clique disparava a ação de todas as telas já visitadas (bug de 23/09/2026: um
        "Enviar" virou 8 envios e a navegação ficava mais lenta a cada tela). O ouvinte lembra qual conteúdo
        existia quando foi ligado; se o conteúdo foi trocado, ele se desliga sozinho. */
+    /* Um ouvinte de cliques por área. Ele se desliga só quando a MESMA área foi ligada de novo (tela
+       redesenhada que chamou delegar outra vez) E o conteúdo de quando ele nasceu já saiu: assim um clique
+       não dispara 2, 3 vezes (ouvintes acumulados), e áreas que trocam o conteúdo sozinhas sem religar
+       (banner que gira, casca com badge) continuam respondendo. */
     delegar: function (raiz, mapa) {
-      var dono = raiz.firstElementChild;
+      var dono = raiz.firstElementChild, geracao = raiz._delegar = (raiz._delegar || 0) + 1;
       function h(e) {
         if (dono === null) dono = raiz.firstElementChild;
-        if (!dono || !raiz.contains(dono)) { raiz.removeEventListener("click", h); return; }
+        if (geracao !== raiz._delegar && !(dono && raiz.contains(dono))) { raiz.removeEventListener("click", h); return; }
         var alvo = e.target.closest("[data-acao]");
         if (!alvo || !raiz.contains(alvo)) return;
         var fn = mapa[alvo.dataset.acao];
