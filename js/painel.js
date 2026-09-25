@@ -570,7 +570,7 @@
         nova: function () { editor(null); },
         editar: function (b) { editor(proprias.filter(function (c) { return c.id === b.dataset.id; })[0]); },
         clonar: function (b) { var c = U.clonar(CATALOGO.VITRINE.filter(function (x) { return x.id === b.dataset.id; })[0]); c.id = "c_" + U.id().slice(-8); editor(c); },
-        remover: function (b) { UI.confirmar("Remover campanha?", "Ela some do portal na hora.", { ok: "Remover", perigo: true }).then(function (ok) { if (ok) Dados.removerCampanha(b.dataset.id).then(telaVitrine); }); },
+        remover: function (b) { UI.confirmar("Remover campanha?", "Ela some do portal na hora.", { ok: "Remover", perigo: true }).then(function (ok) { if (!ok) return; var c = proprias.filter(function (x) { return x.id === b.dataset.id; })[0]; Dados.removerCampanha(b.dataset.id).then(function () { if (c && c.imagem && c.imagem.path) Dados.removerImagemVitrine(c.imagem.path); telaVitrine(); }); }); },
         prova: function (b) { Dados.conteudo("catalogo").then(function (cat) { cat = cat || { sistemas: [] }; var lista = (cat.sistemas || []).filter(function (s) { return s.id !== b.dataset.s; }); var atual = (cat.sistemas || []).filter(function (s) { return s.id === b.dataset.s; })[0] || { id: b.dataset.s }; atual.prova = Number(b.dataset.n); lista.push(atual); return Dados.salvarConteudo("catalogo", { sistemas: lista, vitrine: cat.vitrine || null }, sessao).then(function () { CATALOGO.aplicar({ sistemas: lista }); UI.toast("Prova social atualizada com o número real.", "ok"); telaVitrine(); }); }); }
       });
     });

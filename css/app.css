@@ -702,7 +702,8 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .banner__arte img { display: block; width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: inherit; transition: transform .3s ease; }
 .banner__arte:hover img { transform: scale(1.015); }
 .banner--imagem.banner--compacto .banner__arte img { aspect-ratio: 4 / 3; }
-.banner--imagem .banner__fechar { z-index: 2; background: rgba(15, 23, 42, .55); color: #fff; }
+.banner--imagem { position: relative; }
+.banner--imagem > .banner__fechar { position: absolute; top: 8px; right: 8px; left: auto; z-index: 2; background: rgba(15, 23, 42, .55); color: #fff; }
 .banner--imagem .banner__fechar:hover { background: rgba(15, 23, 42, .75); }
 .imagem-banner { display: grid; place-items: center; min-height: 90px; padding: 8px; border: 1px dashed var(--border); border-radius: 12px; background: var(--muted); margin-bottom: 6px; }
 .imagem-banner img { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 8px; }
