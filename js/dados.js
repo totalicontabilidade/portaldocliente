@@ -733,9 +733,11 @@
           });
         }).then(function () { perfilCache = null; return perfil(); });
       },
+      /* A chave do passo tem pontos ("d0.e.1"). Com o caminho em texto ("jornada.passos.d0.e.1") o Firestore criava
+         mapas aninhados e o passo nunca aparecia marcado; FieldPath trata a chave como um nome só. */
       marcarPasso: function (empresaId, chave, feito, por) {
-        var o = {}; o["jornada.passos." + chave] = feito ? { em: Date.now(), por: por.nome || por } : fb.firestore.FieldValue.delete();
-        return db.collection("empresas").doc(empresaId).update(o);
+        var campo = new fb.firestore.FieldPath("jornada", "passos", chave);
+        return db.collection("empresas").doc(empresaId).update(campo, feito ? { em: Date.now(), por: por.nome || por } : fb.firestore.FieldValue.delete());
       },
       salvarJornada: function (empresaId, campos) { var o = {}; Object.keys(campos).forEach(function (k) { o["jornada." + k] = campos[k]; }); return db.collection("empresas").doc(empresaId).update(o); },
 
