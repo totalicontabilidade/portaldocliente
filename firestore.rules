@@ -68,7 +68,9 @@ service cloud.firestore {
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresas', 'empresaAtual', 'ultimoConvite'])
                         && conviteUsadoPorMim(request.resource.data.ultimoConvite)
                         && request.resource.data.empresas.toSet() == resource.data.empresas.toSet().union(empresasDoConvite(request.resource.data.ultimoConvite).toSet())
-                        && request.resource.data.empresaAtual in request.resource.data.empresas));
+                        && request.resource.data.empresaAtual in request.resource.data.empresas))
+                    // a equipe dá ou tira acesso de quem já usa o portal (Ficha › Acesso ao portal)
+                    || (ehEquipe() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['empresas', 'empresaAtual']));
       allow delete: if ehAdmin();
     }
 
@@ -173,9 +175,11 @@ service cloud.firestore {
         allow read: if equipeOuDono(empresaId);
         // ao usar o convite: só com convite usado por esta pessoa e que inclua ESTA empresa
         // (antes de 25/09/2026 bastava estar logado: qualquer um podia se incluir numa empresa sabendo o id)
-        allow create: if logado() && request.auth.uid == uid
+        allow create: if (logado() && request.auth.uid == uid
                       && conviteUsadoPorMim(request.resource.data.convite)
-                      && empresaId in empresasDoConvite(request.resource.data.convite);
+                      && empresaId in empresasDoConvite(request.resource.data.convite))
+                      // ou a equipe, dando acesso a quem já usa o portal
+                      || ehEquipe();
         // o cliente mexe só no que é dele: último acesso, avisos por e-mail e o WhatsApp para a Totali falar com ele
         allow update: if (logado() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimoAcesso', 'avisosEmail', 'whatsapp'])) || ehEquipe();
         allow delete: if ehEquipe();

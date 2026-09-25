@@ -223,6 +223,11 @@ exports.enviarEmailPedido = onDocumentCreated({ document: "pedidosDeEmail/{pedid
       para = [(autor.data() || {}).email].filter(Boolean);
       assunto = "Teste do e-mail do Portal da Totali";
       conteudo = { titulo: "Está funcionando", texto: "Este é o e-mail de teste do Portal do Cliente. Se você recebeu, os avisos automáticos podem ser ligados.", botao: "Abrir o portal", link: cfg.linkPortal };
+    } else if (p.tipo === "aviso") {
+      /* aviso a uma pessoa só (ex.: a equipe deu acesso a mais uma empresa para quem já usa o portal) */
+      para = [String(p.para || "").trim()].filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+      assunto = trecho(p.assunto || "Aviso da Totali", 120);
+      conteudo = { titulo: assunto, texto: trecho(p.texto, 3000), botao: "Abrir o portal", link: cfg.linkPortal + (p.rota || "") };
     } else if (p.tipo === "convite") {
       para = [String(p.para || "").trim()].filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
       assunto = "Seu acesso ao Portal do Cliente da Totali";

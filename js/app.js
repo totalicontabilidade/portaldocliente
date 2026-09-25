@@ -67,13 +67,19 @@
     return carregando;
   }
 
+  /* A empresa aberta não está mais disponível (a equipe tirou o acesso): abre outra da pessoa; sem nenhuma, avisa e sai. */
+  function semEmpresa() {
+    var outras = (sessao.empresas || []).filter(function (id) { return id && id !== sessao.empresaId; });
+    if (outras.length) { Dados.trocarEmpresa(outras[0]).then(function (s) { sessao = s; sessao.empresas = outras; empresa = null; rotear(); }, function () { location.reload(); }); return; }
+    UI.toast("Sua conta não está ligada a nenhuma empresa. Fale com a Totali.", "erro", null, 9000); sair();
+  }
   function rotear() {
     var r = Shell.rota();
     if (/[?&]previa=login/.test(location.search)) return telaEntrar();   /* prévia de design: só a tela de login */
     if (r.nome === "convite") return telaConvite(r.param);
     if (r.nome === "sair") { sair(); return; }
     if (!sessao || sessao.papel !== "cliente") { document.body.classList.remove("logado"); return telaEntrar(); }
-    if (!empresa) return carregarEmpresa().then(function (e) { if (!e || !empresa) { if (!e) { UI.toast("Sua conta não está ligada a nenhuma empresa. Fale com a Totali.", "erro"); sair(); } return; } if (!Shell.view()) montarShell(); rotear(); });
+    if (!empresa) return carregarEmpresa().then(function (e) { if (!e || !empresa) { if (!e) semEmpresa(); return; } if (!Shell.view()) montarShell(); rotear(); }, function () { semEmpresa(); });
     if (!Shell.view()) montarShell();
     var telas = { "": telaInicio, inicio: telaInicio, jornada: telaInicio, feedback: telaFeedback, sistemas: r.param ? telaSistema : telaSistemas, abrir: telaAbrir, checklist: telaChecklist, documentos: telaDocumentos, cofre: telaCofre, chat: telaChat, perfil: telaPerfil, anterior: telaAnteriorInfo };
     if (chatAtual && r.nome !== "chat") { chatAtual.destruir(); chatAtual = null; }

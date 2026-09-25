@@ -342,6 +342,10 @@
       criarConvite: function (empresaId, por, extras) { carregar(); var c = U.codigo(22), emps = U.unicos([empresaId].concat(extras || [])); db.convites[c] = { empresaId: empresaId, empresas: emps, criadoEm: Date.now(), por: por.nome, usado: false }; gravar("convite"); return ok(c); },
       atualizarConviteEmpresas: function (codigo, empresas) { carregar(); var c = db.convites[codigo]; if (!c || c.usado) return Promise.reject(new Error("Convite já usado.")); c.empresas = U.unicos([c.empresaId].concat(empresas || [])); gravar("convite"); return ok(c.empresas); },
       convite: function (codigo) { carregar(); var c = db.convites[codigo]; if (!c || c.usado) return ok(null); var emps = c.empresas || [c.empresaId]; var nomes = emps.map(function (id) { var e = db.empresas[id]; return e ? e.fantasia : ""; }); return ok({ codigo: codigo, empresaId: c.empresaId, empresas: emps, nomes: nomes, empresa: nomes[0] }); },
+      /* equipe: dar acesso a uma empresa para quem já usa o portal, e tirar */
+      listarClientes: function () { carregar(); return ok(Object.keys(db.clientes).map(function (k) { var c = db.clientes[k]; return { uid: k, nome: c.nome, email: c.email, empresas: (c.empresas || []).slice() }; })); },
+      darAcessoExistente: function (empresaId, cli) { carregar(); var c = db.clientes[cli.uid], e = db.empresas[empresaId]; if (!c || !e) return Promise.reject(new Error("Pessoa ou empresa não encontrada.")); if (c.empresas.indexOf(empresaId) === -1) c.empresas.push(empresaId); e.acessos = e.acessos || []; if (!e.acessos.some(function (a) { return a.uid === cli.uid; })) e.acessos.push({ uid: cli.uid, nome: c.nome, email: c.email, criadoEm: Date.now(), ultimoAcesso: 0 }); gravar("acesso", empresaId); return ok(true); },
+      tirarAcesso: function (empresaId, uid) { carregar(); var c = db.clientes[uid], e = db.empresas[empresaId]; if (e) e.acessos = (e.acessos || []).filter(function (a) { return a.uid !== uid; }); if (c) c.empresas = (c.empresas || []).filter(function (x) { return x !== empresaId; }); gravar("acesso", empresaId); return ok(true); },
       nomesEmpresas: function (ids) { carregar(); return ok((ids || []).map(function (id) { var e = db.empresas[id]; return { id: id, nome: e ? e.fantasia : id }; })); },
       entrarComConvite: function (codigo, email) {
         carregar(); var c = db.convites[codigo]; if (!c || c.usado) return Promise.reject(new Error("Convite inválido ou já usado."));
@@ -637,7 +641,7 @@
       sair: function () { if (global.Seguranca) global.Seguranca.limparAparelho(); return auth.signOut(); },
       trocarEmpresa: function (empresaId) { perfilCache.empresaId = empresaId; return db.collection("clientes").doc(usuario.uid).set({ empresaAtual: empresaId }, { merge: true }).then(function () { return perfilCache; }); },
 
-      empresa: function (id) { return db.collection("empresas").doc(id).get().then(function (s) { var e = docData(s); if (!e) return null; return subcol(id, "acessos").get().then(function (a) { e.acessos = a.docs.map(docData); return e; }); }); },
+      empresa: function (id) { if (!id) return Promise.resolve(null); return db.collection("empresas").doc(id).get().then(function (s) { var e = docData(s); if (!e) return null; return subcol(id, "acessos").get().then(function (a) { e.acessos = a.docs.map(docData); return e; }); }); },
       listarEmpresas: function () { return lista(db.collection("empresas").orderBy("fantasia")); },
       salvarEmpresa: function (id, campos) { return db.collection("empresas").doc(id).set(campos, { merge: true }); },
       criarEmpresa: function (dados, por) {
@@ -662,6 +666,25 @@
       atualizarConviteEmpresas: function (codigo, empresas) {
         var ref = db.collection("convites").doc(codigo);
         return ref.get().then(function (s) { var c = docData(s); if (!c || c.usado) throw new Error("Convite já usado."); var emps = U.unicos([c.empresaId].concat(empresas || [])); return nomesDe(emps).then(function (nomes) { return ref.update({ empresas: emps, nomes: nomes, empresa: nomes[0] }).then(function () { return emps; }); }); });
+      },
+      /* Equipe: dar acesso a uma empresa para quem já usa o portal (sem link) e tirar. O vínculo fica nos dois
+         lugares, como no convite: empresas/{id}/acessos/{uid} (quem é dono) e clientes/{uid}.empresas (o que o portal abre). */
+      listarClientes: function () { return lista(db.collection("clientes")).then(function (l) { return l.map(function (c) { return { uid: c.id, nome: c.nome || "", email: c.email || "", empresas: c.empresas || [] }; }); }); },
+      darAcessoExistente: function (empresaId, cli, por) {
+        var lote = db.batch();
+        lote.set(subcol(empresaId, "acessos").doc(cli.uid), { nome: cli.nome || "", email: cli.email || "", criadoEm: TS(), ultimoAcesso: null, porEquipe: (por && por.nome) || "" });
+        lote.update(db.collection("clientes").doc(cli.uid), { empresas: fb.firestore.FieldValue.arrayUnion(empresaId) });
+        return lote.commit();
+      },
+      tirarAcesso: function (empresaId, uid) {
+        var ref = db.collection("clientes").doc(uid);
+        return ref.get().then(function (s) {
+          var c = s.exists ? s.data() : {}, resto = (c.empresas || []).filter(function (x) { return x !== empresaId; });
+          var lote = db.batch();
+          lote.delete(subcol(empresaId, "acessos").doc(uid));
+          if (s.exists) lote.update(ref, { empresas: resto, empresaAtual: c.empresaAtual === empresaId ? (resto[0] || "") : (c.empresaAtual || resto[0] || "") });
+          return lote.commit();
+        });
       },
       nomesEmpresas: function (ids) { return nomesDe(ids || []).then(function (n) { return (ids || []).map(function (id, i) { return { id: id, nome: n[i] || id }; }); }); },
       /* Quem já tem conta usa o link entrando com a senha: as empresas do convite somam às que já tinha. */
@@ -900,7 +923,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

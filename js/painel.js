@@ -276,6 +276,37 @@
     setTimeout(function () { ligarConviteOutras(codigo, e, function (emps) { escolhidas = emps; var t = document.getElementById("msgConv"); if (t) t.value = textoConvite(); }); }, 0);
   }
 
+  /* Dar a uma empresa o acesso de quem JÁ usa o portal (dono de outra empresa): sem link, a equipe escolhe a pessoa.
+     Na próxima vez que ela abrir o portal, a empresa aparece na troca de empresa (topo da tela). */
+  function nomeEmpresa(id) { var x = empresas.filter(function (y) { return y.id === id; })[0]; return x ? x.fantasia : ""; }
+  function darAcessoExistente(e) {
+    Dados.listarClientes().then(function (clientes) {
+      var ja = (e.acessos || []).map(function (a) { return a.uid || a.id; });
+      var lista = clientes.filter(function (c) { return ja.indexOf(c.uid) === -1; }).sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome)); });
+      if (!lista.length) return UI.toast("Ninguém mais usa o portal ainda. Use Novo convite.", "info");
+      UI.modal({ titulo: "Dar acesso a quem já usa o portal", corpo: '<p class="f-13 txt-2">Escolha a pessoa. Ela continua com a mesma senha e passa a ver <b>' + U.esc(e.fantasia) + "</b> junto com as empresas que já tem, trocando pelo topo da tela.</p>" +
+        '<input class="input mt-8" id="daBusca" placeholder="Buscar por nome ou e-mail…" aria-label="Buscar por nome ou e-mail">' +
+        '<div class="pilha mt-8" id="daLista" style="gap:4px;max-height:260px;overflow:auto">' + lista.map(function (c) { var emps = c.empresas.map(nomeEmpresa).filter(Boolean); return '<label class="checar da-pessoa" data-busca="' + U.esc((c.nome + " " + c.email).toLowerCase()) + '"><input type="radio" name="daPessoa" value="' + U.esc(c.uid) + '"> <span><b>' + U.esc(c.nome || c.email) + '</b> <span class="f-12 txt-2">' + U.esc(c.email) + "</span><br><span class=\"f-12 txt-2\">" + (emps.length ? "Já vê: " + U.esc(emps.join(", ")) : "sem empresa") + "</span></span></label>"; }).join("") + "</div>" +
+        '<label class="checar mt-8"><input type="checkbox" id="daAvisar" checked> Avisar a pessoa por e-mail</label>',
+        acoes: [{ rotulo: "Cancelar" }, { rotulo: "Dar acesso", classe: "btn--primario", icone: "check", ao: function (c) {
+          var r = c.querySelector("input[name=daPessoa]:checked"); if (!r) { UI.toast("Escolha a pessoa.", "aviso"); return false; }
+          var cli = lista.filter(function (x) { return x.uid === r.value; })[0], avisar = c.querySelector("#daAvisar").checked;
+          Dados.darAcessoExistente(e.id, cli, sessao).then(function () {
+            UI.toast((cli.nome || cli.email) + " agora vê " + e.fantasia + " no portal.", "ok", null, 7000);
+            if (avisar && cli.email) Dados.pedirAoServidor("pedidosDeEmail", { tipo: "aviso", para: cli.email, assunto: e.fantasia + " foi adicionada ao seu portal", texto: "Olá, " + U.primeiroNome(cli.nome || "") + "! A Totali adicionou a empresa " + e.fantasia + " ao seu Portal do Cliente. Entre com a mesma senha de sempre e troque de empresa pelo topo da tela.", rota: "#/inicio" }, 60000).then(function () { UI.toast("E-mail de aviso enviado.", "ok"); }).catch(function (err) { UI.toast("Acesso dado, mas o e-mail não saiu: " + err.message, "aviso", null, 9000); });
+            rotear();
+          }).catch(function (err) { UI.toast("Não foi possível dar o acesso: " + err.message, "erro"); });
+        } }] });
+      setTimeout(function () { var b = document.getElementById("daBusca"); if (b) { b.focus(); b.addEventListener("input", function () { var q = b.value.trim().toLowerCase(); UI.$$(".da-pessoa").forEach(function (l) { l.hidden = q && l.dataset.busca.indexOf(q) === -1; }); }); } }, 0);
+    });
+  }
+  function tirarAcessoDe(e, uid, nome) {
+    if (!uid) return UI.toast("Não achei esta pessoa.", "erro");
+    UI.confirmar("Tirar o acesso de " + nome + " a " + e.fantasia + "?", "A conta dela continua, com as outras empresas que tiver. Se esta for a única, ela deixa de ver empresa no portal. Para voltar, use Quem já usa o portal.", { ok: "Tirar acesso", perigo: true }).then(function (ok) {
+      if (!ok) return;
+      Dados.tirarAcesso(e.id, uid).then(function () { UI.toast("Acesso retirado.", "ok"); rotear(); }).catch(function (err) { UI.toast("Não foi possível: " + err.message, "erro"); });
+    });
+  }
   function ligarConviteOutras(codigo, e, aoMudar) {
     var lista = document.getElementById("convOutras"); if (!lista) return;
     lista.addEventListener("change", function () {
@@ -366,14 +397,16 @@
         '<div class="card kpi"><span class="kpi__rotulo">' + ic("folder") + 'Documentos</span><span class="kpi__valor">' + c.docs.length + '</span><span class="kpi__delta ' + (pend.length ? "txt-aviso" : "txt-2") + '">' + pend.length + " a conferir</span></div>" +
         '<div class="card kpi kpi--gold"><span class="kpi__rotulo">' + ic("activity") + 'Uso · 30 dias</span><span class="kpi__valor">' + usos.filter(function (u) { return u.tipo === "abrir"; }).length + '</span><span class="kpi__delta txt-2">aberturas · ' + U.duracao(U.soma(usos, function (u) { return u.duracaoS || 0; })) + "</span></div></div>" +
         '<div class="grade grade--lado"><div class="pilha">' +
-          '<div class="card"><div class="card__cab"><h2>Acesso ao portal</h2><button type="button" class="btn btn--xs btn--contorno" data-acao="convite">' + ic("plus", "ic--sm") + 'Novo convite</button></div><div class="lista" style="padding-top:6px">' + ((e.acessos || []).map(function (a) { return '<div class="lista__item">' + UI.avatar(a.nome, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(a.nome) + '</span><span class="lista__sub">' + U.esc(a.email) + '</span></div><span class="lista__meta">' + (a.ultimoAcesso ? "entrou " + U.relativo(a.ultimoAcesso) : "nunca entrou") + "</span></div>"; }).join("") || '<div class="card__corpo aviso aviso--aviso">' + ic("alert") + "<div><b>Ninguém entrou ainda</b>Gere o convite e envie pelo WhatsApp. O D1 depende disso.</div></div>") + "</div></div>" +
+          '<div class="card"><div class="card__cab"><h2>Acesso ao portal</h2><div class="linha" style="gap:6px"><button type="button" class="btn btn--xs btn--contorno" data-acao="dar-acesso">' + ic("user", "ic--sm") + 'Quem já usa o portal</button><button type="button" class="btn btn--xs btn--contorno" data-acao="convite">' + ic("plus", "ic--sm") + 'Novo convite</button></div></div><div class="lista" style="padding-top:6px">' + ((e.acessos || []).map(function (a) { return '<div class="lista__item">' + UI.avatar(a.nome, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(a.nome) + '</span><span class="lista__sub">' + U.esc(a.email) + '</span></div><span class="lista__meta">' + (a.ultimoAcesso ? "entrou " + U.relativo(a.ultimoAcesso) : "nunca entrou") + '</span><button type="button" class="btn btn--icone btn--fantasma" data-acao="tirar-acesso" data-uid="' + U.esc(a.uid || a.id || "") + '" data-nome="' + U.esc(a.nome) + '" aria-label="Tirar o acesso de ' + U.esc(a.nome) + '" title="Tirar o acesso">' + ic("x", "ic--sm") + "</button></div>"; }).join("") || '<div class="card__corpo aviso aviso--aviso">' + ic("alert") + "<div><b>Ninguém entrou ainda</b>Gere o convite e envie pelo WhatsApp, ou, se a pessoa já usa o portal por outra empresa, toque em Quem já usa o portal. O D1 depende disso.</div></div>") + "</div></div>" +
           '<div class="card"><div class="card__cab"><h2>Notas da jornada</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="f-13"><b>Dor principal (D2):</b> ' + (e.dor ? U.esc(e.dor) : '<span class="txt-mudo">ainda não anotada</span>') + "</div>" + Object.keys((e.jornada || {}).notas || {}).map(function (k) { return '<div class="f-13"><b>' + k.toUpperCase() + ":</b> " + U.esc(e.jornada.notas[k]) + "</div>"; }).join("") + (c.feedback ? '<div class="aviso aviso--ok">' + ic("heart") + "<div><b>Feedback dos 30 dias · nota " + (c.feedback.nota || "—") + "</b>" + U.esc(c.feedback.texto) + "</div></div>" : "") + "</div></div>" +
           '<div class="card"><div class="card__cab"><h2>Envio do mês</h2></div><div class="lista" style="padding-top:6px">' + (checks.slice(0, 4).map(function (h) { var f = h.itens.filter(function (x) { return x.feito; }).length; return '<div class="lista__item"><div class="lista__texto"><span class="lista__titulo">' + nomeMes(h.anoMes) + '</span><span class="lista__sub">' + f + "/" + h.itens.length + (h.itens.length === 1 ? " item" : " itens") + "</span></div>" + (h.concluidoEm ? UI.badge("em dia", "ok", "check") : UI.badge("aberto", "aviso")) + "</div>"; }).join("") || '<div class="card__corpo txt-2 f-13">Sem checklist.</div>') + "</div></div>" +
         '</div><div class="pilha">' +
           '<div class="card"><div class="card__cab"><h2>Sistemas liberados</h2><a class="btn btn--xs btn--contorno" href="#/clientes/' + e.id + '/liberacoes">Gerenciar</a></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px">' + CATALOGO.SISTEMAS.map(function (s) { var l = (e.liberacoes || {})[s.id]; var on = l && l.ativo && !(l.ate && U.ms(l.ate) < Date.now()); return '<div class="linha linha--entre f-13"><span class="linha" style="gap:6px"><span class="ponto ' + (on ? "ponto--ok" : "") + '"></span>' + U.esc(s.nome) + "</span>" + (on ? '<span class="txt-2 f-12">' + U.esc(l.plano || "ativo") + (l.ate ? " até " + U.dataCurta(l.ate) : "") + "</span>" : '<span class="txt-mudo f-12">não</span>') + "</div>"; }).join("") + "</div></div>" +
           '<div class="card"><div class="card__cab"><h2>Trilha de auditoria</h2></div><div class="lista" style="padding-top:6px;max-height:320px;overflow:auto">' + (aud.slice(0, 12).map(function (a) { return '<div class="lista__item" style="min-height:0;padding:8px 16px"><div class="lista__texto"><span class="lista__titulo f-13">' + U.esc(frasePara(a)) + '</span><span class="lista__sub">' + U.esc(a.por || "") + " · " + U.dataHora(a.em) + "</span></div></div>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nada registrado.</div>') + "</div></div>" +
         "</div></div></div>";
-      UI.delegar(corpo, { convite: function () { Dados.criarConvite(e.id, sessao).then(function (c2) { mostrarConvite(e, c2); }); } });
+      UI.delegar(corpo, { convite: function () { Dados.criarConvite(e.id, sessao).then(function (c2) { mostrarConvite(e, c2); }); },
+        "dar-acesso": function () { darAcessoExistente(e); },
+        "tirar-acesso": function (b) { tirarAcessoDe(e, b.dataset.uid, b.dataset.nome); } });
     });
   }
 
