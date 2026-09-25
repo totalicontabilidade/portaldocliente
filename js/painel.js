@@ -66,10 +66,13 @@
           { href: "#/documentos", rotulo: "Documentos a conferir", icone: "inbox" },
           { href: "#/jornadas", rotulo: "Onboarding · 30 dias", icone: "route" }
         ] },
-        { grupo: "Sistemas", itens: [
+        /* o que a Totali acompanha de cada cliente no portal (não são sistemas: são partes do portal) */
+        { grupo: "Acompanhamento", itens: [
           { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check" },
-          { href: "#/financeiro", rotulo: "Checklist Financeiro", icone: "credit-card" },
-          { href: "#/entrada", rotulo: "Entrada (documentos)", icone: "clipboard" },
+          { href: "#/entrada", rotulo: "Lista de documentos", icone: "clipboard" },
+          { href: "#/financeiro", rotulo: "Checklist Financeiro", icone: "credit-card" }
+        ] },
+        { grupo: "Comercial", itens: [
           { href: "#/indicacoes", rotulo: "Indicações", icone: "gift" },
           { href: "#/vitrine", rotulo: "Vitrine e campanhas", icone: "megaphone" },
           { href: "#/uso", rotulo: "Uso e cobrança", icone: "bar-chart", sensivel: true }
@@ -229,19 +232,83 @@
     UI.delegar(v, { abrir: function (tr) { location.hash = "#/clientes/" + tr.dataset.id; } });
   }
 
+  /* Consulta pública do CNPJ (dados abertos da Receita Federal). BrasilAPI primeiro; se falhar, CNPJá (open.cnpja.com).
+     A Receita informa MEI e Simples; Presumido x Real não é público, por isso a tela pede para conferir. */
+  function consultarCnpj(d) {
+    function json(url) { return fetch(url, { headers: { Accept: "application/json" } }).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }); }
+    return json("https://brasilapi.com.br/api/cnpj/v1/" + d).then(function (x) {
+      return { razao: x.razao_social || "", fantasia: x.nome_fantasia || "", mei: x.opcao_pelo_mei === true, simples: x.opcao_pelo_simples === true ? true : x.opcao_pelo_simples === false ? false : null, situacao: x.descricao_situacao_cadastral || "", cidade: x.municipio || "", uf: x.uf || "", atividade: x.cnae_fiscal_descricao || "", socios: (x.qsa || []).length, abertura: x.data_inicio_atividade ? new Date(x.data_inicio_atividade + "T12:00:00").getTime() : 0 };
+    }).catch(function () {
+      return json("https://open.cnpja.com/office/" + d).then(function (x) {
+        var c = x.company || {}, a = x.address || {};
+        return { razao: c.name || "", fantasia: x.alias || "", mei: !!(c.simei && c.simei.optant), simples: c.simples ? c.simples.optant === true : null, situacao: (x.status && x.status.text) || "", cidade: a.city || "", uf: a.state || "", atividade: (x.mainActivity && x.mainActivity.text) || "", socios: (c.members || []).length, abertura: x.founded ? new Date(x.founded + "T12:00:00").getTime() : 0 };
+      });
+    });
+  }
+  /* "PADARIA ESTRELA DO SUL LTDA" → "Padaria Estrela do Sul Ltda" (sugestão de nome fantasia quando a Receita não tem) */
+  function tituloBonito(t) {
+    var minus = ["de", "da", "do", "das", "dos", "e", "em"];
+    return String(t || "").toLowerCase().split(/\s+/).map(function (w, i) { return i && minus.indexOf(w) > -1 ? w : w.charAt(0).toUpperCase() + w.slice(1); }).join(" ").replace(/\b(Me|Epp|Eireli|Ltda|S\/a|Sa)\b/g, function (m) { return m === "Ltda" ? "Ltda" : m.toUpperCase(); });
+  }
   function telaNovoCliente() {
     Shell.titulo("Novo cliente");
     Shell.render('<div class="pagina" style="max-width:720px"><div class="cabecalho"><div><div class="cabecalho__kicker">Cadastro</div><h1>Novo cliente</h1><p>Cadastre a empresa e gere o link de convite. O D0 da jornada nasce marcado: proposta aceita e cadastro criado.</p></div></div>' +
       '<form class="card" id="fNovo" novalidate><div class="card__corpo pilha">' +
-        '<div class="grade grade--2"><div class="campo"><label class="campo__rotulo" for="nome">Razão social</label><input class="input" id="nome" required></div><div class="campo"><label class="campo__rotulo" for="fantasia">Nome fantasia</label><input class="input" id="fantasia"></div>' +
-        '<div class="campo"><label class="campo__rotulo" for="cnpj">CNPJ</label><input class="input num" id="cnpj" inputmode="numeric" required></div><div class="campo"><label class="campo__rotulo" for="regime">Regime</label><select class="select" id="regime"><option>MEI</option><option selected>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option></select></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="cnpj">CNPJ</label><div class="linha" style="flex-wrap:nowrap;gap:6px"><input class="input num" id="cnpj" inputmode="numeric" required autocomplete="off" placeholder="00.000.000/0000-00"><button type="button" class="btn btn--contorno" id="btnReceita" style="white-space:nowrap">' + ic("search", "ic--sm") + 'Buscar na Receita</button></div><span class="campo__ajuda" id="ajCnpj">Comece pelo CNPJ: razão social, nome fantasia e regime vêm da Receita Federal. Tudo continua editável.</span></div>' +
+        '<div id="receitaInfo"></div>' +
+        '<div class="grade grade--2"><div class="campo"><label class="campo__rotulo" for="nome">Razão social</label><input class="input" id="nome" required></div><div class="campo"><label class="campo__rotulo" for="fantasia">Nome fantasia</label><input class="input" id="fantasia"><span class="campo__ajuda">É o nome que aparece no portal e no painel.</span></div>' +
+        '<div class="campo"><label class="campo__rotulo" for="regime">Regime</label><select class="select" id="regime"><option>MEI</option><option selected>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option></select><span class="campo__ajuda" id="ajRegime"></span></div>' +
         '<div class="campo"><label class="campo__rotulo" for="trilha">Trilha da jornada</label><select class="select" id="trilha"><option value="A">A · simples</option><option value="B">B · folha, presumido ou mais de um sócio</option><option value="C">C · real, grupo ou pendências</option></select><span class="campo__ajuda" id="ajTrilha">' + U.esc(JORNADA.TRILHAS.A) + '</span></div><div class="campo"><label class="campo__rotulo" for="aceite">Data do aceite da proposta</label><input class="input" id="aceite" type="date" value="' + new Date().toISOString().slice(0, 10) + '"><span class="campo__ajuda">O relógio dos 30 dias conta a partir daqui.</span></div></div>' +
         '<div class="campo"><span class="campo__rotulo">Perfil (define quais sistemas fazem sentido na vitrine)</span><div class="linha">' + CATALOGO.PERFIS.filter(function (p) { return p.id !== "todos"; }).map(function (p) { return '<label class="checar"><input type="checkbox" name="perfil" value="' + p.id + '"> ' + U.esc(p.rotulo) + "</label>"; }).join("") + "</div></div>" +
         '<div class="campo"><span class="campo__rotulo">Liberar de início</span><div class="linha">' + CATALOGO.visiveis().filter(function (s) { return s.status !== "breve" && s.id !== "academy"; }).map(function (s) { return '<label class="checar"><input type="checkbox" name="lib" value="' + s.id + '"> ' + U.esc(s.nome) + "</label>"; }).join("") + '</div><span class="campo__ajuda">Envio do mês e Academy já vêm para todo cliente. Os demais você também libera depois, na ficha.</span></div>' +
         '<div class="campo"><span class="campo__rotulo">Responsáveis por setor (opcional)</span><div class="grade grade--2" style="gap:8px">' + CATALOGO.SETORES.map(function (s) { return '<label class="f-12 txt-2">' + s[1] + '<select class="select mt-4" name="nResp" data-setor="' + s[0] + '"><option value="">—</option></select></label>'; }).join("") + '</div><span class="campo__ajuda">Aparecem para o cliente em "Quem cuida da sua empresa". Dá para mudar depois na ficha.</span></div>' +
         '<p class="campo__erro" id="erroNovo" hidden></p><div class="modal__acoes"><a class="btn btn--contorno" href="#/clientes">Cancelar</a><button class="btn btn--primario" type="submit">' + ic("check") + "Cadastrar e gerar convite</button></div></div></form></div>");
     var v = Shell.view();
-    UI.$("#cnpj", v).addEventListener("input", function () { this.value = U.cnpj(this.value); });
+    var auto = {}, ultimoCnpj = "", mexeu = { regime: false, trilha: false };
+    var campoCnpj = UI.$("#cnpj", v), ajCnpj = UI.$("#ajCnpj", v), btnReceita = UI.$("#btnReceita", v);
+    function preencher(id, valor) {
+      var el = UI.$("#" + id, v); if (!valor) return;
+      if (!el.value.trim() || el.value === auto[id]) { el.value = valor; auto[id] = valor; el.classList.add("input--receita"); }
+    }
+    ["nome", "fantasia"].forEach(function (id) { UI.$("#" + id, v).addEventListener("input", function () { this.classList.remove("input--receita"); }); });
+    UI.$("#regime", v).addEventListener("change", function () { mexeu.regime = true; this.classList.remove("input--receita"); UI.$("#ajRegime", v).textContent = ""; });
+    UI.$("#trilha", v).addEventListener("change", function () { mexeu.trilha = true; });
+    function buscarReceita(forcar) {
+      var d = campoCnpj.value.replace(/\D/g, "");
+      if (d.length !== 14) { if (forcar) { ajCnpj.textContent = "Digite os 14 números do CNPJ."; campoCnpj.focus(); } return; }
+      if (!U.cnpjValido(campoCnpj.value)) { ajCnpj.textContent = "Este CNPJ não é válido. Confira os números."; return; }
+      if (d === ultimoCnpj && !forcar) return;
+      ultimoCnpj = d;
+      var ja = empresas.filter(function (x) { return String(x.cnpj || "").replace(/\D/g, "") === d; })[0];
+      ajCnpj.textContent = "Buscando na Receita Federal…"; btnReceita.disabled = true;
+      consultarCnpj(d).then(function (r) {
+        preencher("nome", r.razao); preencher("fantasia", r.fantasia || tituloBonito(r.razao));
+        if (!mexeu.regime) {
+          var sel = UI.$("#regime", v), aj = UI.$("#ajRegime", v);
+          if (r.mei) { sel.value = "MEI"; aj.textContent = "Da Receita: optante pelo MEI."; }
+          else if (r.simples) { sel.value = "Simples Nacional"; aj.textContent = "Da Receita: optante pelo Simples Nacional."; }
+          else if (r.simples === false) { sel.value = "Lucro Presumido"; aj.textContent = "Fora do Simples. A Receita não informa se é Presumido ou Real: confira."; }
+          sel.classList.add("input--receita");
+        }
+        if (!mexeu.trilha) {
+          var reg = UI.$("#regime", v).value, t = reg === "Lucro Real" ? "C" : (reg === "Lucro Presumido" || r.socios > 1) ? "B" : "A";
+          UI.$("#trilha", v).value = t; UI.$("#ajTrilha", v).textContent = JORNADA.TRILHAS[t];
+        }
+        var alerta = r.situacao && !/^ativ/i.test(r.situacao);
+        UI.$("#receitaInfo", v).innerHTML = '<div class="aviso ' + (alerta || ja ? "aviso--aviso" : "aviso--info") + '">' + ic(alerta || ja ? "alert" : "building") + "<div><b>" + U.esc(r.razao || "Empresa encontrada") + "</b>" +
+          [r.situacao ? "Situação: " + U.esc(r.situacao) : "", r.cidade ? U.esc(r.cidade) + (r.uf ? "/" + U.esc(r.uf) : "") : "", r.abertura ? "aberta em " + U.esc(U.data(r.abertura)) : "", r.socios ? U.plural(r.socios, "1 sócio", r.socios + " sócios") : ""].filter(Boolean).join(" · ") +
+          (r.atividade ? '<br><span class="f-12">' + U.esc(r.atividade) + "</span>" : "") +
+          (alerta ? '<br><b class="f-12">Atenção: a empresa não está ativa na Receita.</b>' : "") +
+          (ja ? '<br><b class="f-12">Este CNPJ já está cadastrado: <a href="#/clientes/' + ja.id + '">' + U.esc(ja.fantasia) + "</a>.</b>" : "") + "</div></div>";
+        ajCnpj.textContent = "Preenchido com os dados da Receita Federal. Confira e mude o que quiser.";
+      }).catch(function () {
+        ajCnpj.textContent = "Não consegui consultar a Receita agora. Preencha à mão ou toque em Buscar na Receita de novo.";
+        ultimoCnpj = "";
+      }).then(function () { btnReceita.disabled = false; });
+    }
+    campoCnpj.addEventListener("input", function () { this.value = U.cnpj(this.value); if (this.value.replace(/\D/g, "").length === 14) buscarReceita(false); });
+    btnReceita.addEventListener("click", function () { buscarReceita(true); });
+    setTimeout(function () { campoCnpj.focus(); }, 0);
     UI.$("#trilha", v).addEventListener("change", function () { UI.$("#ajTrilha", v).textContent = JORNADA.TRILHAS[this.value]; });
     Dados.equipe().then(function (eq) { UI.$$("[name=nResp]", v).forEach(function (sel) { var setor = sel.dataset.setor; eq.slice().sort(function (a, b) { return ((b.setores || []).indexOf(setor) > -1) - ((a.setores || []).indexOf(setor) > -1); }).forEach(function (m) { var o = document.createElement("option"); o.value = m.uid; o.textContent = m.nome; sel.appendChild(o); }); }); });
     UI.$("#fNovo", v).addEventListener("submit", function (e) {

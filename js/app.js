@@ -117,13 +117,13 @@
         { grupo: "Minha empresa", itens: [
           { href: "#/inicio", rotulo: "Início", icone: "home" },
           { href: "#/entrada", rotulo: "Lista de documentos", icone: "clipboard", oculto: !!empresa.migracaoConcluidaEm && !!(empresa.financeiro && empresa.financeiro.concluidoEm) },
+          { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check" },
           { href: "#/agenda", rotulo: "Agenda do mês", icone: "calendar" },
           { href: "#/chat", rotulo: "Chat com a Totali", icone: "chat" },
           { href: "#/documentos", rotulo: "Meus arquivos", icone: "folder" },
           { href: "#/cofre", rotulo: "Cofre de senhas", icone: "key" }
         ] },
         { grupo: "Ferramentas", itens: [
-          { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check", oculto: !liberado("checklist") },
           { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" },
           { href: "#/historico", rotulo: "Histórico", icone: "history" }
         ] },
@@ -451,7 +451,7 @@
         /* 4 ações primárias */
         '<div class="grade grade--4">' +
           acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
-          acao("#/documentos", "folder", "Documentos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
+          acao("#/documentos", "folder", "Arquivos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
           (liberado("checklist") ? acao("#/checklist", "list-check", "Envio", itensCheck.length ? feitosCheck + "/" + itensCheck.length + " do mês" : "nada este mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
           acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +
         "</div>" +

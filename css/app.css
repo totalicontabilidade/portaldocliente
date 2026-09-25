@@ -768,3 +768,6 @@ details.passo > summary { list-style: none; } details.passo > summary::-webkit-d
 .sidebar__troca span { flex: 1; }
 .sidebar__troca:hover { background: rgba(255, 255, 255, .12); }
 .sidebar[data-mini] .sidebar__troca span, .sidebar[data-mini] .sidebar__troca .ic:last-child { display: none; }
+
+/* Novo cliente: campo que veio da Receita Federal (some ao editar) */
+.input--receita { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
