@@ -40,12 +40,17 @@
     iniciar: function (o) {
       ctx = o; if (parar) parar();
       if (o.lado === "cliente" && o.empresaId) {
-        parar = Dados.ouvirMensagens(o.empresaId, function (ms) {
+        var qtd = -1, pararMsg, pararMud = Dados.ouvirMudancas(o.empresaId, function (tipo) { document.dispatchEvent(new CustomEvent("dados:mudou", { detail: { tipo: tipo, detalhe: "ao vivo" } })); });
+        pararMsg = Dados.ouvirMensagens(o.empresaId, function (ms) {
           var novas = ms.filter(function (m) { return m.autor.lado === "equipe" && !(m.lidaPor || {})[o.uid]; });
+          /* mudou quantas estão sem ler: refaz o contador do chat e o título (antes só ao recarregar) */
+          if (qtd >= 0 && novas.length !== qtd) document.dispatchEvent(new CustomEvent("dados:mudou", { detail: { tipo: "lidas", detalhe: "ao vivo" } }));
+          qtd = novas.length;
           var ult = novas[novas.length - 1];
           if (ult && ult.id !== ultimo) { if (ultimo && (document.hidden || location.hash.indexOf("#/chat") !== 0)) avisar(ult.autor.nome + " · Totali", ult.texto || "📎 anexo", "#/chat"); ultimo = ult.id; }
           else if (!ultimo && ult) ultimo = ult.id;
         });
+        parar = function () { if (pararMsg) pararMsg(); if (pararMud) pararMud(); };
       }
       if (o.lado === "cliente" && o.envio && o.empresa && global.Envio && podeAvisar()) avisarEnvio(o);
       if (o.lado === "equipe") {

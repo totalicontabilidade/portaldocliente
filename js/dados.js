@@ -518,6 +518,9 @@
       chaveDoCofre: function () { return ok(null); },
       salvarConfigEmail: function (c) { carregar(); db.conteudo.__email = Object.assign({}, db.conteudo.__email || {}, c); gravar("conteudo"); return ok(true); },
       trocarSenha: function (atual, nova) { return atual ? ok(true) : Promise.reject(new Error("Informe a senha atual.")); },
+      ouvirMudancas: function () { return function () {}; }, /* no modo local o evento "storage" já avisa */
+      interno: function (empresaId) { carregar(); var e = db.empresas[empresaId]; return ok((e && e.interno) || { dor: (e && e.dor) || "" }); },
+      salvarInterno: function (empresaId, campos) { carregar(); var e = db.empresas[empresaId]; if (!e) return Promise.reject(new Error("Empresa não encontrada.")); e.interno = Object.assign(e.interno || {}, campos); gravar("empresa", empresaId); return ok(e.interno); },
       salvarMeuAcesso: function (empresaId, uid, dados) { carregar(); var e = db.empresas[empresaId]; (e && e.acessos || []).forEach(function (a) { if (a.uid === uid) Object.assign(a, dados); }); gravar("empresa", empresaId); return ok(true); },
       removerLogoSistema: function () { return ok(true); },
       registrarVitrine: function (ev) { return Local.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
@@ -703,7 +706,7 @@
           return lote.commit();
         });
       },
-      nomesEmpresas: function (ids) { return nomesDe(ids || []).then(function (n) { return (ids || []).map(function (id, i) { return { id: id, nome: n[i] || id }; }); }); },
+      nomesEmpresas: function (ids) { return Promise.all((ids || []).map(function (id) { return db.collection("empresas").doc(id).get().then(function (s) { var d = s.exists ? s.data() : {}; return { id: id, nome: d.fantasia || d.nome || id, ativa: d.ativa !== false }; }).catch(function () { return { id: id, nome: id, ativa: true }; }); })); },
       /* Quem já tem conta usa o link entrando com a senha: as empresas do convite somam às que já tinha. */
       entrarComConvite: function (codigo, email, senha) {
         var c;
@@ -893,6 +896,10 @@
       configEmail: function () { return db.collection("configPrivada").doc("email").get().then(function (s) { return s.exists ? s.data() : null; }); },
       salvarConfigEmail: function (c) { return db.collection("configPrivada").doc("email").set(Object.assign({}, c, { atualizadoEm: TS() }), { merge: true }); },
       salvarMeuAcesso: function (empresaId, uid, dados) { return subcol(empresaId, "acessos").doc(uid).update(dados); },
+      /* Anotações só da equipe (dor do cliente, notas da jornada, anotação do financeiro). Ficam em empresas/{id}/interno/equipe,
+         que a regra só deixa a equipe ler: no registro da empresa o cliente conseguiria ler pela API, mesmo sem aparecer na tela. */
+      interno: function (empresaId) { return subcol(empresaId, "interno").doc("equipe").get().then(function (s) { return s.exists ? s.data() : {}; }); },
+      salvarInterno: function (empresaId, campos) { return subcol(empresaId, "interno").doc("equipe").set(Object.assign({}, campos, { atualizadoEm: TS() }), { merge: true }); },
       /* Trocar a própria senha: o Firebase exige confirmar a senha atual (reautenticar) antes de gravar a nova */
       trocarSenha: function (atual, nova) {
         var u = auth.currentUser; if (!u) return Promise.reject(new Error("Saia e entre de novo para trocar a senha."));
@@ -932,7 +939,16 @@
       colGrupo: function (nome) { return lista(db.collectionGroup(nome).limit(2000)); },
       salvarFeedback: function (empresaId, texto, nota, por) { return db.collection("empresas").doc(empresaId).update({ feedback30: { texto: U.txt(texto, 2000), nota: nota, em: Date.now(), por: por.nome } }); },
       feedback: function (empresaId) { return db.collection("empresas").doc(empresaId).get().then(function (s) { return (s.data() || {}).feedback30 || null; }); },
-      zerar: function () { return Promise.reject(new Error("Zerar só no modo local.")); }
+      zerar: function () { return Promise.reject(new Error("Zerar só no modo local.")); },
+      /* Portal ao vivo: a equipe aprova um documento, pede correção ou libera um sistema e a tela do cliente muda sem recarregar.
+         Ignora a primeira leitura e o que a própria pessoa acabou de gravar (hasPendingWrites). */
+      ouvirMudancas: function (empresaId, fn) {
+        var offs = [], ja = {};
+        function ouvir(ref, tipo) { offs.push(ref.onSnapshot(function (s) { if (!ja[tipo]) { ja[tipo] = true; return; } if (s.metadata.hasPendingWrites) return; fn(tipo); }, function () {})); }
+        ouvir(db.collection("empresas").doc(empresaId), "empresa");
+        ouvir(subcol(empresaId, "documentos"), "documento");
+        return function () { offs.forEach(function (off) { off(); }); };
+      }
     };
   }
 
@@ -958,7 +974,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "trocarSenha", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "trocarSenha", "ouvirMudancas", "interno", "salvarInterno", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

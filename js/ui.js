@@ -95,12 +95,13 @@
         UI.modal({
           titulo: titulo,
           corpo: '<div class="campo"><label class="campo__rotulo" for="' + id + '">' + U.esc(rotulo) + "</label>" +
-            (opts.longo ? '<textarea class="textarea" id="' + id + '">' + U.esc(valorInicial || "") + "</textarea>"
-                        : '<input class="input" id="' + id + '" value="' + U.esc(valorInicial || "") + '" placeholder="' + U.esc(opts.placeholder || "") + '">') +
+            (opts.longo ? '<textarea class="textarea" id="' + id + '" placeholder="' + U.esc(opts.placeholder || "") + '">' + U.esc(valorInicial || "") + "</textarea>"
+                        : '<input class="input" id="' + id + '" type="' + (opts.tipo || "text") + '" value="' + U.esc(valorInicial || "") + '" placeholder="' + U.esc(opts.placeholder || "") + '">') +
             (opts.ajuda ? '<span class="campo__ajuda">' + U.esc(opts.ajuda) + "</span>" : "") + "</div>",
           acoes: [
             { rotulo: "Cancelar", ao: function () { res(null); } },
-            { rotulo: opts.ok || "Salvar", classe: "btn--primario", ao: function (c) { res(c.querySelector("#" + id).value); } }
+            /* obrigatorio: vazio avisa e a janela fica aberta (antes fechava calada e nada acontecia) */
+            { rotulo: opts.ok || "Salvar", classe: "btn--primario", ao: function (c) { var el = c.querySelector("#" + id); if (opts.obrigatorio && !el.value.trim()) { UI.toast(typeof opts.obrigatorio === "string" ? opts.obrigatorio : "Preencha o campo.", "aviso"); el.focus(); return false; } res(el.value); } }
           ],
           aoFechar: function (v) { if (v === undefined) res(null); }
         });

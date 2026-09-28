@@ -171,6 +171,11 @@ service cloud.firestore {
                         // a jornada de 30 dias é controle interno: o cliente não a vê nem a altera (os passos dele são marcados pelos fatos)
       allow delete: if ehAdmin();
 
+      // anotações só da equipe (dor, notas da jornada, anotação do financeiro): o cliente não lê
+      match /interno/{doc} {
+        allow read, write: if ehEquipe();
+      }
+
       match /acessos/{uid} {
         allow read: if equipeOuDono(empresaId);
         // ao usar o convite: só com convite usado por esta pessoa e que inclua ESTA empresa

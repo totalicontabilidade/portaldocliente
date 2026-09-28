@@ -68,10 +68,11 @@
   }
 
   /* A empresa aberta não está mais disponível (a equipe tirou o acesso): abre outra da pessoa; sem nenhuma, avisa e sai. */
-  function semEmpresa() {
+  /* A empresa aberta não está mais disponível (a equipe tirou o acesso ou encerrou a empresa): abre outra; sem nenhuma, avisa e sai. */
+  function semEmpresa(encerrada) {
     var outras = (sessao.empresas || []).filter(function (id) { return id && id !== sessao.empresaId; });
     if (outras.length) { Dados.trocarEmpresa(outras[0]).then(function (s) { sessao = s; sessao.empresas = outras; empresa = null; rotear(); }, function () { location.reload(); }); return; }
-    UI.toast("Sua conta não está ligada a nenhuma empresa. Fale com a Totali.", "erro", null, 9000); sair();
+    UI.toast(encerrada ? "O acesso desta empresa ao portal foi encerrado. Qualquer dúvida, fale com a Totali." : "Sua conta não está ligada a nenhuma empresa. Fale com a Totali.", "erro", null, 9000); sair();
   }
   function rotear() {
     var r = Shell.rota();
@@ -79,7 +80,7 @@
     if (r.nome === "convite") return telaConvite(r.param);
     if (r.nome === "sair") { sair(); return; }
     if (!sessao || sessao.papel !== "cliente") { document.body.classList.remove("logado"); return telaEntrar(); }
-    if (!empresa) return carregarEmpresa().then(function (e) { if (!e || !empresa) { if (!e) semEmpresa(); return; } if (!Shell.view()) montarShell(); rotear(); }, function () { semEmpresa(); });
+    if (!empresa) return carregarEmpresa().then(function (e) { if (e && e.ativa === false) { empresa = null; return semEmpresa(true); } if (!e || !empresa) { if (!e) semEmpresa(); return; } if (!Shell.view()) montarShell(); rotear(); }, function () { semEmpresa(); });
     if (!Shell.view()) montarShell();
     var telas = { "": telaInicio, inicio: telaInicio, jornada: telaInicio, feedback: telaFeedback, sistemas: r.param ? telaSistema : telaSistemas, abrir: telaAbrir, checklist: telaChecklist, documentos: telaDocumentos, cofre: telaCofre, chat: telaChat, perfil: telaPerfil, anterior: telaAnteriorInfo };
     if (chatAtual && r.nome !== "chat") { chatAtual.destruir(); chatAtual = null; }
@@ -102,6 +103,7 @@
      (chat, avisos, documentos) passar a olhar a empresa nova. */
   function escolherEmpresa() {
     Dados.nomesEmpresas(sessao.empresas || []).then(function (lista) {
+      lista = lista.filter(function (x) { return x.ativa !== false || x.id === empresa.id; });
       UI.modal({ titulo: "Trocar de empresa", corpo: '<p class="f-13 txt-2">Você acompanha estas empresas no portal. Escolha qual abrir.</p><div class="pilha mt-8" style="gap:6px">' + lista.map(function (x) { var atual = x.id === empresa.id; return '<button type="button" class="btn ' + (atual ? "btn--primario" : "btn--contorno") + ' btn--bloco" style="justify-content:flex-start" data-emp="' + U.esc(x.id) + '"' + (atual ? ' aria-current="true"' : "") + ">" + ic("building", "ic--sm") + U.esc(x.nome) + (atual ? ' <span class="f-12" style="margin-left:auto;opacity:.8">aberta agora</span>' : "") + "</button>"; }).join("") + "</div>", acoes: [{ rotulo: "Fechar" }] });
       setTimeout(function () {
         UI.$$(".modal [data-emp]").forEach(function (b) { b.addEventListener("click", function () { var id = b.dataset.emp; if (id === empresa.id) { var f = UI.$(".modal .modal__fechar"); if (f) f.click(); return; } b.disabled = true; Dados.trocarEmpresa(id).then(function () { location.hash = "#/inicio"; location.reload(); }); }); });

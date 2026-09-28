@@ -128,15 +128,15 @@
   /* ---------- Painel: NPS no início e "Encerrar cliente" ---------- */
   global.FichaMais = function (e) {
     var Pn = global.Painel, sessao = Pn.sessao;
-    UI.modal({ titulo: "Mais ações · " + e.fantasia, corpo: '<div class="pilha"><button type="button" class="btn btn--contorno" data-acao="pdf">' + ic("download") + 'Ficha completa em PDF</button><button type="button" class="btn btn--contorno" data-acao="arquivar">' + ic(e.ativa === false ? "refresh" : "log-out") + (e.ativa === false ? "Reativar cliente" : "Encerrar cliente (arquivar)") + '</button><p class="f-12 txt-mudo">Encerrar arquiva a empresa: o cliente deixa de entrar, os dados ficam guardados. A exclusão da conta de login é pedida à Cloud Function e registrada na auditoria.</p></div>', acoes: [{ rotulo: "Fechar" }] });
+    UI.modal({ titulo: "Mais ações · " + e.fantasia, corpo: '<div class="pilha"><button type="button" class="btn btn--contorno" data-acao="pdf">' + ic("download") + 'Ficha completa em PDF</button><button type="button" class="btn btn--contorno" data-acao="arquivar">' + ic(e.ativa === false ? "refresh" : "log-out") + (e.ativa === false ? "Reativar cliente" : "Encerrar cliente (arquivar)") + '</button><p class="f-12 txt-mudo">Encerrar arquiva a empresa: os documentos e o histórico ficam guardados e o portal deixa de abrir esta empresa. A conta de login de quem só acompanhava esta empresa é apagada pelo servidor (quem acompanha outras empresas continua entrando nelas). Tudo fica na auditoria.</p></div>', acoes: [{ rotulo: "Fechar" }] });
     UI.delegar(document.querySelector(".modal__corpo"), {
       pdf: function () { if (global.PDF) global.PDF.ficha(e, (e.entrada || {}), global.Onboarding ? global.Onboarding.GRUPOS : [], []); },
       arquivar: function () {
         var reativar = e.ativa === false;
-        UI.confirmar(reativar ? "Reativar cliente?" : "Encerrar este cliente?", reativar ? "O cliente volta a entrar no portal." : "A empresa é arquivada e os acessos dos clientes deixam de entrar. Nada é apagado.", { ok: reativar ? "Reativar" : "Encerrar", perigo: !reativar }).then(function (ok) {
+        UI.confirmar(reativar ? "Reativar cliente?" : "Encerrar este cliente?", reativar ? "O cliente volta a entrar no portal." : "A empresa é arquivada e deixa de abrir no portal. Documentos e histórico ficam guardados; a conta de login de quem só acompanhava esta empresa é apagada.", { ok: reativar ? "Reativar" : "Encerrar", perigo: !reativar }).then(function (ok) {
           if (!ok) return;
           Dados.salvarEmpresa(e.id, { ativa: reativar, encerradaEm: reativar ? 0 : Date.now() }).then(function () {
-            if (!reativar && (e.acessos || []).length) return Dados.colAdicionar("exclusoesDeConta", { pedidoPor: sessao.uid, empresaId: e.id, uids: e.acessos.map(function (a) { return a.uid; }), motivo: "encerramento" });
+            if (!reativar && (e.acessos || []).length) return Dados.colAdicionar("exclusoesDeConta", { pedidoPor: sessao.uid, empresaId: e.id, uids: e.acessos.map(function (a) { return a.uid || a.id; }).filter(Boolean), motivo: "encerramento" });
           }).then(function () { UI.toast(reativar ? "Cliente reativado." : "Cliente encerrado e pedido de exclusão de conta registrado.", "ok"); Pn.recarregar().then(function () { location.hash = "#/clientes"; }); });
         });
       }
