@@ -161,9 +161,16 @@ exports.enviarAvisosDoChat = onSchedule({ schedule: "*/5 * * * *", timeZone: "Am
         if (!s.exists) continue;
         const m = s.data() || {};
         const leu = Object.keys(m.lidaPor || {}).some((uid) => clientes.has(uid));
-        if (!leu) naoLidas.push(m);
+        if (!leu) naoLidas.push(Object.assign({ _id: id, _em: (m.em && m.em.toMillis) ? m.em.toMillis() : Number(m.em) || 0 }, m));
       }
       if (!naoLidas.length) { await p.ref.delete(); continue; }
+      /* os 10 min contam de cada mensagem não lida (28/09/2026: a pendência guardava a hora de uma mensagem já lida,
+         e a seguinte virou e-mail com 8 min). Nenhuma não lida com 10 min ainda: a pendência espera, contando da mais antiga não lida. */
+      if (!naoLidas.some((m) => m._em && m._em <= Date.now() - ESPERA_LEITURA_MS)) {
+        /* só a hora muda: a lista de mensagens não é regravada (uma mensagem nova chegando agora não se perde) */
+        await p.ref.set({ primeira: Math.min.apply(null, naoLidas.map((m) => m._em || Date.now())) }, { merge: true });
+        continue;
+      }
       /* conversa não vira enxurrada: no máximo 1 e-mail de chat a cada 20 min por empresa (a pendência espera) */
       const marca = db.doc("avisosEmail/" + empresaId);
       const ult = await marca.get();
@@ -228,6 +235,11 @@ exports.enviarEmailPedido = onDocumentCreated({ document: "pedidosDeEmail/{pedid
       para = [String(p.para || "").trim()].filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
       assunto = trecho(p.assunto || "Aviso da Totali", 120);
       conteudo = { titulo: assunto, texto: trecho(p.texto, 3000), botao: "Abrir o portal", link: cfg.linkPortal + (p.rota || "") };
+    } else if (p.tipo === "membro") {
+      /* criado pela função equipe.js (pessoa nova na equipe): link para criar a própria senha */
+      para = [String(p.para || "").trim()].filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+      assunto = "Seu acesso ao painel da equipe Totali";
+      conteudo = { titulo: "Olá, " + trecho(p.nome || "", 60) + "!", texto: "Você agora faz parte da equipe no Portal do Cliente da Totali. Toque no botão para criar a sua senha. O link vale por pouco tempo; se expirar, peça um novo ao administrador.", botao: "Criar minha senha", link: String(p.link || "") };
     } else if (p.tipo === "convite") {
       para = [String(p.para || "").trim()].filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
       assunto = "Seu acesso ao Portal do Cliente da Totali";

@@ -188,7 +188,7 @@
     por: por,
     aplicar: aplicar,
     /* nome para relatórios: sistema do catálogo ou partes do portal registradas no uso */
-    nomeDe: function (id) { var s = por(id); return s ? s.nome : ({ portal: "Portal (telas)", checklist: "Envio do mês" })[id] || id; },
+    nomeDe: function (id) { var s = por(id); return s ? s.nome : ({ portal: "Portal · telas", checklist: "Portal · Envio do mês" })[id] || id; },
     /* selo do sistema: a logo enviada pela equipe ou, sem logo, o ícone na cor do sistema */
     selo: function (s, cls) {
       var logo = s && s.logo && s.logo.url;

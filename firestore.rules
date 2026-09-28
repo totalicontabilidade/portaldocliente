@@ -142,6 +142,14 @@ service cloud.firestore {
     }
 
     // ---------- Troca da chave do cofre (função cofre.js; só administrador) ----------
+    // pessoa nova na equipe: o administrador pede, a função equipe.js cria o login e manda o link da senha
+    match /pedidosDeMembro/{id} {
+      allow create: if ehAdmin() && request.resource.data.pedidoPor == request.auth.uid
+                    && request.resource.data.email is string && request.resource.data.nome is string;
+      allow get: if ehAdmin();
+      allow list, update, delete: if false;
+    }
+
     match /pedidosDeTrocaDeChave/{id} {
       allow create: if ehAdmin() && request.resource.data.pedidoPor == request.auth.uid;
       allow get: if ehAdmin();

@@ -9,6 +9,7 @@
    exclusao.js    apaga a conta de login de cliente encerrado
    cofre.js       troca a chave do cofre pelo painel (recifra tudo)
    avisos.js      avisos por e-mail ao cliente (SMTP configurado no painel)
+   equipe.js      coloca alguém na equipe pelo painel (cria o login e manda o link da senha)
    (chaves.js e envelope.js são peças, não funções)
 
    Publicar: firebase deploy --only functions
@@ -26,3 +27,4 @@ Object.assign(exports, require("./resumo"));
 Object.assign(exports, require("./exclusao"));
 Object.assign(exports, require("./cofre"));
 Object.assign(exports, require("./avisos"));
+Object.assign(exports, require("./equipe"));
