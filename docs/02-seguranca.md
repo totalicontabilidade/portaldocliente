@@ -29,6 +29,12 @@
 - **Cabeçalhos HTTP** de proteção em `firebase.json` (HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP/CORP). Valem no Firebase Hosting; o GitHub Pages não deixa configurar cabeçalhos.
 - **Sair** limpa preferências e caches do aparelho.
 - **Sem dado real no código**; semente do modo local é fictícia.
+- **Notas internas fora do alcance do cliente** (28/09/2026): o cliente lê o registro inteiro da empresa (o Firestore não esconde campo), então dor do D2, notas da jornada e anotação do financeiro moram em `empresas/{id}/interno/equipe`, que só a equipe lê e grava. Testado com a sessão real de um cliente: leitura e escrita barradas.
+- **Arquivos da contabilidade anterior** (28/09/2026): link sem login com **login anônimo** (invisível para quem usa), que **vence em 30 dias** (renovável/desativável na ficha); a regra confere código, empresa, ativo e vencimento no Firestore e no Storage. O visitante só cria documento com campos fixos (`item` vazio, sem triagem). No servidor, `functions/triagem.js` confere cada arquivo **pelo conteúdo** (programa disfarçado de PDF, .exe/.bat/.js/.html e afins são apagados), abre ZIP/RAR com limites contra "bomba" (tamanho, razão de compressão, 1.500 arquivos, 1,5 GB), nunca executa nada e grava cada arquivo como "baixar" (não é exibido como página). Macros do Office viram alerta para a equipe.
+- **Regras do Storage e o limite de 2 consultas**: cada caminho de `allow create` usa no máximo 2 consultas ao Firestore (o visitante anônimo não passa por "é equipe?/é cliente?"). Antes o link estourava o limite e nunca conseguia enviar.
+- **Equipe pelo painel**: o administrador cadastra nome/e-mail; `functions/equipe.js` cria o login e manda à pessoa o link para ela criar a própria senha (ninguém define senha por ela). Um e-mail de cliente não vira equipe.
+- **Erros em palavras simples** (`U.msgErro`): o cliente nunca vê "Firebase", código técnico ou inglês; o original vai para o console.
+- **Bateria de invasão com sessões reais** (28/09/2026): 17 tentativas do cliente (ler equipe, auditoria, configuração de e-mail, outras empresas; liberar sistema, mudar regime, aprovar o próprio documento, virar admin, se dar outra empresa, pedir membro/troca de chave) e 10 do visitante anônimo (ler empresa, documentos, mensagens, cofre; forjar destino, aprovação, triagem, outra empresa, código falso, renovar o link) — todas barradas; link vencido barrado na página, no Firestore e no Storage.
 
 ## 3. Limites honestos
 

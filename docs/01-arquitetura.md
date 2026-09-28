@@ -25,7 +25,7 @@ O Agência 100K é Next.js + Postgres porque é um SaaS multi-tenant vendido par
 ```
 index.html         Portal do cliente
 equipe.html        Painel da equipe
-anterior.html      Envio pela contabilidade anterior, sem login (link com código)
+anterior.html      Envio pela contabilidade anterior, sem login (link com código que vence em 30 dias; aceita ZIP/RAR e qualquer arquivo até 300 MB, menos programas)
 css/tokens.css     Design system (Agência 100K)
 css/app.css        Componentes e layout, mobile first
 js/tema.js         Claro / escuro / sistema (carrega antes de pintar)
@@ -42,7 +42,7 @@ js/shell.js        Casca: sidebar, topbar, tabbar, roteador por hash
 js/app.js          Telas do portal
 js/painel.js       Telas do painel
 js/anterior.js     Página da contabilidade anterior
-functions/         Cloud Functions: auditoria, senhas, resumo/lembretes
+functions/         Cloud Functions: auditoria, senhas, resumo/lembretes, avisos por e-mail, equipe (cria login), triagem (arquivos da contabilidade anterior)
 firestore.rules    A proteção de verdade
 storage.rules      Arquivos
 ```
@@ -64,7 +64,9 @@ empresas/{id}/eventos/{id}       rastro auxiliar (navegador); não probatório
 clientes/{uid}                   nome, email, empresas[], empresaAtual
 usuarios/{uid}                   equipe: nome, email, papel (admin|equipe), setor
 convites/{codigo}                empresaId, usado, usadoPor
-anterior/{codigo}                empresaId, empresa, ativo
+anterior/{codigo}                empresaId, empresa, ativo, expiraEm (ms; renovável)
+empresas/{id}/interno/equipe     dor, notas (jornada), anotacaoFinanceiro · só a equipe lê e grava
+pedidosDeMembro/{id}             pedido do admin para colocar alguém na equipe (functions/equipe.js responde com o link da senha)
 uso/{id}                         empresaId, uid, nome, tipo (abrir|tela|sessao|vitrine), sistemaId, tela, duracaoS, dispositivo, em
 auditoria/{id}                   escrita só pela Cloud Function, hora do servidor
 vitrine/{id}                     campanha: sistemaId, titulo, texto, cta, publico, empresas[], gatilho, prioridade, inicio, fim, ativo
@@ -111,7 +113,8 @@ Duas trilhas, de propósito:
 - Cofre de senhas: cifrado no aparelho do cliente com a chave pública da Totali (`js/chave-publica.js`); aberto pela Cloud Function `abrirCredencial` com a privada no Secret Manager; a resposta volta recifrada com uma chave descartável da aba. Cada abertura vira registro em `/auditoria`.
 - Convite de uso único; sessão do portal e do painel separadas por nome de app (lição do Academy).
 - CSP sem scripts inline nem CDN; `frame-src https:` só no portal, para embutir os sistemas.
-- Contabilidade anterior: login anônimo + código do link conferido pelas regras (Firestore e Storage), sem conta.
+- Contabilidade anterior: login anônimo (sessão própria da página) + código do link conferido pelas regras (Firestore e Storage), sem conta; o link vence em 30 dias.
+- Triagem (28/09/2026): documento de origem `anterior` (pelo link, ou a equipe subindo o ZIP/RAR que chegou por e-mail em Ficha › Contab. anterior) dispara `triarArquivoAnterior`: confere pelo conteúdo, abre ZIP/RAR (e ZIP dentro de ZIP), grava cada arquivo como documento próprio (`extraidoDe`), escolhe o item da Lista de documentos pelo nome do arquivo e da pasta e marca `entrada.itens[k]` como enviado. Na dúvida, o documento fica com `duvidaAberta` e sugestões (`duvida.candidatos`); o painel mostra "arquivos sem destino" (início, Documentos, ficha) e a equipe escolhe o item (`Dados.definirDestino`). Admins recebem e-mail quando sobra dúvida, bloqueio ou erro.
 - Nada de dado real no código: a semente do modo local é fictícia.
 
 ## 7. Ligar o Firebase (passo a passo)
