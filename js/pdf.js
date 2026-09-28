@@ -52,7 +52,8 @@
         alvos.forEach(function (s) {
           if (s) { y = linha(d, y); d.setFont("helvetica", "bold"); d.setFontSize(10); d.text(s.nome + (s.cpf ? "  CPF " + s.cpf : ""), 14, y); d.setFont("helvetica", "normal"); y += 5; }
           g.itens.forEach(function (it) {
-            var sit = O ? O.situacao({ itens: en.itens || {}, gruposNA: en.gruposNA || {}, socios: en.socios || [] }, g, it, s ? s.id : null) : "pendente";
+            var sit = O ? O.situacao({ itens: en.itens || {}, gruposNA: en.gruposNA || {}, socios: en.socios || [], regime: e.regime || "" }, g, it, s ? s.id : null) : "pendente";
+            if (sit === "fora") return;
             var reg = ((en.itens || {})[O ? O.chave(g, it, s ? s.id : null) : ""]) || {};
             y = linha(d, y); d.setFontSize(9);
             d.setFillColor.apply(d, sit === "aprovado" || sit === "substituido" ? [204, 251, 241] : sit === "pendencia" ? [254, 226, 226] : sit === "na" ? [241, 244, 248] : sit === "pendente" ? [255, 255, 255] : [219, 234, 254]);
@@ -83,7 +84,8 @@
           if (s) { y = linha(d, y); d.setFont("helvetica", "bold"); d.setFontSize(10); d.text(s.nome + (s.cpf ? "  CPF " + s.cpf : ""), 14, y); d.setFont("helvetica", "normal"); y += 5; }
           g.itens.forEach(function (it) {
             var k = O ? O.chave(g, it, s ? s.id : null) : "", reg = ((en.itens || {})[k]) || {};
-            var sit = O ? O.situacao({ itens: en.itens || {}, gruposNA: en.gruposNA || {}, socios: en.socios || [] }, g, it, s ? s.id : null) : "pendente";
+            var sit = O ? O.situacao({ itens: en.itens || {}, gruposNA: en.gruposNA || {}, socios: en.socios || [], regime: e.regime || "" }, g, it, s ? s.id : null) : "pendente";
+            if (sit === "fora") return;
             var arqs = (reg.docIds || []).map(function (id) { return (docs || []).filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
             var texto = it.nome + ": " + (ROT[sit] || sit) + (reg.em ? ", recebido em " + U.dataHora(reg.em) : "") + (reg.revisao && reg.revisao.por ? ", " + (sit === "aprovado" ? "aprovado" : sit === "na" ? "dispensado" : "revisado") + " por " + reg.revisao.por + " em " + U.dataHora(reg.revisao.em) : "") + (reg.revisao && reg.revisao.motivo ? " (" + reg.revisao.motivo + ")" : "") + (reg.valor ? ". Valor informado: " + reg.valor : "") + (reg.procuracao ? ". Procuração eletrônica informada" : "") + (reg.credencialId ? ". Credencial guardada no cofre" : "") + (arqs.length ? ". Arquivos: " + arqs.map(function (a) { return a.nome + " (" + U.tamanho(a.arquivo ? a.arquivo.tamanho : 0) + ")"; }).join("; ") : "") + ".";
             y = paragrafo(d, "• " + texto, y, 9);

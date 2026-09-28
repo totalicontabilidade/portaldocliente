@@ -95,7 +95,7 @@
     });
     atualizarBadges();
     if (global.Notificacoes) global.Notificacoes.iniciar({ uid: sessao.uid, lado: "equipe" });
-    if (global.Tour) setTimeout(function () { global.Tour.talvez("painel-inicio"); }, 800);
+    /* o tutorial fala da tela inicial: abre na telaInicio (antes abria em qualquer tela, como Mensagens) */
   }
   function atualizarBadges() {
     Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); Shell.badge("#/mensagens", n); UI.titulo(TITULO, n); });
@@ -148,6 +148,7 @@
   function telaInicio() {
     Shell.titulo("Início");
     Shell.render(UI.esqueleto(8));
+    if (global.Tour) setTimeout(function () { if (Shell.rota().nome === "inicio") global.Tour.talvez("painel-inicio"); }, 1500);
     var semana = Date.now() - 7 * U.DIA_MS;
     Promise.all([Dados.todasConversas(), Dados.todosDocumentos(), Dados.usos({ desde: semana }), Dados.listarChecklists(U.anoMes(Date.now()))]).then(function (r) {
       var convs = r[0], docs = r[1], usos = r[2], checks = r[3];
@@ -631,7 +632,8 @@
     Dados.todasConversas().then(function (convs) {
       var atual = r.param || "";
       Shell.render('<div class="conversas"' + (atual ? " data-aberta" : "") + '><div class="conversas__lista"><div class="lista">' + convs.map(function (c) { return '<a class="lista__item" href="#/mensagens/' + c.empresaId + '" aria-current="' + (c.empresaId === atual) + '">' + UI.avatar(c.empresa, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(c.empresa) + '</span><span class="lista__sub">' + (c.ultima ? (c.ultima.autor.lado === "equipe" ? "Você: " : "") + U.esc(c.ultima.texto || "📎 anexo") : "sem mensagens") + '</span></div><div class="pilha" style="gap:4px;align-items:flex-end"><span class="lista__meta">' + (c.ultima ? U.relativo(c.ultima.em) : "") + "</span>" + (c.naoLidas ? '<span class="badge badge--erro">' + c.naoLidas + "</span>" : c.resolvida ? UI.badge("resolvida", "ok", "check") : "") + "</div></a>"; }).join("") + '</div></div><div class="conversas__chat" id="chatArea">' + (atual ? "" : '<div class="vazio" style="height:100%;justify-content:center">' + ic("chat") + "<b>Escolha uma conversa</b><span>As não lidas aparecem com o contador vermelho.</span></div>") + "</div></div>");
-      if (atual) { var e = empresas.filter(function (x) { return x.id === atual; })[0]; if (e) { var area = UI.$("#chatArea"); area.innerHTML = '<div id="chatMsgs"></div>'; var cont = UI.$("#chatMsgs"); montarChatEquipe(cont, e, false); if (r.query.cobrar === "envio") rascunhoCobranca(cont, e, r.query.mes || U.anoMes(Date.now())); var cab = cont.querySelector(".chat__cab"); if (cab) cab.insertAdjacentHTML("afterbegin", '<a class="btn btn--icone btn--fantasma so-mobile" href="#/mensagens" aria-label="Voltar">' + ic("arrow-left") + "</a>"); } }
+      /* a conversa precisa da empresa completa (com os acessos): sem eles o cabeçalho dizia "sem acesso ao portal" e o WhatsApp ia sem número */
+      if (atual) { var e0 = empresas.filter(function (x) { return x.id === atual; })[0]; if (e0) Dados.empresa(atual).catch(function () { return null; }).then(function (full) { var e = full || e0; var area = UI.$("#chatArea"); if (!area) return; area.innerHTML = '<div id="chatMsgs"></div>'; var cont = UI.$("#chatMsgs"); montarChatEquipe(cont, e, false); if (r.query.cobrar === "envio") rascunhoCobranca(cont, e, r.query.mes || U.anoMes(Date.now())); var cab = cont.querySelector(".chat__cab"); if (cab) cab.insertAdjacentHTML("afterbegin", '<a class="btn btn--icone btn--fantasma so-mobile" href="#/mensagens" aria-label="Voltar">' + ic("arrow-left") + "</a>"); }); }
     });
   }
 

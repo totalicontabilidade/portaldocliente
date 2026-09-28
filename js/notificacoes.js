@@ -50,7 +50,10 @@
       if (o.lado === "cliente" && o.envio && o.empresa && global.Envio && podeAvisar()) avisarEnvio(o);
       if (o.lado === "equipe") {
         var ultimoTotal = -1;
-        var h = function () { Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); if (ultimoTotal >= 0 && n > ultimoTotal && (document.hidden || location.hash.indexOf("#/mensagens") !== 0)) { var c = cs.filter(function (x) { return x.naoLidas; })[0]; avisar("Mensagem de " + (c ? c.empresa : "cliente"), c && c.ultima ? c.ultima.texto : "", "#/mensagens" + (c ? "/" + c.empresaId : "")); } ultimoTotal = n; }); };
+        var h = function () { Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); if (ultimoTotal >= 0 && n > ultimoTotal && (document.hidden || location.hash.indexOf("#/mensagens") !== 0)) { var c = cs.filter(function (x) { return x.naoLidas; })[0]; avisar("Mensagem de " + (c ? c.empresa : "cliente"), c && c.ultima ? c.ultima.texto : "", "#/mensagens" + (c ? "/" + c.empresaId : "")); }
+          /* mudou o total: o painel refaz sino, aba Mensagens e título (antes só mudava ao recarregar a página) */
+          var mudou = ultimoTotal >= 0 && n !== ultimoTotal; ultimoTotal = n;
+          if (mudou) document.dispatchEvent(new CustomEvent("dados:mudou", { detail: { tipo: "mensagem", detalhe: "contagem" } })); }); };
         document.addEventListener("dados:mudou", function (e) { if (e.detail && ["mensagem", "remoto"].indexOf(e.detail.tipo) > -1) h(); });
         h(); var t = setInterval(h, 20000); parar = function () { clearInterval(t); };
       }

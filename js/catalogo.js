@@ -175,7 +175,7 @@
     var r = (e && e.responsaveis) || {};
     return SETORES.filter(function (s) { return r[s[0]] && r[s[0]].nome; }).map(function (s) { return { setor: s[0], rotulo: s[1], uid: r[s[0]].uid || "", nome: r[s[0]].nome }; });
   }
-  function responsaveisTexto(e) { return responsaveis(e).map(function (x) { return x.nome + " - " + x.rotulo; }).join(", "); }
+  function responsaveisTexto(e) { return responsaveis(e).map(function (x) { return x.nome + " · " + x.rotulo; }).join(", "); }
 
   global.CATALOGO = {
     SISTEMAS: SISTEMAS,

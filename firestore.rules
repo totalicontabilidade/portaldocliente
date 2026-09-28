@@ -213,7 +213,9 @@ service cloud.firestore {
         // equipe revisa e registra "visto"; cliente só remove o que ainda não foi aprovado
         allow update: if ehEquipe()
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'revisao', 'vistos']);
-        allow delete: if ehEquipe() || (ehDonoDaEmpresa(empresaId) && resource.data.origem == 'cliente' && resource.data.situacao != 'aprovado');
+        // o termo de compromisso das maquininhas é registro do combinado: só a equipe apaga
+        allow delete: if ehEquipe() || (ehDonoDaEmpresa(empresaId) && resource.data.origem == 'cliente' && resource.data.situacao != 'aprovado'
+                                        && !(resource.data.get('observacao', '') is string && resource.data.get('observacao', '').matches('Termo de compromisso.*')));
       }
 
       match /credenciais/{id} {
@@ -265,6 +267,7 @@ service cloud.firestore {
 
     // Consultas em grupo (painel): documentos e checklists de todas as empresas
     match /{path=**}/documentos/{id} { allow read: if ehEquipe(); }
+    match /{path=**}/acessos/{uid} { allow read: if ehEquipe(); }
     match /{path=**}/checklist/{anoMes} { allow read: if ehEquipe(); }
 
     match /{document=**} { allow read, write: if false; }

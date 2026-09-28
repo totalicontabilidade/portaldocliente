@@ -39,6 +39,8 @@
   function proximas(e, dias) {
     var hoje = new Date(); hoje.setHours(0, 0, 0, 0); var out = [];
     var comFunc = (e.perfis || []).indexOf("com-funcionarios") > -1;
+    /* o que venceu antes de a empresa entrar na Totali não é dela com a gente: não aparece como "venceu" */
+    var inicio = U.ms(e.jornada && e.jornada.aceiteEm) || U.ms(e.criadaEm) || 0; inicio = new Date(inicio); inicio.setHours(0, 0, 0, 0);
     for (var m = 0; m < 2; m++) {
       var ref = new Date(hoje.getFullYear(), hoje.getMonth() + m, 1);
       LISTA.forEach(function (o) {
@@ -47,7 +49,7 @@
         if (o.meses && o.meses.indexOf(ref.getMonth() + 1) === -1) return;
         var v = diaUtil(ref.getFullYear(), ref.getMonth(), o.dia, o.regra);
         var em = U.diasEntre(hoje, v);
-        if (em < -3 || (dias && em > dias)) return;
+        if (em < -3 || (dias && em > dias) || v.getTime() <= inicio.getTime()) return;
         out.push({ o: o, vence: v.getTime(), em: em });
       });
     }

@@ -430,7 +430,8 @@
       var naoLidas = msgs.filter(function (m) { return m.autor.lado === "equipe" && !(m.lidaPor || {})[sessao.uid]; }).length;
       var pendencias = docsCache.filter(function (d) { return d.situacao === "pendencia"; });
       var aprovados = docsCache.filter(function (d) { return d.situacao === "aprovado"; }).length;
-      var emAnalise = docsCache.filter(function (d) { return d.situacao === "enviado" || d.situacao === "analise"; }).length;
+      /* o que a Totali mandou para o cliente não está "em análise": só conta o que o cliente (ou a contabilidade anterior) enviou */
+      var emAnalise = docsCache.filter(function (d) { return d.origem !== "equipe" && (d.situacao === "enviado" || d.situacao === "analise"); }).length;
       var itensCheck = check ? check.itens : [], feitosCheck = itensCheck.filter(function (i) { return i.feito; }).length;
       var sistemasLib = CATALOGO.visiveis().filter(function (s) { return liberado(s.id); });
 
@@ -452,7 +453,7 @@
         '<div class="grade grade--4">' +
           acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
           acao("#/documentos", "folder", "Arquivos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
-          (liberado("checklist") ? acao("#/checklist", "list-check", "Envio", itensCheck.length ? feitosCheck + "/" + itensCheck.length + " do mês" : "nada este mês") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
+          (liberado("checklist") ? acao("#/checklist", "list-check", "Envio do mês", itensCheck.length ? feitosCheck + " de " + itensCheck.length + " enviados" : "nada a enviar agora") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
           acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +
         "</div>" +
         '<div class="grade grade--lado">' +
@@ -468,7 +469,7 @@
             /* Minha equipe (reciprocidade, rosto conhecido) */
             cardEquipe() +
             /* Patrimônio (endowment) */
-            '<div class="card"><div class="card__corpo"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Sua empresa na Totali</div><div class="grade grade--2 mt-8" style="gap:8px">' + kpiMini(docsCache.length, "documentos guardados") + kpiMini(aprovados, "aprovados pela equipe") + kpiMini(sistemasLib.length, "sistemas ativos") + kpiMini(U.diasEntre(empresa.criadaEm, Date.now()), "dias com a Totali") + "</div></div></div>" +
+            '<div class="card"><div class="card__corpo"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Sua empresa na Totali</div><div class="grade grade--2 mt-8" style="gap:8px">' + kpiMini(docsCache.length, docsCache.length === 1 ? "documento guardado" : "documentos guardados") + kpiMini(aprovados, aprovados === 1 ? "aprovado pela equipe" : "aprovados pela equipe") + kpiMini(sistemasLib.length, sistemasLib.length === 1 ? "sistema ativo" : "sistemas ativos") + (function (d) { return kpiMini(d, d === 1 ? "dia com a Totali" : "dias com a Totali"); })(U.diasEntre(empresa.criadaEm, Date.now())) + "</div></div></div>" +
             ganchos.map(function (g) { return g && g.lado ? g.lado : ""; }).join("") +
             /* Banners dos sistemas ainda não contratados (rotativo) */
             '<div id="bannerInicio"></div>' +
@@ -579,15 +580,17 @@
       var c = global.Envio.mes(empresa, res[0], anoMes);
       var hist = res[1];
       var feitos = c.itens.filter(function (i) { return i.feito; }).length, pct = U.pct(feitos, c.itens.length);
-      var meses = []; for (var i = 0; i < 6; i++) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); meses.push(U.anoMes(d)); }
+      /* só os meses desde a entrada na Totali (antes o seletor oferecia meses anteriores, todos vazios) */
+      var mesEntrada = U.anoMes(new Date(U.ms(empresa.jornada && empresa.jornada.aceiteEm) || U.ms(empresa.criadaEm) || Date.now()));
+      var meses = []; for (var i = 0; i < 6; i++) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); if (U.anoMes(d) >= mesEntrada) meses.push(U.anoMes(d)); }
       var emDia = hist.filter(function (h) { return h.concluidoEm; }).length;
       var partes = anoMes.split("-");
       var ref = new Date(Number(partes[0]), Number(partes[1]) - 2, 1), mesRef = MESES[ref.getMonth()];
       var proxRef = new Date(Number(partes[0]), Number(partes[1]), 1), mesProx = MESES[proxRef.getMonth()];
       var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(nomeMes(anoMes)) + " · documentos de " + mesRef + '</div><h1>Envio do mês</h1><p>É o que a Totali precisa receber de você todo mês para fechar a contabilidade da empresa: extratos, notas, comprovantes. Toque em <b>Anexar</b> no item e envie o arquivo; o item fica marcado sozinho. A Totali confere e dá o aceite.</p></div>' +
-        '<div class="cabecalho__acoes"><select class="select" id="selMes" style="min-height:36px;width:auto">' + meses.map(function (m) { return '<option value="' + m + '"' + (m === anoMes ? " selected" : "") + ">" + nomeMes(m) + "</option>"; }).join("") + "</select></div></div>" +
+        (meses.length > 1 ? '<div class="cabecalho__acoes"><select class="select" id="selMes" style="min-height:36px;width:auto" aria-label="Mês">' + meses.map(function (m) { return '<option value="' + m + '"' + (m === anoMes ? " selected" : "") + ">" + nomeMes(m) + "</option>"; }).join("") + "</select></div>" : "") + "</div>" +
         '<div class="grade grade--lado"><div class="pilha">' +
-          (!c.itens.length ? UI.vazio("calendar", "Nada para enviar em " + nomeMes(anoMes).split(" de ")[0], "Os prazos deste mês venceram antes de a sua empresa entrar na Totali. O primeiro envio é em " + mesProx + ": a lista aparece aqui no dia 1.") : "") +
+          (!c.itens.length ? UI.vazio("calendar", "Nada para enviar em " + nomeMes(anoMes).split(" de ")[0], anoMes <= mesEntrada ? "Os prazos deste mês venceram antes de a sua empresa entrar na Totali. O primeiro envio é em " + mesProx + ": a lista aparece aqui no dia 1." : "Neste mês não há documentos a enviar.") : "") +
           '<div class="card"' + (c.itens.length ? "" : " hidden") + '><div class="card__corpo"><div class="linha linha--entre"><div><div class="f-800 f-15">' + feitos + " de " + U.plural(c.itens.length, "1 item", c.itens.length + " itens") + '</div><div class="f-12 txt-2">' + (c.concluidoEm ? "Concluído em " + U.data(c.concluidoEm) : U.plural(c.itens.length - feitos, "falta 1", "faltam " + (c.itens.length - feitos))) + "</div></div>" + (c.concluidoEm ? '<span class="badge badge--ok">' + ic("check") + "Mês em dia</span>" : UI.anel(pct, "", 56)) + "</div>" + UI.barra(pct, pct === 100 ? "barra--ok" : pct >= 70 ? "barra--gold" : "") + "</div></div>" +
           '<div class="pilha" style="gap:6px">' + c.itens.map(function (it, i) {
             var prazo = new Date(Number(partes[0]), Number(partes[1]) - 1, it.prazoDia).getTime();
@@ -599,7 +602,7 @@
           '<div class="aviso aviso--info">' + ic("info") + "<div><b>Tolerância de 48 h</b>Um atraso de um dia não tira o seu selo. Avisamos antes, e o mês só conta como atrasado depois de dois dias.</div></div>" +
         "</div></div></div>";
       var v = Shell.render(html);
-      UI.$("#selMes", v).addEventListener("change", function () { location.hash = "#/checklist?mes=" + this.value; });
+      var selMes = UI.$("#selMes", v); if (selMes) selMes.addEventListener("change", function () { location.hash = "#/checklist?mes=" + this.value; });
       UI.delegar(v, {
         anexar: function (a, e) { e.stopPropagation(); location.hash = a.getAttribute("href"); },
         item: function (b, e) {
@@ -626,11 +629,12 @@
   function iconeDoc(d) { return U.ehImagem(d.arquivo && d.arquivo.mime, d.nome) ? "image" : "file"; }
   function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Precisa de correção", "erro", "alert") }[s] || UI.badge(s); }
   function docHtml(d, podeRemover) {
-    var visto = (d.vistos || [])[0];
+    /* arquivo que a Totali mandou: não tem "visto pela equipe" nem situação de conferência (antes aparecia "Enviado · visto por Hesley") */
+    var daTotali = d.origem === "equipe", visto = daTotali ? null : (d.vistos || [])[0];
     return '<div class="doc entra" data-id="' + d.id + '"><span class="doc__icone">' + ic(iconeDoc(d)) + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(d.nome) + '</div><div class="doc__meta">' + U.esc((GRUPOS_DOC.filter(function (g) { return g.id === d.grupo; })[0] || {}).rotulo || d.grupo) + " · " + (d.origem === "anterior" ? "contabilidade anterior" : d.origem === "equipe" ? "Totali" : "você") + " · " + U.relativo(d.em) + (d.arquivo && d.arquivo.tamanho ? " · " + U.tamanho(d.arquivo.tamanho) : "") + "</div>" +
-      (visto ? '<div class="doc__meta txt-ok">' + ic("checkcheck", "ic--sm") + " visto por " + U.esc(visto.por) + " às " + U.hora(visto.em) + " de " + U.dataCurta(visto.em) + "</div>" : d.origem !== "equipe" ? '<div class="doc__meta">' + ic("clock", "ic--sm") + " ainda não visto pela equipe</div>" : "") +
+      (visto ? '<div class="doc__meta txt-ok">' + ic("checkcheck", "ic--sm") + " visto por " + U.esc(visto.por) + " às " + U.hora(visto.em) + " de " + U.dataCurta(visto.em) + "</div>" : !daTotali ? '<div class="doc__meta">' + ic("clock", "ic--sm") + " ainda não visto pela equipe</div>" : "") +
       (d.situacao === "pendencia" && d.revisao ? '<div class="aviso aviso--erro mt-4" style="padding:6px 10px">' + ic("alert", "ic--sm") + "<span>" + U.esc(d.revisao.motivo) + " <b>· " + U.esc(d.revisao.por) + "</b></span></div>" : "") +
-      '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + situacaoBadge(d.situacao) + '<div class="linha" style="gap:4px"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + d.id + '">' + ic("eye", "ic--sm") + "Ver</button>" + (podeRemover && d.situacao !== "aprovado" ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-id="' + d.id + '" aria-label="Remover">' + ic("trash", "ic--sm") + "</button>" : "") + "</div></div></div>";
+      '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + (daTotali ? UI.badge("Da Totali", "gold", "building") : situacaoBadge(d.situacao)) + '<div class="linha" style="gap:4px"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + d.id + '">' + ic("eye", "ic--sm") + "Ver</button>" + (podeRemover && d.origem === "cliente" && d.situacao !== "aprovado" && !/^Termo de compromisso/.test(d.observacao || "") ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-id="' + d.id + '" aria-label="Remover">' + ic("trash", "ic--sm") + "</button>" : "") + "</div></div></div>";
   }
   function telaDocumentos(r) {
     Shell.titulo("Meus arquivos");
@@ -657,7 +661,8 @@
       var v = Shell.render(html);
       var solta = UI.$("#solta", v), inp = UI.$("#arqInput", v), cam = UI.$("#camInput", v);
       var grupoPre = r.query.grupo || "";
-      var itensMes = (liberado("checklist") && global.Envio) ? global.Envio.itensPara(empresa) : [];
+      /* só os itens que valem no mês de agora (quem entrou depois dos prazos não tem o que marcar) */
+      var itensMes = (liberado("checklist") && global.Envio) ? global.Envio.mes(empresa, null, U.anoMes(Date.now())).itens : [];
       function enviar(files, grupo) {
         var lista = Array.prototype.slice.call(files || []); if (!lista.length) return;
         var itemPre = r.query.item || "";
@@ -671,8 +676,10 @@
             Promise.all(lista.map(function (f) { return Dados.enviarDocumento(empresa.id, { file: f, grupo: grp, origem: "cliente", por: sessao.nome, observacao: obs, item: itemId }); })).then(function () {
               if (primeiro) UI.celebrar("Primeiro documento enviado. A equipe já foi avisada."); else { UI.toast("Enviado. A equipe confere e você recebe o aceite aqui.", "ok"); UI.vibrar(); }
               if (itemId) { r.query.item = ""; global.Envio.marcar(empresa, U.anoMes(Date.now()), itemId, "documento").then(function (m) { if (m.completou) UI.celebrar("Mês de " + nomeMes(m.check.anoMes).split(" de ")[0] + " 100% em dia!"); else if (m.mudou) UI.toast("Marcado no envio do mês. Faltam " + global.Envio.resumo(m.check).faltam + ".", "ok"); }); }
+              /* enviado: a dica "já deixei o tipo selecionado" não volta a aparecer na tela redesenhada */
+              r.query.grupo = ""; r.query.item = ""; if (/\?/.test(location.hash)) history.replaceState(null, "", "#/documentos");
               docsCache = null; telaDocumentos(r);
-            }).catch(function (e) { UI.toast(e.message || "Falha no envio.", "erro"); });
+            }).catch(function (e) { UI.toast(U.msgErro(e, "Falha no envio. Tente de novo."), "erro"); });
           } }] });
       }
       if (solta) {
@@ -690,7 +697,23 @@
         camera: function () { cam.click(); },
         "enviar-grupo": function (b) { grupoPre = b.dataset.grupo; inp.click(); },
         ver: function (b) { var d = docs.filter(function (x) { return x.id === b.dataset.id; })[0]; Dados.urlArquivo(d).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Este arquivo de exemplo não tem conteúdo. Envie um arquivo real para ver a prévia.", "info"); }); },
-        remover: function (b) { UI.confirmar("Remover documento?", "Você pode enviar outro depois.", { ok: "Remover", perigo: true }).then(function (ok) { if (ok) Dados.removerDocumento(empresa.id, b.dataset.id).then(function () { docsCache = null; telaDocumentos(r); }); }); }
+        remover: function (b) {
+          UI.confirmar("Remover documento?", "Você pode enviar outro depois.", { ok: "Remover", perigo: true }).then(function (ok) {
+            if (!ok) return;
+            var id = b.dataset.id;
+            Dados.removerDocumento(empresa.id, id).then(function () {
+              /* o item da Lista de documentos que apontava para este arquivo volta a ficar pendente (antes seguia "Enviado" sem arquivo) */
+              var en = empresa.entrada, mudou = false;
+              if (en && en.itens) Object.keys(en.itens).forEach(function (k) {
+                var reg = en.itens[k]; if (!reg || !reg.docIds || reg.docIds.indexOf(id) === -1) return;
+                reg.docIds = reg.docIds.filter(function (x) { return x !== id; }); mudou = true;
+                if (!reg.docIds.length && !reg.valor && !reg.credencialId && !reg.procuracao) { reg.situacao = ""; delete reg.revisao; }
+              });
+              return mudou ? Dados.salvarEmpresa(empresa.id, { entrada: en }) : null;
+            }).then(function () { docsCache = null; UI.toast("Documento removido.", "ok"); telaDocumentos(r); })
+              .catch(function (err) { UI.toast(U.msgErro(err, "Não foi possível remover agora."), "erro"); });
+          });
+        }
       });
     });
   }

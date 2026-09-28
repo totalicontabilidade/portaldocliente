@@ -647,7 +647,17 @@
       trocarEmpresa: function (empresaId) { perfilCache.empresaId = empresaId; return db.collection("clientes").doc(usuario.uid).set({ empresaAtual: empresaId }, { merge: true }).then(function () { return perfilCache; }); },
 
       empresa: function (id) { if (!id) return Promise.resolve(null); return db.collection("empresas").doc(id).get().then(function (s) { var e = docData(s); if (!e) return null; return subcol(id, "acessos").get().then(function (a) { e.acessos = a.docs.map(docData); return e; }); }); },
-      listarEmpresas: function () { return lista(db.collection("empresas").orderBy("fantasia")); },
+      /* O painel precisa de quem tem acesso a cada empresa (último acesso, "ninguém entrou", jornada D1, WhatsApp):
+         uma consulta só em todos os acessos. Antes vinha sem, e a ficha dizia "Ninguém entrou ainda" com o cliente dentro. */
+      listarEmpresas: function () {
+        var acessos = NOME_APP === "painel" ? db.collectionGroup("acessos").get().then(function (s) { return s.docs; }).catch(function (e) { console.warn("acessos", e && e.code); return null; }) : Promise.resolve(null);
+        return Promise.all([lista(db.collection("empresas").orderBy("fantasia")), acessos]).then(function (r) {
+          if (!r[1]) return r[0];
+          var por = {}; r[1].forEach(function (d) { var emp = d.ref.parent.parent; if (!emp) return; (por[emp.id] = por[emp.id] || []).push(docData(d)); });
+          r[0].forEach(function (e) { e.acessos = por[e.id] || []; });
+          return r[0];
+        });
+      },
       salvarEmpresa: function (id, campos) { return db.collection("empresas").doc(id).set(campos, { merge: true }); },
       criarEmpresa: function (dados, por) {
         var ref = db.collection("empresas").doc();
