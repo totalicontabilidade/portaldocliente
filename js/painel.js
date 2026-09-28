@@ -703,24 +703,15 @@
   function abaCofre(e, corpo) {
     corpo.innerHTML = UI.esqueleto(3);
     Dados.credenciais(e.id).then(function (creds) {
-      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="aviso aviso--info">' + ic("shield") + "<div><b>Toda abertura fica registrada na auditoria com seu nome e hora.</b>A senha é aberta pelo servidor e chega recifrada só para esta aba. Não copie para WhatsApp.</div></div>" + (creds.length ? '<div class="pilha" style="gap:6px">' + creds.map(function (c) { return '<div class="doc"><span class="doc__icone" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("lock") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(c.rotulo) + '</div><div class="doc__meta">' + (c.usuario ? "usuário: <b class=\"num\">" + U.esc(c.usuario) + "</b> · " : "") + "guardada por " + U.esc(c.por || "cliente") + " " + U.relativo(c.em) + '</div><div class="doc__meta senha-campo" id="sen-' + c.id + '">••••••••••</div></div><button type="button" class="btn btn--xs btn--contorno" data-acao="abrir" data-id="' + c.id + '">' + ic("eye", "ic--sm") + "Ver senha</button></div>"; }).join("") + "</div>" : UI.vazio("key", "Nenhuma senha guardada", "O cliente guarda pelo portal, em Cofre de senhas.")) + "</div>";
-      UI.delegar(corpo, { abrir: function (b) {
-        b.disabled = true;
-        var p;
-        if (Dados.ehDemo()) p = Dados.abrirCredencial(e.id, b.dataset.id, sessao);
-        else p = Cripto.gerarPar().then(function (par) { return Dados.abrirCredencial(e.id, b.dataset.id, sessao, par.publica).then(function (r) { return Cripto.decifrar(r.resposta, par.privada); }); });
-        p.then(function (dados) {
-          var el = UI.$("#sen-" + b.dataset.id, corpo); el.textContent = dados.senha + (dados.obs ? "  (" + dados.obs + ")" : ""); el.classList.add("txt-gold"); el.setAttribute("data-segredo", "1"); b.setAttribute("data-segredo-botao", "1");
-          /* copiar é o uso real (colar no site do governo); ao trocar de janela a senha some da tela, mas a cópia continua 30 s */
-          var cp = document.createElement("button"); cp.type = "button"; cp.className = "btn btn--xs btn--contorno"; cp.setAttribute("data-segredo-copiar", "1"); cp.innerHTML = ic("copy", "ic--sm") + "Copiar";
-          cp.addEventListener("click", function (ev) { ev.stopPropagation(); global.Seguranca.copiarSegredo(dados.senha); }); b.parentNode.insertBefore(cp, b);
-          UI.toast("Aberta e registrada na auditoria. Ela some ao trocar de janela; use Copiar.", "info", null, 6000);
-          setTimeout(function () { global.Seguranca.esconderSegredos(); }, 45000);
-        })
-          .catch(function (err) { UI.toast(err.message, "erro", null, 6000); b.disabled = false; });
-      } });
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="aviso aviso--info" style="flex:1 1 320px">' + ic("shield") + "<div><b>Toda abertura fica registrada na auditoria com nome e hora.</b>A senha é aberta pelo servidor e chega recifrada só para esta tela. O cliente também vê estas senhas no portal.</div></div>" + '<button type="button" class="btn btn--sm btn--primario" data-acao="guardar">' + ic("plus") + "Guardar senha para o cliente</button></div>" +
+        (creds.length ? '<div class="pilha" style="gap:6px">' + creds.map(function (c) { return '<div class="doc"><span class="doc__icone" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("lock") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(c.rotulo) + '</div><div class="doc__meta">' + (c.usuario ? "usuário: <b class=\"num\">" + U.esc(c.usuario) + "</b> · " : "") + "guardada por " + U.esc(c.por || "cliente") + " " + U.relativo(c.em) + '</div><div class="doc__meta senha-campo" id="sen-' + c.id + '">••••••••••</div></div><div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="abrir" data-id="' + c.id + '">' + ic("eye", "ic--sm") + "Ver senha</button></div></div>"; }).join("") + "</div>" : UI.vazio("key", "Nenhuma senha guardada", "O cliente guarda pelo portal. A Totali também pode guardar aqui as senhas que criou para ele.")) + "</div>";
+      UI.delegar(corpo, {
+        abrir: function (b) { global.Cofre.ver(b, e.id, b.dataset.id, sessao, UI.$("#sen-" + b.dataset.id, corpo)); },
+        guardar: function () { global.Cofre.guardar({ empresaId: e.id, sessao: sessao, lado: "equipe", aoSalvar: function () { abaCofre(e, corpo); } }); }
+      });
     });
   }
+
 
   function abaConversa(e, corpo) {
     corpo.innerHTML = '<div style="padding:0 16px 16px"><div id="chatFicha"></div></div>';

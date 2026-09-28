@@ -130,10 +130,12 @@ service cloud.firestore {
 
     // ---------- Pedidos de abertura de senha (respondidos pela função) ----------
     match /pedidosDeSenha/{id} {
-      allow create: if ehEquipe() && request.resource.data.pedidoPor == request.auth.uid;
-      allow get: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      // equipe, ou o cliente para as senhas da empresa dele (28/09/2026); a função confere de novo lá dentro
+      allow create: if request.resource.data.pedidoPor == request.auth.uid
+                    && (ehEquipe() || (request.resource.data.empresaId is string && ehDonoDaEmpresa(request.resource.data.empresaId)));
+      allow get: if logado() && resource.data.pedidoPor == request.auth.uid;
       // quem pediu apaga depois de ler a resposta; o que sobrar (aba fechada no meio) some pelo TTL do campo expiraEm
-      allow delete: if ehEquipe() && resource.data.pedidoPor == request.auth.uid;
+      allow delete: if logado() && resource.data.pedidoPor == request.auth.uid;
       allow list, update: if false;
     }
 
@@ -238,9 +240,10 @@ service cloud.firestore {
       }
 
       match /credenciais/{id} {
-        // a equipe vê que existe (rótulo, usuário); o pacote só a função abre
+        // cliente e equipe veem que existe (rótulo, usuário); o pacote só a função abre.
+        // A contabilidade também guarda senhas que ela mesma criou para o cliente (sites, certificado) — 28/09/2026.
         allow read: if equipeOuDono(empresaId);
-        allow create: if ehDonoDaEmpresa(empresaId) && request.resource.data.pacote.alg == 'RSA-OAEP-256+AES-GCM-256' && tamanhoOk();
+        allow create: if equipeOuDono(empresaId) && request.resource.data.pacote.alg == 'RSA-OAEP-256+AES-GCM-256' && tamanhoOk();
         allow update: if false;
         allow delete: if equipeOuDono(empresaId);
       }

@@ -81,12 +81,25 @@ exports.abrirCredencial = onDocumentCreated(
     const quem = String(pedido.pedidoPor || "");
     if (!quem) return responder({ erro: "pedido sem autor" });
 
-    const autor = await db.collection("usuarios").doc(quem).get();
-    if (!autor.exists) return responder({ erro: "quem pediu não é da equipe" });
-
     const empresaId = String(pedido.empresaId || "");
     const chave = String(pedido.chave || "");
     if (!empresaId || !chave) return responder({ erro: "pedido incompleto" });
+
+    /* Quem pode abrir: a equipe, ou (desde 28/09/2026, pedido do Raoni) o próprio cliente, só nas
+       senhas da empresa dele e com a empresa ativa. Toda abertura fica na auditoria com o nome. */
+    const autor = await db.collection("usuarios").doc(quem).get();
+    let nomeAutor = "", lado = "equipe";
+    if (autor.exists) nomeAutor = (autor.data() || {}).nome || (autor.data() || {}).email || quem;
+    else {
+      const [acesso, emp, cli] = await Promise.all([
+        db.collection("empresas").doc(empresaId).collection("acessos").doc(quem).get(),
+        db.collection("empresas").doc(empresaId).get(),
+        db.collection("clientes").doc(quem).get()
+      ]);
+      if (!acesso.exists || !emp.exists || (emp.data() || {}).ativa === false) return responder({ erro: "você não tem acesso a esta senha" });
+      nomeAutor = ((cli.data() || {}).nome || (acesso.data() || {}).nome || "cliente") + " (cliente)";
+      lado = "cliente";
+    }
     if (!pedido.chavePublica || typeof pedido.chavePublica !== "object") {
       return responder({ erro: "pedido sem chave de resposta" });
     }
@@ -121,7 +134,8 @@ exports.abrirCredencial = onDocumentCreated(
       empresaId: empresaId,
       tipo: "credencial:aberta",
       chave: chave.replace(/~/g, "/"),
-      por: (autor.data() || {}).nome || (autor.data() || {}).email || quem,
+      por: nomeAutor,
+      lado: lado,
       uid: quem,
       em: FieldValue.serverTimestamp()
     });
