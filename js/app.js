@@ -50,7 +50,10 @@
       if (t === "sessao") { var s = Dados.sessao(); if (!!s !== !!sessao || (s && sessao && s.uid !== sessao.uid)) { sessao = s; empresa = null; (s ? carregarConteudo() : Promise.resolve()).then(rotear); } return; }
       if (["mensagem", "lidas", "remoto"].indexOf(t) > -1) atualizarBadges();
       if (["empresa", "liberacao", "jornada", "documento", "remoto", "conteudo", "checklist"].indexOf(t) > -1 && sessao && sessao.papel === "cliente") {
-        var r = Shell.rota().nome; if (["inicio", "jornada", "sistemas", "documentos", "checklist", "cofre"].indexOf(r) > -1) carregarEmpresa(true).then(rotear);
+        var r = Shell.rota().nome;
+        /* a equipe encerrou a empresa aberta: sai dela na hora (abre outra da pessoa ou avisa e sai) */
+        if (t === "empresa") { carregarEmpresa(true).then(function (e) { if (e && e.ativa === false) { empresa = null; semEmpresa(true); } else if (["inicio", "jornada", "sistemas", "documentos", "checklist", "cofre"].indexOf(r) > -1) rotear(); }); return; }
+        if (["inicio", "jornada", "sistemas", "documentos", "checklist", "cofre"].indexOf(r) > -1) carregarEmpresa(true).then(rotear);
       }
     });
   }
@@ -71,7 +74,7 @@
   /* A empresa aberta não está mais disponível (a equipe tirou o acesso ou encerrou a empresa): abre outra; sem nenhuma, avisa e sai. */
   function semEmpresa(encerrada) {
     var outras = (sessao.empresas || []).filter(function (id) { return id && id !== sessao.empresaId; });
-    if (outras.length) { Dados.trocarEmpresa(outras[0]).then(function (s) { sessao = s; sessao.empresas = outras; empresa = null; rotear(); }, function () { location.reload(); }); return; }
+    if (outras.length) { if (encerrada) UI.toast("O acesso desta empresa ao portal foi encerrado. Abrimos outra empresa sua.", "aviso", null, 8000); Dados.trocarEmpresa(outras[0]).then(function (s) { sessao = s; sessao.empresas = outras; empresa = null; rotear(); }, function () { location.reload(); }); return; }
     UI.toast(encerrada ? "O acesso desta empresa ao portal foi encerrado. Qualquer dúvida, fale com a Totali." : "Sua conta não está ligada a nenhuma empresa. Fale com a Totali.", "erro", null, 9000); sair();
   }
   function rotear() {
@@ -456,7 +459,7 @@
           acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
           acao("#/documentos", "folder", "Arquivos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
           (liberado("checklist") ? acao("#/checklist", "list-check", "Envio do mês", itensCheck.length ? feitosCheck + " de " + itensCheck.length + " enviados" : "nada a enviar agora") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
-          acao("#/sistemas", "grid", "Sistemas", sistemasLib.length + " liberados") +
+          acao("#/sistemas", "grid", "Sistemas", sistemasLib.length ? U.plural(sistemasLib.length, "1 liberado", sistemasLib.length + " liberados") : "conheça") +
         "</div>" +
         '<div class="grade grade--lado">' +
           '<div class="pilha">' +

@@ -658,7 +658,8 @@
       /* Página da contabilidade anterior: sem conta, com login anônimo; as regras conferem o código do link */
       entrarAnonimo: function () { return usuario ? Promise.resolve(usuario.uid) : auth.signInAnonymously().then(function (c) { return c.user.uid; }); },
       sair: function () { if (global.Seguranca) global.Seguranca.limparAparelho(); return auth.signOut(); },
-      trocarEmpresa: function (empresaId) { perfilCache.empresaId = empresaId; return db.collection("clientes").doc(usuario.uid).set({ empresaAtual: empresaId }, { merge: true }).then(function () { return perfilCache; }); },
+      /* trocar de empresa também conta como entrar nela (antes a ficha dizia "nunca entrou" para quem só trocava pelo topo) */
+      trocarEmpresa: function (empresaId) { perfilCache.empresaId = empresaId; subcol(empresaId, "acessos").doc(usuario.uid).set({ ultimoAcesso: TS() }, { merge: true }).catch(function () {}); return db.collection("clientes").doc(usuario.uid).set({ empresaAtual: empresaId }, { merge: true }).then(function () { return perfilCache; }); },
 
       empresa: function (id) { if (!id) return Promise.resolve(null); return db.collection("empresas").doc(id).get().then(function (s) { var e = docData(s); if (!e) return null; return subcol(id, "acessos").get().then(function (a) { e.acessos = a.docs.map(docData); return e; }); }); },
       /* O painel precisa de quem tem acesso a cada empresa (último acesso, "ninguém entrou", jornada D1, WhatsApp):
