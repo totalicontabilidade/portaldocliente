@@ -10,7 +10,8 @@
    cofre.js       troca a chave do cofre pelo painel (recifra tudo)
    avisos.js      avisos por e-mail ao cliente (SMTP configurado no painel)
    equipe.js      coloca alguém na equipe pelo painel (cria o login e manda o link da senha)
-   (chaves.js e envelope.js são peças, não funções)
+   triagem.js     arquivos da contabilidade anterior: confere, extrai ZIP/RAR e manda cada um ao item certo
+   (chaves.js, envelope.js e email.js são peças, não funções)
 
    Publicar: firebase deploy --only functions
    Região: southamerica-east1 (São Paulo), igual ao Academy.
@@ -28,3 +29,4 @@ Object.assign(exports, require("./exclusao"));
 Object.assign(exports, require("./cofre"));
 Object.assign(exports, require("./avisos"));
 Object.assign(exports, require("./equipe"));
+exports.triarArquivoAnterior = require("./triagem").triarArquivoAnterior;   /* só a função (o módulo também expõe peças para teste) */

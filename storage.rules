@@ -15,8 +15,15 @@ service firebase.storage {
     // Contabilidade anterior: login anônimo + código do link nos metadados do arquivo
     function codigoAnteriorValido(empresaId) {
       return request.resource.metadata != null && 'codigo' in request.resource.metadata
-             && firestore.get(/databases/(default)/documents/anterior/$(request.resource.metadata.codigo)).data.empresaId == empresaId
-             && firestore.get(/databases/(default)/documents/anterior/$(request.resource.metadata.codigo)).data.ativo == true;
+             && linkAnteriorOk(firestore.get(/databases/(default)/documents/anterior/$(request.resource.metadata.codigo)).data, empresaId);
+    }
+    function linkAnteriorOk(a, empresaId) {
+      return a.empresaId == empresaId && a.ativo == true && (!('expiraEm' in a) || a.expiraEm > request.time.toMillis());
+    }
+    // Contabilidade anterior manda de tudo (ZIP, RAR, áudio, vídeo, pfx…): o servidor confere o conteúdo depois
+    // (triagem.js apaga programas). Aqui só barra o que se declara executável ou página da web.
+    function tipoPerigoso() {
+      return request.resource.contentType.matches('application/(x-msdownload|x-msdos-program|x-dosexec|x-executable|x-sh|x-bat|x-msi|java-archive|vnd[.]microsoft[.]portable-executable|javascript|x-javascript|xhtml[+]xml|hta)|text/(html|javascript)');
     }
     function tipoOk() {
       return request.resource.contentType.matches('application/pdf|image/.*|application/xml|text/.*|application/zip|application/x-pkcs12|application/vnd.*|application/msword|audio/.*|video/.*|application/octet-stream');
@@ -24,8 +31,10 @@ service firebase.storage {
 
     match /empresas/{empresaId}/{area}/{id}/{nome} {
       allow read: if ehEquipe() || ehDono(empresaId);
-      allow create: if (ehEquipe() || ehDono(empresaId) || (ehAnonimo() && area == 'documentos' && codigoAnteriorValido(empresaId)))
-                    && request.resource.size < 25 * 1024 * 1024 && tipoOk();
+      allow create: if ((ehEquipe() || ehDono(empresaId)) && request.resource.size < 25 * 1024 * 1024 && tipoOk())
+                    // pacote da contabilidade anterior (link sem login, ou a equipe subindo o ZIP que chegou por e-mail): até 300 MB
+                    || (area == 'documentos' && (ehEquipe() || (ehAnonimo() && codigoAnteriorValido(empresaId)))
+                        && request.resource.size < 300 * 1024 * 1024 && !tipoPerigoso());
       allow update: if false;
       allow delete: if ehEquipe() || ehDono(empresaId);
     }

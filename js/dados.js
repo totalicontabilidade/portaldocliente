@@ -42,7 +42,9 @@
 
   var CHAVE_DB = "totali-portal-db";
   var CHAVE_SESSAO = "totali-portal-sessao";
-  var NOME_APP = (location.pathname.indexOf("equipe") > -1) ? "painel" : "portal";   /* sessões separadas por página (lição do Academy) */
+  /* sessões separadas por página (lição do Academy). As páginas de link sem login (contabilidade anterior, extratos) têm a
+     própria: o login anônimo delas não se mistura com o do cliente no mesmo navegador (28/09/2026). */
+  var NOME_APP = /equipe/.test(location.pathname) ? "painel" : /anterior/.test(location.pathname) ? "anterior" : /extratos/.test(location.pathname) ? "extratos" : "portal";
 
   /* Demonstração local para testes de tela: só em localhost e só com ?demo=1 (dados fictícios no navegador). No site publicado isso não existe. */
   var demoLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]demo=1/.test(location.search);
@@ -466,13 +468,20 @@
       /* link da contabilidade anterior */
       criarLinkAnterior: function (empresaId, por) {
         carregar(); var e = db.empresas[empresaId];
-        var existente = Object.keys(db.anterior).filter(function (k) { return db.anterior[k].empresaId === empresaId && db.anterior[k].ativo; })[0];
+        var existente = Object.keys(db.anterior).filter(function (k) { var a = db.anterior[k]; return a.empresaId === empresaId && a.ativo && !(a.expiraEm && a.expiraEm < Date.now()); })[0];
         if (existente) return ok(existente);
-        var c = U.codigo(22); db.anterior[c] = { empresaId: empresaId, empresa: e.fantasia, ativo: true, criadoEm: Date.now(), por: por.nome };
+        var c = U.codigo(22); db.anterior[c] = { empresaId: empresaId, empresa: e.fantasia, ativo: true, criadoEm: Date.now(), por: por.nome, expiraEm: Date.now() + DIAS_LINK_ANTERIOR * U.DIA_MS };
         gravar("anterior", empresaId); return ok(c);
       },
-      anterior: function (codigo) { carregar(); var a = db.anterior[codigo]; return ok(a && a.ativo ? { codigo: codigo, empresa: a.empresa, empresaId: a.empresaId } : null); },
+      anterior: function (codigo) { carregar(); var a = db.anterior[codigo]; if (!a || !a.ativo) return ok(null); return ok({ codigo: codigo, empresa: a.empresa, empresaId: a.empresaId, expiraEm: a.expiraEm || 0, expirado: !!(a.expiraEm && a.expiraEm < Date.now()) }); },
       desativarAnterior: function (codigo) { carregar(); if (db.anterior[codigo]) db.anterior[codigo].ativo = false; gravar("anterior"); return ok(true); },
+      renovarAnterior: function (codigo) { carregar(); var a = db.anterior[codigo]; if (!a) return Promise.reject(new Error("Link não encontrado.")); a.expiraEm = Date.now() + DIAS_LINK_ANTERIOR * U.DIA_MS; a.ativo = true; gravar("anterior"); return ok(a.expiraEm); },
+      definirDestino: function (empresaId, docId, k, grupo) {
+        carregar(); var d = db.documentos.filter(function (x) { return x.id === docId; })[0], e = db.empresas[empresaId]; if (!d || !e) return Promise.reject(new Error("Documento não encontrado."));
+        d.item = k || ""; if (grupo) d.grupo = grupo; d.duvidaAberta = false; d.duvida = null;
+        if (k) { e.entrada = e.entrada || {}; e.entrada.itens = e.entrada.itens || {}; var reg = e.entrada.itens[k] || {}; reg.docIds = U.unicos((reg.docIds || []).concat([docId])); if (reg.situacao !== "aprovado") reg.situacao = "enviado"; reg.na = false; reg.em = Date.now(); e.entrada.itens[k] = reg; }
+        gravar("documento", empresaId); return ok(true);
+      },
 
       /* credenciais (cofre) */
       credenciais: function (empresaId) { carregar(); return ok(db.credenciais.filter(function (c) { return c.empresaId === empresaId; }).map(function (c) { var x = U.clonar(c); delete x.pacote; return x; })); },
@@ -576,6 +585,8 @@
      dependem de Cloud Function (abrir credencial) gravam um pedido
      e esperam a resposta, como no Academy.
      ============================================================ */
+  /* dias que o link da contabilidade anterior vale (renovável na ficha do cliente) */
+  var DIAS_LINK_ANTERIOR = 30;
   var Fire = null;
   function montarFirebase() {
     var fb = global.firebase;
@@ -806,7 +817,10 @@
         var caminho = "empresas/" + empresaId + "/documentos/" + ref.id + "/" + (f ? f.name.replace(/[^\w.\-]+/g, "_") : "sem-arquivo");
         var reg = { empresaId: empresaId, nome: dados.nome || (f ? f.name : "arquivo"), grupo: dados.grupo || "outros", origem: dados.origem || "cliente", situacao: "enviado", em: TS(), por: dados.por, arquivo: { path: f ? caminho : "", nome: f ? f.name : "", tamanho: f ? f.size : 0, mime: f ? f.type : "" }, revisao: null, vistos: [], observacao: U.txt(dados.observacao, 300), item: dados.item ? U.txt(dados.item, 40) : "" };
         if (dados.codigo) reg.codigo = dados.codigo;   /* contabilidade anterior: as regras conferem o código */
-        var p = f ? storage.ref(caminho).put(f, { contentType: f.type, customMetadata: dados.codigo ? { codigo: dados.codigo } : {} }) : Promise.resolve();
+        /* tipo desconhecido (rar, pfx…) ou que o navegador exibiria como página vai como "baixar" */
+        var tipo = f && f.type && !/html|javascript|svg/i.test(f.type) ? f.type : "application/octet-stream";
+        var p = f ? storage.ref(caminho).put(f, { contentType: tipo, customMetadata: dados.codigo ? { codigo: dados.codigo } : {} }) : Promise.resolve();
+        if (f && dados.aoProgresso && p.on) p.on("state_changed", function (s) { dados.aoProgresso(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0); }, function () {});
         return Promise.resolve(p).then(function () { return ref.set(reg); }).then(function () { reg.id = ref.id; reg.em = Date.now(); return reg; });
       },
       revisarDocumento: function (empresaId, docId, situacao, motivo, por) { return subcol(empresaId, "documentos").doc(docId).update({ situacao: situacao, revisao: { por: por.nome, uid: por.uid, em: Date.now(), motivo: U.txt(motivo, 300) } }); },
@@ -828,14 +842,31 @@
       },
       urlAnexo: function (anexo) { return anexo.path ? storage.ref(anexo.path).getDownloadURL() : Promise.resolve(""); },
 
+      /* Link da contabilidade anterior: vale DIAS_LINK_ANTERIOR dias (renovável na ficha). Link vencido não é reaproveitado. */
       criarLinkAnterior: function (empresaId, por) {
-        return db.collection("anterior").where("empresaId", "==", empresaId).where("ativo", "==", true).limit(1).get().then(function (s) {
-          if (!s.empty) return s.docs[0].id;
-          return db.collection("empresas").doc(empresaId).get().then(function (e) { var c = U.codigo(22); return db.collection("anterior").doc(c).set({ empresaId: empresaId, empresa: e.data().fantasia, ativo: true, criadoEm: TS(), por: por.uid }).then(function () { return c; }); });
+        return db.collection("anterior").where("empresaId", "==", empresaId).where("ativo", "==", true).get().then(function (s) {
+          var vivo = s.docs.filter(function (d) { var x = d.data(); return !(x.expiraEm && x.expiraEm < Date.now()); })[0];
+          if (vivo) return vivo.id;
+          return db.collection("empresas").doc(empresaId).get().then(function (e) { var c = U.codigo(22); return db.collection("anterior").doc(c).set({ empresaId: empresaId, empresa: e.data().fantasia, ativo: true, criadoEm: TS(), por: por.uid, expiraEm: Date.now() + DIAS_LINK_ANTERIOR * U.DIA_MS }).then(function () { return c; }); });
         });
       },
-      anterior: function (codigo) { return db.collection("anterior").doc(codigo).get().then(function (s) { var a = docData(s); return a && a.ativo ? { codigo: codigo, empresa: a.empresa, empresaId: a.empresaId } : null; }); },
+      anterior: function (codigo) { return db.collection("anterior").doc(codigo).get().then(function (s) { var a = docData(s); if (!a || !a.ativo) return null; return { codigo: codigo, empresa: a.empresa, empresaId: a.empresaId, expiraEm: a.expiraEm || 0, expirado: !!(a.expiraEm && a.expiraEm < Date.now()) }; }); },
       desativarAnterior: function (codigo) { return db.collection("anterior").doc(codigo).update({ ativo: false }); },
+      renovarAnterior: function (codigo) { var ate = Date.now() + DIAS_LINK_ANTERIOR * U.DIA_MS; return db.collection("anterior").doc(codigo).update({ expiraEm: ate, ativo: true }).then(function () { return ate; }); },
+      /* A equipe escolhe o item de um arquivo que a triagem não soube onde pôr (ou corrige o destino) */
+      definirDestino: function (empresaId, docId, k, grupo) {
+        var dRef = subcol(empresaId, "documentos").doc(docId), eRef = db.collection("empresas").doc(empresaId);
+        return db.runTransaction(function (tx) {
+          return tx.get(eRef).then(function (s) {
+            var campos = { item: k || "", duvidaAberta: false, duvida: null }; if (grupo) campos.grupo = grupo;
+            tx.update(dRef, campos);
+            if (!k) return;
+            var itens = (((s.data() || {}).entrada) || {}).itens || {}, reg = Object.assign({}, itens[k] || {});
+            reg.docIds = U.unicos((reg.docIds || []).concat([docId])); if (reg.situacao !== "aprovado") { reg.situacao = "enviado"; delete reg.revisao; } reg.na = false; reg.em = Date.now();
+            tx.update(eRef, new fb.firestore.FieldPath("entrada", "itens", k), reg);
+          });
+        });
+      },
 
       credenciais: function (empresaId) { return lista(subcol(empresaId, "credenciais").orderBy("em", "desc")).then(function (l) { return l.map(function (c) { delete c.pacote; return c; }); }); },
       salvarCredencial: function (empresaId, c) { return subcol(empresaId, "credenciais").add({ rotulo: U.txt(c.rotulo, 80), tipo: c.tipo || "portal", usuario: U.txt(c.usuario, 120), em: TS(), por: c.por, pacote: c.pacote }).then(function (r) { return { id: r.id }; }); },
@@ -973,7 +1004,7 @@
   ["pronto", "sessao", "entrar", "entrarDemo", "entrarAnonimo", "sair", "trocarEmpresa", "empresa", "listarEmpresas", "salvarEmpresa", "criarEmpresa", "liberar", "criarConvite", "convite", "usarConvite",
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
-   "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
+   "criarLinkAnterior", "anterior", "desativarAnterior", "renovarAnterior", "definirDestino", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
    "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "trocarSenha", "ouvirMudancas", "interno", "salvarInterno", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"

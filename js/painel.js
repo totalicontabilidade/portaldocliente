@@ -158,7 +158,7 @@
     Promise.all([Dados.todasConversas(), Dados.todosDocumentos(), Dados.usos({ desde: semana }), Dados.listarChecklists(U.anoMes(Date.now()))]).then(function (r) {
       var convs = r[0], docs = r[1], usos = r[2], checks = r[3];
       var naoLidas = U.soma(convs, function (c) { return c.naoLidas; });
-      var aConferir = docs.filter(aConferirDoc);
+      var aConferir = docs.filter(aConferirDoc), semDestinoIni = docs.filter(function (d) { return d.duvidaAberta; });
       var jornadas = empresas.map(function (e) { var rs = JORNADA.resumo(e.jornada, autoFnDe(e), "equipe"); return { e: e, r: rs }; }).filter(function (x) { return !x.r.concluida; });
       var atrasadas = jornadas.filter(function (x) { return x.r.atrasados > 0; });
       var hoje = jornadas.filter(function (x) { return x.r.dias.some(function (d) { return d.estado === "hoje"; }); });
@@ -182,6 +182,7 @@
         '<div class="grade grade--lado"><div class="pilha">' +
           '<div class="card"><div class="card__cab"><h2>Jornadas: o que vence hoje ou atrasou</h2><a class="btn btn--xs btn--contorno" href="#/jornadas">Ver todas</a></div><div class="lista" style="padding-top:6px">' + (atrasadas.concat(hoje.filter(function (h) { return atrasadas.indexOf(h) === -1; })).slice(0, 6).map(function (x) { var d = x.r.dias.filter(function (y) { return y.estado === "atrasado" || y.estado === "hoje"; })[0]; var dia = JORNADA.por(d.id); return '<a class="lista__item" href="#/clientes/' + x.e.id + '/jornada">' + UI.avatar(x.e.fantasia, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(x.e.fantasia) + " · D" + dia.dia + " " + U.esc(dia.titulo) + '</span><span class="lista__sub">' + (x.r.proximo && x.r.proximo.dia.id === d.id ? "Próximo: " + U.esc(x.r.proximo.passo.texto) : U.esc(dia.quem)) + " · " + d.feitos + "/" + d.total + " passos</span></div>" + (d.estado === "atrasado" ? UI.badge(d.diasAtraso + "d atraso", "erro", "clock") : UI.badge("hoje", "gold")) + "</a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma jornada vencendo hoje.</div>') + "</div></div>" +
           '<div class="card"><div class="card__cab"><h2>Mensagens sem resposta</h2><a class="btn btn--xs btn--contorno" href="#/mensagens">Abrir caixa</a></div><div class="lista" style="padding-top:6px">' + (convs.filter(function (c) { return c.naoLidas; }).slice(0, 5).map(function (c) { return '<a class="lista__item" href="#/mensagens/' + c.empresaId + '">' + UI.avatar(c.empresa, "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(c.empresa) + '</span><span class="lista__sub">' + U.esc(c.ultima ? U.previaMsg(c.ultima) : "") + '</span></div><span class="badge badge--erro">' + c.naoLidas + '</span><span class="lista__meta">' + (c.ultima ? U.relativo(c.ultima.em) : "") + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Caixa zerada.</div>') + "</div></div>" +
+          (semDestinoIni.length ? '<a class="card card--clicavel" href="#/documentos" style="text-decoration:none;color:inherit;border-left:4px solid var(--warning)"><div class="card__corpo linha" style="gap:12px">' + ic("folder") + '<div class="lista__texto"><b>' + U.plural(semDestinoIni.length, "1 arquivo da contabilidade anterior sem destino", semDestinoIni.length + " arquivos da contabilidade anterior sem destino") + '</b><span class="lista__sub">O sistema não teve certeza de onde encaixar. Toque para escolher o item.</span></div></div></a>' : "") +
           '<div class="card"><div class="card__cab"><h2>Documentos a conferir</h2><a class="btn btn--xs btn--contorno" href="#/documentos">Ver todos</a></div><div class="lista" style="padding-top:6px">' + (aConferir.slice(0, 5).map(function (d) { var e = empresas.filter(function (x) { return x.id === d.empresaId; })[0] || {}; return '<a class="lista__item" href="#/clientes/' + d.empresaId + '/documentos">' + ic("file") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(d.nome) + '</span><span class="lista__sub">' + U.esc(e.fantasia || "") + " · " + (d.origem === "anterior" ? "contabilidade anterior" : "cliente") + " · " + U.relativo(d.em) + "</span></div></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nada para conferir.</div>') + "</div></div>" +
         '</div><div class="pilha">' +
           '<div class="card"><div class="card__cab"><h2>Uso do portal · 7 dias</h2></div><div class="card__corpo" style="padding-top:10px"><div style="display:flex;gap:4px;align-items:flex-end;height:80px">' + Object.keys(porDia).map(function (k) { var v = porDia[k]; return '<div title="' + k + ": " + v + '" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%"><div style="width:100%;border-radius:4px 4px 0 0;background:var(--primary);height:' + Math.max(4, Math.round(v / max * 64)) + 'px"></div><span class="f-12 txt-mudo">' + k.slice(0, 2) + "</span></div>"; }).join("") + '</div><p class="f-12 txt-2 mt-8">' + (function (n) { return U.plural(n, "1 abertura de sistema", n + " aberturas de sistema"); })(usos.filter(function (u) { return u.tipo === "abrir"; }).length) + " · " + U.plural(ativos, "1 empresa ativa", ativos + " empresas ativas") + "</p></div></div>" +
@@ -409,12 +410,12 @@
     Shell.titulo(e.fantasia);
     var abas = [["visao", "Visão geral", "eye"], ["liberacoes", "Liberações", "unlock"], ["jornada", "Jornada", "route"], ["entrada", "Lista de documentos", "clipboard"], ["financeiro", "Financeiro", "credit-card"], ["documentos", "Documentos", "folder"], ["cofre", "Cofre", "key"], ["conversa", "Conversa", "chat"], ["uso", "Uso", "bar-chart"]];
     Shell.render('<div class="pagina pagina--larga" style="padding-bottom:0"><div class="cabecalho"><div class="linha" style="flex-wrap:nowrap;gap:12px">' + UI.avatar(e.fantasia, "avatar--lg") + '<div><div class="cabecalho__kicker">' + U.esc(e.regime) + " · trilha " + U.esc(e.trilha || "A") + "</div><h1>" + U.esc(e.fantasia) + '</h1><p class="f-13">' + U.esc(e.nome) + ' · <span class="num">' + U.esc(e.cnpj) + "</span>" + (CATALOGO.responsaveisTexto(e) ? " · " + U.esc(CATALOGO.responsaveisTexto(e)) : "") + "</p></div></div>" +
-      '<div class="cabecalho__acoes"><a class="btn btn--sm btn--contorno" href="#/mensagens/' + e.id + '">' + ic("chat") + 'Chat</a><button type="button" class="btn btn--sm btn--contorno" data-acao="convite">' + ic("link") + 'Convite</button><button type="button" class="btn btn--sm btn--contorno" data-acao="anterior">' + ic("upload") + 'Link p/ contab. anterior</button><button type="button" class="btn btn--sm btn--fantasma" data-acao="editar">' + ic("pencil") + "Editar</button>" + (admin() ? '<button type="button" class="btn btn--sm btn--fantasma" data-acao="mais" aria-label="Mais">' + ic("more") + "</button>" : "") + "</div></div>" +
+      '<div class="cabecalho__acoes"><a class="btn btn--sm btn--contorno" href="#/mensagens/' + e.id + '">' + ic("chat") + 'Chat</a><button type="button" class="btn btn--sm btn--contorno" data-acao="convite">' + ic("link") + 'Convite</button><button type="button" class="btn btn--sm btn--contorno" data-acao="anterior">' + ic("folder") + 'Contab. anterior</button><button type="button" class="btn btn--sm btn--fantasma" data-acao="editar">' + ic("pencil") + "Editar</button>" + (admin() ? '<button type="button" class="btn btn--sm btn--fantasma" data-acao="mais" aria-label="Mais">' + ic("more") + "</button>" : "") + "</div></div>" +
       '<div class="abas" role="tablist">' + abas.map(function (a) { return '<a role="tab" href="#/clientes/' + e.id + "/" + a[0] + '" aria-selected="' + (aba === a[0]) + '" class="btn btn--fantasma" style="border-radius:0;min-height:40px">' + ic(a[2], "ic--sm") + a[1] + "</a>"; }).join("") + '</div></div><div id="abaCorpo"></div>');
     var v = Shell.view();
     UI.delegar(v, {
       convite: function () { Dados.criarConvite(e.id, sessao).then(function (c) { mostrarConvite(e, c); }); },
-      anterior: function () { Dados.criarLinkAnterior(e.id, sessao).then(function (c) { var link = U.urlPortal("anterior.html?c=") + c; UI.modal({ titulo: "Link para a contabilidade anterior", corpo: '<p class="f-13 txt-2">Página de envio sem login. Quem tiver o link envia contrato, balanços, livros e folha; os arquivos entram na ficha como origem "contabilidade anterior" e o cliente vê chegar.</p><div class="codigo mt-8">' + U.esc(link) + '</div><textarea class="textarea mt-12" id="msgAnt">Prezados, aqui é da Totali Soluções Contábeis. Assumimos a contabilidade da ' + U.esc(e.fantasia) + '. Para a transferência de responsabilidade técnica, pedimos a gentileza de enviar os documentos por este link seguro: ' + U.esc(link) + "</textarea>", acoes: [{ rotulo: "Copiar link", icone: "copy", classe: "btn--fantasma btn--sm", manter: true, ao: function () { UI.copiar(link, "Link copiado."); } }, { rotulo: "Copiar mensagem", icone: "copy", classe: "btn--fantasma btn--sm", manter: true, ao: function (c) { UI.copiar(c.querySelector("#msgAnt").value, "Mensagem copiada."); } }, { rotulo: "Abrir no WhatsApp", icone: "whatsapp", classe: "btn--gold", manter: true, ao: function (c) { global.open("https://wa.me/?text=" + encodeURIComponent(c.querySelector("#msgAnt").value), "_blank", "noopener"); } }] }); }); },
+      anterior: function () { contabAnterior(e, function () { rotear(); }); },
       editar: function () { editarEmpresa(e); },
       mais: function () { if (global.FichaMais) global.FichaMais(e); }
     });
@@ -553,25 +554,132 @@
   }
 
   var GRUPOS_DOC = { certificado: "Certificado digital", societario: "Societário", socios: "Sócios", contabil: "Contábil", fiscal: "Fiscal", pessoal: "Dep. pessoal", mensal: "Mês", outros: "Outros" };
-  function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Correção pedida", "erro", "alert") }[s] || UI.badge(s); }
+  function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Correção pedida", "erro", "alert"), extraido: UI.badge("Pacote aberto", "ok", "folder"), bloqueado: UI.badge("Bloqueado", "erro", "shield") }[s] || UI.badge(s); }
+  /* ---------- Destino dos arquivos da contabilidade anterior (functions/triagem.js) ---------- */
+  function nomeDoItem(e, k) {
+    if (!k || !global.Onboarding) return "";
+    var p = k.split("/"), g = global.Onboarding.GRUPOS.filter(function (x) { return x.id === p[0]; })[0]; if (!g) return k;
+    var it = g.itens.filter(function (x) { return x.id === p[p.length - 1]; })[0]; if (!it) return k;
+    var soc = p.length === 3 ? ((((e || {}).entrada || {}).socios || []).filter(function (x) { return x.id === p[1]; })[0] || {}).nome : "";
+    return it.nome + (soc ? " · " + soc : "");
+  }
+  /* Todas as opções de destino: sugestões da triagem primeiro, depois cada item da Lista de documentos (sem os de "informar dado") */
+  function opcoesDestino(e, d) {
+    var cand = ((d.duvida || {}).candidatos || []), vistos = {}, html = "";
+    if (cand.length) html += '<optgroup label="Sugestões do sistema">' + cand.map(function (c) { vistos[c.k] = 1; return '<option value="' + U.esc(c.k) + '">' + U.esc(c.nome) + "</option>"; }).join("") + "</optgroup>";
+    (global.Onboarding ? global.Onboarding.GRUPOS : []).forEach(function (g) {
+      var alvos = g.escopo === "socio" ? (((e || {}).entrada || {}).socios || []) : [null];
+      alvos.forEach(function (sc) {
+        var ops = g.itens.filter(function (it) { return it.kind !== "dado" && !(it.regimes && e && e.regime && it.regimes.indexOf(e.regime) === -1); }).map(function (it) { var k = g.escopo === "socio" ? "socios/" + sc.id + "/" + it.id : g.id + "/" + it.id; return vistos[k] ? "" : '<option value="' + k + '">' + U.esc(it.nome) + "</option>"; }).join("");
+        if (ops) html += '<optgroup label="' + U.esc(g.titulo + (sc ? " · " + sc.nome : "")) + '">' + ops + "</optgroup>";
+      });
+    });
+    return '<option value="">Escolha o item…</option>' + html + '<optgroup label="Outro"><option value="__nenhum">Não é da lista (fica só em Documentos)</option></optgroup>';
+  }
+  function grupoDoItem(k) {
+    var g = (k || "").split("/")[0], it = (k || "").split("/").pop();
+    if (it === "certificado-digital") return "certificado";
+    return { societario: "societario", contabil: "contabil", fiscal: "fiscal", trabalhista: "pessoal", socios: "socios" }[g] || "outros";
+  }
+  function seletorDestino(emp, d) {
+    return '<div class="linha mt-4" style="gap:6px;flex-wrap:nowrap"><select class="select" data-destino="' + d.id + '" style="min-height:32px;font-size:13px;max-width:100%">' + opcoesDestino(emp, d) + '</select><button type="button" class="btn btn--xs btn--primario" data-acao="destino" data-id="' + d.id + '" data-emp="' + U.esc(d.empresaId || (emp || {}).id || "") + '">Confirmar</button></div>';
+  }
   function docLinha(d, e) {
-    var visto = (d.vistos || [])[0];
-    return '<div class="doc" data-id="' + d.id + '"><span class="doc__icone">' + ic(U.ehImagem(d.arquivo && d.arquivo.mime, d.nome) ? "image" : "file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(d.nome) + '</div><div class="doc__meta">' + (e ? U.esc(e.fantasia) + " · " : "") + U.esc(GRUPOS_DOC[d.grupo] || d.grupo) + " · " + (d.origem === "anterior" ? "contab. anterior" : d.origem === "equipe" ? "Totali" : U.esc(d.por || "cliente")) + " · " + U.relativo(d.em) + (d.observacao ? " · “" + U.esc(d.observacao) + "”" : "") + "</div>" + (visto ? '<div class="doc__meta txt-ok">visto por ' + U.esc(visto.por) + " " + U.relativo(visto.em) + "</div>" : "") + (d.revisao && d.revisao.motivo ? '<div class="doc__meta txt-erro">' + U.esc(d.revisao.motivo) + "</div>" : "") + '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + situacaoBadge(d.situacao) + '<div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("eye", "ic--sm") + "Ver</button>" + (d.situacao !== "aprovado" ? '<button type="button" class="btn btn--xs btn--primario" data-acao="aprovar" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("check", "ic--sm") + "Aprovar</button>" : "") + (d.situacao !== "pendencia" ? '<button type="button" class="btn btn--xs btn--perigo" data-acao="corrigir" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("alert", "ic--sm") + "Pedir correção</button>" : "") + "</div></div></div>";
+    var visto = (d.vistos || [])[0], emp = e || global.Painel.empresa(d.empresaId), t = d.triagem || {};
+    /* pacote ZIP/RAR aberto ou arquivo bloqueado: só informa (não há o que aprovar) */
+    if (d.situacao === "extraido" || d.situacao === "bloqueado" || (d.pacote && t.estado)) {
+      var bloq = t.bloqueados || [];
+      var resumo = d.situacao === "bloqueado" ? '<div class="doc__meta txt-erro">' + ic("shield", "ic--sm") + " Apagado por segurança: " + U.esc(d.bloqueio || "tipo de arquivo perigoso") + "</div>"
+        : t.estado === "organizando" ? '<div class="doc__meta">' + ic("clock", "ic--sm") + " Abrindo e organizando…</div>"
+        : t.estado === "erro" ? '<div class="doc__meta txt-erro">' + ic("alert", "ic--sm") + " Não foi aberto: " + U.esc(t.erro || "erro") + "</div>"
+        : '<div class="doc__meta">' + U.plural(t.arquivos || 0, "1 arquivo", (t.arquivos || 0) + " arquivos") + " · " + (t.organizados || 0) + " no item certo" + (t.duvidas ? " · <b>" + t.duvidas + " sem destino</b>" : "") + (bloq.length ? ' · <span class="txt-erro">' + U.plural(bloq.length, "1 bloqueado", bloq.length + " bloqueados") + "</span>" : "") + "</div>" + (bloq.length ? '<div class="doc__meta txt-erro f-12">' + bloq.slice(0, 5).map(function (b) { return U.esc(String(b.nome).split("/").pop()) + ": " + U.esc(b.motivo); }).join(" · ") + (bloq.length > 5 ? " …" : "") + "</div>" : "");
+      return '<div class="doc" data-id="' + d.id + '"><span class="doc__icone">' + ic(d.situacao === "bloqueado" ? "shield" : "folder") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(d.nome) + '</div><div class="doc__meta">' + (e ? "" : U.esc((emp || {}).fantasia || "") + " · ") + "contab. anterior · " + U.esc(d.por || "") + " · " + U.relativo(d.em) + "</div>" + resumo + '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + situacaoBadge(d.situacao) + "</div></div>";
+    }
+    var destino = d.origem === "anterior" ? (d.duvidaAberta ? '<div class="doc__meta txt-aviso">' + ic("alert", "ic--sm") + " <b>Sem destino</b>: " + U.esc((d.duvida || {}).motivo || "escolha o item") + "</div>" + seletorDestino(emp, d)
+      : d.item ? '<div class="doc__meta">' + ic("arrow-right", "ic--sm") + " " + U.esc(nomeDoItem(emp, d.item)) + ' <button type="button" class="btn btn--xs btn--fantasma" data-acao="trocar-destino" data-id="' + d.id + '" data-emp="' + U.esc(d.empresaId || "") + '" style="min-height:22px;padding:0 6px">trocar</button></div>' : "") : "";
+    if (d.alerta) destino += '<div class="doc__meta txt-aviso">' + ic("alert", "ic--sm") + " " + U.esc(d.alerta) + "</div>";
+    return '<div class="doc" data-id="' + d.id + '"><span class="doc__icone">' + ic(U.ehImagem(d.arquivo && d.arquivo.mime, d.nome) ? "image" : "file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(d.nome) + '</div><div class="doc__meta">' + (e ? U.esc(e.fantasia) + " · " : "") + U.esc(GRUPOS_DOC[d.grupo] || d.grupo) + " · " + (d.origem === "anterior" ? "contab. anterior" : d.origem === "equipe" ? "Totali" : U.esc(d.por || "cliente")) + " · " + U.relativo(d.em) + (d.observacao ? " · “" + U.esc(d.observacao) + "”" : "") + "</div>" + (visto ? '<div class="doc__meta txt-ok">visto por ' + U.esc(visto.por) + " " + U.relativo(visto.em) + "</div>" : "") + (d.revisao && d.revisao.motivo ? '<div class="doc__meta txt-erro">' + U.esc(d.revisao.motivo) + "</div>" : "") + destino + '</div><div class="pilha" style="gap:6px;align-items:flex-end">' + situacaoBadge(d.situacao) + '<div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("eye", "ic--sm") + "Ver</button>" + (d.situacao !== "aprovado" ? '<button type="button" class="btn btn--xs btn--primario" data-acao="aprovar" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("check", "ic--sm") + "Aprovar</button>" : "") + (d.situacao !== "pendencia" ? '<button type="button" class="btn btn--xs btn--perigo" data-acao="corrigir" data-id="' + d.id + '" data-emp="' + d.empresaId + '">' + ic("alert", "ic--sm") + "Pedir correção</button>" : "") + "</div></div></div>";
   }
   function ligarDocs(raiz, recarregar) {
     UI.delegar(raiz, {
       ver: function (b) { Dados.verDocumento(b.dataset.emp, b.dataset.id, sessao).then(function () { return Dados.documentos(b.dataset.emp); }).then(function (ds) { var d = ds.filter(function (x) { return x.id === b.dataset.id; })[0]; return Dados.urlArquivo(d); }).then(function (u) { if (u) global.open(u, "_blank", "noopener"); else UI.toast("Documento de exemplo sem arquivo. O recibo 'visto por' foi registrado.", "info"); recarregar(); }); },
       aprovar: function (b) { Dados.revisarDocumento(b.dataset.emp, b.dataset.id, "aprovado", "", sessao).then(function () { UI.toast("Aprovado. O cliente vê o aceite com seu nome.", "ok"); recarregar(); }); },
+      destino: function (b) {
+        var sel = raiz.querySelector('[data-destino="' + b.dataset.id + '"]'), k = sel && sel.value;
+        if (!k) { UI.toast("Escolha o item da Lista de documentos.", "aviso"); if (sel) sel.focus(); return; }
+        b.disabled = true;
+        Dados.definirDestino(b.dataset.emp, b.dataset.id, k === "__nenhum" ? "" : k, k === "__nenhum" ? "outros" : grupoDoItem(k)).then(function () { return carregarEmpresas(); }).then(function () { UI.toast(k === "__nenhum" ? "Fica só em Documentos." : "Enviado para o item e marcado como recebido.", "ok"); recarregar(); }).catch(function (err) { b.disabled = false; UI.toast(U.msgErro(err, "Não foi possível salvar o destino."), "erro"); });
+      },
+      "trocar-destino": function (b) {
+        var emp = global.Painel.empresa(b.dataset.emp);
+        b.parentNode.insertAdjacentHTML("afterend", seletorDestino(emp, { id: b.dataset.id, empresaId: b.dataset.emp, duvida: null }));
+        b.remove();
+      },
       corrigir: function (b) { UI.perguntar("Pedir correção", "Motivo (o cliente vai ler exatamente isto)", "", { longo: true, ok: "Enviar pedido", obrigatorio: "Escreva o motivo: é o que o cliente vai ler.", placeholder: "Ex.: a foto está cortada, reenvie mostrando o documento inteiro." }).then(function (t) { if (!t) return; Dados.revisarDocumento(b.dataset.emp, b.dataset.id, "pendencia", t, sessao).then(function () { UI.toast("Pedido enviado.", "ok"); recarregar(); }); }); }
     });
+  }
+  /* Arquivos da contabilidade anterior que a triagem não soube onde pôr: a equipe escolhe o item */
+  function blocoSemDestino(lista, porEmp, naFicha) {
+    if (!lista.length) return "";
+    return '<div class="card" style="border-left:4px solid var(--warning)"><div class="card__cab"><h2>' + U.plural(lista.length, "1 arquivo sem destino", lista.length + " arquivos sem destino") + '</h2><span class="sub">escolha o item da Lista de documentos</span></div><div class="card__corpo pilha" style="gap:6px;padding-top:6px"><p class="f-12 txt-2">Chegaram da contabilidade anterior e o sistema não teve certeza de onde encaixar. Ao confirmar, o item é marcado como recebido para o cliente.</p>' + lista.map(function (d) { return docLinha(d, naFicha ? porEmp[d.empresaId] : null); }).join("") + "</div></div>";
+  }
+  /* Contabilidade anterior (28/09/2026): a equipe sobe o ZIP/RAR que chegou por e-mail, ou manda um link sem login
+     que vence em 30 dias. Nos dois casos functions/triagem.js confere, extrai e organiza. */
+  function contabAnterior(e, depois) {
+    var m = UI.modal({ titulo: "Arquivos da contabilidade anterior", larga: true, corpo:
+      '<div class="pilha">' +
+        '<div class="card"><div class="card__corpo pilha"><h3>' + ic("upload") + ' Chegou por e-mail? Suba aqui</h3><p class="f-13 txt-2">ZIP, RAR ou arquivos soltos, até 300 MB cada. O sistema abre os pacotes, confere se não há programa escondido, manda cada documento ao item certo da Lista de documentos e marca como recebido. O que ficar em dúvida aparece para a equipe escolher.</p>' +
+          '<div class="solta" id="antSolta" tabindex="0" role="button">' + ic("upload") + '<b>Escolher os arquivos</b><span class="f-13">ou arraste aqui</span></div><input type="file" id="antInp" multiple hidden><div id="antLista" class="pilha" style="gap:6px"></div></div></div>' +
+        '<div class="card"><div class="card__corpo pilha"><h3>' + ic("link") + ' Ou mande um link para eles enviarem direto</h3><p class="f-13 txt-2">Página sem login: eles anexam os arquivos (de preferência num ZIP ou RAR) e enviam. O link vale 30 dias e pode ser renovado ou desativado.</p><div id="antLink">' + UI.esqueleto(2) + "</div></div></div>" +
+      "</div>", acoes: [{ rotulo: "Fechar", classe: "btn--primario" }], aoFechar: function () { if (depois) depois(); } });
+    var c = m.corpo, solta = c.querySelector("#antSolta"), inp = c.querySelector("#antInp"), lista = c.querySelector("#antLista");
+    solta.addEventListener("click", function () { inp.click(); });
+    solta.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); inp.click(); } });
+    ["dragenter", "dragover"].forEach(function (n) { solta.addEventListener(n, function (ev) { ev.preventDefault(); solta.setAttribute("data-sobre", ""); }); });
+    ["dragleave", "drop"].forEach(function (n) { solta.addEventListener(n, function (ev) { ev.preventDefault(); solta.removeAttribute("data-sobre"); }); });
+    solta.addEventListener("drop", function (ev) { subir(ev.dataTransfer.files); });
+    inp.addEventListener("change", function () { subir(inp.files); inp.value = ""; });
+    function subir(files) {
+      var arqs = Array.prototype.slice.call(files || []); if (!arqs.length) return;
+      var erros = arqs.map(U.validarArquivoAnterior).filter(Boolean); if (erros.length) return UI.toast(erros[0], "erro", null, 8000);
+      lista.insertAdjacentHTML("beforeend", arqs.map(function (f, i) { return '<div class="doc"><span class="doc__icone">' + ic("file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(f.name) + '</div><div class="doc__meta" data-prog="' + U.esc(f.name) + i + '">enviando… 0%</div></div></div>'; }).join(""));
+      Promise.all(arqs.map(function (f, i) {
+        var marca = lista.querySelector('[data-prog="' + (f.name + i).replace(/"/g, '\\"') + '"]');
+        return Dados.enviarDocumento(e.id, { file: f, grupo: "outros", origem: "anterior", por: sessao.nome + " (recebido por e-mail)", aoProgresso: function (x) { if (marca) marca.textContent = "enviando… " + Math.round(x * 100) + "%"; } })
+          .then(function () { if (marca) marca.textContent = "recebido: o sistema está abrindo e organizando"; });
+      })).then(function () { UI.toast("Recebido. Em instantes os arquivos aparecem organizados na ficha.", "ok", null, 6000); })
+        .catch(function (err) { UI.toast(U.msgErro(err, "Falha no envio. Tente de novo."), "erro", null, 8000); });
+    }
+    function desenharLink(codigo) {
+      var alvo = c.querySelector("#antLink");
+      if (!codigo) { alvo.innerHTML = '<button type="button" class="btn btn--sm btn--contorno" data-l="gerar">' + ic("link", "ic--sm") + "Gerar link</button>"; return; }
+      Dados.anterior(codigo).then(function (a) {
+        var link = U.urlPortal("anterior.html?c=") + codigo, msg = "Prezados, aqui é da Totali Soluções Contábeis. Assumimos a contabilidade da " + e.fantasia + ". Para a transferência de responsabilidade técnica, pedimos a gentileza de enviar os documentos da empresa por este link seguro (pode ser tudo num ZIP ou RAR, com as pastas que vocês já usam): " + link;
+        alvo.innerHTML = '<div class="codigo f-12" style="word-break:break-all">' + U.esc(link) + '</div><p class="f-12 ' + (a && a.expirado ? "txt-erro" : "txt-2") + ' mt-4">' + (!a ? "Link desativado." : a.expirado ? "Venceu em " + U.data(a.expiraEm) + ". Renove para voltar a valer." : a.expiraEm ? "Vale até " + U.data(a.expiraEm) + "." : "Link antigo, sem vencimento: renove para passar a valer 30 dias.") + "</p>" +
+          '<textarea class="textarea mt-8" id="antMsg" style="min-height:90px">' + U.esc(msg) + "</textarea>" +
+          '<div class="linha mt-8" style="gap:6px"><button type="button" class="btn btn--xs btn--fantasma" data-l="copiar-link">' + ic("copy", "ic--sm") + 'Copiar link</button><button type="button" class="btn btn--xs btn--fantasma" data-l="copiar-msg">' + ic("copy", "ic--sm") + 'Copiar mensagem</button><button type="button" class="btn btn--xs btn--gold" data-l="whats">' + ic("whatsapp", "ic--sm") + 'WhatsApp</button><button type="button" class="btn btn--xs btn--contorno" data-l="renovar">' + ic("refresh", "ic--sm") + 'Renovar 30 dias</button><button type="button" class="btn btn--xs btn--fantasma" data-l="desativar">Desativar</button></div>';
+        alvo.onclick = function (ev) {
+          var b = ev.target.closest("[data-l]"); if (!b) return;
+          var acao = b.dataset.l;
+          if (acao === "copiar-link") UI.copiar(link, "Link copiado.");
+          if (acao === "copiar-msg") UI.copiar(c.querySelector("#antMsg").value, "Mensagem copiada.");
+          if (acao === "whats") global.open("https://wa.me/?text=" + encodeURIComponent(c.querySelector("#antMsg").value), "_blank", "noopener");
+          if (acao === "renovar") Dados.renovarAnterior(codigo).then(function () { UI.toast("Link renovado por 30 dias.", "ok"); desenharLink(codigo); }).catch(function (err) { UI.toast(U.msgErro(err), "erro"); });
+          if (acao === "desativar") UI.confirmar("Desativar o link?", "Quem tiver o link deixa de conseguir enviar. Dá para gerar outro depois.", { ok: "Desativar", perigo: true }).then(function (ok) { if (ok) Dados.desativarAnterior(codigo).then(function () { UI.toast("Link desativado.", "ok"); desenharLink(null); }); });
+        };
+      });
+    }
+    c.querySelector("#antLink").addEventListener("click", function (ev) { var b = ev.target.closest('[data-l="gerar"]'); if (!b) return; Dados.criarLinkAnterior(e.id, sessao).then(desenharLink).catch(function (err) { UI.toast(U.msgErro(err), "erro"); }); });
+    Dados.criarLinkAnterior(e.id, sessao).then(desenharLink).catch(function () { desenharLink(null); });
   }
   function abaDocumentos(e, corpo, r) {
     corpo.innerHTML = UI.esqueleto(5);
     Dados.documentos(e.id).then(function (docs) {
       var grupos = U.agrupar(docs, function (d) { return d.grupo; });
-      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="f-13 txt-2">' + U.plural(docs.length, "1 documento", docs.length + " documentos") + " · " + docs.filter(aConferirDoc).length + ' a conferir</div><button type="button" class="btn btn--sm btn--contorno" data-acao="enviar-equipe">' + ic("upload") + "Enviar documento ao cliente</button></div>" + (docs.length ? Object.keys(grupos).map(function (g) { return '<h3 class="mt-8">' + U.esc(GRUPOS_DOC[g] || g) + '</h3><div class="pilha" style="gap:6px">' + grupos[g].map(function (d) { return docLinha(d); }).join("") + "</div>"; }).join("") : UI.vazio("folder", "Nenhum documento", "O cliente ainda não enviou nada.")) + '<input type="file" id="docEq" hidden></div>';
+      var semDestino = docs.filter(function (d) { return d.duvidaAberta; }), porEmpUm = {}; porEmpUm[e.id] = e;
+      corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="f-13 txt-2">' + U.plural(docs.length, "1 documento", docs.length + " documentos") + " · " + docs.filter(aConferirDoc).length + ' a conferir</div><div class="linha" style="gap:6px"><button type="button" class="btn btn--sm btn--contorno" data-acao="anterior-painel">' + ic("folder") + 'Arquivos da contab. anterior</button><button type="button" class="btn btn--sm btn--contorno" data-acao="enviar-equipe">' + ic("upload") + "Enviar documento ao cliente</button></div></div>" + blocoSemDestino(semDestino, porEmpUm, true) + (docs.length ? Object.keys(grupos).map(function (g) { return '<h3 class="mt-8">' + U.esc(GRUPOS_DOC[g] || g) + '</h3><div class="pilha" style="gap:6px">' + grupos[g].map(function (d) { return docLinha(d); }).join("") + "</div>"; }).join("") : UI.vazio("folder", "Nenhum documento", "O cliente ainda não enviou nada.")) + '<input type="file" id="docEq" hidden></div>';
       ligarDocs(corpo, function () { abaDocumentos(e, corpo, r); });
-      UI.delegar(corpo, { "enviar-equipe": function () { UI.$("#docEq", corpo).click(); } });
+      UI.delegar(corpo, { "enviar-equipe": function () { UI.$("#docEq", corpo).click(); }, "anterior-painel": function () { contabAnterior(e, function () { abaDocumentos(e, corpo, r); }); } });
       UI.$("#docEq", corpo).addEventListener("change", function () { var f = this.files[0]; if (!f) return; var err = U.validarArquivo(f); if (err) return UI.toast(err, "erro"); Dados.enviarDocumento(e.id, { file: f, grupo: "outros", origem: "equipe", por: sessao.nome }).then(function () { UI.toast("Enviado ao portal do cliente.", "ok"); abaDocumentos(e, corpo, r); }); });
     });
   }
@@ -580,12 +688,12 @@
     Shell.render(UI.esqueleto(6));
     Dados.todosDocumentos().then(function (docs) {
       var porEmp = U.porChave(empresas, "id");
-      var pend = docs.filter(aConferirDoc);
+      var pend = docs.filter(aConferirDoc), semDestino = docs.filter(function (d) { return d.duvidaAberta; });
         var meus = (sessao.setores || []); var grupoSetor = { societario: "societario", contabil: "contabil", fiscal: "fiscal", pessoal: "trabalhista", socios: "socios", certificado: "fiscal", mensal: "contabil" };
       var doMeuSetor = meus.length ? pend.filter(function (d) { return meus.indexOf(grupoSetor[d.grupo] || "") > -1; }) : pend;
       var outros = pend.filter(function (d) { return doMeuSetor.indexOf(d) === -1; });
       pend = doMeuSetor;
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Atendimento</div><h1>Documentos a conferir</h1><p>' + pend.length + " aguardando" + (meus.length ? " no seu departamento" + (outros.length ? " · " + outros.length + " em outros departamentos" : "") : "") + ". Ver registra o recibo \"visto por você\" no portal do cliente; aprovar dá o aceite.</p></div></div>" + (pend.length ? '<div class="pilha" style="gap:6px">' + pend.map(function (d) { return docLinha(d, porEmp[d.empresaId]); }).join("") + "</div>" : UI.vazio("check-circle", "Tudo conferido", "Nenhum documento aguardando" + (meus.length ? " no seu departamento." : "."))) + (outros.length ? '<details class="card"><summary class="card__corpo f-13 f-700" style="cursor:pointer">Outros departamentos (' + outros.length + ')</summary><div class="card__corpo pilha" style="gap:6px;padding-top:0">' + outros.map(function (d) { return docLinha(d, porEmp[d.empresaId]); }).join("") + "</div></details>" : "") + "</div>");
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Atendimento</div><h1>Documentos a conferir</h1><p>' + pend.length + " aguardando" + (meus.length ? " no seu departamento" + (outros.length ? " · " + outros.length + " em outros departamentos" : "") : "") + ". Ver registra o recibo \"visto por você\" no portal do cliente; aprovar dá o aceite.</p></div></div>" + blocoSemDestino(semDestino, porEmp) + (pend.length ? '<div class="pilha" style="gap:6px">' + pend.map(function (d) { return docLinha(d, porEmp[d.empresaId]); }).join("") + "</div>" : UI.vazio("check-circle", "Tudo conferido", "Nenhum documento aguardando" + (meus.length ? " no seu departamento." : "."))) + (outros.length ? '<details class="card"><summary class="card__corpo f-13 f-700" style="cursor:pointer">Outros departamentos (' + outros.length + ')</summary><div class="card__corpo pilha" style="gap:6px;padding-top:0">' + outros.map(function (d) { return docLinha(d, porEmp[d.empresaId]); }).join("") + "</div></details>" : "") + "</div>");
       ligarDocs(Shell.view(), telaDocumentosGeral);
     });
   }

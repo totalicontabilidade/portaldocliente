@@ -195,7 +195,7 @@
   }
   function prepararAuto() {
     return Promise.all([docsCache ? docsCache : Dados.documentos(empresa.id), credCache ? credCache : Dados.credenciais(empresa.id), Dados.feedback(empresa.id)])
-      .then(function (r) { docsCache = r[0]; credCache = r[1]; empresa._feedback = r[2]; });
+      .then(function (r) { docsCache = (r[0] || []).filter(function (d) { return d.situacao !== "bloqueado"; }); credCache = r[1]; empresa._feedback = r[2]; });
   }
 
   /* ============================================================
@@ -629,7 +629,7 @@
      Documentos (cliente + contabilidade anterior) e recibos
      ============================================================ */
   function iconeDoc(d) { return U.ehImagem(d.arquivo && d.arquivo.mime, d.nome) ? "image" : "file"; }
-  function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Precisa de correção", "erro", "alert") }[s] || UI.badge(s); }
+  function situacaoBadge(s) { return { enviado: UI.badge("Enviado", "info", "upload"), analise: UI.badge("Em análise", "info", "eye"), aprovado: UI.badge("Aprovado", "ok", "check"), pendencia: UI.badge("Precisa de correção", "erro", "alert"), extraido: UI.badge("Pacote aberto", "ok", "folder") }[s] || UI.badge(s); }
   function docHtml(d, podeRemover) {
     /* arquivo que a Totali mandou: não tem "visto pela equipe" nem situação de conferência (antes aparecia "Enviado · visto por Hesley") */
     var daTotali = d.origem === "equipe", visto = daTotali ? null : (d.vistos || [])[0];
@@ -643,6 +643,7 @@
     var aba = r.query.aba || "meus";
     Shell.render(UI.esqueleto(6));
     Dados.documentos(empresa.id).then(function (docs) {
+      docs = docs.filter(function (d) { return d.situacao !== "bloqueado"; });
       docsCache = docs;
       var meus = docs.filter(function (d) { return d.origem !== "anterior"; }), anteriores = docs.filter(function (d) { return d.origem === "anterior"; });
       var pend = docs.filter(function (d) { return d.situacao === "pendencia"; });

@@ -34,7 +34,10 @@ service cloud.firestore {
       return codigo is string && codigo.size() >= 16
              && exists(/databases/$(database)/documents/anterior/$(codigo))
              && get(/databases/$(database)/documents/anterior/$(codigo)).data.empresaId == empresaId
-             && get(/databases/$(database)/documents/anterior/$(codigo)).data.ativo == true;
+             && get(/databases/$(database)/documents/anterior/$(codigo)).data.ativo == true
+             // o link vence (28/09/2026); links antigos, sem data, continuam valendo até serem renovados
+             && (!('expiraEm' in get(/databases/$(database)/documents/anterior/$(codigo)).data)
+                 || get(/databases/$(database)/documents/anterior/$(codigo)).data.expiraEm > request.time.toMillis());
     }
 
     // ---------- Equipe ----------
@@ -217,15 +220,18 @@ service cloud.firestore {
         allow read: if equipeOuDono(empresaId);
         allow create: if tamanhoOk() && (
                         (equipeOuDono(empresaId)
-                          && request.resource.data.origem in ['cliente', 'equipe']
+                          && request.resource.data.origem in ['cliente', 'equipe', 'anterior']
                           && (ehEquipe() || (request.resource.data.origem == 'cliente' && request.resource.data.situacao == 'enviado')))
                         || (ehAnonimo()
                           && request.resource.data.origem == 'anterior'
                           && request.resource.data.situacao == 'enviado'
+                          // o visitante do link só manda o arquivo; destino, triagem e extração são do servidor
+                          && request.resource.data.keys().hasOnly(['empresaId', 'nome', 'grupo', 'origem', 'situacao', 'em', 'por', 'arquivo', 'revisao', 'vistos', 'observacao', 'item', 'codigo'])
+                          && request.resource.data.item == ''
                           && codigoAnteriorValido(request.resource.data.codigo, empresaId)));
         // equipe revisa e registra "visto"; cliente só remove o que ainda não foi aprovado
         allow update: if ehEquipe()
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'revisao', 'vistos']);
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['situacao', 'revisao', 'vistos', 'item', 'grupo', 'duvidaAberta', 'duvida']);
         // o termo de compromisso das maquininhas é registro do combinado: só a equipe apaga
         allow delete: if ehEquipe() || (ehDonoDaEmpresa(empresaId) && resource.data.origem == 'cliente' && resource.data.situacao != 'aprovado'
                                         && !(resource.data.get('observacao', '') is string && resource.data.get('observacao', '').matches('Termo de compromisso.*')));

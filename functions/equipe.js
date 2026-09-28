@@ -62,6 +62,8 @@ exports.processarPedidoDeMembro = onDocumentCreated({ document: "pedidosDeMembro
     let link = "";
     try { link = await admin.auth().generatePasswordResetLink(email, { url: painel }); }
     catch (e) { link = await admin.auth().generatePasswordResetLink(email); }
+    /* a página de criar a senha abre em português (o Firebase manda lang=en) */
+    link = /[?&]lang=/.test(link) ? link.replace(/([?&])lang=[^&]*/, "$1lang=pt-BR") : link + "&lang=pt-BR";
 
     /* e-mail pelo mesmo caminho dos outros avisos (pedidosDeEmail, tipo "membro") */
     await db.collection("pedidosDeEmail").add({
