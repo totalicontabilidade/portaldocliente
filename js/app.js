@@ -212,7 +212,7 @@
         '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"><div class="puzzle-piece" aria-hidden="true"></div></div><div class="veu"></div><div class="brilho"></div>' +
           '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
           '<h1 class="login__frase">Sua empresa, <b>organizada</b> e <b>em dia</b>, num só lugar.</h1>' +
-          '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e use os sistemas da Totali com um login só.</p>' +
+          '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e encontre todos os sistemas da Totali num lugar só.</p>' +
           '<ol class="login__etapas">' + [["done", "Convite da Totali"], ["done", "Criar minha senha"], ["now", "Enviar os documentos de entrada"], ["", "Bancos e maquininhas"], ["", "Análise da Totali"], ["", "Contabilidade ativa: rotina do mês"]].map(function (e) { return '<li class="login__etapa" data-e="' + e[0] + '"><i>' + (e[0] === "done" ? ic("check", "ic--sm") : "") + "</i><span>" + e[1] + "</span></li>"; }).join("") + "</ol>" +
           '<div class="login__powered">powered by <b>Totali</b></div></section>' +
         '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate>' +
@@ -525,7 +525,7 @@
     var perfis = empresa.perfis || [];
     var todos = CATALOGO.visiveis().filter(function (s) { return liberado(s.id) || s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; }); });
     var libs = todos.filter(function (s) { return liberado(s.id); }), outros = todos.filter(function (s) { return !liberado(s.id); });
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Ferramentas</div><h1>Meus sistemas</h1><p>Tudo o que a Totali disponibilizou para a sua empresa, com um login só. Os demais você pode conhecer aqui.</p></div></div>' +
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Ferramentas</div><h1>Meus sistemas</h1><p>Tudo o que a Totali disponibilizou para a sua empresa, num lugar só. Cada sistema abre com o acesso dele. Os demais você pode conhecer aqui.</p></div></div>' +
       '<div id="bannerSistemas"></div>' +
       (libs.length ? '<div class="grade grade--3">' + libs.map(function (s) { return cardSistema(s, true); }).join("") + "</div>" : UI.vazio("grid", "Nenhum sistema liberado ainda", "Sua equipe libera os sistemas conforme a contratação. Fale com a gente pelo chat.")) +
       (outros.length ? '<h2 class="mt-8">Conheça também</h2><div class="grade grade--3">' + outros.map(function (s) { return cardSistema(s, false); }).join("") + "</div>" : "") +

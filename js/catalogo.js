@@ -79,7 +79,7 @@
       tagline: "Aprenda a tirar mais da sua contabilidade",
       desc: "Trilhas curtas em vídeo: notas fiscais, guias do mês, pró-labore, contratação. Feitas pela Totali para os clientes da Totali.",
       beneficios: ["Aulas de 3 a 5 minutos", "Trilhas por assunto", "Certificado de conclusão"],
-      cor: "#c89d57", icone: "graduation", modo: "embutido", url: "https://cliente.totalicontabilidade.com.br/", status: "disponivel", publico: ["todos"],
+      cor: "#c89d57", icone: "graduation", modo: "externo", url: "https://totalicontabilidade.github.io/academy/",   /* o domínio antigo (cliente.totalicontabilidade.com.br) não tem site; o Academy se recusa a abrir dentro de outro site (moldura.js), por isso abre em aba nova */ status: "disponivel", publico: ["todos"],
       prova: 0,
       previa: { titulo: "Primeira aula liberada", texto: "A trilha 'Primeiros passos com a Totali' é aberta para todo cliente. As demais entram com a contratação.", itens: ["Emissão de notas fiscais", "Guias e impostos do mês", "Pró-labore e distribuição de lucros"] },
       gatilhos: ["como emitir", "como faço", "aprender", "curso", "vídeo"]
