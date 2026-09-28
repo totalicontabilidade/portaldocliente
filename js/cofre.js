@@ -35,7 +35,8 @@
         var tipo = c.querySelector("#ct").value, rot = c.querySelector("#cr").value.trim() || TIPOS.filter(function (t) { return t[0] === tipo; })[0][1];
         var senha = c.querySelector("#cs").value; if (!senha) { UI.toast("Digite a senha.", "aviso"); return false; }
         var dados = { senha: senha, usuario: c.querySelector("#cu").value.trim(), obs: c.querySelector("#co").value.trim(), tipo: tipo };
-        var p = Cripto.configurada ? Cripto.cifrar(dados) : Promise.resolve({ demo: true, segredo: btoa(unescape(encodeURIComponent(senha))) });
+        /* no modo demonstração não há servidor para abrir: guarda no formato de demonstração */
+        var p = Cripto.configurada && !Dados.ehDemo() ? Cripto.cifrar(dados) : Promise.resolve({ demo: true, segredo: btoa(unescape(encodeURIComponent(senha))) });
         p.then(function (pacote) { return Dados.salvarCredencial(opts.empresaId, { rotulo: rot, tipo: tipo, usuario: dados.usuario, pacote: pacote, por: opts.sessao.nome + (equipe ? " · Totali" : "") }); })
           .then(function () { c.querySelector("#cs").value = ""; UI.toast(equipe ? "Guardada. O cliente já vê no portal." : "Guardada com segurança.", "ok"); UI.vibrar(); if (opts.aoSalvar) opts.aoSalvar(); })
           .catch(function (e) { UI.toast(U.msgErro(e, "Não foi possível guardar."), "erro"); });
