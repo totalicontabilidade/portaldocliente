@@ -48,7 +48,7 @@
       r[0].forEach(function (d) { ev.push({ em: U.ms(d.em), tipo: "documento", texto: (d.origem === "anterior" ? "Recebido da contabilidade anterior: " : d.origem === "equipe" ? "A Totali enviou: " : "Você enviou: ") + d.nome, icone: "file" }); if (d.revisao && d.situacao === "aprovado") ev.push({ em: U.ms(d.revisao.em), tipo: "aprovacao", texto: d.nome + " aprovado por " + d.revisao.por, icone: "check-circle" }); });
       r[1].forEach(function (c) { if (c.concluidoEm) ev.push({ em: U.ms(c.concluidoEm), tipo: "checklist", texto: "Envio do mês de " + (function (am) { var q = String(am).split("-"); return ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][Number(q[1]) - 1] + " de " + q[0]; })(c.anoMes) + " concluído · mês em dia", icone: "trophy" }); });
       Object.keys(e.liberacoes || {}).forEach(function (k) { var l = e.liberacoes[k]; var s = global.CATALOGO.por(k); if (l && l.ativo && s) ev.push({ em: U.ms(l.desde), tipo: "sistema", texto: s.nome + " liberado para a sua empresa", icone: "grid" }); });
-      var porMes = U.agrupar(r[2], function (m) { return U.anoMes(m.em); }); Object.keys(porMes).forEach(function (am) { var ms = porMes[am]; ev.push({ em: U.ms(ms[ms.length - 1].em), tipo: "conversa", texto: ms.length + " mensagens trocadas em " + am, icone: "chat" }); });
+      var porMes = U.agrupar(r[2], function (m) { return U.anoMes(m.em); }); Object.keys(porMes).forEach(function (am) { var ms = porMes[am]; ev.push({ em: U.ms(ms[ms.length - 1].em), tipo: "conversa", texto: U.plural(ms.length, "1 mensagem trocada", ms.length + " mensagens trocadas") + " em " + ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][Number(am.split("-")[1]) - 1], icone: "chat" }); });
       if (e.migracaoConcluidaEm) ev.push({ em: U.ms(e.migracaoConcluidaEm), tipo: "marco", texto: "Migração da contabilidade anterior concluída", icone: "flag" });
       if (r[3] && r[3].em) ev.push({ em: U.ms(r[3].em), tipo: "feedback", texto: "Você avaliou os primeiros 30 dias" + (r[3].nota ? " com nota " + r[3].nota : ""), icone: "heart" });
       (e.nps || []).forEach(function (n) { ev.push({ em: U.ms(n.em), tipo: "nps", texto: "Você avaliou a Totali com nota " + n.nota, icone: "heart" }); });
@@ -79,8 +79,10 @@
       UI.$("#fInd").addEventListener("submit", function (ev) {
         ev.preventDefault();
         var nome = U.txt(UI.$("#iN").value, 120); if (!nome) return UI.toast("Informe o nome.", "aviso");
+        /* sem um WhatsApp que funcione a Totali não tem como falar com a pessoa indicada */
+        var zap = UI.$("#iW").value.replace(/\D/g, ""); if (zap.length < 10 || zap.length > 13) { UI.$("#iW").focus(); return UI.toast("Informe o WhatsApp com DDD, para a Totali conseguir falar com a pessoa.", "aviso"); }
         if (!UI.$("#iC").checked) return UI.toast("Confirme que a pessoa concorda em ser contatada (LGPD).", "aviso");
-        Dados.colAdicionar("indicacoes", { empresaId: e.id, empresa_indicante: e.fantasia, por: sessao.nome, nome: nome, whatsapp: U.txt(UI.$("#iW").value, 30), empresa: U.txt(UI.$("#iE").value, 120), necessidade: UI.$("#iT").value, status: "nova" }).then(function () { UI.celebrar("Indicação enviada. Obrigado!"); telaIndicar(); });
+        Dados.colAdicionar("indicacoes", { empresaId: e.id, empresa_indicante: e.fantasia, por: sessao.nome, nome: nome, whatsapp: U.txt(UI.$("#iW").value, 30), empresa: U.txt(UI.$("#iE").value, 120), necessidade: UI.$("#iT").value, status: "nova" }).then(function () { UI.celebrar("Indicação enviada. Obrigado!"); telaIndicar(); }).catch(function (err) { UI.toast(U.msgErro(err, "Não foi possível enviar a indicação agora."), "erro"); });
       });
     });
   }

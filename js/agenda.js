@@ -73,7 +73,7 @@
     return h.replace(/<\/div>$/, '<a class="btn btn--xs btn--contorno" href="' + a.href + '" style="margin-left:8px;white-space:nowrap">' + ic("upload", "ic--sm") + a.rotulo + "</a></div>");
   }
   function telaAgenda() {
-    var e = global.Portal.empresa; Shell.titulo("Agenda do mês");
+    var e = global.Portal.empresa; Shell.titulo("Agenda");
     var lista = proximas(e, 60);
     var porMes = U.agrupar(lista, function (x) { return U.anoMes(x.vence); });
     Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(e.regime) + "</div><h1>Agenda de obrigações</h1><p>Os vencimentos da sua empresa nos próximos 60 dias. A Totali cuida da apuração; você acompanha e paga em dia.</p></div></div>" +

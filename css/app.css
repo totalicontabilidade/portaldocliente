@@ -233,7 +233,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .interruptor input:checked + .interruptor__pista::after { transform: translateX(18px); }
 .interruptor input:focus-visible + .interruptor__pista { outline: 2px solid var(--ring); outline-offset: 2px; }
 .segmentos { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--muted); gap: 2px; }
-.segmentos button { min-height: 32px; padding: 0 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; color: var(--text-2); }
+.segmentos { flex-wrap: wrap; max-width: 100%; }
+.segmentos button { min-height: 32px; padding: 0 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; color: var(--text-2); white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 1 0 auto; } /* nunca parte a palavra ("WhatsAp p"); sem espaço, quebra de linha inteira */
 .segmentos button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-sm); }
 
 /* ---------- 8. Badges, avatares, chips ---------- */

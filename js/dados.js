@@ -445,7 +445,7 @@
       },
       verDocumento: function (empresaId, docId, por) {
         carregar(); var d = db.documentos.filter(function (x) { return x.id === docId; })[0]; if (!d) return ok(null);
-        d.vistos = d.vistos || []; if (!d.vistos.some(function (v) { return v.por === por.nome; })) { d.vistos.push({ por: por.nome, em: Date.now() }); gravar("documento", empresaId); }
+        d.vistos = d.vistos || []; if (d.origem !== "equipe" && !d.vistos.some(function (v) { return v.por === por.nome; })) { d.vistos.push({ por: por.nome, em: Date.now() }); gravar("documento", empresaId); }
         return ok(d);
       },
       removerDocumento: function (empresaId, docId) {
@@ -807,7 +807,16 @@
         return Promise.resolve(p).then(function () { return ref.set(reg); }).then(function () { reg.id = ref.id; reg.em = Date.now(); return reg; });
       },
       revisarDocumento: function (empresaId, docId, situacao, motivo, por) { return subcol(empresaId, "documentos").doc(docId).update({ situacao: situacao, revisao: { por: por.nome, uid: por.uid, em: Date.now(), motivo: U.txt(motivo, 300) } }); },
-      verDocumento: function (empresaId, docId, por) { return subcol(empresaId, "documentos").doc(docId).update({ vistos: fb.firestore.FieldValue.arrayUnion({ por: por.nome, em: Date.now() }) }).catch(function () {}); },
+      /* "visto pela equipe" vale uma vez por pessoa (antes cada abertura gravava de novo e duplicava a auditoria);
+         arquivo que a própria equipe mandou não precisa de "visto" */
+      verDocumento: function (empresaId, docId, por) {
+        var ref = subcol(empresaId, "documentos").doc(docId);
+        return ref.get().then(function (s) {
+          var d = s.exists ? s.data() : null;
+          if (!d || d.origem === "equipe" || (d.vistos || []).some(function (v) { return v.por === por.nome; })) return;
+          return ref.update({ vistos: fb.firestore.FieldValue.arrayUnion({ por: por.nome, em: Date.now() }) });
+        }).catch(function () {});
+      },
       removerDocumento: function (empresaId, docId) { return subcol(empresaId, "documentos").doc(docId).get().then(function (s) { var d = s.data(); return (d && d.arquivo && d.arquivo.path ? storage.ref(d.arquivo.path).delete().catch(function () {}) : Promise.resolve()).then(function () { return s.ref.delete(); }); }); },
       urlArquivo: function (doc) { return doc && doc.arquivo && doc.arquivo.path ? storage.ref(doc.arquivo.path).getDownloadURL() : Promise.resolve(""); },
       guardarAnexo: function (empresaId, file) {
