@@ -31,10 +31,16 @@ service firebase.storage {
 
     match /empresas/{empresaId}/{area}/{id}/{nome} {
       allow read: if ehEquipe() || ehDono(empresaId);
-      allow create: if ((ehEquipe() || ehDono(empresaId)) && request.resource.size < 25 * 1024 * 1024 && tipoOk())
-                    // pacote da contabilidade anterior (link sem login, ou a equipe subindo o ZIP que chegou por e-mail): até 300 MB
-                    || (area == 'documentos' && (ehEquipe() || (ehAnonimo() && codigoAnteriorValido(empresaId)))
-                        && request.resource.size < 300 * 1024 * 1024 && !tipoPerigoso());
+      // As regras do Storage só podem consultar o Firestore 2 vezes por envio: cada caminho abaixo usa no máximo 2
+      // (antes o visitante anônimo passava por "é equipe?" e "é cliente?" antes do link e estourava o limite).
+      allow create: if
+        // contabilidade anterior pelo link sem login: até 300 MB, qualquer tipo que não se declare executável
+        (ehAnonimo() && area == 'documentos' && request.resource.size < 300 * 1024 * 1024 && !tipoPerigoso() && codigoAnteriorValido(empresaId))
+        // equipe: arquivos comuns, e o pacote da contabilidade anterior que chegou por e-mail (até 300 MB)
+        || (!ehAnonimo() && ehEquipe() && ((request.resource.size < 25 * 1024 * 1024 && tipoOk())
+                                           || (area == 'documentos' && request.resource.size < 300 * 1024 * 1024 && !tipoPerigoso())))
+        // cliente: até 25 MB, tipos de documento
+        || (!ehAnonimo() && ehDono(empresaId) && request.resource.size < 25 * 1024 * 1024 && tipoOk());
       allow update: if false;
       allow delete: if ehEquipe() || ehDono(empresaId);
     }
