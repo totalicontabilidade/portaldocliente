@@ -37,13 +37,14 @@
       '<div class="sidebar__in">' +
         '<div class="sidebar__topo"><a href="#/inicio" title="Tela inicial" style="min-width:0;display:flex;flex-direction:column;gap:4px">' +
           '<img class="sidebar__logo" src="' + (estado.logo || "assets/brand/logo-escuro.png") + '" alt="Totali · Portal do Cliente">' +
-          '<img class="sidebar__simbolo" src="assets/brand/simbolo.png" alt="">' +
+          '<img class="sidebar__simbolo" src="assets/brand/simbolo-escuro.png" alt="">' +
           '<span class="sidebar__org">' + U.esc(estado.org) + "</span></a>" +
           '<button type="button" class="sidebar__recolher" data-acao="recolher" aria-label="Recolher menu">' + ic("chevron-left", "ic--sm") + "</button></div>" +
         (estado.trocaEmpresa ? '<button type="button" class="sidebar__troca" data-acao="trocar-empresa" title="Trocar de empresa">' + ic("building", "ic--sm") + "<span>Trocar de empresa</span>" + ic("chevron-right", "ic--sm") + "</button>" : "") +
         grupos + '<div class="esp"></div>' +
         (estado.destaque || "") +
         '<a class="sidebar__item" href="#/perfil" title="Perfil e preferências">' + ic("settings") + "<span>" + (estado.usuario && estado.usuario.papel !== "cliente" ? "Configurações" : "Perfil") + "</span></a>" +
+        '<a class="sidebar__item" href="#/sair" title="Sair">' + ic("log-out") + "<span>Sair</span></a>" +
         '<div class="sidebar__rodape"><span>powered by </span><b>Totali</b></div>' +
       "</div></aside>";
   }
@@ -142,7 +143,10 @@
   function soEsqueleto(v) { return !!(v && v.querySelector(".esqueleto") && !v.querySelector("h1, h2, .card, form, table, .vazio")); }
   function telaDeErro(v, motivo) {
     if (!soEsqueleto(v)) return;
-    v.innerHTML = '<div class="pagina"><div class="card"><div class="card__corpo pilha"><h2>Esta tela não abriu</h2><p class="f-13 txt-2">Algo impediu o carregamento. Tente de novo; se continuar, mande esta mensagem para a Totali pelo chat.</p>' + (motivo ? '<div class="codigo f-12">' + String(motivo).replace(/[<>&]/g, "") .slice(0, 300) + "</div>" : "") + '<div class="linha"><button type="button" class="btn btn--primario btn--sm" id="tentarDeNovo">Tentar de novo</button><a class="btn btn--contorno btn--sm" href="#/inicio">Ir para o início</a></div></div></div></div>';
+    /* o detalhe técnico só aparece para a equipe; o cliente vê a frase simples (o console guarda o resto) */
+    var equipe = estado.usuario && estado.usuario.papel !== "cliente";
+    if (motivo) console.warn("tela não abriu:", motivo);
+    v.innerHTML = '<div class="pagina"><div class="card"><div class="card__corpo pilha"><h2>Esta tela não abriu</h2><p class="f-13 txt-2">' + (equipe ? "Algo impediu o carregamento. Tente de novo; se continuar, mande esta mensagem para o suporte." : "Algo impediu o carregamento. Tente de novo; se continuar, avise a Totali pelo chat.") + "</p>" + (motivo && equipe ? '<div class="codigo f-12">' + String(motivo).replace(/[<>&]/g, "") .slice(0, 300) + "</div>" : "") + '<div class="linha"><button type="button" class="btn btn--primario btn--sm" id="tentarDeNovo">Tentar de novo</button><a class="btn btn--contorno btn--sm" href="#/inicio">Ir para o início</a></div></div></div></div>';
     var b = v.querySelector("#tentarDeNovo"); if (b) b.addEventListener("click", function () { global.dispatchEvent(new HashChangeEvent("hashchange")); });
   }
   function vigiar(v) {

@@ -106,6 +106,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sidebar[data-mini] .sidebar__simbolo { display: block; }
 .sidebar[data-mini] .sidebar__in { padding: 16px 10px; }
 .sidebar[data-mini] .sidebar__destaque { align-items: center; padding: 8px; }
+.sidebar[data-mini] .sidebar__destaque b span { display: none; } /* recolhido: só o "+" (antes o texto virava uma coluna de letras) */
 .sidebar[data-mini] .sidebar__rodape { text-align: center; padding-left: 0; padding-right: 0; }
 
 /* Topbar */

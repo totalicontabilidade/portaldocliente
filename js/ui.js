@@ -27,6 +27,7 @@
       var caixa = UI.$(".toasts");
       if (!caixa) { caixa = document.createElement("div"); caixa.className = "toasts"; caixa.setAttribute("aria-live", "polite"); document.body.appendChild(caixa); }
       var icone = { ok: "check-circle", erro: "alert-circle", aviso: "alert", info: "info" }[tipo || "info"];
+      if (tipo === "erro" || tipo === "aviso" || typeof texto !== "string") texto = U.msgErro(texto);
       var el = document.createElement("div");
       el.className = "toast toast--" + (tipo || "info");
       el.innerHTML = ic(icone) + "<div>" + (titulo ? "<b>" + U.esc(titulo) + "</b>" : "") + U.esc(texto) + "</div>";

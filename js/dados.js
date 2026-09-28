@@ -517,6 +517,7 @@
       configEmail: function () { carregar(); return ok(db.conteudo.__email || null); },
       chaveDoCofre: function () { return ok(null); },
       salvarConfigEmail: function (c) { carregar(); db.conteudo.__email = Object.assign({}, db.conteudo.__email || {}, c); gravar("conteudo"); return ok(true); },
+      trocarSenha: function (atual, nova) { return atual ? ok(true) : Promise.reject(new Error("Informe a senha atual.")); },
       salvarMeuAcesso: function (empresaId, uid, dados) { carregar(); var e = db.empresas[empresaId]; (e && e.acessos || []).forEach(function (a) { if (a.uid === uid) Object.assign(a, dados); }); gravar("empresa", empresaId); return ok(true); },
       removerLogoSistema: function () { return ok(true); },
       registrarVitrine: function (ev) { return Local.registrarUso(Object.assign({ tipo: "vitrine" }, ev)); },
@@ -580,6 +581,10 @@
     /* App Check com Fraud Defense (reCAPTCHA Enterprise): o reCAPTCHA v3 clássico foi descontinuado pelo Google.
        Sem chave (APP_CHECK_SITE_KEY vazio) fica desligado, e o site funciona igual. */
     try {
+      /* Navegador de teste automatizado: o reCAPTCHA dá nota baixa para ele e o login falha. Com um token de depuração
+         guardado neste aparelho, o App Check aceita, mas só se o token estiver cadastrado no Firebase (console > App Check),
+         e ele é apagado de lá no fim de cada teste. Sem o cadastro, o valor não serve para nada. */
+      try { var dbg = localStorage.getItem("totali-appcheck-debug"); if (dbg) global.FIREBASE_APPCHECK_DEBUG_TOKEN = dbg; } catch (e) {}
       if (global.APP_CHECK_SITE_KEY && app.appCheck && global.firebase.appCheck && global.firebase.appCheck.ReCaptchaEnterpriseProvider) {
         app.appCheck().activate(new global.firebase.appCheck.ReCaptchaEnterpriseProvider(global.APP_CHECK_SITE_KEY), true);
       }
@@ -694,7 +699,7 @@
         var c;
         return db.collection("convites").doc(codigo).get().then(function (s) {
           c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado.");
-          return auth.signInWithEmailAndPassword(String(email).trim().toLowerCase(), senha).catch(function (e) { throw new Error(e && (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential" || e.code === "auth/invalid-login-credentials") ? "E-mail ou senha não conferem." : (e && e.message || "Não foi possível entrar.")); });
+          return auth.signInWithEmailAndPassword(String(email).trim().toLowerCase(), senha).catch(function (e) { throw new Error(U.msgErro(e, "Não foi possível entrar agora. Tente de novo.")); });
         }).then(function (cred) {
           var uid = cred.user.uid, refCli = db.collection("clientes").doc(uid);
           return refCli.get().then(function (cs) {
@@ -718,7 +723,7 @@
           var c = docData(s); if (!c || c.usado) throw new Error("Convite inválido ou já usado."); empresaId = c.empresaId; empresasConv = c.empresas || [c.empresaId];
           return auth.createUserWithEmailAndPassword(email, dados.senha).catch(function (e) {
             if (e && e.code === "auth/email-already-in-use") { var x = new Error("Este e-mail já tem conta no portal. Toque em \"Já tenho conta\" e entre com a sua senha: as empresas deste convite entram na sua conta."); x.jaTemConta = true; throw x; }
-            if (e && e.code === "auth/weak-password") throw new Error("Senha fraca demais para o Firebase. Use pelo menos 10 caracteres.");
+            if (e && e.code === "auth/weak-password") throw new Error("Senha fraca. Use pelo menos 10 caracteres, misturando letras e números.");
             throw e;
           });
         }).then(function (cred) {
@@ -869,6 +874,13 @@
       configEmail: function () { return db.collection("configPrivada").doc("email").get().then(function (s) { return s.exists ? s.data() : null; }); },
       salvarConfigEmail: function (c) { return db.collection("configPrivada").doc("email").set(Object.assign({}, c, { atualizadoEm: TS() }), { merge: true }); },
       salvarMeuAcesso: function (empresaId, uid, dados) { return subcol(empresaId, "acessos").doc(uid).update(dados); },
+      /* Trocar a própria senha: o Firebase exige confirmar a senha atual (reautenticar) antes de gravar a nova */
+      trocarSenha: function (atual, nova) {
+        var u = auth.currentUser; if (!u) return Promise.reject(new Error("Saia e entre de novo para trocar a senha."));
+        return u.reauthenticateWithCredential(fb.auth.EmailAuthProvider.credential(u.email, atual))
+          .catch(function (e) { throw new Error(/wrong-password|invalid-credential|invalid-login/.test((e && e.code) || "") ? "A senha atual não confere." : U.msgErro(e)); })
+          .then(function () { return u.updatePassword(nova); });
+      },
       guardarLogoSistema: function (sistemaId, blob) {
         var ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
         var caminho = "sistemas/" + sistemaId + "/logo-" + Date.now() + "." + ext, ref = storage.ref(caminho);
@@ -927,7 +939,7 @@
    "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
-   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "registrarVitrine", "conteudo", "salvarConteudo",
+   "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "trocarSenha", "registrarVitrine", "conteudo", "salvarConteudo",
    "checklist", "checklists", "listarChecklists", "salvarChecklist", "equipe", "salvarMembro", "removerMembro", "salvarFeedback", "feedback", "zerar",
    "docObter", "docSalvar", "docApagar", "colListar", "colAdicionar", "colGrupo"
   ].forEach(function (k) { Dados[k] = function () { var mot = m(); return mot[k].apply(mot, arguments); }; });

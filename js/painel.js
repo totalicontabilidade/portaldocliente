@@ -90,7 +90,7 @@
         { href: "#/jornadas", rotulo: "Jornadas", icone: "route" },
         { menu: true }
       ],
-      destaque: '<a class="sidebar__destaque" href="#/clientes/novo"><b>' + ic("plus") + "<span>Novo cliente</span></b><small>Cadastro e link de convite</small><span class=\"cta\">Cadastrar</span></a>",
+      destaque: '<a class="sidebar__destaque" href="#/clientes/novo" title="Novo cliente"><b>' + ic("plus") + "<span>Novo cliente</span></b><small>Cadastro e link de convite</small><span class=\"cta\">Cadastrar</span></a>",
       aoBuscar: abrirBusca
     });
     atualizarBadges();
@@ -100,7 +100,7 @@
   function atualizarBadges() {
     Dados.todasConversas().then(function (cs) { var n = U.soma(cs, function (c) { return c.naoLidas; }); Shell.badge("#/mensagens", n); UI.titulo(TITULO, n); });
   }
-  function sair() { if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Dados.sair().then(function () { sessao = null; location.hash = "#/entrar"; rotear(); }); }
+  function sair() { if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Dados.sair().then(function () { sessao = null; UI.titulo(TITULO, 0); location.hash = "#/entrar"; rotear(); }); }
 
   function abrirBusca() {
     var m = UI.modal({ titulo: "Buscar", corpo: '<input class="input" id="qBusca" placeholder="Cliente, CNPJ ou tela…" autocomplete="off"><div class="lista mt-8" id="resBusca"></div>' });
@@ -135,10 +135,10 @@
       (demo ? '<div class="aviso aviso--info mt-8">' + ic("info") + '<div><b>Modo demonstração</b>Dados fictícios, só neste navegador.</div></div><div class="login__demo"><button type="button" class="chip" data-acao="demo" data-qual="admin">Entrar como administrador</button><button type="button" class="chip" data-acao="demo" data-qual="equipe">Entrar como Marina (fiscal)</button></div>' : "") +
       "</form>" + '<div class="login__copy">© ' + new Date().getFullYear() + " Totali Soluções Contábeis</div></section></div>";
     var erro = UI.$("#erroEntrar");
-    UI.delegar(app, { demo: function (b) { Dados.entrarDemo(b.dataset.qual).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (e) { erro.textContent = e.message; erro.hidden = false; }); } });
+    UI.delegar(app, { demo: function (b) { Dados.entrarDemo(b.dataset.qual).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (e) { erro.textContent = U.msgErro(e); erro.hidden = false; }); } });
     UI.$("#formEntrar").addEventListener("submit", function (e) {
       e.preventDefault(); erro.hidden = true;
-      Dados.entrar(UI.$("#email").value, UI.$("#senha").value).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+      Dados.entrar(UI.$("#email").value, UI.$("#senha").value).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(function (err) { erro.textContent = U.msgErro(err, "Não foi possível entrar agora. Tente de novo."); erro.hidden = false; });
     });
   }
 
@@ -332,7 +332,7 @@
       var resp = {}; UI.$$("[name=nResp]", v).forEach(function (sel) { if (sel.value) resp[sel.dataset.setor] = { uid: sel.value, nome: sel.options[sel.selectedIndex].textContent }; });
       Dados.criarEmpresa({ nome: nome, fantasia: UI.$("#fantasia", v).value.trim() || nome, cnpj: cnpj, regime: UI.$("#regime", v).value, trilha: UI.$("#trilha", v).value, perfis: perfis, aceiteEm: aceite, responsaveis: resp }, sessao).then(function (r) {
         return Promise.all(libs.filter(function (l) { return l !== "academy"; }).map(function (l) { return Dados.liberar(r.empresa.id, l, { ativo: true, plano: "mensal" }, sessao); })).then(function () { return r; });
-      }).then(function (r) { mostrarConvite(r.empresa, r.convite); UI.toast("Cliente cadastrado. D0 marcado na jornada.", "ok"); }).catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+      }).then(function (r) { mostrarConvite(r.empresa, r.convite); UI.toast("Cliente cadastrado. D0 marcado na jornada.", "ok"); }).catch(function (err) { erro.textContent = U.msgErro(err, "Não foi possível cadastrar agora. Tente de novo."); erro.hidden = false; });
     });
   }
   function linkConvite(codigo) { return U.urlPortal("index.html#/convite/") + codigo; }
@@ -1002,12 +1002,12 @@
   function telaPerfil() {
     Shell.titulo("Configurações");
     var tema = global.Tema.atual(), pref = UI.pref();
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Você</div><h1>' + U.esc(sessao.nome) + "</h1><p>" + U.esc(sessao.email) + " · " + U.esc(sessao.setor || sessao.papel) + '</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--contorno" data-acao="sair">' + ic("log-out") + "Sair</button></div></div>" +
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Você</div><h1>' + U.esc(sessao.nome) + "</h1><p>" + U.esc(sessao.email) + " · " + U.esc(sessao.setor || sessao.papel) + '</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--contorno" data-acao="senha">' + ic("key") + 'Alterar senha</button><button type="button" class="btn btn--contorno" data-acao="sair">' + ic("log-out") + "Sair</button></div></div>" +
       '<div class="grade grade--2"><div class="card"><div class="card__cab"><h2>Aparência</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="segmentos" id="tema">' + [["claro", "sun", "Claro"], ["escuro", "moon", "Escuro"], ["sistema", "monitor", "Sistema"]].map(function (t) { return '<button type="button" data-v="' + t[0] + '" aria-pressed="' + (tema === t[0]) + '">' + ic(t[1], "ic--sm") + " " + t[2] + "</button>"; }).join("") + '</div><label class="interruptor"><input type="checkbox" id="pSom"' + (pref.som !== false ? " checked" : "") + '><span class="interruptor__pista"></span>' + ic("volume") + ' Som ao receber mensagem</label></div></div><div class="card"><div class="card__cab"><h2>Atalhos</h2></div><div class="card__corpo pilha ajuda-cmd f-13" style="padding-top:10px"><div><kbd>Ctrl</kbd> + <kbd>K</kbd> buscar cliente ou tela</div><div><kbd>Enter</kbd> envia no chat · <kbd>Shift</kbd>+<kbd>Enter</kbd> quebra linha</div></div></div>' + (Dados.ehDemo() ? '<div class="card"><div class="card__cab"><h2>Demonstração</h2></div><div class="card__corpo" style="padding-top:10px"><button type="button" class="btn btn--sm btn--perigo" data-acao="zerar">' + ic("refresh") + "Zerar dados fictícios</button></div></div>" : "") + "</div></div>");
     var v = Shell.view();
     UI.$$("#tema button", v).forEach(function (b) { b.addEventListener("click", function () { global.Tema.definir(b.dataset.v); Shell.redesenhar(); telaPerfil(); }); });
     UI.$("#pSom", v).addEventListener("change", function () { UI.definirPref("som", this.checked); });
-    UI.delegar(v, { sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Recria os dados fictícios.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.reload(); }); }); } });
+    UI.delegar(v, { sair: sair, senha: function () { global.Seguranca.abrirTrocaDeSenha(); }, zerar: function () { UI.confirmar("Zerar a demonstração?", "Recria os dados fictícios.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.reload(); }); }); } });
   }
 
   iniciar();

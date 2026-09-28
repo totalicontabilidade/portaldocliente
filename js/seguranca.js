@@ -18,10 +18,12 @@
         limpa 30 s depois de copiar.
      5. Sair limpa tudo o que ficou no aparelho: preferências de
         vitrine, rascunhos, caches de tela.
+     6. Trocar a própria senha (Perfil): confirma a atual, aplica as
+        mesmas regras da senha nova e grava no Firebase Auth.
    ============================================================ */
 (function (global) {
   "use strict";
-  var UI = global.UI;
+  var UI = global.UI, U = global.U;
 
   /* ---------- 2. Anti-clickjacking ---------- */
   /* Só outra ORIGEM é clickjacking; uma prévia interna (design/) na mesma origem pode embutir. */
@@ -73,5 +75,44 @@
     try { sessionStorage.clear(); } catch (e) {}
   }
 
-  global.Seguranca = { avaliarSenha: avaliarSenha, senhaVazada: senhaVazada, copiarSegredo: copiarSegredo, esconderSegredos: esconderSegredos, limparAparelho: limparAparelho };
+  /* ---------- 6. Trocar a própria senha (portal e painel) ---------- */
+  function abrirTrocaDeSenha() {
+    var ic = global.ic, enviando = false;
+    function campo(id, rotulo, auto, ajuda) {
+      return '<div class="campo"><label class="campo__rotulo" for="' + id + '">' + rotulo + '</label><div class="input--icone">' + ic("key") + '<input class="input" id="' + id + '" type="password" autocomplete="' + auto + '" required><button type="button" class="acao" data-ver="' + id + '">mostrar</button></div>' + (ajuda ? '<span class="campo__ajuda">' + ajuda + "</span>" : "") + "</div>";
+    }
+    var m = UI.modal({
+      titulo: "Alterar senha",
+      corpo: '<form class="pilha" id="formSenha" novalidate>' +
+        campo("sAtual", "Senha atual", "current-password") +
+        campo("sNova", "Nova senha", "new-password", "Mínimo de 10 caracteres, misturando letras e números. Conferimos contra senhas vazadas.") +
+        campo("sConf", "Repita a nova senha", "new-password") +
+        '<p class="campo__erro" id="erroSenha" hidden role="alert"></p>' +
+        '<button type="submit" hidden></button></form>',
+      acoes: [{ rotulo: "Cancelar", classe: "btn--fantasma" }, { rotulo: "Salvar nova senha", classe: "btn--primario", manter: true, ao: function () { m.corpo.querySelector("#formSenha").requestSubmit(); return false; } }]
+    });
+    var c = m.corpo, erro = c.querySelector("#erroSenha");
+    UI.$$("[data-ver]", c).forEach(function (b) { b.addEventListener("click", function () { var i = c.querySelector("#" + b.dataset.ver); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "mostrar" : "ocultar"; }); });
+    function falhar(t, foco) { erro.textContent = t; erro.hidden = false; if (foco) c.querySelector(foco).focus(); }
+    c.querySelector("#formSenha").addEventListener("submit", function (e) {
+      e.preventDefault(); if (enviando) return; erro.hidden = true;
+      var atual = c.querySelector("#sAtual").value, nova = c.querySelector("#sNova").value, conf = c.querySelector("#sConf").value;
+      if (!atual) return falhar("Informe a senha atual.", "#sAtual");
+      var av = avaliarSenha(nova); if (!av.ok) return falhar(av.motivo, "#sNova");
+      if (nova !== conf) return falhar("As duas senhas novas não são iguais.", "#sConf");
+      if (nova === atual) return falhar("A nova senha precisa ser diferente da atual.", "#sNova");
+      enviando = true;
+      var botao = m.el.querySelector(".modal__acoes .btn--primario"); botao.disabled = true; botao.textContent = "Salvando…";
+      senhaVazada(nova).then(function (vazou) {
+        if (vazou) throw new Error("Essa senha já apareceu em vazamentos na internet. Escolha outra.");
+        return global.Dados.trocarSenha(atual, nova);
+      }).then(function () {
+        m.fechar(); UI.toast("Senha alterada. Use a nova no próximo login.", "ok"); UI.vibrar();
+      }).catch(function (err) {
+        falhar(U.msgErro(err, "Não foi possível alterar a senha agora. Tente de novo."), /atual/.test(err && err.message || "") ? "#sAtual" : null);
+      }).then(function () { enviando = false; if (botao.isConnected) { botao.disabled = false; botao.textContent = "Salvar nova senha"; } });
+    });
+  }
+
+  global.Seguranca = { avaliarSenha: avaliarSenha, senhaVazada: senhaVazada, copiarSegredo: copiarSegredo, esconderSegredos: esconderSegredos, limparAparelho: limparAparelho, abrirTrocaDeSenha: abrirTrocaDeSenha };
 })(window);

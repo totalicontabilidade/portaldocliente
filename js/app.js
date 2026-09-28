@@ -227,12 +227,12 @@
       demo: function (b) { Dados.entrarDemo(b.dataset.qual).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); }).catch(mostrarErro); },
       recuperar: function () { UI.modal({ titulo: "Esqueci a senha", corpo: "<p class=\"txt-2\">Fale com a sua equipe na Totali pelo WhatsApp ou e-mail: enviamos um link para você criar uma senha nova.</p>" + (demo ? '<p class="txt-mudo f-12 mt-8">No modo demonstração não há envio de e-mail.</p>' : ""), acoes: [{ rotulo: "Entendi", classe: "btn--primario" }] }); }
     });
-    function mostrarErro(e) { erro.textContent = e.message || "Não foi possível entrar."; erro.hidden = false; }
+    function mostrarErro(e) { erro.textContent = U.msgErro(e, "Não foi possível entrar agora. Tente de novo."); erro.hidden = false; }
     form.addEventListener("submit", function (e) {
       e.preventDefault(); erro.hidden = true;
       var b = form.querySelector('[type="submit"]'); b.disabled = true; b.textContent = "Entrando…";
       Dados.entrar(UI.$("#email").value, UI.$("#senha").value).then(function (s) { sessao = s; location.hash = "#/inicio"; rotear(); })
-        .catch(mostrarErro).then(function () { b.disabled = false; b.textContent = "Continuar"; });
+        .catch(mostrarErro).then(function () { b.disabled = false; b.textContent = "Entrar"; });
     });
   }
 
@@ -269,7 +269,7 @@
         e.preventDefault(); var erro = UI.$("#erroJa"), email = UI.$("#emailJa").value.trim(), senha = UI.$("#senhaJa").value;
         if (!U.emailValido(email) || !senha) { erro.textContent = "Informe o e-mail e a senha."; erro.hidden = false; return; }
         Dados.entrarComConvite(codigo, email, senha).then(function (s) { sessao = s; empresa = null; history.replaceState(null, "", location.pathname); location.hash = "#/inicio"; rotear(); UI.vibrar(); })
-          .catch(function (err) { erro.textContent = err.message; erro.hidden = false; });
+          .catch(function (err) { erro.textContent = U.msgErro(err, "Não foi possível entrar agora. Tente de novo."); erro.hidden = false; });
       });
       UI.$("#formConvite").addEventListener("submit", function (e) {
         e.preventDefault();
@@ -279,7 +279,7 @@
         global.Seguranca.senhaVazada(senha).then(function (vazou) {
           if (vazou) { erro.textContent = "Essa senha já apareceu em vazamentos na internet. Escolha outra."; erro.hidden = false; return; }
           return Dados.usarConvite(codigo, { nome: nome, email: email, senha: senha }).then(function (s) { sessao = s; empresa = null; history.replaceState(null, "", location.pathname); location.hash = "#/inicio"; rotear(); UI.vibrar(); })
-          .catch(function (err) { if (err && err.jaTemConta) return modoJaTenho(true, email, err.message); erro.textContent = err.message; erro.hidden = false; });
+          .catch(function (err) { if (err && err.jaTemConta) return modoJaTenho(true, email, err.message); erro.textContent = U.msgErro(err, "Não foi possível criar o acesso agora. Tente de novo."); erro.hidden = false; });
         });
       });
     }).catch(function (err) {
@@ -288,7 +288,7 @@
     });
   }
 
-  function sair() { if (Banners._timer) clearInterval(Banners._timer); if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Uso.parar(); Dados.sair().then(function () { sessao = null; empresa = null; location.hash = "#/entrar"; rotear(); }); }
+  function sair() { if (Banners._timer) clearInterval(Banners._timer); if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Uso.parar(); Dados.sair().then(function () { sessao = null; empresa = null; UI.titulo(TITULO, 0); location.hash = "#/entrar"; rotear(); }); }
 
   /* ============================================================
      Vitrine (propaganda ética)
@@ -748,7 +748,7 @@
     Shell.titulo("Perfil");
     var pref = UI.pref(), tema = global.Tema.atual();
     var meu = (empresa.acessos || []).filter(function (a) { return a.uid === sessao.uid; })[0] || {};
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Você</div><h1>' + U.esc(sessao.nome) + "</h1><p>" + U.esc(sessao.email) + " · " + U.esc(empresa.fantasia) + "</p></div><div class=\"cabecalho__acoes\"><button type=\"button\" class=\"btn btn--contorno\" data-acao=\"sair\">" + ic("log-out") + "Sair</button></div></div>" +
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Você</div><h1>' + U.esc(sessao.nome) + "</h1><p>" + U.esc(sessao.email) + " · " + U.esc(empresa.fantasia) + "</p></div><div class=\"cabecalho__acoes\"><button type=\"button\" class=\"btn btn--contorno\" data-acao=\"senha\">" + ic("key") + "Alterar senha</button><button type=\"button\" class=\"btn btn--contorno\" data-acao=\"sair\">" + ic("log-out") + "Sair</button></div></div>" +
       '<div class="grade grade--2">' +
         '<div class="card"><div class="card__cab"><h2>Como falar com você</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="campo"><span class="campo__rotulo">Canal preferido</span><div class="segmentos" id="canal">' + [["whatsapp", "WhatsApp"], ["portal", "Portal"], ["telefone", "Telefone"], ["email", "E-mail"]].map(function (c) { return '<button type="button" data-v="' + c[0] + '" aria-pressed="' + (empresa.canalPreferido === c[0]) + '">' + c[1] + "</button>"; }).join("") + "</div></div>" +
           '<div class="campo"><label class="campo__rotulo" for="meuWhats">Seu WhatsApp</label><div class="linha" style="flex-wrap:nowrap;gap:6px"><input class="input" id="meuWhats" inputmode="tel" autocomplete="tel" placeholder="(79) 99999-9999" value="' + U.esc(meu.whatsapp || "") + '"><button type="button" class="btn btn--sm btn--contorno" data-acao="salvar-whats">Salvar</button></div><span class="campo__ajuda">Para a Totali falar com você pelo WhatsApp.</span></div>' +
@@ -766,6 +766,7 @@
           '<div class="linha"><button type="button" class="btn btn--sm btn--contorno" data-acao="tour">' + ic("play") + 'Rever tutorial</button>' + (global.__instalar ? '<button type="button" class="btn btn--sm btn--gold" data-acao="instalar">' + ic("download") + "Instalar como aplicativo</button>" : "") + "</div>" +
         "</div></div>" +
         '<div class="card"><div class="card__cab"><h2>Minha empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:6px"><div class="linha linha--entre f-13"><span class="txt-2">Razão social</span><b>' + U.esc(empresa.nome) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">CNPJ</span><b class="num">' + U.esc(empresa.cnpj) + '</b></div><div class="linha linha--entre f-13"><span class="txt-2">Regime</span><b>' + U.esc(empresa.regime) + '</b></div>' + CATALOGO.responsaveis(empresa).map(function (p) { return '<div class="linha linha--entre f-13"><span class="txt-2">' + U.esc(p.rotulo) + '</span><b>' + U.esc(p.nome) + "</b></div>"; }).join("") + '<p class="f-12 txt-mudo mt-8">Algo errado? Avise pelo chat que a equipe corrige.</p></div></div>' +
+        '<div class="card"><div class="card__cab"><h2>Acesso e segurança</h2></div><div class="card__corpo pilha" style="padding-top:10px"><div class="linha linha--entre f-13"><span class="txt-2">Entra com</span><b>' + U.esc(sessao.email) + '</b></div><p class="f-12 txt-mudo">Você continua conectado neste aparelho até tocar em Sair. Em computador compartilhado, sempre saia no fim.</p><div class="linha"><button type="button" class="btn btn--sm btn--contorno" data-acao="senha">' + ic("key", "ic--sm") + 'Alterar senha</button><button type="button" class="btn btn--sm btn--contorno" data-acao="sair">' + ic("log-out", "ic--sm") + "Sair do portal</button></div></div></div>" +
         '<div class="card"><div class="card__cab"><h2>Privacidade</h2></div><div class="card__corpo pilha" style="padding-top:10px"><p class="f-13 txt-2">A Totali registra quais telas e sistemas você usa, para melhorar o atendimento e para a cobrança do que foi contratado. Nunca registra o conteúdo das mensagens, dos arquivos ou das senhas. Você pode pedir a exportação ou a exclusão dos seus dados pelo chat (LGPD, art. 18).</p>' + (Dados.ehDemo() ? '<button type="button" class="btn btn--sm btn--perigo" data-acao="zerar">' + ic("refresh") + "Zerar dados da demonstração</button>" : "") + "</div></div>" +
       "</div></div>");
     var v = Shell.view();
@@ -778,7 +779,7 @@
     var pAv = UI.$("#pAvisos", v); if (pAv) pAv.addEventListener("change", function () { var el = this; if (el.checked) { global.Notificacoes.pedir().then(function (p) { UI.definirPref("avisos", p === "granted"); if (p !== "granted") { el.checked = false; UI.toast("Avisos não autorizados pelo navegador.", "aviso"); } }); } else UI.definirPref("avisos", false); });
     UI.$("#pEmail", v).addEventListener("change", function () { var val = this.checked; Dados.salvarMeuAcesso(empresa.id, sessao.uid, { avisosEmail: val }).then(function () { meu.avisosEmail = val; UI.toast(val ? "Avisos por e-mail ligados." : "Avisos por e-mail desligados.", "ok"); }).catch(function () { UI.toast("Não foi possível salvar agora.", "erro"); }); });
     UI.delegar(v, { "trocar-emp": function () { escolherEmpresa(); }, "salvar-whats": function () { var inp = UI.$("#meuWhats", v), n = inp.value.replace(/\D/g, ""); if (n && (n.length < 10 || n.length > 13)) { UI.toast("Confira o número: DDD e telefone.", "aviso"); inp.focus(); return; } Dados.salvarMeuAcesso(empresa.id, sessao.uid, { whatsapp: inp.value.trim() }).then(function () { meu.whatsapp = inp.value.trim(); UI.toast(n ? "WhatsApp salvo." : "WhatsApp removido.", "ok"); }).catch(function () { UI.toast("Não foi possível salvar agora.", "erro"); }); },
-      tour: function () { location.hash = "#/inicio"; setTimeout(function () { global.Tour.iniciar("portal-inicio"); }, 500); }, instalar: function () { if (global.__instalar) { global.__instalar.prompt(); global.__instalar = null; } }, sair: sair, zerar: function () { UI.confirmar("Zerar a demonstração?", "Apaga os dados fictícios deste navegador e recria a semente.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.hash = "#/entrar"; location.reload(); }); }); } });
+      tour: function () { location.hash = "#/inicio"; setTimeout(function () { global.Tour.iniciar("portal-inicio"); }, 500); }, instalar: function () { if (global.__instalar) { global.__instalar.prompt(); global.__instalar = null; } }, sair: sair, senha: function () { global.Seguranca.abrirTrocaDeSenha(); }, zerar: function () { UI.confirmar("Zerar a demonstração?", "Apaga os dados fictícios deste navegador e recria a semente.", { ok: "Zerar", perigo: true }).then(function (ok) { if (ok) Dados.zerar().then(function () { location.hash = "#/entrar"; location.reload(); }); }); } });
   }
 
   iniciar();
