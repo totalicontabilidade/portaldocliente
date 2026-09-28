@@ -36,6 +36,9 @@
   /* ---------- 4. Segredos na tela ---------- */
   function esconderSegredos() {
     document.querySelectorAll("[data-segredo]").forEach(function (el) { el.textContent = "••••••••••"; el.classList.remove("txt-gold"); el.removeAttribute("data-segredo"); });
+    /* quem abriu pode abrir de novo na hora (antes o botão ficava travado 45 s e parecia que não abria mais) */
+    document.querySelectorAll("[data-segredo-botao]").forEach(function (b) { b.disabled = false; b.removeAttribute("data-segredo-botao"); });
+    document.querySelectorAll("[data-segredo-copiar]").forEach(function (b) { b.remove(); });
   }
   document.addEventListener("visibilitychange", function () { if (document.hidden) esconderSegredos(); });
   global.addEventListener("blur", esconderSegredos);

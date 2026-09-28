@@ -709,7 +709,14 @@
         var p;
         if (Dados.ehDemo()) p = Dados.abrirCredencial(e.id, b.dataset.id, sessao);
         else p = Cripto.gerarPar().then(function (par) { return Dados.abrirCredencial(e.id, b.dataset.id, sessao, par.publica).then(function (r) { return Cripto.decifrar(r.resposta, par.privada); }); });
-        p.then(function (dados) { var el = UI.$("#sen-" + b.dataset.id, corpo); el.textContent = dados.senha + (dados.obs ? "  (" + dados.obs + ")" : ""); el.classList.add("txt-gold"); el.setAttribute("data-segredo", "1"); UI.toast("Aberta e registrada na auditoria.", "info"); setTimeout(function () { el.textContent = "••••••••••"; el.classList.remove("txt-gold"); el.removeAttribute("data-segredo"); b.disabled = false; }, 45000); })
+        p.then(function (dados) {
+          var el = UI.$("#sen-" + b.dataset.id, corpo); el.textContent = dados.senha + (dados.obs ? "  (" + dados.obs + ")" : ""); el.classList.add("txt-gold"); el.setAttribute("data-segredo", "1"); b.setAttribute("data-segredo-botao", "1");
+          /* copiar é o uso real (colar no site do governo); ao trocar de janela a senha some da tela, mas a cópia continua 30 s */
+          var cp = document.createElement("button"); cp.type = "button"; cp.className = "btn btn--xs btn--contorno"; cp.setAttribute("data-segredo-copiar", "1"); cp.innerHTML = ic("copy", "ic--sm") + "Copiar";
+          cp.addEventListener("click", function (ev) { ev.stopPropagation(); global.Seguranca.copiarSegredo(dados.senha); }); b.parentNode.insertBefore(cp, b);
+          UI.toast("Aberta e registrada na auditoria. Ela some ao trocar de janela; use Copiar.", "info", null, 6000);
+          setTimeout(function () { global.Seguranca.esconderSegredos(); }, 45000);
+        })
           .catch(function (err) { UI.toast(err.message, "erro", null, 6000); b.disabled = false; });
       } });
     });
