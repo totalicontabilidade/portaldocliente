@@ -321,7 +321,7 @@
         carregar();
         var id = "emp_" + U.slug(dados.fantasia || dados.nome).replace(/-/g, "") + U.id().slice(-4);
         var e = { id: id, nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A",
-          responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: Date.now(), canalPreferido: "", formaRelatorio: "", dor: "",
+          responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: Date.now(), canalPreferido: "", formaRelatorio: "", dor: "", cobrarDocumentos: dados.cobrarDocumentos !== false,
           liberacoes: { academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} }, acessos: [] };
         db.empresas[id] = e;
@@ -378,6 +378,13 @@
         carregar(); var e = db.empresas[empresaId]; if (!e) return Promise.reject(new Error("Empresa não existe"));
         e.jornada = e.jornada || { aceiteEm: e.criadaEm, passos: {}, notas: {} }; e.jornada.passos = e.jornada.passos || {};
         if (feito) e.jornada.passos[chave] = { em: Date.now(), por: por.nome || por }; else delete e.jornada.passos[chave];
+        gravar("jornada", empresaId); return ok(e.jornada);
+      },
+      /* vários passos de uma vez: { "d1.e.0": "feito" | "na" | null } (null desmarca) */
+      marcarPassos: function (empresaId, mudancas, por) {
+        carregar(); var e = db.empresas[empresaId]; if (!e) return Promise.reject(new Error("Empresa não existe"));
+        e.jornada = e.jornada || { aceiteEm: e.criadaEm, passos: {}, notas: {} }; e.jornada.passos = e.jornada.passos || {};
+        Object.keys(mudancas).forEach(function (k) { var m = mudancas[k]; if (!m) delete e.jornada.passos[k]; else e.jornada.passos[k] = m === "na" ? { na: true, em: Date.now(), por: por.nome || por } : { em: Date.now(), por: por.nome || por }; });
         gravar("jornada", empresaId); return ok(e.jornada);
       },
       salvarJornada: function (empresaId, campos) { carregar(); var e = db.empresas[empresaId]; e.jornada = Object.assign(e.jornada || {}, campos); gravar("jornada", empresaId); return ok(e.jornada); },
@@ -676,7 +683,7 @@
       salvarEmpresa: function (id, campos) { return db.collection("empresas").doc(id).set(campos, { merge: true }); },
       criarEmpresa: function (dados, por) {
         var ref = db.collection("empresas").doc();
-        var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: TS(),
+        var e = { nome: dados.nome, fantasia: dados.fantasia || dados.nome, cnpj: dados.cnpj || "", regime: dados.regime || "", perfis: dados.perfis || [], trilha: dados.trilha || "A", responsaveis: dados.responsaveis || {}, ativa: true, criadaEm: TS(), cobrarDocumentos: dados.cobrarDocumentos !== false,
           liberacoes: { academy: { ativo: true, desde: Date.now() } },
           jornada: { aceiteEm: dados.aceiteEm || Date.now(), passos: { "d0.c.0": { em: Date.now(), por: por.nome }, "d0.e.0": { em: Date.now(), por: por.nome } }, notas: {} } };
         var codigo = U.codigo(22), lote = db.batch();
@@ -768,6 +775,13 @@
       marcarPasso: function (empresaId, chave, feito, por) {
         var campo = new fb.firestore.FieldPath("jornada", "passos", chave);
         return db.collection("empresas").doc(empresaId).update(campo, feito ? { em: Date.now(), por: por.nome || por } : fb.firestore.FieldValue.delete());
+      },
+      marcarPassos: function (empresaId, mudancas, por) {
+        var args = [];
+        Object.keys(mudancas).forEach(function (k) { var m = mudancas[k]; args.push(new fb.firestore.FieldPath("jornada", "passos", k), !m ? fb.firestore.FieldValue.delete() : m === "na" ? { na: true, em: Date.now(), por: por.nome || por } : { em: Date.now(), por: por.nome || por }); });
+        if (!args.length) return Promise.resolve();
+        var ref = db.collection("empresas").doc(empresaId);
+        return ref.update.apply(ref, args);
       },
       salvarJornada: function (empresaId, campos) { var o = {}; Object.keys(campos).forEach(function (k) { o["jornada." + k] = campos[k]; }); return db.collection("empresas").doc(empresaId).update(o); },
 
@@ -1003,7 +1017,7 @@
     return function () { document.removeEventListener("dados:mudou", h); clearInterval(t); };
   } };
   ["pronto", "sessao", "entrar", "entrarDemo", "entrarAnonimo", "sair", "trocarEmpresa", "empresa", "listarEmpresas", "salvarEmpresa", "criarEmpresa", "liberar", "criarConvite", "convite", "usarConvite",
-   "marcarPasso", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
+   "marcarPasso", "marcarPassos", "salvarJornada", "mensagens", "todasConversas", "enviarMensagem", "marcarLidas", "reagir", "resolverConversa", "naoLidas",
    "documentos", "todosDocumentos", "enviarDocumento", "revisarDocumento", "verDocumento", "removerDocumento", "urlArquivo", "guardarAnexo", "urlAnexo",
    "criarLinkAnterior", "anterior", "desativarAnterior", "renovarAnterior", "definirDestino", "credenciais", "salvarCredencial", "removerCredencial", "abrirCredencial",
    "registrarUso", "usos", "auditoria", "vitrine", "salvarCampanha", "removerCampanha", "guardarImagemVitrine", "removerImagemVitrine", "guardarLogoSistema", "removerLogoSistema", "pedirAoServidor", "chaveDoCofre", "atualizarConviteEmpresas", "nomesEmpresas", "entrarComConvite", "listarClientes", "darAcessoExistente", "tirarAcesso", "configEmail", "salvarConfigEmail", "salvarMeuAcesso", "trocarSenha", "ouvirMudancas", "interno", "salvarInterno", "registrarVitrine", "conteudo", "salvarConteudo",

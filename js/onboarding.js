@@ -214,28 +214,80 @@
   /* ============================================================
      PAINEL · aba "Entrada" na ficha e tela #/entrada (todas as empresas)
      ============================================================ */
+  /* Seleção em massa (pedido do Raoni, 09/11/2026): caixinha em cada item, "Selecionar o grupo" no cabeçalho de
+     cada departamento e "Selecionar todos" na barra de cima. Só ganha caixinha o item em que há o que fazer:
+       aprovar        enviado, em análise ou com correção pedida
+       não se aplica  pendente
+       desfazer       marcado "não se aplica" item a item (grupo inteiro dispensado pelo cliente não entra)
+     A barra mostra quantos de cada um a seleção tem e aplica tudo numa gravação só. */
+  function acoesDoItem(sit, reg) {
+    if (sit === "pendencia" || (conta(sit) && sit !== "aprovado" && sit !== "substituido")) return "aprovar";
+    if (sit === "pendente") return "na";
+    if (sit === "na" && reg && reg.na) return "desfazer";
+    return "";
+  }
   function abaEntrada(e, corpo) {
     var Pn = global.Painel, sessao = Pn.sessao;
     var en = estado(e), prog = progresso(e);
+    var rol = Shell.view(), topo = rol ? rol.scrollTop : 0;
     Dados.documentos(e.id).then(function (docs) {
       var porId = U.porChave(docs, "id");
       var meus = sessao.setores || [];
       corpo.innerHTML = '<div class="pagina pagina--larga"><div class="linha linha--entre"><div class="linha" style="gap:12px">' + UI.anel(prog.pct, "", 56) + '<div><b>' + prog.feitos + " de " + U.plural(prog.total, "1 item", prog.total + " itens") + '</b><div class="f-12 txt-2">' + prog.obrigFaltam.length + " obrigatórios faltando" + (en.concluidoEm ? " · concluída " + U.relativo(en.concluidoEm) : "") + '</div></div></div><div class="linha"><button type="button" class="btn btn--sm btn--contorno" data-acao="cobrar">' + ic("chat") + 'Cobrar o que falta</button><button type="button" class="btn btn--sm btn--contorno" data-acao="pdf-ficha">' + ic("download") + 'Ficha em PDF</button><button type="button" class="btn btn--sm btn--contorno" data-acao="pdf-dossie">' + ic("file") + 'Dossiê de entrada</button></div></div>' +
+        '<div class="sel-massa" data-n="0"><label class="checar" style="align-items:center"><input type="checkbox" data-sel="tudo"> <b>Selecionar todos</b></label><span class="f-12 txt-2" data-sel-conta></span><span class="esp"></span><span class="sel-massa__acoes linha" style="gap:4px"><button type="button" class="btn btn--xs btn--primario" data-acao="massa" data-modo="aprovar">' + ic("check", "ic--sm") + 'Aprovar <span data-n-aprovar></span></button><button type="button" class="btn btn--xs btn--contorno" data-acao="massa" data-modo="na">Não se aplica <span data-n-na></span></button><button type="button" class="btn btn--xs btn--contorno" data-acao="massa" data-modo="desfazer">Desfazer "não se aplica" <span data-n-desfazer></span></button><button type="button" class="btn btn--xs btn--fantasma" data-acao="massa-limpar">' + ic("x", "ic--sm") + "Limpar</button></span></div>" +
         (meus.length ? '<div class="aviso aviso--info">' + ic("info") + "<span>Você confere: " + U.esc(meus.join(", ")) + ". Os outros departamentos aparecem, mas em cinza.</span></div>" : "") +
         GRUPOS.map(function (g) {
           var fora = meus.length && meus.indexOf(g.id) === -1;
           var alvos = g.escopo === "socio" ? en.socios : [null];
-          return '<div class="card" style="' + (fora ? "opacity:.6" : "") + '"><div class="card__cab"><h3>' + U.esc(g.titulo) + "</h3>" + (en.gruposNA[g.id] ? UI.badge("não se aplica") : "") + '</div><div class="card__corpo pilha" style="gap:6px;padding-top:8px">' + (en.gruposNA[g.id] ? '<span class="f-13 txt-2">' + U.esc(g.textoGrupoNA || "") + "</span>" : alvos.length ? alvos.map(function (s) {
+          var temSel = !en.gruposNA[g.id] && alvos.some(function (s) { return g.itens.some(function (it) { var sid = s ? s.id : null; return acoesDoItem(situacao(en, g, it, sid), en.itens[chave(g, it, sid)]); }); });
+          return '<div class="card" data-grupo="' + g.id + '" style="' + (fora ? "opacity:.6" : "") + '"><div class="card__cab"><h3>' + U.esc(g.titulo) + "</h3>" + (en.gruposNA[g.id] ? UI.badge("não se aplica") : "") + (temSel ? '<label class="checar f-12 txt-2" style="align-items:center;margin-left:auto"><input type="checkbox" data-sel="grupo" data-g="' + g.id + '"> Selecionar o grupo</label>' : "") + '</div><div class="card__corpo pilha" style="gap:6px;padding-top:8px">' + (en.gruposNA[g.id] ? '<span class="f-13 txt-2">' + U.esc(g.textoGrupoNA || "") + "</span>" : alvos.length ? alvos.map(function (s) {
             return (s ? '<div class="f-13 f-800 mt-4">' + U.esc(s.nome) + ' <span class="num txt-2">' + U.esc(s.cpf || "") + "</span></div>" : "") + g.itens.map(function (it) {
               var k = chave(g, it, s ? s.id : null), reg = en.itens[k] || {}, sit = situacao(en, g, it, s ? s.id : null);
               if (sit === "fora") return "";
               var arquivos = (reg.docIds || []).map(function (id) { return porId[id]; }).filter(Boolean);
-              return '<div class="doc" style="align-items:flex-start"><span class="doc__icone">' + ic(it.kind === "acesso" ? "lock" : it.kind === "dado" ? "pencil" : "file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(it.nome) + " " + (it.obrigatorio ? '<span class="badge badge--gold" style="height:18px;font-size:10px">obrig.</span>' : "") + '</div><div class="doc__meta">' + (reg.valor ? "valor: <b>" + U.esc(reg.valor) + "</b> · " : "") + (reg.procuracao ? "procuração eletrônica · " : "") + (reg.credencialId ? "credencial no cofre · " : "") + (reg.em ? "atualizado " + U.relativo(reg.em) : "") + "</div>" + (arquivos.length ? '<div class="linha mt-4" style="gap:4px">' + arquivos.map(function (d) { return '<button type="button" class="chip" style="min-height:26px" data-acao="ver-doc" data-id="' + d.id + '">' + ic("file", "ic--sm") + U.esc(d.nome) + "</button>"; }).join("") + "</div>" : "") + (reg.revisao && reg.revisao.motivo ? '<div class="doc__meta txt-erro">' + U.esc(reg.revisao.motivo) + "</div>" : "") + '</div><div class="pilha" style="gap:4px;align-items:flex-end">' + sitBadge(sit) + (conta(sit) || sit === "pendencia" ? '<div class="linha" style="gap:4px;flex-wrap:nowrap">' + (sit !== "aprovado" ? '<button type="button" class="btn btn--xs btn--primario" data-acao="aprovar" data-k="' + k + '">' + ic("check", "ic--sm") + "Aprovar</button>" : "") + (sit !== "pendencia" ? '<button type="button" class="btn btn--xs btn--perigo" data-acao="corrigir" data-k="' + k + '">' + ic("alert", "ic--sm") + "Correção</button>" : "") + "</div>" : sit === "pendente" ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="na-equipe" data-k="' + k + '">não se aplica</button>' : "") + "</div></div>";
+              var acao = acoesDoItem(sit, reg);
+              return '<div class="doc" style="align-items:flex-start">' + (acao ? '<input type="checkbox" class="doc__sel" data-sel="item" data-g="' + g.id + '" data-k="' + U.esc(k) + '" data-tipo="' + acao + '" aria-label="Selecionar ' + U.esc(it.nome) + '">' : '<span class="doc__sel" aria-hidden="true"></span>') + '<span class="doc__icone">' + ic(it.kind === "acesso" ? "lock" : it.kind === "dado" ? "pencil" : "file") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(it.nome) + " " + (it.obrigatorio ? '<span class="badge badge--gold" style="height:18px;font-size:10px">obrig.</span>' : "") + '</div><div class="doc__meta">' + (reg.valor ? "valor: <b>" + U.esc(reg.valor) + "</b> · " : "") + (reg.procuracao ? "procuração eletrônica · " : "") + (reg.credencialId ? "credencial no cofre · " : "") + (reg.em ? "atualizado " + U.relativo(reg.em) : "") + "</div>" + (arquivos.length ? '<div class="linha mt-4" style="gap:4px">' + arquivos.map(function (d) { return '<button type="button" class="chip" style="min-height:26px" data-acao="ver-doc" data-id="' + d.id + '">' + ic("file", "ic--sm") + U.esc(d.nome) + "</button>"; }).join("") + "</div>" : "") + (reg.revisao && reg.revisao.motivo ? '<div class="doc__meta txt-erro">' + U.esc(reg.revisao.motivo) + "</div>" : "") + '</div><div class="pilha" style="gap:4px;align-items:flex-end">' + sitBadge(sit) + (conta(sit) || sit === "pendencia" ? '<div class="linha" style="gap:4px;flex-wrap:nowrap">' + (sit !== "aprovado" ? '<button type="button" class="btn btn--xs btn--primario" data-acao="aprovar" data-k="' + k + '">' + ic("check", "ic--sm") + "Aprovar</button>" : "") + (sit !== "pendencia" ? '<button type="button" class="btn btn--xs btn--perigo" data-acao="corrigir" data-k="' + k + '">' + ic("alert", "ic--sm") + "Correção</button>" : "") + "</div>" : sit === "pendente" ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="na-equipe" data-k="' + k + '">não se aplica</button>' : acao === "desfazer" ? '<button type="button" class="btn btn--xs btn--fantasma" data-acao="na-desfazer" data-k="' + k + '">desfazer</button>' : "") + "</div></div>";
             }).join("");
           }).join("") : '<span class="f-13 txt-2">Nenhum sócio cadastrado pelo cliente.</span>') + "</div></div>";
         }).join("") + "</div>";
+      if (rol) rol.scrollTop = topo;
       function persistir() { return salvar(e.id, en).then(Pn.recarregar).then(function () { abaEntrada(Pn.empresa(e.id), corpo); }); }
+      function caixas(filtro) { return UI.$$('[data-sel="item"]' + (filtro || ""), corpo); }
+      function atualizarBarra() {
+        var marcadas = caixas(":checked"), barra = UI.$(".sel-massa", corpo); if (!barra) return;
+        var n = { aprovar: 0, na: 0, desfazer: 0 }; marcadas.forEach(function (c) { n[c.dataset.tipo]++; });
+        barra.dataset.n = marcadas.length;
+        UI.$("[data-sel-conta]", barra).textContent = marcadas.length ? U.plural(marcadas.length, "1 item selecionado", marcadas.length + " itens selecionados") : (caixas().length ? "marque os itens para agir em vários de uma vez" : "nada para aprovar ou dispensar agora");
+        Object.keys(n).forEach(function (t) { var b = UI.$('[data-modo="' + t + '"]', barra); b.hidden = !n[t]; UI.$("[data-n-" + t + "]", b).textContent = "(" + n[t] + ")"; });
+        function sincroniza(chk, lista) { var m = lista.filter(function (c) { return c.checked; }).length; chk.checked = lista.length > 0 && m === lista.length; chk.indeterminate = m > 0 && m < lista.length; }
+        var tudo = UI.$('[data-sel="tudo"]', barra); sincroniza(tudo, caixas()); tudo.disabled = !caixas().length;
+        UI.$$('[data-sel="grupo"]', corpo).forEach(function (gc) { sincroniza(gc, caixas('[data-g="' + gc.dataset.g + '"]')); });
+      }
+      /* onchange (e não addEventListener): a aba é redesenhada no mesmo corpo e não pode acumular ouvintes */
+      corpo.onchange = function (ev) {
+        var c = ev.target; if (!c || !c.dataset || !c.dataset.sel) return;
+        if (c.dataset.sel === "tudo") caixas().forEach(function (x) { x.checked = c.checked; });
+        else if (c.dataset.sel === "grupo") caixas('[data-g="' + c.dataset.g + '"]').forEach(function (x) { x.checked = c.checked; });
+        atualizarBarra();
+      };
+      atualizarBarra();
+      function desfazerNA(k) { var reg = en.itens[k] || {}; reg.na = false; reg.situacao = (reg.docIds || []).length ? "enviado" : "pendente"; reg.revisao = { por: sessao.nome, em: Date.now() }; en.itens[k] = reg; }
       UI.delegar(corpo, {
+        massa: function (b) {
+          var modo = b.dataset.modo, ks = caixas(":checked").filter(function (c) { return c.dataset.tipo === modo; }).map(function (c) { return c.dataset.k; });
+          if (!ks.length) return;
+          var agora = Date.now();
+          ks.forEach(function (k) {
+            var reg = en.itens[k] || {};
+            if (modo === "aprovar") { reg.situacao = "aprovado"; reg.revisao = { por: sessao.nome, em: agora }; (reg.docIds || []).forEach(function (id) { Dados.revisarDocumento(e.id, id, "aprovado", "", sessao); }); en.itens[k] = reg; }
+            else if (modo === "na") { reg.na = true; reg.situacao = "na"; reg.revisao = { por: sessao.nome, em: agora }; en.itens[k] = reg; }
+            else desfazerNA(k);
+          });
+          var p2 = progresso({ entrada: en, regime: e.regime }); if (p2.completo && !en.concluidoEm) en.concluidoEm = agora;
+          persistir().then(function () { UI.toast((modo === "aprovar" ? "Aprovados: " : modo === "na" ? "Marcados como não se aplica: " : "Voltaram para pendente: ") + ks.length + ".", "ok"); });
+        },
+        "massa-limpar": function () { caixas().forEach(function (x) { x.checked = false; }); atualizarBarra(); },
+        "na-desfazer": function (b) { desfazerNA(b.dataset.k); persistir(); },
         aprovar: function (b) { var reg = en.itens[b.dataset.k] || {}; reg.situacao = "aprovado"; reg.revisao = { por: sessao.nome, em: Date.now() }; en.itens[b.dataset.k] = reg; (reg.docIds || []).forEach(function (id) { Dados.revisarDocumento(e.id, id, "aprovado", "", sessao); }); var p2 = progresso({ entrada: en }); if (p2.completo && !en.concluidoEm) en.concluidoEm = Date.now(); persistir().then(function () { UI.toast("Aprovado.", "ok"); }); },
         corrigir: function (b) { UI.perguntar("Pedir correção", "Motivo (o cliente lê exatamente isto)", "", { longo: true, ok: "Enviar pedido", obrigatorio: "Escreva o motivo: é o que o cliente vai ler.", placeholder: "Ex.: a foto está cortada, reenvie mostrando o documento inteiro." }).then(function (t) { if (!t) return; var reg = en.itens[b.dataset.k] || {}; reg.situacao = "pendencia"; reg.revisao = { por: sessao.nome, em: Date.now(), motivo: U.txt(t, 300) }; en.itens[b.dataset.k] = reg; (reg.docIds || []).forEach(function (id) { Dados.revisarDocumento(e.id, id, "pendencia", t, sessao); }); persistir(); }); },
         "na-equipe": function (b) { var reg = en.itens[b.dataset.k] || {}; reg.na = true; reg.situacao = "na"; reg.revisao = { por: sessao.nome, em: Date.now() }; en.itens[b.dataset.k] = reg; persistir(); },

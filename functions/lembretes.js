@@ -16,6 +16,9 @@
        nunca entrou (aí o problema é o convite; quem resolve é a
        equipe, e o painel mostra "sem acesso").
      • Não cobra item opcional: não é pendência, é escolha.
+     • Não cobra empresa em que a equipe desmarcou "Cobrar a documentação
+       automaticamente" no cadastro (empresas/{id}.cobrarDocumentos === false;
+       pedido do Raoni, 09/11/2026). Sem o campo, cobra (empresas antigas).
    A mensagem entra na conversa, como qualquer outra da Totali. Não
    manda WhatsApp nem e-mail (texto automático em WhatsApp cansa).
 
@@ -88,6 +91,7 @@ exports.cobrarEntrada = onSchedule({ schedule: "0 * * * *", timeZone: "America/M
     if (enviados >= MAXIMO_POR_RODADA) { console.warn("limite por rodada atingido"); break; }
     const e = doc.data(); const j = e.jornada || {}; const en = e.entrada || {};
     if (e.migracaoConcluidaEm) continue;
+    if (e.cobrarDocumentos === false) continue;                             /* a equipe desligou a cobrança desta empresa */
     const aceite = ms(j.aceiteEm) || ms(e.criadaEm); if (!aceite) continue;
     const diaHoje = Math.floor((Date.now() - aceite) / DIA);
     if (diaHoje < DIA_INICIO + TOLERANCIA_DIAS) continue;                  /* antes do D7 ninguém cobra */

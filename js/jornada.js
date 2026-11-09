@@ -267,8 +267,12 @@
      lado: "cliente" (c) ou "equipe" (e). */
   function chave(diaId, lado, i) { return diaId + "." + (lado === "cliente" ? "c" : "e") + "." + i; }
 
+  /* "Não se aplica" (pedido do Raoni, 09/11/2026): o passo fica fora da conta, como na Lista de documentos.
+     Mora na mesma chave do passo: { na: true, em, por }. `feito` sai verdadeiro para quem só quer saber se ainda
+     falta (próximo passo, dia concluído); quem conta o progresso olha `na` e tira o passo do total. */
   function passoFeito(andamento, autoFn, diaId, lado, i, passo) {
     var p = ((andamento || {}).passos || {})[chave(diaId, lado, i)];
+    if (p && p.na) return { feito: true, na: true, em: p.em || 0, por: p.por || "", auto: false };
     if (p && p.em) return { feito: true, em: p.em, por: p.por || "", auto: false };
     if (passo.auto && autoFn && autoFn(passo.auto)) return { feito: true, em: 0, por: "sistema", auto: true };
     return { feito: false };
@@ -281,17 +285,19 @@
 
   function estadoDia(andamento, autoFn, d, lado) {
     var passos = d[lado] || [];
-    var feitos = passos.filter(function (p, i) { return passoFeito(andamento, autoFn, d.id, lado, i, p).feito; }).length;
-    var total = passos.length;
+    var sit = passos.map(function (p, i) { return passoFeito(andamento, autoFn, d.id, lado, i, p); });
+    var na = sit.filter(function (f) { return f.na; }).length;
+    var feitos = sit.filter(function (f) { return f.feito && !f.na; }).length;
+    var total = passos.length - na;
     var pz = prazo(andamento, d);
     var dias = pz ? U.diasEntre(pz, Date.now()) : -999;   /* >0: já passou */
     var estado;
-    if (total && feitos === total) estado = "feito";
+    if (passos.length && feitos === total) estado = "feito";   /* tudo "não se aplica" também encerra o dia */
     else if (!pz) estado = "futuro";
     else if (dias > 0) estado = "atrasado";
     else if (dias === 0) estado = "hoje";
     else estado = "futuro";
-    return { id: d.id, dia: d.dia, feitos: feitos, total: total, prazo: pz, estado: estado, diasAtraso: Math.max(0, dias) };
+    return { id: d.id, dia: d.dia, feitos: feitos, total: total, na: na, prazo: pz, estado: estado, diasAtraso: Math.max(0, dias) };
   }
 
   function resumo(andamento, autoFn, lado) {
@@ -311,7 +317,8 @@
         return false;
       });
     }
-    return { dias: lista, total: total, feitos: feitos, pct: U.pct(feitos, total), atual: atual, proximo: proximo, diaHoje: diaAtualNum, concluida: total > 0 && feitos === total, atrasados: lista.filter(function (x) { return x.estado === "atrasado"; }).length };
+    var concluida = lista.length > 0 && lista.every(function (x) { return x.estado === "feito"; });
+    return { dias: lista, total: total, feitos: feitos, pct: total ? U.pct(feitos, total) : (concluida ? 100 : 0), atual: atual, proximo: proximo, diaHoje: diaAtualNum, concluida: concluida, atrasados: lista.filter(function (x) { return x.estado === "atrasado"; }).length };
   }
 
   global.JORNADA = {
