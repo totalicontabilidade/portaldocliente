@@ -15,9 +15,9 @@
   var ROTEIROS = {
     "portal-inicio": [
       { titulo: "Bem-vindo ao seu portal", texto: "Aqui você fala com a Totali, envia documentos e acompanha sua empresa. Vamos mostrar onde fica cada coisa. Leva 30 segundos." },
-      { alvo: ".card[style*='border-left']", titulo: "O que importa hoje", texto: "Este cartão sempre mostra a coisa mais importante do dia: uma correção, uma mensagem nova ou o próximo passo. Toque nele e pronto." },
-      { alvo: ".grade--4", titulo: "As quatro ações", texto: "Chat, Arquivos, Envio do mês e Sistemas. Tudo o que você faz no portal começa por um destes quatro." },
-      { alvo: ".tabbar, .sidebar__in", titulo: "O menu", texto: "No celular o menu fica embaixo; no computador, à esquerda. O botão Menu abre o restante: cofre de senhas, agenda, ajuda." },
+      { alvo: ".card--hoje", titulo: "O que importa hoje", texto: "Este cartão mostra o que você precisa fazer agora: uma correção, uma mensagem nova ou o próximo passo. Se houver mais de uma coisa, as outras aparecem logo embaixo." },
+      { alvo: ".atalhos", titulo: "O dia a dia", texto: "Chat, Envio do mês, Arquivos e Agenda. É o que você mais vai usar no portal." },
+      { alvo: ".tabbar, .sidebar__in", titulo: "O menu", texto: "No celular o menu fica embaixo; no computador, à esquerda. Em Mais ficam o cofre de senhas, o histórico e a ajuda." },
       { alvo: "#bannerInicio, .sidebar__banner", titulo: "Sistemas da Totali", texto: "Aqui aparecem sistemas que podem ajudar a sua empresa. Se não interessar, toque em \"Agora não\" e ele some por duas semanas." },
       { titulo: "Pronto", texto: "Qualquer dúvida, o chat responde em horário comercial. Para rever este tutorial: Perfil › Rever tutorial." }
     ],
@@ -37,7 +37,8 @@
   var atual = null;
   function vistos() { try { return JSON.parse(localStorage.getItem(CHAVE) || "{}"); } catch (e) { return {}; } }
   function marcar(id) { var v = vistos(); v[id] = Date.now(); try { localStorage.setItem(CHAVE, JSON.stringify(v)); } catch (e) {} }
-  function alvoDe(sel) { if (!sel) return null; var n; try { n = document.querySelector(sel); } catch (e) { return null; } if (!n) return null; var r = n.getBoundingClientRect(); return (r.width || r.height) ? n : null; }
+  /* o primeiro elemento VISÍVEL do seletor: no celular a barra lateral existe escondida, e antes o passo era pulado */
+  function alvoDe(sel) { if (!sel) return null; var ns; try { ns = document.querySelectorAll(sel); } catch (e) { return null; } for (var i = 0; i < ns.length; i++) { var r = ns[i].getBoundingClientRect(); if (r.width || r.height) return ns[i]; } return null; }
 
   function iniciar(id, forcar) {
     var passos = (ROTEIROS[id] || []).filter(function (p) { return !p.alvo || alvoDe(p.alvo); });

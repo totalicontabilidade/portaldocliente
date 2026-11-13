@@ -156,15 +156,16 @@
   /* Gancho na tela inicial do portal e link a partir da Entrada */
   global.InicioExtras = global.InicioExtras || [];
   /* Cartão do cadastro: bancos e maquininhas é passo do onboarding (Raoni, 23/09/2026: "essas informações são
-     importantes"). Aparece no topo da tela inicial e na Lista de documentos até o cliente enviar. */
+     importantes"). Até o cliente enviar, aparece como cartão na Lista de documentos e como tarefa no "Hoje" do Início. */
   function cartaoCadastro(e, destaque) {
     var f = estado(e); if (f.status) return "";
     var p = passoAtual(f), comecou = f.temBanco !== null;
-    return '<a class="card card--clicavel' + (destaque ? " card--hoje" : "") + '" href="#/financeiro" style="text-decoration:none;color:inherit;border-left:4px solid var(--gold)"><div class="card__corpo linha cartao-cadastro" style="gap:14px"><span class="selo-sistema" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("credit-card") + '</span><div class="lista__texto" style="flex:1"><span class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Cadastro · passo importante</span><b>Bancos e maquininhas</b><span class="lista__sub">' + (comecou ? "Você parou no passo " + p + " de 5. Continue de onde parou." : "Em quais bancos a empresa tem conta, se usa maquininha e como a Totali recebe os relatórios. Leva uns 3 minutos.") + "</span></div>" + '<span class="btn btn--sm btn--primario">' + (comecou ? "Continuar" : "Responder") + "</span></div></a>";
+    return '<a class="card card--clicavel' + (destaque ? " card--hoje" : "") + '" href="#/financeiro" style="text-decoration:none;color:inherit;border-left:4px solid var(--gold)"><div class="card__corpo linha cartao-cadastro" style="gap:14px"><span class="selo-sistema" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("credit-card") + '</span><div class="lista__texto" style="flex:1"><span class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Cadastro</span><b>Bancos e maquininhas</b><span class="lista__sub">' + (comecou ? "Você parou no passo " + p + " de 5. Continue de onde parou." : "Bancos, maquininhas e como você manda os relatórios de venda. Leva uns 3 minutos.") + "</span></div>" + '<span class="btn btn--sm btn--primario">' + (comecou ? "Continuar" : "Responder") + "</span></div></a>";
   }
   global.InicioExtras.push(function () {
-    var e = global.Portal.empresa, c = cartaoCadastro(e, false);
-    return c ? { topo: c } : null;
+    var e = global.Portal.empresa, f = estado(e); if (f.status) return null;
+    var comecou = f.temBanco !== null;
+    return { tarefa: { ordem: 35, icone: "credit-card", tom: "gold", titulo: "Bancos e maquininhas", texto: comecou ? "Você parou no passo " + passoAtual(f) + " de 5." : "Leva uns 3 minutos.", href: "#/financeiro", cta: comecou ? "Continuar" : "Responder" } };
   });
   global.TelasPortal = global.TelasPortal || {}; global.TelasPortal.financeiro = telaFinanceiro;
   global.TelasPainel = global.TelasPainel || {}; global.TelasPainel.financeiro = telaFinanceiroPainel;

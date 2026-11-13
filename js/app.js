@@ -118,30 +118,34 @@
     Shell.montar({
       raiz: app, org: empresa.fantasia, usuario: sessao, titulo: "Início",
       trocaEmpresa: (sessao.empresas || []).length > 1, aoTrocarEmpresa: escolherEmpresa,
-      nav: [
-        { grupo: "Minha empresa", itens: [
-          { href: "#/inicio", rotulo: "Início", icone: "home" },
-          { href: "#/entrada", rotulo: "Lista de documentos", icone: "clipboard", oculto: !!empresa.migracaoConcluidaEm && !!(empresa.financeiro && empresa.financeiro.concluidoEm) },
-          { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check" },
-          { href: "#/agenda", rotulo: "Agenda de obrigações", icone: "calendar" },
-          { href: "#/chat", rotulo: "Chat com a Totali", icone: "chat" },
-          { href: "#/documentos", rotulo: "Meus arquivos", icone: "folder" },
-          { href: "#/cofre", rotulo: "Cofre de senhas", icone: "key" }
-        ] },
-        { grupo: "Ferramentas", itens: [
-          { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" },
-          { href: "#/historico", rotulo: "Histórico", icone: "history" }
-        ] },
-        { grupo: "Totali", itens: [
-          { href: "#/indicar", rotulo: "Indicar um amigo", icone: "gift" },
-          { href: "#/ajuda", rotulo: "Ajuda e contatos", icone: "info" }
-        ] }
-      ],
+      /* Dois níveis (revisão de interface, 13/11/2026): em cima, sem título, o que o cliente usa toda semana;
+         embaixo, em "Mais" e com letra menor, o que ele abre de vez em quando. Meus sistemas sobe quando a
+         empresa tem algum liberado (o Ponto, por exemplo, é de uso diário). */
+      nav: (function () {
+        var temSistema = CATALOGO.visiveis().some(function (s) { return liberado(s.id); });
+        var sistemas = { href: "#/sistemas", rotulo: "Meus sistemas", icone: "grid" };
+        return [
+          { grupo: "", itens: [
+            { href: "#/inicio", rotulo: "Início", icone: "home" },
+            { href: "#/entrada", rotulo: "Lista de documentos", icone: "clipboard", oculto: entradaConcluida() },
+            { href: "#/chat", rotulo: "Chat com a Totali", icone: "chat" },
+            { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check" },
+            { href: "#/documentos", rotulo: "Meus arquivos", icone: "folder" },
+            { href: "#/agenda", rotulo: "Agenda", icone: "calendar" }
+          ].concat(temSistema ? [sistemas] : []) },
+          { grupo: "Mais", secundario: true, itens: (temSistema ? [] : [sistemas]).concat([
+            { href: "#/cofre", rotulo: "Cofre de senhas", icone: "key" },
+            { href: "#/historico", rotulo: "Histórico", icone: "history" },
+            { href: "#/ajuda", rotulo: "Ajuda e contatos", icone: "info" },
+            { href: "#/indicar", rotulo: "Indicar um amigo", icone: "gift" }
+          ]) }
+        ];
+      })(),
       tabbar: [
         { href: "#/inicio", rotulo: "Início", icone: "home" },
         { href: "#/chat", rotulo: "Chat", icone: "chat" },
+        { href: "#/checklist", rotulo: "Envio do mês", icone: "list-check" },
         { href: "#/documentos", rotulo: "Arquivos", icone: "folder" },
-        { href: "#/sistemas", rotulo: "Sistemas", icone: "grid" },
         { menu: true }
       ],
       destaque: destaqueSidebar(),
@@ -156,6 +160,9 @@
      cliente ainda não contratou (pedido do Raoni, 21/09/2026). Rotaciona. */
   function destaqueSidebar() { return '<div class="sidebar__banner" id="bannerSidebar"></div>'; }
 
+  /* a entrada (Lista de documentos + Bancos e maquininhas) acabou: o atalho sai do menu e de Meus arquivos */
+  function entradaConcluida() { return !!empresa.migracaoConcluidaEm && !!(empresa.financeiro && empresa.financeiro.concluidoEm); }
+
   function liberado(sistemaId) {
     if (sistemaId === "checklist") return true; /* Envio do mês é parte do portal, não sistema: sempre aberto */
     var l = empresa && empresa.liberacoes && empresa.liberacoes[sistemaId];
@@ -167,15 +174,6 @@
   function atualizarBadges() {
     if (!sessao || !empresa) return;
     Dados.naoLidas(empresa.id, sessao.uid, "cliente").then(function (n) { Shell.badge("#/chat", n); UI.titulo(TITULO, n); });
-  }
-
-  /* Quem cuida da empresa: um responsável por setor (fiscal, contábil, pessoal...). Não existe uma pessoa única para a empresa. */
-  function cardEquipe() {
-    var lista = CATALOGO.responsaveis(empresa);
-    var corpo = lista.length
-      ? lista.map(function (p) { return '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar(p.nome, "avatar--gold") + '<div class="lista__texto"><b class="f-13">' + U.esc(p.nome) + '</b><span class="lista__sub">' + U.esc(p.rotulo) + "</span></div></div>"; }).join("")
-      : '<div class="linha" style="flex-wrap:nowrap;gap:10px">' + UI.avatar("Totali", "avatar--gold") + '<div class="lista__texto"><b class="f-13">Equipe Totali</b><span class="lista__sub">Fale com a gente pelo chat, em horário comercial</span></div></div>';
-    return '<div class="card"><div class="card__cab"><h2>Quem cuida da sua empresa</h2></div><div class="card__corpo pilha" style="padding-top:10px;gap:10px">' + corpo + '<a class="f-13 f-700" href="#/chat">Mandar mensagem →</a></div></div>';
   }
 
   /* Fatos que a jornada marca sozinha (JORNADA.AUTOMACOES) */
@@ -212,12 +210,13 @@
         '<section class="login__painel" aria-hidden="true"><div class="puzzle-layer puzzle-login"><div class="puzzle-piece" aria-hidden="true"></div></div><div class="veu"></div><div class="brilho"></div>' +
           '<img class="login__logo-painel" src="assets/brand/logo-escuro.png" alt="Totali · Portal do Cliente">' +
           '<h1 class="login__frase">Sua empresa, <b>organizada</b> e <b>em dia</b>, num só lugar.</h1>' +
-          '<p class="login__desc">Fale com quem cuida da sua contabilidade, envie documentos pelo celular, acompanhe prazos e encontre todos os sistemas da Totali num lugar só.</p>' +
-          '<ol class="login__etapas">' + [["done", "Convite da Totali"], ["done", "Criar minha senha"], ["now", "Enviar os documentos de entrada"], ["", "Bancos e maquininhas"], ["", "Análise da Totali"], ["", "Contabilidade ativa: rotina do mês"]].map(function (e) { return '<li class="login__etapa" data-e="' + e[0] + '"><i>' + (e[0] === "done" ? ic("check", "ic--sm") : "") + "</i><span>" + e[1] + "</span></li>"; }).join("") + "</ol>" +
+          '<p class="login__desc">Fale com a sua equipe, envie documentos pelo celular e acompanhe os prazos da empresa.</p>' +
+          /* o que o portal faz no dia a dia (antes: as etapas da entrada, que só valem no primeiro mês) */
+          '<ul class="login__etapas login__etapas--lista">' + [["done", "Chat com quem cuida da sua empresa"], ["done", "Envio do mês pelo celular, com aviso de prazo"], ["done", "Agenda dos impostos e obrigações"], ["done", "Senhas guardadas com segurança"], ["done", "Os sistemas da Totali num só lugar"]].map(function (e) { return '<li class="login__etapa" data-e="' + e[0] + '"><i>' + (e[0] === "done" ? ic("check", "ic--sm") : "") + "</i><span>" + e[1] + "</span></li>"; }).join("") + "</ul>" +
           '<div class="login__powered">powered by <b>Totali</b></div></section>' +
         '<section class="login__form"><form class="login__caixa" id="formEntrar" novalidate>' +
           '<img class="login__logo" src="assets/brand/logo-claro.png" alt="Totali · Portal do Cliente">' +
-          '<div><h2 class="login__titulo">Entrar</h2><p class="sub">Use o e-mail e a senha que você criou pelo convite da Totali.</p></div>' +
+          '<div><h2 class="login__titulo">Entrar</h2><p class="sub">Use o e-mail e a senha que você criou no convite.</p></div>' +
           '<div class="campo"><label class="campo__rotulo" for="email">E-mail</label><div class="input--icone">' + ic("mail") + '<input class="input" id="email" type="email" autocomplete="email" required inputmode="email" placeholder="voce@suaempresa.com.br"></div></div>' +
           '<div class="campo"><label class="campo__rotulo" for="senha">Senha</label><div class="input--icone">' + ic("key") + '<input class="input" id="senha" type="password" autocomplete="current-password" required><button type="button" class="acao" data-acao="mostrar">mostrar</button></div></div>' +
           '<p class="campo__erro" id="erroEntrar" hidden role="alert"></p>' +
@@ -438,60 +437,61 @@
       /* o que a Totali mandou para o cliente não está "em análise": só conta o que o cliente (ou a contabilidade anterior) enviou */
       var emAnalise = docsCache.filter(function (d) { return d.origem !== "equipe" && (d.situacao === "enviado" || d.situacao === "analise"); }).length;
       var itensCheck = check ? check.itens : [], feitosCheck = itensCheck.filter(function (i) { return i.feito; }).length;
-      var sistemasLib = CATALOGO.visiveis().filter(function (s) { return liberado(s.id); });
 
-      /* "Hoje": um passo só, o mais urgente (goal-gradient) */
-      var hoje = "";
-      if (pendencias.length) hoje = cardHoje("alert", "erro", "Um documento precisa de correção", pendencias[0].nome + ": " + (pendencias[0].revisao && pendencias[0].revisao.motivo || ""), "#/documentos", "Reenviar agora");
-      else if (naoLidas) hoje = cardHoje("chat", "gold", U.plural(naoLidas, "Sua equipe respondeu", "Você tem " + naoLidas + " mensagens novas"), "Toque para ler e responder.", "#/chat", "Abrir o chat");
-      else if (rEnvio && rEnvio.atrasados.length) hoje = cardHoje("list-check", "erro", "Envio do mês: " + U.plural(rEnvio.atrasados.length, "1 item passou do prazo", rEnvio.atrasados.length + " itens passaram do prazo"), rEnvio.atrasados[0].texto + ". Anexe pelo portal e o item fecha sozinho.", "#/checklist", "Abrir envio do mês");
-      else if (rEnvio && rEnvio.proximos.length) hoje = cardHoje("list-check", "info", "Envio do mês: " + rEnvio.proximos[0].texto, (function (d) { return d === 0 ? "Vence hoje." : d === 1 ? "Vence amanhã." : "Vence em " + d + " dias."; })(global.Envio.diasParaPrazo(rEnvio.proximos[0], check.anoMes)) + " Anexe pelo portal e o item fecha sozinho.", "#/checklist", "Abrir envio do mês");
-      else hoje = cardHoje("check-circle", "ok", "Tudo em dia por aqui", "Nada pendente para você hoje. Que tal uma aula rápida no Academy?", "#/sistemas/academy", "Ver o Academy");
+      /* "Hoje" (revisão de interface, 13/11/2026): um cartão só. O passo mais urgente fica em destaque, com o
+         único botão principal da tela; até mais dois aparecem embaixo, como linhas. Antes cada pendência era um
+         cartão do mesmo peso, empilhado (Hoje + Cadastro + Lista de documentos).
+         Ordem: correção (10) > mensagem (20) > entrada (30) > cadastro (35) > vencimento (40) > envio (50/60).
+         Os módulos entram com { tarefa: { ordem, icone, tom, titulo, texto, href, cta } }. */
+      var ganchos = (global.InicioExtras || []).map(function (f) { try { return f({ docs: docsCache, check: check, msgs: msgs, pendencias: pendencias, naoLidas: naoLidas }) || null; } catch (e) { console.warn(e); return null; } });
+      var tarefas = [];
+      if (pendencias.length) tarefas.push({ ordem: 10, icone: "alert", tom: "erro", titulo: U.plural(pendencias.length, "Um documento precisa de correção", pendencias.length + " documentos precisam de correção"), texto: pendencias[0].nome + ": " + (pendencias[0].revisao && pendencias[0].revisao.motivo || ""), href: "#/documentos", cta: "Reenviar agora" });
+      if (naoLidas) tarefas.push({ ordem: 20, icone: "chat", tom: "gold", titulo: U.plural(naoLidas, "Sua equipe respondeu", "Você tem " + naoLidas + " mensagens novas"), texto: "Toque para ler e responder.", href: "#/chat", cta: "Abrir o chat" });
+      if (rEnvio && rEnvio.atrasados.length) tarefas.push({ ordem: 50, icone: "list-check", tom: "erro", titulo: "Envio do mês: " + U.plural(rEnvio.atrasados.length, "1 item passou do prazo", rEnvio.atrasados.length + " itens passaram do prazo"), texto: rEnvio.atrasados[0].texto + ". Anexe e o item fecha sozinho.", href: "#/checklist", cta: "Abrir envio do mês" });
+      else if (rEnvio && rEnvio.proximos.length) tarefas.push({ ordem: 60, icone: "list-check", tom: "info", titulo: "Envio do mês: " + rEnvio.proximos[0].texto, texto: (function (d) { return d === 0 ? "Vence hoje." : d === 1 ? "Vence amanhã." : "Vence em " + d + " dias."; })(global.Envio.diasParaPrazo(rEnvio.proximos[0], check.anoMes)) + " Anexe e o item fecha sozinho.", href: "#/checklist", cta: "Abrir envio do mês" });
+      ganchos.forEach(function (g) { if (g && g.tarefa) [].concat(g.tarefa).forEach(function (t) { if (t) tarefas.push(t); }); });
+      tarefas.sort(function (a, b) { return a.ordem - b.ordem; });
 
-      var ganchos = (global.InicioExtras || []).map(function (f) { try { return f({ docs: docsCache, check: check, msgs: msgs, pendencias: pendencias, naoLidas: naoLidas }) || ""; } catch (e) { console.warn(e); return ""; } });
-      if (ganchos.some(function (g) { return g && g.hoje; }) && !pendencias.length && !naoLidas) hoje = ganchos.filter(function (g) { return g.hoje; })[0].hoje;
+      var prox = global.Agenda ? global.Agenda.proximas(empresa, 30).filter(function (x) { return x.em >= 0; })[0] : null;
+      var ultimas = msgs.slice(-2);
+      var secundarios = ganchos.map(function (g) { return g && g.vencimentos ? g.vencimentos : ""; }).join("") +
+        /* só a conversa mais recente: o chat inteiro está a um toque (atalho, sino, barra de baixo) */
+        '<div class="card"><div class="card__cab"><h2>Conversa com a Totali</h2><a class="btn btn--xs btn--fantasma" href="#/chat">Abrir</a></div><div class="lista" style="padding-top:6px">' + (ultimas.map(function (m) { return '<a class="lista__item" href="#/chat">' + UI.avatar(m.autor.nome, m.autor.lado === "equipe" ? "avatar--gold avatar--sm" : "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(m.autor.lado === "equipe" ? m.autor.nome + " · Totali" : "Você") + '</span><span class="lista__sub">' + U.esc(U.previaMsg(m)) + '</span></div><span class="lista__meta">' + U.relativo(m.em) + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma mensagem ainda.</div>') + "</div></div>" +
+        ganchos.map(function (g) { return g && g.coluna ? g.coluna : ""; }).join("") +
+        ganchos.map(function (g) { return g && g.lado ? g.lado : ""; }).join("");
+
       var html = '<div class="pagina">' +
-        '<div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(empresa.fantasia) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + "</h1><p>" + (function (d) { return d < 1 ? "Bem-vindo à Totali! Aqui está o que importa hoje." : "Cliente da Totali há " + U.plural(d, "1 dia", U.num(d) + " dias") + ". Aqui está o que importa hoje."; })(U.diasEntre(empresa.criadaEm, Date.now())) + "</p></div></div>" +
-        hoje +
-        ganchos.map(function (g) { return g && g.topo ? g.topo : ""; }).join("") +
-        /* 4 ações primárias */
-        '<div class="grade grade--4">' +
-          acao("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
-          acao("#/documentos", "folder", "Arquivos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
-          (liberado("checklist") ? acao("#/checklist", "list-check", "Envio do mês", itensCheck.length ? feitosCheck + " de " + itensCheck.length + " enviados" : "nada a enviar agora") : acao("#/cofre", "key", "Cofre", "senhas protegidas")) +
-          acao("#/sistemas", "grid", "Sistemas", sistemasLib.length ? U.plural(sistemasLib.length, "1 liberado", sistemasLib.length + " liberados") : "conheça") +
+        '<div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(empresa.fantasia) + "</div><h1>" + U.saudacao() + ", " + U.esc(U.primeiroNome(sessao.nome)) + "</h1></div></div>" +
+        cardHoje(tarefas) +
+        /* o que o cliente usa toda semana: quatro atalhos, um toque cada */
+        '<div class="grade grade--4 atalhos">' +
+          atalho("#/chat", "chat", "Chat", naoLidas ? U.plural(naoLidas, "1 nova", naoLidas + " novas") : "Fale com a equipe", naoLidas) +
+          atalho("#/checklist", "list-check", "Envio do mês", itensCheck.length ? feitosCheck + " de " + itensCheck.length + " enviados" : "nada a enviar agora") +
+          atalho("#/documentos", "folder", "Arquivos", pendencias.length ? U.plural(pendencias.length, "1 para corrigir", pendencias.length + " para corrigir") : emAnalise ? U.plural(emAnalise, "1 em análise", emAnalise + " em análise") : docsCache.length ? U.plural(aprovados, "1 aprovado", aprovados + " aprovados") : "Enviar documentos", pendencias.length) +
+          atalho("#/agenda", "calendar", "Agenda", prox ? prox.o.nome.split(" · ")[0] + (prox.em === 0 ? " hoje" : " dia " + new Date(prox.vence).getDate()) : "sem vencimentos") +
         "</div>" +
-        '<div class="grade grade--lado">' +
-          '<div class="pilha">' +
-            ganchos.map(function (g) { return g && g.colunaTopo && g.hoje !== hoje ? g.colunaTopo : ""; }).join("") +
-            /* Envio do mês */
-            (liberado("checklist") && itensCheck.length ? '<div class="card"><div class="card__cab"><h2>Envio de ' + U.esc(nomeMes(U.anoMes(Date.now()))) + '</h2><a class="btn btn--xs btn--contorno" href="#/checklist">Abrir</a></div><div class="card__corpo" style="padding-top:10px"><div class="linha linha--entre f-13 txt-2"><span>' + feitosCheck + " de " + U.plural(itensCheck.length, "1 item enviado", itensCheck.length + " itens enviados") + "</span>" + (check && check.concluidoEm ? UI.badge("Mês em dia", "ok", "check") : "<span>" + U.plural(itensCheck.length - feitosCheck, "falta 1", "faltam " + (itensCheck.length - feitosCheck)) + "</span>") + "</div>" + UI.barra(U.pct(feitosCheck, itensCheck.length || 1), feitosCheck === itensCheck.length ? "barra--ok" : (U.pct(feitosCheck, itensCheck.length || 1) >= 70 ? "barra--gold" : "")) + "</div></div>" : "") +
-            ganchos.map(function (g) { return g && g.coluna ? g.coluna : ""; }).join("") +
-            /* Últimas mensagens */
-            '<div class="card"><div class="card__cab"><h2>Conversa com a Totali</h2><a class="btn btn--xs btn--contorno" href="#/chat">Abrir chat</a></div><div class="lista" style="padding-top:6px">' + (msgs.slice(-3).map(function (m) { return '<a class="lista__item" href="#/chat">' + UI.avatar(m.autor.nome, m.autor.lado === "equipe" ? "avatar--gold avatar--sm" : "avatar--sm") + '<div class="lista__texto"><span class="lista__titulo">' + U.esc(m.autor.lado === "equipe" ? m.autor.nome + " · Totali" : "Você") + '</span><span class="lista__sub">' + U.esc(U.previaMsg(m)) + '</span></div><span class="lista__meta">' + U.relativo(m.em) + "</span></a>"; }).join("") || '<div class="card__corpo txt-2 f-13">Nenhuma mensagem ainda. Sua equipe está a uma mensagem de distância.</div>') + "</div></div>" +
-          "</div>" +
-          '<div class="pilha">' +
-            /* Minha equipe (reciprocidade, rosto conhecido) */
-            cardEquipe() +
-            /* Patrimônio (endowment) */
-            '<div class="card"><div class="card__corpo"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Sua empresa na Totali</div><div class="grade grade--2 mt-8" style="gap:8px">' + kpiMini(docsCache.length, docsCache.length === 1 ? "documento guardado" : "documentos guardados") + kpiMini(aprovados, aprovados === 1 ? "aprovado pela equipe" : "aprovados pela equipe") + kpiMini(sistemasLib.length, sistemasLib.length === 1 ? "sistema ativo" : "sistemas ativos") + (function (d) { return kpiMini(d, d === 1 ? "dia com a Totali" : "dias com a Totali"); })(U.diasEntre(empresa.criadaEm, Date.now())) + "</div></div></div>" +
-            ganchos.map(function (g) { return g && g.lado ? g.lado : ""; }).join("") +
-            /* Banners dos sistemas ainda não contratados (rotativo) */
-            '<div id="bannerInicio"></div>' +
-          "</div>" +
-        "</div></div>";
+        ganchos.map(function (g) { return g && g.topo ? g.topo : ""; }).join("") +
+        '<div class="grade grade--2">' + secundarios + "</div>" +
+        /* no computador o banner já fica fixo na barra lateral; no celular a barra vira gaveta, então ele aparece aqui, no fim */
+        '<div id="bannerInicio" class="so-mobile"></div>' +
+        "</div>";
       Shell.render(html); Vitrine.ligar(Shell.view());
       Banners.montar(UI.$("#bannerInicio"), campanhas);
       (global.InicioExtras || []).forEach(function (f) { if (f.ligar) f.ligar(Shell.view()); });
       if (global.Tour) global.Tour.talvez("portal-inicio");
     });
-    function cardHoje(icone, tipo, titulo, texto, href, cta) {
-      return '<a class="card card--clicavel card--hoje entra" href="' + href + '" style="text-decoration:none;color:inherit;--tom:var(--' + ({ erro: "danger", gold: "gold", info: "info", ok: "success" }[tipo]) + ');border-left:4px solid var(--' + ({ erro: "danger", gold: "gold", info: "info", ok: "success" }[tipo]) + ')"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--' + ({ erro: "danger-soft", gold: "gold-soft", info: "info-soft", ok: "success-soft" }[tipo]) + ');color:var(--' + ({ erro: "danger", gold: "gold-text", info: "info", ok: "success" }[tipo]) + ')">' + ic(icone) + '</span><div style="flex:1;min-width:0"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">' + U.esc(titulo) + '</div><div class="f-13 txt-2">' + U.esc(texto) + '</div></div><span class="btn btn--sm btn--primario so-desktop">' + U.esc(cta) + "</span>" + ic("chevron-right", "so-mobile") + "</div></a>";
+    var CORES = { erro: ["danger", "danger-soft", "danger"], gold: ["gold", "gold-soft", "gold-text"], info: ["info", "info-soft", "info"], ok: ["success", "success-soft", "success"], aviso: ["warning", "warning-soft", "warning"] };
+    function cardHoje(lista) {
+      if (!lista.length) lista = [{ icone: "check-circle", tom: "ok", titulo: "Tudo em dia por aqui", texto: "Nada pendente para você hoje.", href: "#/sistemas/academy", cta: "Ver o Academy", calmo: true }];
+      var t = lista[0], c = CORES[t.tom] || CORES.info, resto = lista.slice(1, 3);
+      return '<div class="card card--hoje entra" style="--tom:var(--' + c[0] + ');border-left:4px solid var(--' + c[0] + ')">' +
+        '<a class="hoje__principal card__corpo" href="' + t.href + '"><span class="selo-sistema" style="background:var(--' + c[1] + ');color:var(--' + c[2] + ')">' + ic(t.icone) + '</span><div style="flex:1;min-width:0"><div class="hoje__kicker">Hoje</div><div class="f-15 f-800">' + U.esc(t.titulo) + '</div><div class="f-13 txt-2">' + U.esc(t.texto) + '</div></div><span class="btn btn--sm ' + (t.calmo ? "btn--contorno" : "btn--primario") + ' so-desktop">' + U.esc(t.cta) + "</span>" + ic("chevron-right", "so-mobile") + "</a>" +
+        (resto.length ? '<div class="hoje__resto">' + resto.map(function (x) { var cx = CORES[x.tom] || CORES.info; return '<a class="hoje__linha" href="' + x.href + '"><span class="hoje__ponto" style="background:var(--' + cx[0] + ')"></span><span class="hoje__linha-texto">' + U.esc(x.titulo) + '</span><span class="hoje__linha-cta">' + U.esc(x.cta) + ic("chevron-right", "ic--sm") + "</span></a>"; }).join("") + "</div>" : "") +
+        "</div>";
     }
-    function acao(href, icone, rotulo, sub, badge) {
-      return '<a class="card card--clicavel acao-card entra" href="' + href + '" style="text-decoration:none;color:inherit"><div class="card__corpo" style="display:flex;flex-direction:column;gap:8px;position:relative"><span class="selo-sistema" style="background:var(--primary-soft);color:var(--primary);width:40px;height:40px">' + ic(icone) + "</span>" + (badge ? '<span class="badge badge--erro" style="position:absolute;right:12px;top:12px">' + badge + "</span>" : "") + '<div><div class="f-800">' + rotulo + '</div><div class="f-12 txt-2">' + U.esc(sub) + "</div></div></div></a>";
+    function atalho(href, icone, rotulo, sub, badge) {
+      return '<a class="atalho entra" href="' + href + '"><span class="atalho__icone">' + ic(icone) + '</span><span class="atalho__texto"><b>' + rotulo + "</b><span>" + U.esc(sub) + "</span></span>" + (badge ? '<span class="badge badge--erro atalho__badge">' + badge + "</span>" : "") + "</a>";
     }
-    function kpiMini(n, rotulo) { return '<div><div class="f-800" style="font-size:22px;font-variant-numeric:tabular-nums">' + U.num(n) + '</div><div class="f-12 txt-2">' + rotulo + "</div></div>"; }
   }
   var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   function nomeMes(anoMes) { var p = anoMes.split("-"); return MESES[Number(p[1]) - 1] + " de " + p[0]; }
@@ -520,15 +520,21 @@
       (lib ? "" : '<ul class="sistema__beneficios">' + s.beneficios.map(function (b) { return "<li>" + ic("check", "ic--sm") + U.esc(b) + "</li>"; }).join("") + "</ul>") +
       '<div class="sistema__acoes">' + (lib ? '<a class="btn btn--sm btn--primario" href="#/sistemas/' + s.id + '">' + ic(s.modo === "externo" ? "external" : "arrow-right") + "Abrir</a>" : '<a class="btn btn--sm btn--gold" href="#/sistemas/' + s.id + '">' + ic("eye") + (s.status === "breve" ? "Entrar na lista de espera" : "Ver como funciona") + "</a>") + (s.prova > 0 ? '<span class="sistema__uso">' + U.num(s.prova) + " clientes usam</span>" : "") + "</div></div>";
   }
+  /* "Conheça também" (revisão de interface, 13/11/2026): uma linha por sistema, botão de contorno. Antes cada um
+     era um cartão do mesmo tamanho dos contratados, com lista de benefícios e botão dourado; a prévia continua a um toque. */
+  function linhaSistema(s) {
+    return '<a class="sistema-linha" href="#/sistemas/' + s.id + '">' + CATALOGO.selo(s, "selo-sistema--sm") + '<div class="lista__texto"><b class="f-13">' + U.esc(s.nome) + (s.status === "breve" ? " " + UI.badge("Em breve", "info") : "") + '</b><span class="lista__sub">' + U.esc(s.tagline) + '</span></div><span class="btn btn--xs btn--contorno so-desktop">' + (s.status === "breve" ? "Lista de espera" : "Ver como funciona") + "</span>" + ic("chevron-right", "so-mobile") + "</a>";
+  }
   function telaSistemas() {
     Shell.titulo("Meus sistemas");
     var perfis = empresa.perfis || [];
     var todos = CATALOGO.visiveis().filter(function (s) { return liberado(s.id) || s.publico.indexOf("todos") > -1 || s.publico.some(function (p) { return perfis.indexOf(p) > -1; }); });
     var libs = todos.filter(function (s) { return liberado(s.id); }), outros = todos.filter(function (s) { return !liberado(s.id); });
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Ferramentas</div><h1>Meus sistemas</h1><p>Tudo o que a Totali disponibilizou para a sua empresa, num lugar só. Cada sistema abre com o acesso dele. Os demais você pode conhecer aqui.</p></div></div>' +
-      '<div id="bannerSistemas"></div>' +
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Ferramentas</div><h1>Meus sistemas</h1><p>Os sistemas liberados para a sua empresa. Cada um abre com o acesso dele.</p></div></div>' +
       (libs.length ? '<div class="grade grade--3">' + libs.map(function (s) { return cardSistema(s, true); }).join("") + "</div>" : UI.vazio("grid", "Nenhum sistema liberado ainda", "Sua equipe libera os sistemas conforme a contratação. Fale com a gente pelo chat.")) +
-      (outros.length ? '<h2 class="mt-8">Conheça também</h2><div class="grade grade--3">' + outros.map(function (s) { return cardSistema(s, false); }).join("") + "</div>" : "") +
+      (outros.length ? '<div class="card"><div class="card__cab"><h2>Conheça também</h2></div><div class="sistemas-outros">' + outros.map(linhaSistema).join("") + "</div></div>" : "") +
+      /* no computador o banner já está na barra lateral */
+      '<div id="bannerSistemas" class="so-mobile"></div>' +
       "</div>");
     Vitrine.campanhas().then(function (c) { Banners.montar(UI.$("#bannerSistemas"), c, true); });
   }
@@ -592,7 +598,8 @@
       var partes = anoMes.split("-");
       var ref = new Date(Number(partes[0]), Number(partes[1]) - 2, 1), mesRef = MESES[ref.getMonth()];
       var proxRef = new Date(Number(partes[0]), Number(partes[1]), 1), mesProx = MESES[proxRef.getMonth()];
-      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(nomeMes(anoMes)) + " · documentos de " + mesRef + '</div><h1>Envio do mês</h1><p>É o que a Totali precisa receber de você todo mês para fechar a contabilidade da empresa: extratos, notas, comprovantes. Toque em <b>Anexar</b> no item e envie o arquivo; o item fica marcado sozinho. A Totali confere e dá o aceite.</p></div>' +
+      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(nomeMes(anoMes)) + " · documentos de " + mesRef + '</div><h1>Envio do mês</h1><p>O que a Totali precisa receber este mês. Toque em <b>Anexar</b> e o item fica marcado sozinho.</p>' +
+          UI.maisInfo("<p>São os documentos para fechar a contabilidade do mês: extratos, notas, comprovantes. A Totali confere cada um e dá o aceite.</p><p>Já mandou por outro caminho (e-mail, WhatsApp)? Toque no item para marcar como enviado.</p><p><b>Tolerância de 48 h:</b> um atraso de um dia não tira o seu selo. Avisamos antes, e o mês só conta como atrasado depois de dois dias.</p>") + "</div>" +
         (meses.length > 1 ? '<div class="cabecalho__acoes"><select class="select" id="selMes" style="min-height:36px;width:auto" aria-label="Mês">' + meses.map(function (m) { return '<option value="' + m + '"' + (m === anoMes ? " selected" : "") + ">" + nomeMes(m) + "</option>"; }).join("") + "</select></div>" : "") + "</div>" +
         '<div class="grade grade--lado"><div class="pilha">' +
           (!c.itens.length ? UI.vazio("calendar", "Nada para enviar em " + nomeMes(anoMes).split(" de ")[0], anoMes <= mesEntrada ? "Os prazos deste mês venceram antes de a sua empresa entrar na Totali. O primeiro envio é em " + mesProx + ": a lista aparece aqui no dia 1." : "Neste mês não há documentos a enviar.") : "") +
@@ -604,7 +611,6 @@
           }).join("") + "</div>" +
         '</div><div class="pilha">' +
           '<div class="card"><div class="card__cab"><h2>Meses em dia</h2></div><div class="card__corpo" style="padding-top:10px"><div class="f-800" style="font-size:28px">' + emDia + ' <small class="f-13 txt-2">' + U.plural(emDia, "mês", "meses") + ' completo' + (emDia === 1 ? "" : "s") + '</small></div><div class="pilha mt-8" style="gap:4px">' + hist.slice(0, 6).map(function (h) { if (h.anoMes === anoMes) h = c; var f = h.itens.filter(function (x) { return x.feito; }).length; return '<a class="linha linha--entre f-13" href="#/checklist?mes=' + h.anoMes + '" style="text-decoration:none;color:inherit"><span>' + nomeMes(h.anoMes) + "</span>" + (h.concluidoEm ? UI.badge("em dia", "ok", "check") : UI.badge(f + "/" + h.itens.length, "aviso")) + "</a>"; }).join("") + "</div></div></div>" +
-          '<div class="aviso aviso--info">' + ic("info") + "<div><b>Tolerância de 48 h</b>Um atraso de um dia não tira o seu selo. Avisamos antes, e o mês só conta como atrasado depois de dois dias.</div></div>" +
         "</div></div></div>";
       var v = Shell.render(html);
       var selMes = UI.$("#selMes", v); if (selMes) selMes.addEventListener("change", function () { location.hash = "#/checklist?mes=" + this.value; });
@@ -650,19 +656,21 @@
       docsCache = docs;
       var meus = docs.filter(function (d) { return d.origem !== "anterior"; }), anteriores = docs.filter(function (d) { return d.origem === "anterior"; });
       var pend = docs.filter(function (d) { return d.situacao === "pendencia"; });
-      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Minha empresa</div><h1>Meus arquivos</h1><p>Tudo o que já foi enviado, por você ou pela sua contabilidade anterior, com a situação de cada um. Para saber o que ainda falta, use a Lista de documentos.</p></div><div class="cabecalho__acoes"><a class="btn btn--contorno btn--sm" href="#/cofre">' + ic("key") + 'Cofre de senhas</a></div></div>' +
-        (pend.length ? '<div class="aviso aviso--erro">' + ic("alert") + "<div><b>" + pend.length + " documento" + (pend.length > 1 ? "s precisam" : " precisa") + " de correção</b>Veja o motivo no card e reenvie.</div></div>" : "") +
+      var html = '<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Minha empresa</div><h1>Meus arquivos</h1><p>O que você, a Totali e a contabilidade anterior já enviaram, com a situação de cada um.</p>' +
+          UI.maisInfo("<ul><li>Toque em <b>Toque para enviar</b> e escolha o arquivo, ou tire uma foto pelo celular.</li><li>Diga o que é o documento na lista que abre.</li><li>A equipe confere e você vê o aceite aqui, com nome e hora.</li></ul>", "Como enviar") + '</div><div class="cabecalho__acoes"><a class="btn btn--fantasma btn--sm" href="#/cofre">' + ic("key") + 'Cofre de senhas</a></div></div>' +
+        (pend.length ? '<div class="aviso aviso--erro">' + ic("alert") + "<div><b>" + pend.length + " documento" + (pend.length > 1 ? "s precisam" : " precisa") + " de correção</b>O motivo está no arquivo, logo abaixo. Envie de novo.</div></div>" : "") +
         '<div class="abas" role="tablist"><button type="button" role="tab" aria-selected="' + (aba === "meus") + '" data-acao="aba" data-aba="meus">Meus documentos <span class="badge">' + meus.length + '</span></button><button type="button" role="tab" aria-selected="' + (aba === "anterior") + '" data-acao="aba" data-aba="anterior">Da contabilidade anterior <span class="badge">' + anteriores.length + "</span></button></div>" +
         (aba === "meus" ?
-          '<div class="grade grade--lado"><div class="pilha">' +
+          /* sem a coluna da Lista de documentos (entrada concluída), a lista ocupa a largura toda */
+          '<div class="' + (entradaConcluida() ? "pilha" : "grade grade--lado") + '"><div class="pilha">' +
             '<div class="solta" id="solta" tabindex="0" role="button" aria-label="Enviar documento">' + ic("upload") + "<b>Toque para enviar</b><span class=\"f-13\">ou arraste arquivos aqui · PDF, foto, XML, planilha · até 25 MB</span></div>" +
             '<input type="file" id="arqInput" multiple hidden><input type="file" id="camInput" accept="image/*" capture="environment" hidden>' +
             '<div class="linha so-mobile"><button type="button" class="btn btn--contorno btn--sm" data-acao="camera">' + ic("camera") + "Tirar foto do documento</button></div>" +
             (meus.length ? '<div class="pilha" style="gap:6px">' + meus.map(function (d) { return docHtml(d, true); }).join("") + "</div>" : UI.vazio("folder", "Nenhum documento seu ainda", "Toque em Enviar, escolha o arquivo ou tire uma foto.")) +
-          '</div><div class="pilha"><a class="card card--clicavel card--gold" href="#/entrada" style="text-decoration:none;color:inherit"><div class="card__corpo linha" style="flex-wrap:nowrap"><span class="selo-sistema" style="background:var(--gold);color:var(--gold-foreground)">' + ic("clipboard") + '</span><div class="lista__texto"><b>Lista de documentos</b><span class="lista__sub">O que a Totali ainda precisa de você, item por item, com ajuda em cada um.</span></div>' + ic("chevron-right") + '</div></a><div class="card"><div class="card__corpo pilha"><h3>Como enviar</h3><ul class="sistema__beneficios"><li>' + ic("check", "ic--sm") + 'Toque em "Toque para enviar" e escolha o arquivo, ou tire uma foto pelo celular.</li><li>' + ic("check", "ic--sm") + 'Diga o que é o documento na lista que abre.</li><li>' + ic("check", "ic--sm") + 'A equipe confere e você vê o aceite aqui, com nome e hora.</li></ul></div></div></div></div>'
+          '</div><div class="pilha">' + (entradaConcluida() ? "" : '<a class="card card--clicavel" href="#/entrada" style="text-decoration:none;color:inherit"><div class="card__corpo linha" style="flex-wrap:nowrap"><span class="selo-sistema" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("clipboard") + '</span><div class="lista__texto"><b>Lista de documentos</b><span class="lista__sub">O que a Totali ainda precisa de você.</span></div>' + ic("chevron-right") + "</div></a>") + "</div></div>"
         :
           '<div class="grade grade--lado"><div class="pilha">' + (anteriores.length ? '<div class="pilha" style="gap:6px">' + anteriores.map(function (d) { return docHtml(d, false); }).join("") + "</div>" : UI.vazio("inbox", "Nada chegou da contabilidade anterior ainda", "Quando a Totali mandar o link para eles e o primeiro arquivo chegar, ele aparece aqui, e você é avisado.")) +
-          '</div><div class="pilha"><div class="card"><div class="card__corpo pilha"><h3>Como funciona</h3><p class="f-13 txt-2">A Totali envia um link seguro para a sua contabilidade anterior. Eles enviam contrato, balanços, livros e folha sem precisar criar conta. Você não precisa cobrar ninguém: é obrigação profissional deles entregar, e a gente conduz a conversa.</p><a class="btn btn--sm btn--contorno" href="#/chat">' + ic("chat") + "Perguntar sobre a transição</a></div></div></div></div>") +
+          '</div><div class="pilha"><div class="card"><div class="card__corpo pilha"><h3>Como funciona</h3><p class="f-13 txt-2">A Totali pede os documentos direto à sua contabilidade anterior, por um link seguro. Você não precisa cobrar ninguém: a gente conduz.</p><a class="btn btn--sm btn--contorno" href="#/chat">' + ic("chat") + "Perguntar sobre a transição</a></div></div></div></div>") +
         "</div>";
       var v = Shell.render(html);
       var solta = UI.$("#solta", v), inp = UI.$("#arqInput", v), cam = UI.$("#camInput", v);
@@ -735,11 +743,12 @@
     Dados.credenciais(empresa.id).then(function (creds) {
       credCache = creds;
       var pronto = Cripto.configurada || Dados.ehDemo();
-      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Segurança</div><h1>Cofre de senhas</h1><p>Guarde aqui as senhas que a Totali precisa para trabalhar pela sua empresa (certificado, Simples, SEFAZ). Elas são embaralhadas <b>no seu aparelho</b> antes de sair: ninguém no caminho consegue ler, e cada vez que alguém abre uma senha, você ou a equipe, fica registrado com nome e hora. A Totali também guarda aqui as senhas que cria para a sua empresa.</p></div><div class="cabecalho__acoes"><button type="button" class="btn btn--primario" data-acao="nova"' + (pronto ? "" : " disabled") + ">" + ic("plus") + "Guardar senha</button></div></div>" +
+      Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">Segurança</div><h1>Cofre de senhas</h1><p>As senhas que a Totali usa pela sua empresa (certificado, Simples, SEFAZ), guardadas trancadas.</p>' +
+          UI.maisInfo("<ul><li>A senha é embaralhada <b>no seu aparelho</b> antes de sair: ninguém no caminho consegue ler.</li><li>Toda vez que alguém abre uma senha, você ou a equipe, fica registrado com nome e hora.</li><li>Ao tocar em Ver senha, ela aparece só nesta tela e some em 45 segundos ou quando você troca de janela.</li><li>A Totali também guarda aqui as senhas que cria para a sua empresa.</li><li>Prefira perfis de consulta, que não movimentam dinheiro.</li></ul>", "Como protegemos") + '</div><div class="cabecalho__acoes"><button type="button" class="btn btn--primario" data-acao="nova"' + (pronto ? "" : " disabled") + ">" + ic("plus") + "Guardar senha</button></div></div>" +
         (pronto ? "" : '<div class="aviso aviso--aviso">' + ic("alert") + "<div><b>Canal seguro em configuração</b>" + U.esc(Cripto.motivo()) + "</div></div>") +
         (Dados.ehDemo() && !Cripto.configurada ? '<div class="aviso aviso--info">' + ic("info") + "<div><b>Modo demonstração</b>Sem chave pública configurada, as senhas ficam apenas neste navegador, marcadas como demonstração.</div></div>" : "") +
-        '<div class="grade grade--lado"><div class="pilha">' + (creds.length ? '<div class="pilha" style="gap:6px">' + creds.map(function (c) { return '<div class="doc entra"><span class="doc__icone" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("lock") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(c.rotulo) + '</div><div class="doc__meta">' + (c.usuario ? "usuário: " + U.esc(c.usuario) + " · " : "") + "guardada " + (c.por ? "por " + U.esc(c.por) + " " : "") + U.relativo(c.em) + '</div><div class="doc__meta senha-campo" id="sen-' + c.id + '">••••••••••</div></div><div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + c.id + '">' + ic("eye", "ic--sm") + 'Ver senha</button><button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-id="' + c.id + '" aria-label="Remover">' + ic("trash", "ic--sm") + "</button></div></div>"; }).join("") + "</div>" : UI.vazio("key", "Nenhuma senha guardada", "Certificado, Simples Nacional, SEFAZ… guarde aqui em vez de mandar por WhatsApp.")) +
-        '</div><div class="pilha"><div class="card"><div class="card__corpo pilha"><h3>' + ic("shield") + ' Como protegemos</h3><ul class="sistema__beneficios"><li>' + ic("check", "ic--sm") + "Cifrado no seu aparelho com a chave pública da Totali</li><li>" + ic("check", "ic--sm") + "Só a chave privada, guardada no cofre do servidor, abre</li><li>" + ic("check", "ic--sm") + "Cada abertura pela equipe fica registrada</li><li>" + ic("check", "ic--sm") + "Para ver, o servidor abre só para esta tela; ela some em 45 s ou ao trocar de janela, e toda abertura fica registrada</li><li>" + ic("check", "ic--sm") + "Prefira perfis de consulta, que não movimentam dinheiro</li></ul></div></div></div></div></div>");
+        '<div class="pilha"><div class="pilha">' + (creds.length ? '<div class="pilha" style="gap:6px">' + creds.map(function (c) { return '<div class="doc entra"><span class="doc__icone" style="background:var(--gold-soft);color:var(--gold-text)">' + ic("lock") + '</span><div style="flex:1;min-width:0"><div class="doc__nome">' + U.esc(c.rotulo) + '</div><div class="doc__meta">' + (c.usuario ? "usuário: " + U.esc(c.usuario) + " · " : "") + "guardada " + (c.por ? "por " + U.esc(c.por) + " " : "") + U.relativo(c.em) + '</div><div class="doc__meta senha-campo" id="sen-' + c.id + '">••••••••••</div></div><div class="linha" style="gap:4px;flex-wrap:nowrap"><button type="button" class="btn btn--xs btn--contorno" data-acao="ver" data-id="' + c.id + '">' + ic("eye", "ic--sm") + 'Ver senha</button><button type="button" class="btn btn--xs btn--fantasma" data-acao="remover" data-id="' + c.id + '" aria-label="Remover">' + ic("trash", "ic--sm") + "</button></div></div>"; }).join("") + "</div>" : UI.vazio("key", "Nenhuma senha guardada", "Certificado, Simples Nacional, SEFAZ… guarde aqui em vez de mandar por WhatsApp.")) +
+        '</div></div></div>');
       UI.delegar(Shell.view(), {
         nova: function () { global.Cofre.guardar({ empresaId: empresa.id, sessao: sessao, lado: "cliente", aoSalvar: function () { credCache = null; telaCofre(); } }); },
         ver: function (b) { global.Cofre.ver(b, empresa.id, b.dataset.id, sessao, UI.$("#sen-" + b.dataset.id, Shell.view())); },

@@ -27,9 +27,10 @@
     var grupos = estado.nav.map(function (g) {
       var itens = g.itens.filter(function (i) { return !i.oculto; });
       if (!itens.length) return "";
-      return '<div class="sidebar__grupo">' + U.esc(g.grupo) + "</div>" + itens.map(function (i) {
+      /* grupo sem título = os itens do dia a dia, logo abaixo do logo; grupo secundário = letra menor, mais apagada */
+      return (g.grupo ? '<div class="sidebar__grupo">' + U.esc(g.grupo) + "</div>" : '<div class="sidebar__grupo sidebar__grupo--vazio" aria-hidden="true"></div>') + itens.map(function (i) {
         var b = estado.badges[i.href];
-        return '<a class="sidebar__item" href="' + i.href + '" title="' + U.esc(i.rotulo) + '">' + ic(i.icone) + "<span>" + U.esc(i.rotulo) + "</span>" + (i.sensivel ? ic("lock", "cadeado") : "") + (b ? '<span class="sidebar__badge">' + (b > 99 ? "99+" : b) + "</span>" : "") + "</a>";
+        return '<a class="sidebar__item' + (g.secundario ? " sidebar__item--sec" : "") + '" href="' + i.href + '" title="' + U.esc(i.rotulo) + '">' + ic(i.icone) + "<span>" + U.esc(i.rotulo) + "</span>" + (i.sensivel ? ic("lock", "cadeado") : "") + (b ? '<span class="sidebar__badge">' + (b > 99 ? "99+" : b) + "</span>" : "") + "</a>";
       }).join("");
     }).join("");
     return '<aside class="sidebar"' + (estado.mini ? " data-mini" : "") + '>' +

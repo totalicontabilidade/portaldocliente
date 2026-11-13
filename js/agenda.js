@@ -18,7 +18,7 @@
   var U = global.U, UI = global.UI, ic = global.ic, Dados = global.Dados, Shell = global.Shell;
 
   var PADRAO = [
-    { id: "das", nome: "DAS · Simples Nacional", dia: 20, regimes: ["Simples Nacional", "MEI"], desc: "Guia única do Simples. A Totali envia pelo portal até o dia 15." },
+    { id: "das", nome: "DAS · Simples Nacional", dia: 20, regimes: ["Simples Nacional", "MEI"], desc: "Guia única do Simples. A Totali manda a guia até o dia 15." },
     { id: "fgts", nome: "FGTS Digital", dia: 20, regimes: ["*"], soComFuncionarios: true, desc: "Depósito do FGTS dos funcionários." },
     { id: "inss", nome: "INSS / DCTFWeb", dia: 20, regimes: ["Lucro Presumido", "Lucro Real"], soComFuncionarios: true, desc: "Contribuição previdenciária (DARF da DCTFWeb)." },
     { id: "esocial-folha", nome: "eSocial · folha", dia: 15, regimes: ["*"], soComFuncionarios: true, desc: "Fechamento da folha do mês anterior. Envie alterações até o dia 5." },
@@ -62,10 +62,10 @@
     if (o.id === "salarios") return null;
     return { href: "#/documentos?grupo=mensal&item=impostos", rotulo: "Enviar comprovante" };
   }
-  function itemHtml(x) {
+  function itemHtml(x, curto) {
     var tom = x.em < 0 ? "erro" : x.em <= 3 ? "aviso" : x.em <= 7 ? "gold" : "";
     var rot = x.em < 0 ? "venceu há " + (-x.em) + "d" : x.em === 0 ? "vence hoje" : x.em === 1 ? "vence amanhã" : "vence em " + x.em + " dias";
-    return '<div class="lista__item agenda-item" style="min-height:0;padding:10px 16px"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--' + (tom === "erro" ? "danger" : tom === "aviso" ? "warning" : tom === "gold" ? "gold" : "border") + ')">' + new Date(x.vence).getDate() + '</div><div class="lista__texto"><span class="lista__titulo">' + U.esc(x.o.nome) + '</span><span class="lista__sub">' + U.esc(x.o.desc) + "</span></div>" + UI.badge(rot, tom === "gold" ? "gold" : tom, x.em <= 3 ? "clock" : "") + "</div>";
+    return '<div class="lista__item agenda-item" style="min-height:0;padding:10px 16px"><div class="dia__d" style="width:40px;height:40px;font-size:12px;border-color:var(--' + (tom === "erro" ? "danger" : tom === "aviso" ? "warning" : tom === "gold" ? "gold" : "border") + ')">' + new Date(x.vence).getDate() + '</div><div class="lista__texto"><span class="lista__titulo">' + U.esc(x.o.nome) + '</span>' + (curto ? "" : '<span class="lista__sub">' + U.esc(x.o.desc) + "</span>") + "</div>" + UI.badge(rot, tom === "gold" ? "gold" : tom, x.em <= 3 ? "clock" : "") + "</div>";
   }
   function itemComAcao(x) {
     var a = acaoDe(x.o), h = itemHtml(x);
@@ -76,7 +76,7 @@
     var e = global.Portal.empresa; Shell.titulo("Agenda");
     var lista = proximas(e, 60);
     var porMes = U.agrupar(lista, function (x) { return U.anoMes(x.vence); });
-    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(e.regime) + "</div><h1>Agenda de obrigações</h1><p>Os vencimentos da sua empresa nos próximos 60 dias. A Totali cuida da apuração; você acompanha e paga em dia.</p></div></div>" +
+    Shell.render('<div class="pagina"><div class="cabecalho"><div><div class="cabecalho__kicker">' + U.esc(e.regime) + "</div><h1>Agenda de obrigações</h1><p>Vencimentos dos próximos 60 dias. A Totali calcula; você acompanha e paga.</p></div></div>" +
       Object.keys(porMes).map(function (am) { var p = am.split("-"); return '<div class="card"><div class="card__cab"><h2>' + ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][Number(p[1]) - 1] + " de " + p[0] + '</h2></div><div class="lista" style="padding-top:6px">' + porMes[am].map(itemComAcao).join("") + "</div></div>"; }).join("") +
       '<div class="aviso aviso--info">' + ic("info") + "<div><b>Datas de referência.</b>Alguns prazos mudam por município ou por decisão do governo. Quando isso acontecer, avisamos pelo chat.</div></div></div>");
   }
@@ -85,9 +85,10 @@
     var e = global.Portal.empresa, lista = proximas(e, 30);
     if (!lista.length) return null;
     var urgente = lista.filter(function (x) { return x.em >= 0 && x.em <= 3; })[0];
+    /* no Início: o vencimento perto vira tarefa do "Hoje"; a lista mostra só os 3 próximos, sem a explicação (ela fica na Agenda) */
     return {
-      hoje: urgente ? '<a class="card card--clicavel card--hoje entra" href="#/agenda" style="text-decoration:none;color:inherit;--tom:var(--warning);border-left:4px solid var(--warning)"><div class="card__corpo" style="display:flex;gap:14px;align-items:center"><span class="selo-sistema" style="background:var(--warning-soft);color:var(--warning)">' + ic("calendar") + '</span><div style="flex:1;min-width:0"><div class="f-12 f-800 txt-2" style="letter-spacing:.08em;text-transform:uppercase">Hoje</div><div class="f-15 f-800">' + U.esc(urgente.o.nome) + " " + (urgente.em === 0 ? "vence hoje" : urgente.em === 1 ? "vence amanhã" : "vence em " + urgente.em + " dias") + '</div><div class="f-13 txt-2">' + U.esc(urgente.o.desc) + '</div></div><span class="btn btn--sm btn--primario so-desktop">Ver agenda</span>' + ic("chevron-right", "so-mobile") + "</div></a>" : null,
-      coluna: '<div class="card"><div class="card__cab"><h2>Próximos vencimentos</h2><a class="btn btn--xs btn--contorno" href="#/agenda">Agenda</a></div><div class="lista" style="padding-top:6px">' + lista.slice(0, 4).map(itemHtml).join("") + "</div></div>"
+      tarefa: urgente ? { ordem: 40, icone: "calendar", tom: "aviso", titulo: urgente.o.nome + " " + (urgente.em === 0 ? "vence hoje" : urgente.em === 1 ? "vence amanhã" : "vence em " + urgente.em + " dias"), texto: urgente.o.desc, href: "#/agenda", cta: "Ver agenda" } : null,
+      vencimentos: '<div class="card"><div class="card__cab"><h2>Próximos vencimentos</h2><a class="btn btn--xs btn--fantasma" href="#/agenda">Agenda</a></div><div class="lista" style="padding-top:6px">' + lista.slice(0, 3).map(function (x) { return itemHtml(x, true); }).join("") + "</div></div>"
     };
   });
   global.TelasPortal = global.TelasPortal || {}; global.TelasPortal.agenda = telaAgenda;

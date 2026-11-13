@@ -165,6 +165,11 @@
     badge: function (texto, tipo, icone) {
       return '<span class="badge' + (tipo ? " badge--" + tipo : "") + '">' + (icone ? ic(icone) : "") + U.esc(texto) + "</span>";
     },
+    /* Explicação recolhida embaixo do título da tela: a abertura fica com uma linha só e o
+       "como funciona" aparece para quem tocar (revisão de interface, 13/11/2026). html já escapado. */
+    maisInfo: function (html, rotulo) {
+      return '<details class="cabecalho__mais"><summary>' + ic("info", "ic--sm") + U.esc(rotulo || "Como funciona?") + '</summary><div class="cabecalho__mais-corpo">' + html + "</div></details>";
+    },
     vazio: function (icone, titulo, texto, acaoHtml) {
       return '<div class="vazio">' + ic(icone || "inbox") + "<b>" + U.esc(titulo) + "</b>" + (texto ? "<span>" + U.esc(texto) + "</span>" : "") + (acaoHtml || "") + "</div>";
     },
