@@ -149,10 +149,12 @@
         { menu: true }
       ],
       destaque: destaqueSidebar(),
+      aoSino: function () { if (global.Central) global.Central.abrir(); },
       aoNavegar: function () {}
     });
     Uso.iniciar(sessao, empresa.id);
     atualizarBadges();
+    if (global.Central) global.Central.iniciar();
     if (global.Notificacoes) global.Notificacoes.iniciar({ empresaId: empresa.id, uid: sessao.uid, lado: "cliente", empresa: empresa, envio: liberado("checklist") });
   }
 
@@ -292,7 +294,7 @@
     });
   }
 
-  function sair() { if (Banners._timer) clearInterval(Banners._timer); if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Uso.parar(); Dados.sair().then(function () { sessao = null; empresa = null; UI.titulo(TITULO, 0); location.hash = "#/entrar"; rotear(); }); }
+  function sair() { if (Banners._timer) clearInterval(Banners._timer); if (global.Central) global.Central.parar(); if (chatAtual) { chatAtual.destruir(); chatAtual = null; } Uso.parar(); Dados.sair().then(function () { sessao = null; empresa = null; UI.titulo(TITULO, 0); location.hash = "#/entrar"; rotear(); }); }
 
   /* ============================================================
      Vitrine (propaganda ética)

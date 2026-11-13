@@ -58,7 +58,7 @@
   }
   function topbarHtml() {
     var u = estado.usuario || {};
-    var bChat = estado.badges["#/chat"] || estado.badges["#/mensagens"] || 0;
+    var bChat = estado.badges["#/chat"] || estado.badges["#/mensagens"] || 0, bSino = estado.badges.sino || 0;
     return '<header class="topbar">' +
       '<button type="button" class="topbar__menu" data-acao="menu" aria-label="Abrir menu">' + ic("menu", "ic--lg") + "</button>" +
       '<div class="topbar__titulo" id="topbarTitulo">' + U.esc(estado.titulo) + "</div>" +
@@ -66,7 +66,10 @@
       '<div class="topbar__esp"></div>' +
       (estado.trocaEmpresa ? '<button type="button" class="topbar__empresa" data-acao="trocar-empresa" title="Trocar de empresa" aria-label="Empresa aberta: ' + U.esc(estado.org) + '. Trocar de empresa">' + ic("building", "ic--sm") + "<span>" + U.esc(estado.org) + "</span>" + ic("chevron-down", "ic--sm") + "</button>" : "") +
       '<button type="button" class="topbar__btn" data-acao="tema" aria-label="Alternar tema" title="Claro / escuro">' + ic(Tema.escuro() ? "sun" : "moon") + "</button>" +
-      '<a class="topbar__btn" href="' + (u.papel === "cliente" ? "#/chat" : "#/mensagens") + '" aria-label="Mensagens">' + ic("bell") + (bChat ? '<span class="pontinho">' + (bChat > 99 ? "99+" : bChat) + "</span>" : "") + "</a>" +
+      /* com aoSino (portal do cliente), o sino abre a central de notificações; sem ele (painel), leva às mensagens */
+      (estado.aoSino
+        ? '<button type="button" class="topbar__btn" data-acao="sino" aria-haspopup="dialog" aria-expanded="false" aria-label="Notificações' + (bSino ? ": " + bSino + (bSino === 1 ? " nova" : " novas") : "") + '" title="Notificações">' + ic("bell") + (bSino ? '<span class="pontinho">' + (bSino > 99 ? "99+" : bSino) + "</span>" : "") + "</button>"
+        : '<a class="topbar__btn" href="#/mensagens" aria-label="Mensagens">' + ic("bell") + (bChat ? '<span class="pontinho">' + (bChat > 99 ? "99+" : bChat) + "</span>" : "") + "</a>") +
       '<a class="topbar__avatar" href="#/perfil" aria-label="Perfil">' + UI.avatar(u.nome || "?", "avatar--sm " + (u.papel === "cliente" ? "" : "avatar--gold")) + "<span>" + U.esc(U.primeiroNome(u.nome)) + "</span></a>" +
       "</header>";
   }
@@ -110,6 +113,7 @@
         recolher: function () { estado.mini = !estado.mini; try { localStorage.setItem("totali-portal-mini", estado.mini ? "1" : "0"); } catch (e) {} UI.$$(".sidebar", raiz).forEach(function (s) { s.toggleAttribute("data-mini", estado.mini); }); },
         tema: function (b) { Tema.alternar(); b.innerHTML = ic(Tema.escuro() ? "sun" : "moon"); },
         busca: function () { if (estado.aoBuscar) estado.aoBuscar(); },
+        sino: function (b) { if (estado.aoSino) estado.aoSino(b); },
         "trocar-empresa": function () { if (estado.aoTrocarEmpresa) estado.aoTrocarEmpresa(); }
       };
       if (!raiz._cascaLigada) {
